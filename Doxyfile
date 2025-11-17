@@ -1,0 +1,14 @@
+PROJECT_NAME           = "Rtype"
+OUTPUT_DIRECTORY       = public/doxygen
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+INPUT                  = client server
+FILE_PATTERNS          = *.cpp *.hpp *.c *.h
+GENERATE_LATEX         = NO      # (optionnel)
+GENERATE_HTML          = YES
+GENERATE_TREEVIEW      = YES # required!
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_EXTRA_STYLESHEET  = doxygen-awesome-css/doxygen-awesome.css \
+                        doxygen-awesome-css/doxygen-awesome-sidebar-only.css
+HTML_COLORSTYLE        = LIGHT # required with Doxygen >= 1.9.5

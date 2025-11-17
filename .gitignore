@@ -31,3 +31,11 @@
 *.exe
 *.out
 *.app
+
+# Debug files
+r-type_client
+r-type_server
+
+# IDEs and editors
+.vscode/
+.idea/

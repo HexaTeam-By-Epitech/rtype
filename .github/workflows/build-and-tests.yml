@@ -18,7 +18,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh
 
       - name: Cache vcpkg
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: |
             $HOME/vcpkg/installed
@@ -30,7 +30,7 @@ jobs:
             vcpkg-${{ runner.os }}-
 
       - name: Cache CMake build (client)
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: build
           key: cmake-client-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','client/CMakeLists.txt') }}
@@ -51,8 +51,10 @@ jobs:
             -DBUILD_CLIENT=ON -DBUILD_SERVER=OFF \
             -DCMAKE_BUILD_TYPE=Debug
 
-      - name: Build client
-        run: cmake --build build --target r-type_client -- -j$(nproc)
+      - name: Build client and tests
+        run: |
+          cmake --build build --target r-type_client -- -j$(nproc)
+          cmake --build build --target client_tests -- -j$(nproc)
 
       - name: Run client tests
         run: ctest --test-dir build --output-on-failure -R client_tests -j 2
@@ -68,7 +70,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh
 
       - name: Cache vcpkg
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: |
             $HOME/vcpkg/installed
@@ -80,7 +82,7 @@ jobs:
             vcpkg-${{ runner.os }}-
 
       - name: Cache CMake build (server)
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: build
           key: cmake-server-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','server/CMakeLists.txt') }}
@@ -101,8 +103,10 @@ jobs:
             -DBUILD_CLIENT=OFF -DBUILD_SERVER=ON \
             -DCMAKE_BUILD_TYPE=Debug
 
-      - name: Build server
-        run: cmake --build build --target r-type_server -- -j$(nproc)
+      - name: Build server and tests
+        run: |
+          cmake --build build --target r-type_server -- -j$(nproc)
+          cmake --build build --target server_tests -- -j$(nproc)
 
       - name: Run server tests
         run: ctest --test-dir build --output-on-failure -R server_tests -j 2

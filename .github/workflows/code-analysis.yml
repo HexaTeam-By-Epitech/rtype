@@ -119,6 +119,91 @@ jobs:
           find "$GITHUB_WORKSPACE/.." -maxdepth 3 -type f -name '*.sarif' -print -exec cp -f {} artifacts/codeql/ \; || true
           ls -la artifacts/codeql || echo "no sarif files found"
 
+      - name: Summarize CodeQL SARIF results (human-readable)
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, glob, sys, os
+          files = glob.glob('artifacts/codeql/*.sarif')
+          if not files:
+              print('No SARIF files found in artifacts/codeql')
+              sys.exit(0)
+
+          summary = []
+          for f in files:
+              try:
+                  j = json.load(open(f))
+              except Exception as e:
+                  print('Failed to parse', f, e)
+                  continue
+              runs = j.get('runs', [])
+              for run in runs:
+                  results = run.get('results', [])
+                  for r in results:
+                      rid = r.get('ruleId', 'N/A')
+                      level = r.get('level', r.get('kind', ''))
+                      msg = r.get('message', {}).get('text', '')
+                      if not msg:
+                          msg = r.get('message', {}).get('markdown', '')
+                      msg = msg.strip().splitlines()[0] if msg else ''
+                      loc = '?'
+                      locs = r.get('locations', [])
+                      if locs:
+                          try:
+                              pl = locs[0]['physicalLocation']
+                              uri = pl.get('artifactLocation', {}).get('uri', '')
+                              start = pl.get('region', {}).get('startLine', '?')
+                              loc = f"{uri}:{start}"
+                          except Exception:
+                              loc = '?'
+                      summary.append((level, rid, loc, msg))
+
+          if not summary:
+              print('No results found in SARIF files')
+              sys.exit(0)
+
+          # Sort severity: errors first, then warnings, then others
+          order = {'error': 0, 'warning': 1, 'note': 2, 'information': 3, 'recommendation': 4, '': 5}
+          summary.sort(key=lambda x: (order.get(x[0].lower(), 9), x[1]))
+
+          out_path = 'artifacts/codeql/codeql-summary.txt'
+          os.makedirs(os.path.dirname(out_path), exist_ok=True)
+          with open(out_path, 'w') as outf:
+              outf.write('severity\trule\tlocation\tmessage\n')
+              for level, rid, loc, msg in summary:
+                  line = f"{level}\t{rid}\t{loc}\t{msg}"
+                  print(line)
+                  outf.write(line + '\n')
+          print('\nWrote summary to', out_path)
+          PY
+
+      - name: Prepare PR comment body
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          mkdir -p artifacts/codeql
+          echo "## CodeQL scan summary" > artifacts/codeql/comment-body.md
+          echo "" >> artifacts/codeql/comment-body.md
+          if [ -f artifacts/codeql/codeql-summary.txt ]; then
+            echo 'Top findings:' >> artifacts/codeql/comment-body.md
+            head -n 20 artifacts/codeql/codeql-summary.txt >> artifacts/codeql/comment-body.md
+          else
+            echo 'No findings or summary not available.' >> artifacts/codeql/comment-body.md
+          fi
+          echo "\n---\nFull report is attached as the workflow artifact 'codeql-sarif'." >> artifacts/codeql/comment-body.md
+
+      - name: Post CodeQL summary to PR
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-file: artifacts/codeql/comment-body.md
+
       - name: Upload CodeQL SARIF results
         if: always()
         uses: actions/upload-artifact@v4

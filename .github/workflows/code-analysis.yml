@@ -105,3 +105,23 @@ jobs:
 
       - name: Run CodeQL analysis
         uses: github/codeql-action/analyze@v3
+
+      - name: Gather CodeQL SARIF files (search common locations)
+        if: always()
+        run: |
+          set -eux
+          mkdir -p artifacts/codeql
+          echo "Searching for .sarif files under GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          find "$GITHUB_WORKSPACE" -maxdepth 4 -type f -name '*.sarif' -print -exec cp -f {} artifacts/codeql/ \; || true
+          echo "Searching for .sarif files under runner workspace"
+          find "$RUNNER_WORKSPACE" -maxdepth 4 -type f -name '*.sarif' -print -exec cp -f {} artifacts/codeql/ \; || true
+          echo "Searching parent directories for results/*.sarif"
+          find "$GITHUB_WORKSPACE/.." -maxdepth 3 -type f -name '*.sarif' -print -exec cp -f {} artifacts/codeql/ \; || true
+          ls -la artifacts/codeql || echo "no sarif files found"
+
+      - name: Upload CodeQL SARIF results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif
+          path: artifacts/codeql

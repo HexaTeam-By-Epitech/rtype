@@ -1,0 +1,89 @@
+name: Code Analysis
+
+on:
+  push:
+    branches: [ dev, main ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+  analysis:
+    name: C/C++ static analysis (cppcheck + CodeQL)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh cppcheck
+
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        with:
+          path: |
+            $HOME/vcpkg/installed
+            $HOME/vcpkg/packages
+            $HOME/vcpkg/buildtrees
+            $HOME/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Cache build-codeql
+        uses: actions/cache@v3
+        with:
+          path: build-codeql
+          key: codeql-build-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','client/CMakeLists.txt','server/CMakeLists.txt') }}
+          restore-keys: |
+            codeql-build-${{ runner.os }}-
+
+      - name: Setup vcpkg (manifest mode)
+        run: |
+          chmod +x scripts/setup_vcpkg_and_cmake.sh
+          ./scripts/setup_vcpkg_and_cmake.sh --triplet x64-linux --no-build
+        shell: bash
+
+      - name: Configure CMake (export compile_commands)
+        run: |
+          cmake -S . -B build-codeql \
+            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Run cppcheck
+        run: |
+          set -o pipefail
+          echo "Running cppcheck using compile_commands.json if available"
+          if [ -f build-codeql/compile_commands.json ]; then
+            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --xml --xml-version=2 2> cppcheck.xml || true
+          else
+            cppcheck --enable=all --inconclusive --std=c++23 --xml --xml-version=2 client server tests 2> cppcheck.xml || true
+          fi
+          # Fail the job if cppcheck reported any errors (xml contains <error ...>)
+          if grep -q "<error" cppcheck.xml; then
+            echo "cppcheck found issues. See cppcheck.xml artifact." >&2
+            exit 1
+          fi
+
+      - name: Upload cppcheck results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-report
+          path: cppcheck.xml
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: cpp
+          config-file: .github/codeql/codeql-config.yml
+
+      - name: Build (for CodeQL DB extraction)
+        run: |
+          cmake --build build-codeql -- -j$(nproc)
+
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@v2

@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ dev ]
 
+# Required permissions for CodeQL to upload results and use experimental features
+permissions:
+  contents: read
+  security-events: write
+  checks: write
+  actions: read
+
 jobs:
   analysis:
     name: C/C++ static analysis (cppcheck + CodeQL)
@@ -87,7 +94,7 @@ jobs:
             cppcheck.txt
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: cpp
           queries: security-and-quality
@@ -97,4 +104,4 @@ jobs:
           cmake --build build-codeql -- -j$(nproc)
 
       - name: Run CodeQL analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3

@@ -1,0 +1,108 @@
+name: Build and Tests
+
+on:
+  push:
+    branches: [ dev, main ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+  client:
+    name: Client (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/vcpkg/installed
+            $HOME/vcpkg/packages
+            $HOME/vcpkg/buildtrees
+            $HOME/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Cache CMake build (client)
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-client-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','client/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-client-${{ runner.os }}-
+
+      - name: Setup vcpkg (manifest mode)
+        run: |
+          chmod +x scripts/setup_vcpkg_and_cmake.sh
+          ./scripts/setup_vcpkg_and_cmake.sh --triplet x64-linux --no-build
+        shell: bash
+
+      - name: Configure (client only)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DBUILD_CLIENT=ON -DBUILD_SERVER=OFF \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build client
+        run: cmake --build build --target r-type_client -- -j$(nproc)
+
+      - name: Run client tests
+        run: ctest --test-dir build --output-on-failure -R client_tests -j 2
+
+  server:
+    name: Server (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/vcpkg/installed
+            $HOME/vcpkg/packages
+            $HOME/vcpkg/buildtrees
+            $HOME/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Cache CMake build (server)
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-server-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','server/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-server-${{ runner.os }}-
+
+      - name: Setup vcpkg (manifest mode)
+        run: |
+          chmod +x scripts/setup_vcpkg_and_cmake.sh
+          ./scripts/setup_vcpkg_and_cmake.sh --triplet x64-linux --no-build
+        shell: bash
+
+      - name: Configure (server only)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DBUILD_CLIENT=OFF -DBUILD_SERVER=ON \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build server
+        run: cmake --build build --target r-type_server -- -j$(nproc)
+
+      - name: Run server tests
+        run: ctest --test-dir build --output-on-failure -R server_tests -j 2

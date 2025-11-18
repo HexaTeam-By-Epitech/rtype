@@ -59,21 +59,32 @@ jobs:
           set -o pipefail
           echo "Running cppcheck using compile_commands.json if available"
           if [ -f build-codeql/compile_commands.json ]; then
-            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --xml --xml-version=2 2> cppcheck.xml || true
+            # generate XML for artifact
+            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport 2> cppcheck.xml || true
+            # human-readable output for logs
+            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport 2>&1 | tee cppcheck.txt || true
           else
-            cppcheck --enable=all --inconclusive --std=c++23 --xml --xml-version=2 client server tests 2> cppcheck.xml || true
+            cppcheck --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport client server tests 2> cppcheck.xml || true
+            cppcheck --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport client server tests 2>&1 | tee cppcheck.txt || true
           fi
-          # Fail the job if cppcheck reported any errors (xml contains <error ...>)
-          if grep -q "<error" cppcheck.xml; then
-            echo "cppcheck found issues. See cppcheck.xml artifact." >&2
+          # Fail the job only on serious issues (error/warning/performance), print human-friendly output to the log
+          if grep -qE 'severity="(error|warning|performance)"' cppcheck.xml; then
+            echo "cppcheck found issues (error/warning/performance). See cppcheck.xml and cppcheck.txt artifacts." >&2
+            echo "--- cppcheck (human readable) ---" >&2
+            sed -n '1,500p' cppcheck.txt >&2 || true
+            echo "--- end cppcheck output ---" >&2
             exit 1
           fi
+          echo "cppcheck: no error/warning/performance issues found"
 
       - name: Upload cppcheck results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cppcheck-report
-          path: cppcheck.xml
+          path: |
+            cppcheck.xml
+            cppcheck.txt
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2

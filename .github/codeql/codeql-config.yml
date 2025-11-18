@@ -1,8 +1,0 @@
-# CodeQL configuration: keep a focused set of queries to avoid noisy / low-value findings
-# See: https://codeql.github.com/docs/codeql-cli/manual/using-queries/
-queries:
-  # Run the standard security + quality query suite for C/C++ (balanced coverage)
-  - security-and-quality
-
-# Optionally you can add or remove specific queries here. Keep this file minimal to reduce noisy results.
-

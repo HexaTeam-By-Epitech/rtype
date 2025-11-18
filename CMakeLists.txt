@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Detect vcpkg toolchain if the user didn't pass one (allows per-developer triplet)
+if (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    if (DEFINED ENV{VCPKG_ROOT})
+        set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+    elseif (EXISTS "$ENV{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake")
+        set(CMAKE_TOOLCHAIN_FILE "$ENV{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+    endif ()
+endif ()
+
 project(rtype LANGUAGES CXX)
 
 # Global settings
@@ -8,7 +17,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
+# Enable testing so ctest discovers tests added in subdirectories
+enable_testing()
 
 # Options to select what to build
 option(BUILD_SERVER "Build R-Type server" ON)
@@ -22,3 +32,6 @@ endif ()
 if (BUILD_CLIENT)
     add_subdirectory(client)
 endif ()
+
+# Add tests directory (will use find_package(GTest) inside)
+add_subdirectory(tests)

@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.20)
+
+enable_testing()
+
+find_package(GTest CONFIG REQUIRED)
+
+# Client tests
+add_executable(client_tests
+    client_tests/ClientTest.cpp
+)
+
+target_include_directories(client_tests PRIVATE ${CMAKE_SOURCE_DIR}/client/include)
+
+target_link_libraries(client_tests PRIVATE GTest::gtest_main rtype_client_lib)
+
+add_test(NAME client_tests COMMAND client_tests)
+
+# Server tests
+add_executable(server_tests
+    server_tests/ServerTest.cpp
+)
+
+target_include_directories(server_tests PRIVATE ${CMAKE_SOURCE_DIR}/server/include)
+
+target_link_libraries(server_tests PRIVATE GTest::gtest_main rtype_server_lib)
+
+add_test(NAME server_tests COMMAND server_tests)
+

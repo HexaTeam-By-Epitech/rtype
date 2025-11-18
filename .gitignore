@@ -39,3 +39,6 @@ r-type_server
 # IDEs and editors
 .vscode/
 .idea/
+
+build
+vcpkg_installed

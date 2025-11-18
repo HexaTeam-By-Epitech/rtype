@@ -6,8 +6,10 @@
 */
 
 #include <iostream>
+#include "Server.hpp"
 
 int main() {
-    std::cout << "Hello World from server!" << std::endl;
+    Server s("127.0.0.1");
+    std::cout << "Hello World from server! host=" << s.getHost() << std::endl;
     return 0;
 }

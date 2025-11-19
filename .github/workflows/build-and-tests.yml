@@ -75,6 +75,17 @@ jobs:
         run: |
           ctest --test-dir ${{ env.BUILD_DIR }} --output-on-failure -j 2
 
+      - name: Debug test output
+        if: always()
+        run: |
+          echo "=== Checking Testing directory ==="
+          ls -la ${{ env.BUILD_DIR }}/Testing/ || true
+          ls -la ${{ env.BUILD_DIR }}/Testing/Temporary/ || true
+          echo "=== Checking for XML files ==="
+          find ${{ env.BUILD_DIR }} -name "*.xml" -type f || true
+          echo "=== Last 50 lines of LastTest.log ==="
+          tail -50 ${{ env.BUILD_DIR }}/Testing/Temporary/LastTest.log || true
+
       - name: Parse test results
         if: always()
         run: |

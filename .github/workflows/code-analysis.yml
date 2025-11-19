@@ -6,16 +6,20 @@ on:
   pull_request:
     branches: [ dev ]
 
-# Required permissions for CodeQL to upload results and use experimental features
 permissions:
   contents: read
   security-events: write
   checks: write
   actions: read
 
+env:
+  VCPKG_TRIPLET: x64-linux
+  BUILD_DIR: build-codeql
+  ARTIFACTS_DIR: artifacts/codeql
+
 jobs:
   analysis:
-    name: C/C++ static analysis (cppcheck + CodeQL)
+    name: C/C++ Static Analysis
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +29,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh cppcheck
+          sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl cppcheck
 
       - name: Cache vcpkg
         uses: actions/cache@v3
@@ -36,55 +40,70 @@ jobs:
             $HOME/vcpkg/buildtrees
             $HOME/vcpkg/downloads
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-
+          restore-keys: vcpkg-${{ runner.os }}-
 
-      - name: Cache build-codeql
+      - name: Cache build directory
         uses: actions/cache@v3
         with:
-          path: build-codeql
+          path: ${{ env.BUILD_DIR }}
           key: codeql-build-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','client/CMakeLists.txt','server/CMakeLists.txt') }}
-          restore-keys: |
-            codeql-build-${{ runner.os }}-
+          restore-keys: codeql-build-${{ runner.os }}-
 
-      - name: Setup vcpkg (manifest mode)
+      - name: Setup vcpkg
         run: |
           chmod +x scripts/setup_vcpkg_and_cmake.sh
-          ./scripts/setup_vcpkg_and_cmake.sh --triplet x64-linux --no-build
+          ./scripts/setup_vcpkg_and_cmake.sh --triplet ${{ env.VCPKG_TRIPLET }} --no-build
         shell: bash
 
-      - name: Configure CMake (export compile_commands)
+      - name: Configure CMake
         run: |
-          cmake -S . -B build-codeql \
+          cmake -S . -B ${{ env.BUILD_DIR }} \
             -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
-            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TRIPLET }} \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_BUILD_TYPE=Debug
 
       - name: Run cppcheck
         run: |
           set -o pipefail
-          echo "Running cppcheck using compile_commands.json if available"
-          # Only analyze client and server source folders, exclude vcpkg installed headers
-          CPPCHECK_EXCLUDES="--exclude=build-codeql/vcpkg_installed --exclude=client/vcpkg_installed --exclude=server/vcpkg_installed"
-          if [ -f build-codeql/compile_commands.json ]; then
-            # generate XML for artifact
-            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES 2> cppcheck.xml || true
-            # human-readable output for logs
-            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES 2>&1 | tee cppcheck.txt || true
+          echo "::group::Running cppcheck"
+          
+          EXCLUDES="--exclude=${{ env.BUILD_DIR }}/vcpkg_installed --exclude=client/vcpkg_installed --exclude=server/vcpkg_installed"
+          
+          if [ -f ${{ env.BUILD_DIR }}/compile_commands.json ]; then
+            # XML output for artifact
+            cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+              --enable=all --inconclusive --std=c++23 \
+              --xml --xml-version=2 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES 2> cppcheck.xml || true
+          
+            # Human-readable output
+            cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+              --enable=all --inconclusive --std=c++23 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES 2>&1 | tee cppcheck.txt || true
           else
-            cppcheck --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES client server 2> cppcheck.xml || true
-            cppcheck --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES client server 2>&1 | tee cppcheck.txt || true
+            cppcheck --enable=all --inconclusive --std=c++23 \
+              --xml --xml-version=2 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES client server 2> cppcheck.xml || true
+          
+            cppcheck --enable=all --inconclusive --std=c++23 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES client server 2>&1 | tee cppcheck.txt || true
           fi
-          # Fail the job only on serious issues (error/warning/performance), print human-friendly output to the log
+          
+          echo "::endgroup::"
+          
+          # Check for serious issues
           if grep -qE 'severity="(error|warning|performance)"' cppcheck.xml; then
-            echo "cppcheck found issues (error/warning/performance). See cppcheck.xml and cppcheck.txt artifacts." >&2
-            echo "--- cppcheck (human readable) ---" >&2
-            sed -n '1,500p' cppcheck.txt >&2 || true
-            echo "--- end cppcheck output ---" >&2
+            echo "::error::cppcheck found issues. See artifacts for details."
+            sed -n '1,50p' cppcheck.txt
             exit 1
           fi
-          echo "cppcheck: no error/warning/performance issues found"
+          
+          echo "✓ cppcheck: no critical issues found"
 
       - name: Upload cppcheck results
         if: always()
@@ -95,116 +114,106 @@ jobs:
             cppcheck.xml
             cppcheck.txt
 
-      - name: Print cppcheck version and locate cppcheck config files
-        run: |
-          echo "cppcheck version:"
-          cppcheck --version || true
-          echo "Searching repo for possible cppcheck config files (cppcheck.cfg, .cppcheck, cppcheck*.cfg, *.cfg)"
-          git ls-files | grep -i 'cppcheck' || true
-          git ls-files | grep -E '\.cfg$|cppcheck' || true
-          find . -maxdepth 4 -type f -iname 'cppcheck*' -print || true
-
-          # Sanitize repo-local cppcheck config files to avoid config/runtime version mismatch
-          echo "Looking for cppcheck config files to sanitize (will rename to *.disabled)"
-          find . -maxdepth 4 \( -iname 'cppcheck.cfg' -o -iname '.cppcheck' -o -iname 'cppcheck*.cfg' -o -iname '*.cppcheck' \) -print | while read -r cfg; do
-            echo "Found cppcheck config: $cfg"
-            echo "Renaming $cfg -> ${cfg}.disabled"
-            mv "$cfg" "${cfg}.disabled" || true
-          done || true
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: cpp
           queries: security-and-quality
 
-      - name: Build (for CodeQL DB extraction)
-        run: |
-          cmake --build build-codeql -- -j$(nproc)
+      - name: Build project
+        run: cmake --build ${{ env.BUILD_DIR }} -- -j$(nproc)
 
       - name: Run CodeQL analysis
         uses: github/codeql-action/analyze@v4
 
-      - name: Gather CodeQL SARIF files (search common locations)
+      - name: Gather CodeQL SARIF files
         id: gather_sarif
         if: always()
         run: |
           set -eux
-          mkdir -p artifacts/codeql
-          echo "Searching for .sarif files under GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          mkdir -p ${{ env.ARTIFACTS_DIR }}
+          echo "::group::Searching for SARIF files"
+          
           found=0
-          while IFS= read -r -d $'\0' f; do
-            echo "Copying $f"
-            cp -f "$f" artifacts/codeql/ || true
-            found=1
-          done < <(find "$GITHUB_WORKSPACE" -maxdepth 6 -type f -name '*.sarif' -print0 || true)
-          while IFS= read -r -d $'\0' f; do
-            echo "Copying $f"
-            cp -f "$f" artifacts/codeql/ || true
-            found=1
-          done < <(find "$RUNNER_WORKSPACE" -maxdepth 6 -type f -name '*.sarif' -print0 || true)
-          if [ -d "$GITHUB_WORKSPACE/.." ]; then
-            while IFS= read -r -d $'\0' f; do
-              echo "Copying $f"
-              cp -f "$f" artifacts/codeql/ || true
-              found=1
-            done < <(find "$GITHUB_WORKSPACE/.." -maxdepth 3 -type f -name '*.sarif' -print0 || true)
-          fi
+          for search_dir in "$GITHUB_WORKSPACE" "$RUNNER_WORKSPACE" "$GITHUB_WORKSPACE/.."; do
+            if [ -d "$search_dir" ]; then
+              while IFS= read -r -d $'\0' f; do
+                echo "Found: $f"
+                cp -f "$f" ${{ env.ARTIFACTS_DIR }}/ || true
+                found=1
+              done < <(find "$search_dir" -maxdepth 6 -type f -name '*.sarif' -print0 2>/dev/null || true)
+            fi
+          done
+          
+          echo "::endgroup::"
+          
           if [ "$found" -eq 1 ]; then
             echo "has_files=true" >> "$GITHUB_OUTPUT"
+            ls -lah ${{ env.ARTIFACTS_DIR }}
           else
             echo "has_files=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No SARIF files found"
           fi
-          ls -la artifacts/codeql || echo "no sarif files found"
 
-      - name: Summarize CodeQL SARIF results (human-readable)
+      - name: Summarize CodeQL results
         if: always()
         run: |
           chmod +x .github/scripts/summarize_codeql.py
           .github/scripts/summarize_codeql.py
 
-      - name: Publish CodeQL summary to job summary and annotate (top findings)
+      - name: Publish CodeQL summary
         if: always()
         run: |
           chmod +x .github/scripts/publish_codeql_summary.py
           .github/scripts/publish_codeql_summary.py
 
-      - name: Fail on CodeQL high/critical findings
+      - name: Send Discord notification
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          chmod +x .github/scripts/send_discord_notification.py
+          .github/scripts/send_discord_notification.py
+
+      - name: Check for critical findings
         if: always()
         run: |
           chmod +x .github/scripts/fail_on_codeql.py
           .github/scripts/fail_on_codeql.py
 
-      - name: Prepare PR comment body
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
+      - name: Prepare PR comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
-          mkdir -p artifacts/codeql
-          echo "## CodeQL scan summary" > artifacts/codeql/comment-body.md
-          echo "" >> artifacts/codeql/comment-body.md
-          if [ -f artifacts/codeql/codeql-summary.txt ]; then
-            echo 'Top findings:' >> artifacts/codeql/comment-body.md
-            head -n 20 artifacts/codeql/codeql-summary.txt >> artifacts/codeql/comment-body.md
-          else
-            echo 'No findings or summary not available.' >> artifacts/codeql/comment-body.md
-          fi
-          echo "\n---\nFull report is attached as the workflow artifact 'codeql-sarif'." >> artifacts/codeql/comment-body.md
+          mkdir -p ${{ env.ARTIFACTS_DIR }}
+          {
+            echo "## 🔍 CodeQL Analysis Results"
+            echo ""
+            if [ -f ${{ env.ARTIFACTS_DIR }}/codeql-summary.txt ]; then
+              echo "### Top Findings"
+              echo '```'
+              head -n 20 ${{ env.ARTIFACTS_DIR }}/codeql-summary.txt
+              echo '```'
+            else
+              echo "✅ No findings or summary not available."
+            fi
+            echo ""
+            echo "---"
+            echo "📦 Full report available in workflow artifacts: \`codeql-sarif\`"
+          } > ${{ env.ARTIFACTS_DIR }}/comment-body.md
 
-      - name: Post CodeQL summary to PR
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/create-or-update-comment@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           issue-number: ${{ github.event.pull_request.number }}
-          body-file: artifacts/codeql/comment-body.md
+          body-file: ${{ env.ARTIFACTS_DIR }}/comment-body.md
 
-      - name: Upload CodeQL SARIF results
-        if: steps.gather_sarif.outputs.has_files == 'true'
+      - name: Upload CodeQL artifacts
+        if: always() && steps.gather_sarif.outputs.has_files == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: codeql-sarif
-          path: artifacts/codeql
+          path: ${{ env.ARTIFACTS_DIR }}

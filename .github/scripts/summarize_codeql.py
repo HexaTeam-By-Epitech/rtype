@@ -1,153 +1,280 @@
 #!/usr/bin/env python3
+"""
+CodeQL SARIF Summary Generator
+Extracts and normalizes findings from CodeQL SARIF files.
+"""
 import json
 import glob
 import os
 import sys
+from pathlib import Path
+from typing import List, Dict, Tuple, Optional
 
-out_dir = 'artifacts/codeql'
-os.makedirs(out_dir, exist_ok=True)
-files = glob.glob(os.path.join(out_dir, '*.sarif'))
-if not files:
-    print('No SARIF files found in', out_dir)
-    sys.exit(0)
+# Configuration
+OUTPUT_DIR = 'artifacts/codeql'
+SKIP_PATTERNS = ['vcpkg_installed', '/vcpkg_installed/', '/vcpkg/']
+SEVERITY_ORDER = {'error': 0, 'warning': 1, 'note': 2, 'information': 3, 'recommendation': 4, '': 5}
 
-# Normalisation centralisée de la sévérité
-def normalize_sev(val):
-    """Normalize various severity representations to one of: 'error', 'warning', 'note' or ''.
-    Handles numeric priorities, common strings (high/critical -> error), and returns
-    a cleaned lowercase token otherwise.
+
+def normalize_severity(value) -> str:
     """
-    if not val:
-        return ''
-    v = str(val).strip().lower()
-    # numeric priority mapping if present
-    if v.isdigit():
-        n = int(v)
-        if n <= 1:
+    Normalize various severity representations to standardized levels.
+
+    Returns one of: 'error', 'warning', 'note', or 'information'
+    """
+    if not value:
+        return 'note'
+
+    val = str(value).strip().lower()
+
+    # Handle numeric priorities
+    if val.isdigit():
+        priority = int(val)
+        if priority <= 1:
             return 'error'
-        if n == 2:
+        elif priority == 2:
             return 'warning'
         return 'note'
-    # map common synonyms
-    if v in ('critical', 'high'):
-        return 'error'
-    if v in ('error', 'failure'):
-        return 'error'
-    if v in ('warning', 'warn', 'medium'):
-        return 'warning'
-    if v in ('note', 'info', 'informational', 'information', 'low'):
-        return 'note'
-    return v
 
-summary = []
-# patterns to skip (third-party libs / vcpkg)
-skip_patterns = ['vcpkg_installed', '/vcpkg_installed/', '/vcpkg/']
-for f in files:
-    try:
-        with open(f, 'r', encoding='utf-8') as fh:
-            j = json.load(fh)
-    except Exception as e:
-        print('Failed to parse', f, e)
-        continue
-    runs = j.get('runs', [])
-    for run in runs:
-        # build a map of rules metadata for fallback severity
-        rules_meta = {}
-        rules_meta_by_index = {}
-        try:
-            tool = run.get('tool', {}).get('driver', {})
-            rules_list = tool.get('rules', []) or []
-            for idx, rmeta in enumerate(rules_list):
-                rid = rmeta.get('id') or rmeta.get('name')
-                if rid:
-                    rules_meta[rid] = rmeta
-                rules_meta_by_index[idx] = rmeta
-        except Exception:
-            rules_meta = {}
-            rules_meta_by_index = {}
+    # Map common severity synonyms
+    severity_map = {
+        'critical': 'error',
+        'high': 'error',
+        'error': 'error',
+        'failure': 'error',
+        'warning': 'warning',
+        'warn': 'warning',
+        'medium': 'warning',
+        'note': 'note',
+        'info': 'note',
+        'informational': 'note',
+        'information': 'information',
+        'low': 'note',
+        'recommendation': 'note',
+    }
 
-        results = run.get('results', [])
-        for r in results:
-            rid = r.get('ruleId', 'N/A')
+    return severity_map.get(val, 'note')
 
-            # Attempt to determine severity from multiple possible SARIF fields
-            level = r.get('level') or r.get('severity') or r.get('kind') or ''
-            # some SARIF put severity in properties
-            props = r.get('properties', {}) or {}
-            if not level and props:
-                level = props.get('severity') or props.get('priority') or props.get('level') or props.get('severityLabel') or ''
 
-            # try to get severity from a rule object attached directly to the result
-            rule_obj = r.get('rule') or r.get('ruleObject') or {}
-            if not level and isinstance(rule_obj, dict):
-                level = (rule_obj.get('properties') or {}).get('severity') or rule_obj.get('defaultConfiguration', {}).get('level', '')
+def extract_severity_from_result(result: Dict, rules_meta: Dict, rules_meta_by_index: Dict) -> str:
+    """
+    Extract severity from a SARIF result using multiple fallback strategies.
+    """
+    # Strategy 1: Direct fields
+    level = result.get('level') or result.get('severity') or result.get('kind') or ''
 
-            # If ruleIndex is present, try to lookup the rule metadata by index
-            if not level and 'ruleIndex' in r:
-                try:
-                    idx = int(r.get('ruleIndex'))
-                    rm = rules_meta_by_index.get(idx)
-                    if rm:
-                        level = (rm.get('defaultConfiguration', {}) or {}).get('level', '') or (rm.get('properties') or {}).get('severity', '')
-                except Exception:
-                    pass
+    # Strategy 2: Properties object
+    if not level:
+        props = result.get('properties') or {}
+        level = (props.get('severity') or props.get('priority') or
+                props.get('level') or props.get('severityLabel') or '')
 
-            # fallback to rule metadata defaultConfiguration or properties via ruleId
-            if not level and rid in rules_meta:
-                try:
-                    level = rules_meta[rid].get('defaultConfiguration', {}).get('level', '') or (rules_meta[rid].get('properties') or {}).get('severity', '')
-                except Exception:
-                    level = ''
-
-            # sometimes the rule id in results doesn't match the key used in rules_meta; try to find a matching rule
+    # Strategy 3: Rule object attached to result
+    if not level:
+        rule_obj = result.get('rule') or result.get('ruleObject') or {}
+        if isinstance(rule_obj, dict):
+            default_config = rule_obj.get('defaultConfiguration') or {}
+            level = default_config.get('level', '')
             if not level:
-                for k, rm in rules_meta.items():
-                    try:
-                        if k == rid or rm.get('id') == rid or rm.get('name') == rid or (isinstance(rm.get('id'), str) and rm.get('id').endswith(rid)):
-                            level = (rm.get('defaultConfiguration', {}) or {}).get('level', '') or (rm.get('properties') or {}).get('severity', '')
-                            if level:
-                                break
-                    except Exception:
-                        continue
+                rule_props = rule_obj.get('properties') or {}
+                level = rule_props.get('severity', '')
 
-            level = normalize_sev(level)
+    # Strategy 4: Lookup by ruleIndex
+    if not level and 'ruleIndex' in result:
+        try:
+            idx = int(result['ruleIndex'])
+            rule_meta = rules_meta_by_index.get(idx) or rules_meta_by_index.get((0, idx))
+            if rule_meta:
+                level = extract_severity_from_rule_meta(rule_meta)
+        except (ValueError, TypeError):
+            pass
 
-            msg = r.get('message', {}).get('text', '')
-            if not msg:
-                msg = r.get('message', {}).get('markdown', '')
-            msg = msg.strip().splitlines()[0] if msg else ''
+    # Strategy 5: Lookup by ruleId
+    if not level:
+        rule_id = result.get('ruleId', '')
+        if rule_id in rules_meta:
+            level = extract_severity_from_rule_meta(rules_meta[rule_id])
 
-            loc = '?'
-            locs = r.get('locations', [])
-            if locs:
-                try:
-                    pl = locs[0]['physicalLocation']
-                    uri = pl.get('artifactLocation', {}).get('uri', '')
-                    start = pl.get('region', {}).get('startLine', '?')
-                    loc = f"{uri}:{start}"
-                except Exception:
-                    loc = '?'
+    return level
 
-            # Skip findings that are inside vendored / package-managed libraries (vcpkg, etc.)
-            if loc and any(pat in loc for pat in skip_patterns):
+
+def extract_severity_from_rule_meta(rule_meta: Dict) -> str:
+    """Extract severity from rule metadata."""
+    if not rule_meta:
+        return ''
+
+    default_config = rule_meta.get('defaultConfiguration') or {}
+    level = default_config.get('level', '')
+
+    if not level:
+        props = rule_meta.get('properties') or {}
+        level = props.get('severity', '')
+
+    return level
+
+
+def build_rules_metadata(run: Dict) -> Tuple[Dict, Dict]:
+    """
+    Build lookup tables for rule metadata from SARIF run.
+
+    Returns:
+        (rules_meta, rules_meta_by_index) - Two dicts for different lookup strategies
+    """
+    rules_meta = {}
+    rules_meta_by_index = {}
+
+    try:
+        tool = run.get('tool', {})
+        driver = tool.get('driver', {})
+        rules_list = driver.get('rules') or []
+
+        # Index driver rules
+        for idx, rule in enumerate(rules_list):
+            rule_id = rule.get('id') or rule.get('name')
+            if rule_id:
+                rules_meta[rule_id] = rule
+            rules_meta_by_index[(0, idx)] = rule
+            rules_meta_by_index[idx] = rule
+
+        # Index extension rules
+        extensions = tool.get('extensions') or []
+        for comp_index, ext in enumerate(extensions, start=1):
+            ext_driver = ext.get('driver') or {}
+            ext_rules = ext_driver.get('rules') or []
+            for idx, rule in enumerate(ext_rules):
+                rule_id = rule.get('id') or rule.get('name')
+                if rule_id and rule_id not in rules_meta:
+                    rules_meta[rule_id] = rule
+                rules_meta_by_index[(comp_index, idx)] = rule
+
+    except Exception as e:
+        print(f"Warning: Error building rules metadata: {e}", file=sys.stderr)
+
+    return rules_meta, rules_meta_by_index
+
+
+def extract_location(result: Dict) -> str:
+    """Extract file location from SARIF result."""
+    locations = result.get('locations', [])
+    if not locations:
+        return '?'
+
+    try:
+        phys_loc = locations[0]['physicalLocation']
+        uri = phys_loc.get('artifactLocation', {}).get('uri', '')
+        start_line = phys_loc.get('region', {}).get('startLine', '?')
+        return f"{uri}:{start_line}"
+    except (KeyError, IndexError):
+        return '?'
+
+
+def should_skip_location(location: str) -> bool:
+    """Check if location should be skipped (e.g., third-party code)."""
+    return any(pattern in location for pattern in SKIP_PATTERNS)
+
+
+def extract_message(result: Dict) -> str:
+    """Extract and clean message from SARIF result."""
+    msg_obj = result.get('message', {})
+    msg = msg_obj.get('text', '') or msg_obj.get('markdown', '')
+    return msg.strip().splitlines()[0] if msg else ''
+
+
+def process_sarif_file(filepath: Path) -> List[Tuple[str, str, str, str]]:
+    """
+    Process a single SARIF file and extract findings.
+
+    Returns:
+        List of (severity, rule_id, location, message) tuples
+    """
+    findings = []
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            sarif_data = json.load(f)
+    except Exception as e:
+        print(f"Error: Failed to parse {filepath}: {e}", file=sys.stderr)
+        return findings
+
+    runs = sarif_data.get('runs', [])
+    for run in runs:
+        rules_meta, rules_meta_by_index = build_rules_metadata(run)
+        results = run.get('results', [])
+
+        for result in results:
+            rule_id = result.get('ruleId', 'N/A')
+
+            # Extract severity
+            raw_severity = extract_severity_from_result(result, rules_meta, rules_meta_by_index)
+            severity = normalize_severity(raw_severity)
+
+            # Extract location
+            location = extract_location(result)
+
+            # Skip third-party code
+            if should_skip_location(location):
                 continue
 
-            summary.append((level, rid, loc, msg))
+            # Extract message
+            message = extract_message(result)
 
-if not summary:
-    print('No results found in SARIF files')
-    sys.exit(0)
+            findings.append((severity, rule_id, location, message))
 
-# Sort severity: errors first, then warnings, then others
-order = {'error': 0, 'warning': 1, 'note': 2, 'information': 3, 'recommendation': 4, '': 5}
-summary.sort(key=lambda x: (order.get(x[0].lower(), 9), x[1]))
+    return findings
 
-out_path = os.path.join(out_dir, 'codeql-summary.txt')
-with open(out_path, 'w', encoding='utf-8') as outf:
-    outf.write('severity\trule\tlocation\tmessage\n')
-    for level, rid, loc, msg in summary:
-        line = f"{level}\t{rid}\t{loc}\t{msg}"
-        print(line)
-        outf.write(line + '\n')
 
-print('\nWrote summary to', out_path)
+def main():
+    """Main entry point."""
+    # Create output directory
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    # Find SARIF files
+    sarif_files = glob.glob(os.path.join(OUTPUT_DIR, '*.sarif'))
+
+    if not sarif_files:
+        print(f"No SARIF files found in {OUTPUT_DIR}")
+        sys.exit(0)
+
+    print(f"Processing {len(sarif_files)} SARIF file(s)...")
+
+    # Process all SARIF files
+    all_findings = []
+    for filepath in sarif_files:
+        findings = process_sarif_file(Path(filepath))
+        all_findings.extend(findings)
+        print(f"  {Path(filepath).name}: {len(findings)} finding(s)")
+
+    if not all_findings:
+        print("No results found in SARIF files")
+        sys.exit(0)
+
+    # Sort findings by severity
+    all_findings.sort(key=lambda x: (SEVERITY_ORDER.get(x[0].lower(), 9), x[1]))
+
+    # Write summary
+    output_path = os.path.join(OUTPUT_DIR, 'codeql-summary.txt')
+    with open(output_path, 'w', encoding='utf-8') as out:
+        out.write('severity\trule\tlocation\tmessage\n')
+        for severity, rule_id, location, message in all_findings:
+            line = f"{severity}\t{rule_id}\t{location}\t{message}"
+            print(line)
+            out.write(line + '\n')
+
+    # Print statistics
+    severity_counts = {}
+    for severity, _, _, _ in all_findings:
+        severity_counts[severity] = severity_counts.get(severity, 0) + 1
+
+    print(f"\n{'='*60}")
+    print("Summary Statistics:")
+    for sev in ['error', 'warning', 'note', 'information']:
+        count = severity_counts.get(sev, 0)
+        if count > 0:
+            print(f"  {sev.capitalize()}: {count}")
+    print(f"  Total: {len(all_findings)}")
+    print(f"{'='*60}")
+    print(f"\nWrote summary to {output_path}")
+
+
+if __name__ == '__main__':
+    main()

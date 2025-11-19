@@ -23,14 +23,62 @@ for f in files:
         continue
     runs = j.get('runs', [])
     for run in runs:
+        # build a map of rules metadata for fallback severity
+        rules_meta = {}
+        try:
+            tool = run.get('tool', {}).get('driver', {})
+            for rmeta in tool.get('rules', []) or []:
+                rid = rmeta.get('id') or rmeta.get('name')
+                rules_meta[rid] = rmeta
+        except Exception:
+            rules_meta = {}
+
         results = run.get('results', [])
         for r in results:
             rid = r.get('ruleId', 'N/A')
-            level = r.get('level', r.get('kind', '')) or ''
+
+            # Attempt to determine severity from multiple possible SARIF fields
+            def normalize_sev(val):
+                if not val:
+                    return ''
+                v = str(val).strip().lower()
+                # numeric priority mapping if present
+                if v.isdigit():
+                    n = int(v)
+                    # heuristic: 1 -> error, 2 -> warning, 3 -> note, 4+ -> note
+                    if n <= 1:
+                        return 'error'
+                    if n == 2:
+                        return 'warning'
+                    return 'note'
+                # direct mapping
+                if v in ('error', 'failure'):
+                    return 'error'
+                if v in ('warning', 'warn'):
+                    return 'warning'
+                if v in ('note', 'info', 'informational', 'information'):
+                    return 'note'
+                return v
+
+            level = r.get('level') or r.get('kind') or ''
+            # some SARIF put severity in properties
+            props = r.get('properties', {}) or {}
+            if not level and props:
+                level = props.get('severity') or props.get('priority') or props.get('level') or ''
+            # fallback to rule metadata defaultConfiguration
+            if not level and rid in rules_meta:
+                try:
+                    level = rules_meta[rid].get('defaultConfiguration', {}).get('level', '')
+                except Exception:
+                    level = ''
+
+            level = normalize_sev(level)
+
             msg = r.get('message', {}).get('text', '')
             if not msg:
                 msg = r.get('message', {}).get('markdown', '')
             msg = msg.strip().splitlines()[0] if msg else ''
+
             loc = '?'
             locs = r.get('locations', [])
             if locs:
@@ -44,8 +92,6 @@ for f in files:
 
             # Skip findings that are inside vendored / package-managed libraries (vcpkg, etc.)
             if loc and any(pat in loc for pat in skip_patterns):
-                # Debug: uncomment to print skipped locations
-                # print('Skipping third-party finding:', loc, rid)
                 continue
 
             summary.append((level, rid, loc, msg))

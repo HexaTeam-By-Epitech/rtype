@@ -80,28 +80,82 @@ def parse_ctest_output(build_dir: str) -> Dict:
             with open(last_test_log, 'r') as f:
                 content = f.read()
 
-                # FIX: Use finditer instead of search to get ALL matches
-                passed_matches = re.finditer(r'(\d+)/(\d+) Test\s+#\d+:\s+(\S+).*\s+Passed', content, re.MULTILINE)
-                for match in passed_matches:
-                    test_name = match.group(3)
-                    results['passed'] += 1
-                    results['total'] += 1
-                    print(f"  ✅ Found passed test: {test_name}")
+                # Parse the actual format: "test_name" start time: ... Test Passed/Failed
+                # Pattern matches blocks like:
+                # "client_tests" start time: ...
+                # ...
+                # Test Passed.
 
-                failed_matches = re.finditer(r'(\d+)/(\d+) Test\s+#\d+:\s+(\S+).*\*\*\*Failed', content, re.MULTILINE)
-                for match in failed_matches:
-                    test_name = match.group(3)
-                    results['failed'] += 1
+                test_pattern = r'"([^"]+)"\s+start\s+time:.*?Test\s+time\s+=\s+([\d.]+)\s+sec.*?Test\s+(Passed|Failed|\*\*\*Failed)'
+                matches = re.finditer(test_pattern, content, re.DOTALL | re.MULTILINE)
+
+                for match in matches:
+                    test_name = match.group(1)
+                    duration = float(match.group(2))
+                    status = match.group(3)
+
                     results['total'] += 1
-                    results['failed_tests'].append(test_name)
-                    print(f"  ❌ Found failed test: {test_name}")
+                    results['duration'] += duration
+
+                    if 'Passed' in status:
+                        results['passed'] += 1
+                        print(f"  ✅ Found passed test: {test_name} ({duration}s)")
+                    else:
+                        results['failed'] += 1
+                        results['failed_tests'].append(test_name)
+                        print(f"  ❌ Found failed test: {test_name} ({duration}s)")
 
                 print(f"✅ Parsed {results['total']} tests from LastTest.log")
 
         except Exception as e:
             print(f"⚠️  Error parsing LastTest.log: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
     else:
         print(f"⚠️  LastTest.log not found: {last_test_log}")
+
+    return results
+
+
+def parse_junit_xml(xml_path: str) -> Dict:
+    """Parse JUnit XML output (from CTest --output-junit)."""
+    results = {
+        'total': 0,
+        'passed': 0,
+        'failed': 0,
+        'skipped': 0,
+        'duration': 0.0,
+        'failed_tests': []
+    }
+
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+
+        # JUnit XML format
+        for testsuite in root.findall('.//testsuite'):
+            tests = int(testsuite.get('tests', 0))
+            failures = int(testsuite.get('failures', 0))
+            errors = int(testsuite.get('errors', 0))
+            skipped = int(testsuite.get('skipped', 0))
+            time = float(testsuite.get('time', 0))
+
+            results['total'] += tests
+            results['failed'] += failures + errors
+            results['passed'] += tests - failures - errors - skipped
+            results['skipped'] += skipped
+            results['duration'] += time
+
+            # Get failed test names
+            for testcase in testsuite.findall('.//testcase'):
+                if testcase.find('failure') is not None or testcase.find('error') is not None:
+                    test_name = testcase.get('name', 'Unknown')
+                    results['failed_tests'].append(test_name)
+
+        print(f"✅ Parsed {results['total']} tests from JUnit XML")
+
+    except Exception as e:
+        print(f"⚠️  Error parsing JUnit XML: {e}", file=sys.stderr)
 
     return results
 
@@ -187,6 +241,21 @@ def main():
     # Try to parse CTest results
     print("📊 Parsing test results...")
     results = parse_ctest_output(build_dir)
+
+    # Look for JUnit XML (if CTest was run with --output-junit)
+    print("🔍 Looking for JUnit XML files...")
+    junit_xmls = list(Path(build_dir).glob('**/junit-results.xml'))
+    junit_xmls.extend(Path('.').glob('**/junit-results.xml'))
+
+    if junit_xmls:
+        print(f"📁 Found {len(junit_xmls)} JUnit XML files")
+        for xml_file in junit_xmls:
+            print(f"  📄 Parsing: {xml_file}")
+            junit_result = parse_junit_xml(str(xml_file))
+            if junit_result['total'] > 0:
+                # JUnit XML is more reliable, use it
+                results = junit_result
+                break
 
     # Also look for GTest XML files
     print("🔍 Looking for GTest XML files...")

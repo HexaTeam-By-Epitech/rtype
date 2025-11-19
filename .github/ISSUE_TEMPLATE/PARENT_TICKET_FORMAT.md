@@ -1,0 +1,18 @@
+## Description
+Clear and precise explanation of the isssue.
+
+## Acceptance criterias
+- [ ] Criteria 1 (to be transformed in sub issue)
+- [ ] Criteria 2
+
+## Type
+- [ ] Bug
+- [ ] Feature
+- [ ] Refactor
+- [ ] Docs
+- [ ] Other (Please be precise)
+
+## Notes / Informations complémentaires
+- Screenshots
+- Logs
+- References / documentation

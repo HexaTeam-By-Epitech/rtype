@@ -10,6 +10,7 @@ if (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 endif ()
 
 project(rtype LANGUAGES CXX)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Global settings
 set(CMAKE_CXX_STANDARD 23)

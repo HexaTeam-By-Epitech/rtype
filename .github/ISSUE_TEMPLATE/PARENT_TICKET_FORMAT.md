@@ -14,13 +14,6 @@ Clear and precise explanation of the isssue.
 - [ ] Criteria 1 (to be transformed in sub issue)
 - [ ] Criteria 2
 
-## Type
-- [ ] Bug
-- [ ] Feature
-- [ ] Refactor
-- [ ] Docs
-- [ ] Other (Please be precise)
-
 ## Notes / Informations complémentaires
 - Screenshots
 - Logs

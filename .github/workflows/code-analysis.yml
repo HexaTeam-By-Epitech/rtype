@@ -65,14 +65,16 @@ jobs:
         run: |
           set -o pipefail
           echo "Running cppcheck using compile_commands.json if available"
+          # Only analyze client and server source folders, exclude vcpkg installed headers
+          CPPCHECK_EXCLUDES="--exclude=build-codeql/vcpkg_installed --exclude=client/vcpkg_installed --exclude=server/vcpkg_installed"
           if [ -f build-codeql/compile_commands.json ]; then
             # generate XML for artifact
-            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport 2> cppcheck.xml || true
+            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES 2> cppcheck.xml || true
             # human-readable output for logs
-            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport 2>&1 | tee cppcheck.txt || true
+            cppcheck --project=build-codeql/compile_commands.json --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES 2>&1 | tee cppcheck.txt || true
           else
-            cppcheck --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport client server tests 2> cppcheck.xml || true
-            cppcheck --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport client server tests 2>&1 | tee cppcheck.txt || true
+            cppcheck --enable=all --inconclusive --std=c++23 --xml --xml-version=2 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES client server 2> cppcheck.xml || true
+            cppcheck --enable=all --inconclusive --std=c++23 --suppress=missingIncludeSystem --suppress=checkersReport $CPPCHECK_EXCLUDES client server 2>&1 | tee cppcheck.txt || true
           fi
           # Fail the job only on serious issues (error/warning/performance), print human-friendly output to the log
           if grep -qE 'severity="(error|warning|performance)"' cppcheck.xml; then
@@ -166,6 +168,12 @@ jobs:
         run: |
           chmod +x .github/scripts/publish_codeql_summary.py
           .github/scripts/publish_codeql_summary.py
+
+      - name: Fail on CodeQL high/critical findings
+        if: always()
+        run: |
+          chmod +x .github/scripts/fail_on_codeql.py
+          .github/scripts/fail_on_codeql.py
 
       - name: Prepare PR comment body
         if: >-

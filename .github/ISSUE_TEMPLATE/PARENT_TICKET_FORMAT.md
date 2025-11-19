@@ -1,3 +1,12 @@
+---
+name: Parent Ticket
+about: Create a parent ticket that holds sub issues
+title: ''
+labels: ''
+assignees: ''
+
+---
+
 ## Description
 Clear and precise explanation of the isssue.
 

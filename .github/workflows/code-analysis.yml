@@ -173,8 +173,8 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: |
-          chmod +x .github/scripts/send_discord_notification.py
-          .github/scripts/send_discord_notification.py
+          chmod +x .github/scripts/discord_notifier.py
+          .github/scripts/discord_notifier.py codeql
 
       - name: Check for critical findings
         if: always()

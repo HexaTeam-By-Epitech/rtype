@@ -6,16 +6,28 @@ on:
   pull_request:
     branches: [ dev ]
 
+permissions:
+  contents: read
+  checks: write
+
+env:
+  VCPKG_TRIPLET: x64-linux
+  BUILD_DIR: build
+  ARTIFACTS_DIR: artifacts/tests
+
 jobs:
-  client:
-    name: Client (Linux)
+  tests-and-coverage:
+    name: Tests & Coverage (Linux)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh lcov
 
       - name: Cache vcpkg
         uses: actions/cache@v3
@@ -29,84 +41,156 @@ jobs:
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
-      - name: Cache CMake build (client)
+      - name: Cache CMake build
         uses: actions/cache@v3
         with:
-          path: build
-          key: cmake-client-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','client/CMakeLists.txt') }}
+          path: ${{ env.BUILD_DIR }}
+          key: cmake-tests-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','client/CMakeLists.txt','server/CMakeLists.txt') }}
           restore-keys: |
-            cmake-client-${{ runner.os }}-
+            cmake-tests-${{ runner.os }}-
 
       - name: Setup vcpkg (manifest mode)
         run: |
           chmod +x scripts/setup_vcpkg_and_cmake.sh
-          ./scripts/setup_vcpkg_and_cmake.sh --triplet x64-linux --no-build
+          ./scripts/setup_vcpkg_and_cmake.sh --triplet ${{ env.VCPKG_TRIPLET }} --no-build
         shell: bash
 
-      - name: Configure (client only)
+      - name: Configure with coverage
         run: |
-          cmake -S . -B build \
+          cmake -S . -B ${{ env.BUILD_DIR }} \
             -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
-            -DVCPKG_TARGET_TRIPLET=x64-linux \
-            -DBUILD_CLIENT=ON -DBUILD_SERVER=OFF \
-            -DCMAKE_BUILD_TYPE=Debug
+            -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TRIPLET }} \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
 
-      - name: Build client and tests
+      - name: Build all targets
         run: |
-          cmake --build build --target r-type_client -- -j$(nproc)
-          cmake --build build --target client_tests -- -j$(nproc)
+          cmake --build ${{ env.BUILD_DIR }} --target r-type_client -- -j$(nproc)
+          cmake --build ${{ env.BUILD_DIR }} --target r-type_server -- -j$(nproc)
+          cmake --build ${{ env.BUILD_DIR }} --target client_tests -- -j$(nproc)
+          cmake --build ${{ env.BUILD_DIR }} --target server_tests -- -j$(nproc)
 
-      - name: Run client tests
-        run: ctest --test-dir build --output-on-failure -R client_tests -j 2
+      - name: Run tests
+        run: |
+          ctest --test-dir ${{ env.BUILD_DIR }} --output-on-failure -j 2
 
-  server:
-    name: Server (Linux)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Parse test results
+        if: always()
+        run: |
+          chmod +x .github/scripts/parse_test_results.py
+          mkdir -p ${{ env.ARTIFACTS_DIR }}
+          .github/scripts/parse_test_results.py ${{ env.BUILD_DIR }} ${{ env.ARTIFACTS_DIR }}/test-results.json
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh
+      - name: Generate coverage data
+        if: always()
+        run: |
+          echo "::group::Generating coverage data"
+          
+          # Capture coverage data
+          lcov --capture --directory ${{ env.BUILD_DIR }} \
+            --output-file ${{ env.ARTIFACTS_DIR }}/coverage.info \
+            --ignore-errors mismatch,inconsistent || true
+          
+          # Filter out system headers and vcpkg
+          lcov --remove ${{ env.ARTIFACTS_DIR }}/coverage.info \
+            '/usr/*' \
+            '*/vcpkg_installed/*' \
+            '*/vcpkg/*' \
+            '*/tests/*' \
+            --output-file ${{ env.ARTIFACTS_DIR }}/coverage-filtered.info \
+            --ignore-errors unused,inconsistent || true
+          
+          # Keep only client and server directories
+          lcov --extract ${{ env.ARTIFACTS_DIR }}/coverage-filtered.info \
+            '*/client/*' \
+            '*/server/*' \
+            --output-file ${{ env.ARTIFACTS_DIR }}/coverage-final.info \
+            --ignore-errors unused,inconsistent || true
+          
+          # Generate HTML report
+          genhtml ${{ env.ARTIFACTS_DIR }}/coverage-final.info \
+            --output-directory ${{ env.ARTIFACTS_DIR }}/coverage-html \
+            --title "R-Type Code Coverage" \
+            --legend --show-details || true
+          
+          echo "::endgroup::"
+          
+          # Show summary
+          lcov --summary ${{ env.ARTIFACTS_DIR }}/coverage-final.info 2>&1 | tee ${{ env.ARTIFACTS_DIR }}/coverage-summary.txt || true
 
-      - name: Cache vcpkg
-        uses: actions/cache@v3
+      - name: Parse coverage data
+        if: always()
+        run: |
+          chmod +x .github/scripts/parse_coverage.py
+          .github/scripts/parse_coverage.py \
+            ${{ env.ARTIFACTS_DIR }}/coverage-final.info \
+            ${{ env.ARTIFACTS_DIR }}/coverage.json \
+            --include client,server
+
+      - name: Generate GitHub summary
+        if: always()
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          chmod +x .github/scripts/generate_summary.py
+          if [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ] && [ -f ${{ env.ARTIFACTS_DIR }}/coverage.json ]; then
+            .github/scripts/generate_summary.py combined \
+              ${{ env.ARTIFACTS_DIR }}/test-results.json \
+              ${{ env.ARTIFACTS_DIR }}/coverage.json
+          elif [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ]; then
+            .github/scripts/generate_summary.py tests ${{ env.ARTIFACTS_DIR }}/test-results.json
+          fi
+
+      - name: Create combined data for Discord
+        if: always()
+        run: |
+          if [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ] && [ -f ${{ env.ARTIFACTS_DIR }}/coverage.json ]; then
+            jq -n \
+              --slurpfile tests ${{ env.ARTIFACTS_DIR }}/test-results.json \
+              --slurpfile coverage ${{ env.ARTIFACTS_DIR }}/coverage.json \
+              '{tests: $tests[0], coverage: $coverage[0]}' \
+              > ${{ env.ARTIFACTS_DIR }}/combined.json
+          fi
+
+      - name: Send Discord notification
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          chmod +x .github/scripts/discord_notifier.py
+          if [ -f ${{ env.ARTIFACTS_DIR }}/combined.json ]; then
+            .github/scripts/discord_notifier.py combined ${{ env.ARTIFACTS_DIR }}/combined.json
+          elif [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ]; then
+            .github/scripts/discord_notifier.py tests ${{ env.ARTIFACTS_DIR }}/test-results.json
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
+          name: test-results
           path: |
-            $HOME/vcpkg/installed
-            $HOME/vcpkg/packages
-            $HOME/vcpkg/buildtrees
-            $HOME/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-
+            ${{ env.ARTIFACTS_DIR }}/test-results.json
+            ${{ env.ARTIFACTS_DIR }}/coverage.json
+            ${{ env.ARTIFACTS_DIR }}/combined.json
+            ${{ env.ARTIFACTS_DIR }}/coverage-summary.txt
 
-      - name: Cache CMake build (server)
-        uses: actions/cache@v3
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          path: build
-          key: cmake-server-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','server/CMakeLists.txt') }}
-          restore-keys: |
-            cmake-server-${{ runner.os }}-
+          name: coverage-html-report
+          path: ${{ env.ARTIFACTS_DIR }}/coverage-html
 
-      - name: Setup vcpkg (manifest mode)
+      - name: Check for test failures
+        if: always()
         run: |
-          chmod +x scripts/setup_vcpkg_and_cmake.sh
-          ./scripts/setup_vcpkg_and_cmake.sh --triplet x64-linux --no-build
-        shell: bash
-
-      - name: Configure (server only)
-        run: |
-          cmake -S . -B build \
-            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
-            -DVCPKG_TARGET_TRIPLET=x64-linux \
-            -DBUILD_CLIENT=OFF -DBUILD_SERVER=ON \
-            -DCMAKE_BUILD_TYPE=Debug
-
-      - name: Build server and tests
-        run: |
-          cmake --build build --target r-type_server -- -j$(nproc)
-          cmake --build build --target server_tests -- -j$(nproc)
-
-      - name: Run server tests
-        run: ctest --test-dir build --output-on-failure -R server_tests -j 2
+          if [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ]; then
+            FAILED=$(jq -r '.failed' ${{ env.ARTIFACTS_DIR }}/test-results.json)
+            if [ "$FAILED" -gt 0 ]; then
+              echo "::error::$FAILED test(s) failed"
+              exit 1
+            fi
+          fi

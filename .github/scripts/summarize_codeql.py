@@ -53,13 +53,18 @@ for f in files:
     for run in runs:
         # build a map of rules metadata for fallback severity
         rules_meta = {}
+        rules_meta_by_index = {}
         try:
             tool = run.get('tool', {}).get('driver', {})
-            for rmeta in tool.get('rules', []) or []:
+            rules_list = tool.get('rules', []) or []
+            for idx, rmeta in enumerate(rules_list):
                 rid = rmeta.get('id') or rmeta.get('name')
-                rules_meta[rid] = rmeta
+                if rid:
+                    rules_meta[rid] = rmeta
+                rules_meta_by_index[idx] = rmeta
         except Exception:
             rules_meta = {}
+            rules_meta_by_index = {}
 
         results = run.get('results', [])
         for r in results:
@@ -77,7 +82,17 @@ for f in files:
             if not level and isinstance(rule_obj, dict):
                 level = (rule_obj.get('properties') or {}).get('severity') or rule_obj.get('defaultConfiguration', {}).get('level', '')
 
-            # fallback to rule metadata defaultConfiguration or properties
+            # If ruleIndex is present, try to lookup the rule metadata by index
+            if not level and 'ruleIndex' in r:
+                try:
+                    idx = int(r.get('ruleIndex'))
+                    rm = rules_meta_by_index.get(idx)
+                    if rm:
+                        level = (rm.get('defaultConfiguration', {}) or {}).get('level', '') or (rm.get('properties') or {}).get('severity', '')
+                except Exception:
+                    pass
+
+            # fallback to rule metadata defaultConfiguration or properties via ruleId
             if not level and rid in rules_meta:
                 try:
                     level = rules_meta[rid].get('defaultConfiguration', {}).get('level', '') or (rules_meta[rid].get('properties') or {}).get('severity', '')

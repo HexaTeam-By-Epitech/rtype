@@ -1,5 +1,5 @@
 ---
-name: Feature request
+name: Ticket
 about: Create a ticket that doesn't hold sub issues
 title: ''
 labels: ''

@@ -11,6 +11,34 @@ if not files:
     print('No SARIF files found in', out_dir)
     sys.exit(0)
 
+# Normalisation centralisée de la sévérité
+def normalize_sev(val):
+    """Normalize various severity representations to one of: 'error', 'warning', 'note' or ''.
+    Handles numeric priorities, common strings (high/critical -> error), and returns
+    a cleaned lowercase token otherwise.
+    """
+    if not val:
+        return ''
+    v = str(val).strip().lower()
+    # numeric priority mapping if present
+    if v.isdigit():
+        n = int(v)
+        if n <= 1:
+            return 'error'
+        if n == 2:
+            return 'warning'
+        return 'note'
+    # map common synonyms
+    if v in ('critical', 'high'):
+        return 'error'
+    if v in ('error', 'failure'):
+        return 'error'
+    if v in ('warning', 'warn', 'medium'):
+        return 'warning'
+    if v in ('note', 'info', 'informational', 'information', 'low'):
+        return 'note'
+    return v
+
 summary = []
 # patterns to skip (third-party libs / vcpkg)
 skip_patterns = ['vcpkg_installed', '/vcpkg_installed/', '/vcpkg/']
@@ -38,39 +66,34 @@ for f in files:
             rid = r.get('ruleId', 'N/A')
 
             # Attempt to determine severity from multiple possible SARIF fields
-            def normalize_sev(val):
-                if not val:
-                    return ''
-                v = str(val).strip().lower()
-                # numeric priority mapping if present
-                if v.isdigit():
-                    n = int(v)
-                    # heuristic: 1 -> error, 2 -> warning, 3 -> note, 4+ -> note
-                    if n <= 1:
-                        return 'error'
-                    if n == 2:
-                        return 'warning'
-                    return 'note'
-                # direct mapping
-                if v in ('error', 'failure'):
-                    return 'error'
-                if v in ('warning', 'warn'):
-                    return 'warning'
-                if v in ('note', 'info', 'informational', 'information'):
-                    return 'note'
-                return v
-
-            level = r.get('level') or r.get('kind') or ''
+            level = r.get('level') or r.get('severity') or r.get('kind') or ''
             # some SARIF put severity in properties
             props = r.get('properties', {}) or {}
             if not level and props:
-                level = props.get('severity') or props.get('priority') or props.get('level') or ''
-            # fallback to rule metadata defaultConfiguration
+                level = props.get('severity') or props.get('priority') or props.get('level') or props.get('severityLabel') or ''
+
+            # try to get severity from a rule object attached directly to the result
+            rule_obj = r.get('rule') or r.get('ruleObject') or {}
+            if not level and isinstance(rule_obj, dict):
+                level = (rule_obj.get('properties') or {}).get('severity') or rule_obj.get('defaultConfiguration', {}).get('level', '')
+
+            # fallback to rule metadata defaultConfiguration or properties
             if not level and rid in rules_meta:
                 try:
-                    level = rules_meta[rid].get('defaultConfiguration', {}).get('level', '')
+                    level = rules_meta[rid].get('defaultConfiguration', {}).get('level', '') or (rules_meta[rid].get('properties') or {}).get('severity', '')
                 except Exception:
                     level = ''
+
+            # sometimes the rule id in results doesn't match the key used in rules_meta; try to find a matching rule
+            if not level:
+                for k, rm in rules_meta.items():
+                    try:
+                        if k == rid or rm.get('id') == rid or rm.get('name') == rid or (isinstance(rm.get('id'), str) and rm.get('id').endswith(rid)):
+                            level = (rm.get('defaultConfiguration', {}) or {}).get('level', '') or (rm.get('properties') or {}).get('severity', '')
+                            if level:
+                                break
+                    except Exception:
+                        continue
 
             level = normalize_sev(level)
 

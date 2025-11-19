@@ -12,7 +12,8 @@ if len(lines) <= 1:
     print('No findings to publish')
     raise SystemExit(0)
 
-rows = [l.split('\t') for l in lines[1:101]]  # up to 100 rows
+# split each line into at most 4 parts to allow tabs in the message column
+rows = [l.split('\t', 3) for l in lines[1:101]]  # up to 100 rows
 # Build a simple HTML table
 content = []
 content.append('<h2>CodeQL scan summary (top {})</h2>'.format(len(rows)))
@@ -54,23 +55,23 @@ for parts in rows[:10]:
         parts.append('')
     sev, rule, loc, msg = parts[:4]
     safe_msg = msg.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+    sev_norm = (sev or '').strip().lower()
     if loc and loc != '?':
         # try to split path:line
         if ':' in loc:
             file, line = loc.rsplit(':', 1)
             line = line if line.isdigit() else '1'
-            if sev.lower() == 'error':
+            if sev_norm == 'error':
                 print(f"::error file={file},line={line}::{rule}: {safe_msg}")
             else:
                 print(f"::warning file={file},line={line}::{rule}: {safe_msg}")
         else:
-            if sev.lower() == 'error':
+            if sev_norm == 'error':
                 print(f"::error ::{rule}: {safe_msg}")
             else:
                 print(f"::warning ::{rule}: {safe_msg}")
     else:
-        if sev.lower() == 'error':
+        if sev_norm == 'error':
             print(f"::error ::{rule}: {safe_msg}")
         else:
             print(f"::warning ::{rule}: {safe_msg}")
-

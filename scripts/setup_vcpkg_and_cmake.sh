@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Script to bootstrap vcpkg, install manifest deps for a chosen triplet, and configure+build CMake.
 # Usage: ./scripts/setup_vcpkg_and_cmake.sh [--triplet TRIPLET] [--vcpkg-root PATH] [--no-bootstrap] [--no-install] [--no-build]
 
@@ -170,4 +170,3 @@ cat <<EOF
   -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
   -DVCPKG_TARGET_TRIPLET=$TRIPLET
 EOF
-

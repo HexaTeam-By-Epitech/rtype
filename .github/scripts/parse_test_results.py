@@ -23,69 +23,69 @@ def parse_ctest_output(build_dir: str) -> Dict:
     }
 
     # Look for CTest XML results
-    testing_dir = Path(build_dir) / 'Testing' / 'Temporary'
-    last_test_log = testing_dir / 'LastTest.log'
-
-    # Try to find Test.xml files
-    test_xml_files = list(Path(build_dir).glob('Testing/**/Test.xml'))
+    testing_dir = Path(build_dir) / 'Testing'
+    # Find the most recent Test.xml file
+    test_xml_files = sorted(list(testing_dir.glob('*/Test.xml')), reverse=True)
 
     if test_xml_files:
-        # Parse Test.xml
-        for xml_file in test_xml_files:
-            try:
-                tree = ET.parse(xml_file)
-                root = tree.getroot()
-
-                # CTest XML format
-                testing = root.find('Testing')
-                if testing:
-                    for test in testing.findall('.//Test'):
-                        status = test.get('Status')
-                        results['total'] += 1
-
-                        name_elem = test.find('.//Name')
-                        test_name = name_elem.text if name_elem is not None else 'Unknown'
-
-                        if status == 'passed':
-                            results['passed'] += 1
-                        elif status == 'failed':
-                            results['failed'] += 1
-                            results['failed_tests'].append(test_name)
-                        else:
-                            results['skipped'] += 1
-
-                        # Get duration
-                        time_elem = test.find('.//Results/NamedMeasurement[@name="Execution Time"]/Value')
-                        if time_elem is not None and time_elem.text:
-                            try:
-                                results['duration'] += float(time_elem.text)
-                            except ValueError:
-                                pass
-
-            except Exception as e:
-                print(f"⚠️  Error parsing {xml_file}: {e}", file=sys.stderr)
-
-    # Fallback: parse LastTest.log
-    elif last_test_log.exists():
+        # Parse the most recent Test.xml
+        xml_file = test_xml_files[0]
         try:
-            with open(last_test_log, 'r') as f:
-                content = f.read()
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
 
-                # Look for test results patterns
-                passed_match = re.search(r'(\d+)/(\d+) Test\s+#\d+:.*\s+Passed', content, re.MULTILINE)
-                if passed_match:
-                    results['passed'] += 1
+            # CTest XML format
+            testing = root.find('Testing')
+            if testing:
+                for test in testing.findall('.//Test'):
+                    status = test.get('Status')
                     results['total'] += 1
 
-                failed_matches = re.finditer(r'(\d+)/(\d+) Test\s+#\d+:\s+(\S+).*\*\*\*Failed', content, re.MULTILINE)
-                for match in failed_matches:
-                    test_name = match.group(3)
-                    results['failed'] += 1
-                    results['total'] += 1
-                    results['failed_tests'].append(test_name)
+                    name_elem = test.find('.//Name')
+                    test_name = name_elem.text if name_elem is not None else 'Unknown'
+
+                    if status == 'passed':
+                        results['passed'] += 1
+                    elif status == 'failed':
+                        results['failed'] += 1
+                        results['failed_tests'].append(test_name)
+                    else:
+                        results['skipped'] += 1
+
+                    # Get duration
+                    time_elem = test.find('.//Results/NamedMeasurement[@name="Execution Time"]/Value')
+                    if time_elem is not None and time_elem.text:
+                        try:
+                            results['duration'] += float(time_elem.text)
+                        except ValueError:
+                            pass
 
         except Exception as e:
-            print(f"⚠️  Error parsing LastTest.log: {e}", file=sys.stderr)
+            print(f"⚠️  Error parsing {xml_file}: {e}", file=sys.stderr)
+
+    # Fallback: parse LastTest.log
+    else:
+        last_test_log = testing_dir / 'Temporary' / 'LastTest.log'
+        if last_test_log.exists():
+            try:
+                with open(last_test_log, 'r') as f:
+                    content = f.read()
+
+                    # Look for test results patterns
+                    passed_match = re.search(r'(\d+)/(\d+) Test\s+#\d+:.*\s+Passed', content, re.MULTILINE)
+                    if passed_match:
+                        results['passed'] += 1
+                        results['total'] += 1
+
+                    failed_matches = re.finditer(r'(\d+)/(\d+) Test\s+#\d+:\s+(\S+).*\*\*\*Failed', content, re.MULTILINE)
+                    for match in failed_matches:
+                        test_name = match.group(3)
+                        results['failed'] += 1
+                        results['total'] += 1
+                        results['failed_tests'].append(test_name)
+
+            except Exception as e:
+                print(f"⚠️  Error parsing LastTest.log: {e}", file=sys.stderr)
 
     return results
 
@@ -203,4 +203,3 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
-

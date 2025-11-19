@@ -35,11 +35,11 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            $HOME/vcpkg/installed
-            $HOME/vcpkg/packages
-            $HOME/vcpkg/buildtrees
-            $HOME/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+            /home/runner/vcpkg/installed
+            /home/runner/vcpkg/packages
+            /home/runner/vcpkg/buildtrees
+            /home/runner/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
@@ -210,10 +210,10 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            vcpkg/installed
-            vcpkg/packages
-            vcpkg/buildtrees
-            vcpkg/downloads
+            /home/runner/vcpkg/installed
+            /home/runner/vcpkg/packages
+            /home/runner/vcpkg/buildtrees
+            /home/runner/vcpkg/downloads
           key: vcpkg-${{ runner.os }}
           restore-keys: vcpkg-${{ runner.os }}-
 

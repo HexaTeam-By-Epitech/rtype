@@ -258,8 +258,23 @@ jobs:
         with:
           languages: cpp
           queries: security-and-quality
-      - name: Autobuild (CodeQL)
-        uses: github/codeql-action/autobuild@v4
+      - name: Setup vcpkg (manifest mode)
+        run: |
+          chmod +x scripts/setup_vcpkg_and_cmake.sh
+          ./scripts/setup_vcpkg_and_cmake.sh --triplet ${{ env.VCPKG_TRIPLET }} --no-build
+        shell: bash
+      - name: Configure CMake for CodeQL
+        run: |
+          cmake -S . -B ${{ env.BUILD_DIR }} \
+            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TRIPLET }} \
+            -DCMAKE_BUILD_TYPE=Debug
+      - name: Build all targets for CodeQL
+        run: |
+          cmake --build ${{ env.BUILD_DIR }} --target r-type_client -- -j$(nproc)
+          cmake --build ${{ env.BUILD_DIR }} --target r-type_server -- -j$(nproc)
+          cmake --build ${{ env.BUILD_DIR }} --target client_tests -- -j$(nproc)
+          cmake --build ${{ env.BUILD_DIR }} --target server_tests -- -j$(nproc)
       - name: Run CodeQL analysis
         uses: github/codeql-action/analyze@v4
       - name: Upload CodeQL results

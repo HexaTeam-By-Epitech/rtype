@@ -31,6 +31,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh lcov
 
+      - name: Ensure vcpkg is present
+        run: |
+          if [ ! -f /home/runner/vcpkg/vcpkg ]; then
+            git clone https://github.com/microsoft/vcpkg.git /home/runner/vcpkg
+            /home/runner/vcpkg/bootstrap-vcpkg.sh
+          fi
+
       - name: Cache vcpkg
         uses: actions/cache@v3
         with:
@@ -39,7 +46,7 @@ jobs:
             /home/runner/vcpkg/packages
             /home/runner/vcpkg/buildtrees
             /home/runner/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
@@ -206,16 +213,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl cppcheck
 
-      - name: Cache vcpkg
-        uses: actions/cache@v3
-        with:
-          path: |
-            /home/runner/vcpkg/installed
-            /home/runner/vcpkg/packages
-            /home/runner/vcpkg/buildtrees
-            /home/runner/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}
-          restore-keys: vcpkg-${{ runner.os }}-
 
       - name: Run cppcheck
         run: |

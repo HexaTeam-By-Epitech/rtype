@@ -19,7 +19,9 @@ jobs:
   tests-and-coverage:
     name: Tests & Coverage (Linux)
     runs-on: ubuntu-latest
-
+    env:
+      BUILD_DIR: build
+      ARTIFACTS_DIR: artifacts/tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -177,24 +179,6 @@ jobs:
             .github/scripts/discord_notifier.py tests ${{ env.ARTIFACTS_DIR }}/test-results.json
           fi
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            ${{ env.ARTIFACTS_DIR }}/test-results.json
-            ${{ env.ARTIFACTS_DIR }}/coverage.json
-            ${{ env.ARTIFACTS_DIR }}/combined.json
-            ${{ env.ARTIFACTS_DIR }}/coverage-summary.txt
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-html-report
-          path: ${{ env.ARTIFACTS_DIR }}/coverage-html
-
       - name: Check for test failures
         if: always()
         run: |
@@ -205,3 +189,116 @@ jobs:
               exit 1
             fi
           fi
+
+  analysis:
+    name: C/C++ Static Analysis
+    runs-on: ubuntu-latest
+    needs: tests-and-coverage
+    env:
+      BUILD_DIR: build
+      ARTIFACTS_DIR: artifacts/codeql
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl cppcheck
+
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        with:
+          path: |
+            vcpkg/installed
+            vcpkg/packages
+            vcpkg/buildtrees
+            vcpkg/downloads
+          key: vcpkg-${{ runner.os }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Run cppcheck
+        run: |
+          set -o pipefail
+          echo "::group::Running cppcheck"
+          EXCLUDES="-i ${{ env.BUILD_DIR }}/vcpkg_installed -i client/vcpkg_installed -i server/vcpkg_installed"
+          if [ -f ${{ env.BUILD_DIR }}/compile_commands.json ]; then
+            cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+              --enable=all --inconclusive --std=c++23 \
+              --xml --xml-version=2 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES 2> cppcheck.xml || true
+            cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+              --enable=all --inconclusive --std=c++23 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES 2>&1 | tee cppcheck.txt || true
+          else
+            cppcheck --enable=all --inconclusive --std=c++23 \
+              --xml --xml-version=2 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES client server 2> cppcheck.xml || true
+            cppcheck --enable=all --inconclusive --std=c++23 \
+              --suppress=missingIncludeSystem --suppress=checkersReport \
+              $EXCLUDES client server 2>&1 | tee cppcheck.txt || true
+          fi
+          echo "::endgroup::"
+          if grep -qE 'severity="(error|warning|performance)"' cppcheck.xml; then
+            echo "::error::cppcheck found issues. See artifacts for details."
+            sed -n '1,50p' cppcheck.txt
+            exit 1
+          fi
+          echo "✓ cppcheck: no critical issues found"
+      - name: Upload cppcheck results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-report
+          path: |
+            cppcheck.xml
+            cppcheck.txt
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: cpp
+          queries: security-and-quality
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+      - name: Upload CodeQL results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-results
+          path: |
+            codeql-db
+            codeql-sarif
+            codeql-sarif/*.sarif
+      - name: Generate CodeQL summary
+        if: always()
+        run: |
+          echo "CodeQL Analysis Summary" > codeql_summary.txt
+          echo "========================" >> codeql_summary.txt
+          echo "" >> codeql_summary.txt
+          echo "## Cppcheck Results" >> codeql_summary.txt
+          echo "\`\`\`" >> codeql_summary.txt
+          head -n 50 cppcheck.txt >> codeql_summary.txt
+          echo "\`\`\`" >> codeql_summary.txt
+          echo "" >> codeql_summary.txt
+          echo "## CodeQL Results" >> codeql_summary.txt
+          echo "\`\`\`" >> codeql_summary.txt
+          ls -1 codeql-sarif/*.sarif >> codeql_summary.txt
+          echo "\`\`\`" >> codeql_summary.txt
+          echo "" >> codeql_summary.txt
+          echo "## Coverage Report" >> codeql_summary.txt
+          echo "\`\`\`" >> codeql_summary.txt
+          lcov --summary ${{ env.ARTIFACTS_DIR }}/coverage-final.info >> codeql_summary.txt 2>&1
+          echo "\`\`\`" >> codeql_summary.txt
+          echo "" >> codeql_summary.txt
+          echo "See attached artifacts for detailed reports." >> codeql_summary.txt
+          echo "" >> codeql_summary.txt
+          echo "Generated by GitHub Actions"
+      - name: Upload CodeQL summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-summary
+          path: codeql_summary.txt

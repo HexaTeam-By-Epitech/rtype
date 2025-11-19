@@ -160,7 +160,7 @@ if [[ $DO_BUILD -eq 1 ]]; then
   echo "Building project"
   cmake --build "$PROJECT_ROOT/build" -- -j$(nproc 2>/dev/null || echo 4)
   echo "Running tests with ctest"
-  ctest --test-dir "$PROJECT_ROOT/build" --output-on-failure -j 2
+  ctest --test-dir "$PROJECT_ROOT/build" -T test --output-on-failure
 else
   echo "Skipping CMake configure/build (--no-build)"
 fi

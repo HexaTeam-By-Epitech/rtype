@@ -29,17 +29,18 @@ Link to our [Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
 ## Getting Started
 1. Fork the repository.
-2. Create a feature branch: `git checkout -b my-branch`.
-3. Implement changes, following project style and tests.
-4. Run existing tests and add new tests if needed.
-5. Open a Pull Request describing your changes clearly.
+2. Implement changes, following project style and tests.
+3. Run existing tests and add new tests if needed.
+4. Open a Pull Request describing your changes clearly. Using AI tools for code generation is allowed, but please review and test the output thoroughly before submission.
+
+The description of the PR should not be AI-generated; it must be written by the contributor to ensure clarity and accuracy.
 
 **Small fixes** (typos, formatting, minor bugs) can often be submitted directly via a PR without extensive discussion.
 
 ---
 
 ## Reporting Bugs
-- Use the [Bug Report template](.github/ISSUE_TEMPLATE/bug_report.md).
+- Use the [Bug Report template](.github/ISSUE_TEMPLATE/BUG_REPORT.md).
 - Include steps to reproduce, expected vs actual behavior, and environment details.
 
 ### Security Issues
@@ -48,7 +49,7 @@ Do NOT open issues publicly. Send a report directly to `report.hexateam@gmail.co
 ---
 
 ## Requesting Features
-- Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md).
+- Use the [Ticket Template](.github/ISSUE_TEMPLATE/TICKET_FORMAT.md).
 - Include motivation, context, and a proposed solution.
 - Describe potential impact and alternatives considered.
 
@@ -72,9 +73,8 @@ Do NOT open issues publicly. Send a report directly to `report.hexateam@gmail.co
 ## Optional Conventions
 
 ### Code Style
-- Follow the [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript) for JS/React code.
-- Keep indentation, spacing, and naming consistent across the project.
-- Run linters before committing (`eslint`, `flake8`, etc.).
+- Run clang format before submitting code.
+- Follow existing code conventions for consistency.
 
 ### Commit Messages
 - Use [Conventional Commits](https://www.conventionalcommits.org/) format:
@@ -85,7 +85,7 @@ Do NOT open issues publicly. Send a report directly to `report.hexateam@gmail.co
 - Keep messages concise but descriptive (50 chars for subject, detailed body if needed).
 
 ### Branch Naming
-- Feature branches: `feature/<short-description>`
+- Feature branches: `feat/<short-description>`
 - Fix branches: `fix/<short-description>`
 - Hotfix branches: `hotfix/<short-description>`
 
@@ -97,9 +97,10 @@ Do NOT open issues publicly. Send a report directly to `report.hexateam@gmail.co
 
 ### Labels
 Use labels consistently to indicate the type and status of issues and pull requests.
-- `bug`: For issues reporting a defect or unexpected behavior.
-- `feature`: For requests or PRs introducing new functionality.
-- `documentation`: For changes or issues related to documentation.
-- Add other relevant labels as needed (e.g., `help wanted`, `good first issue`, `enhancement`, `question`).
+- `Client`: For issues or PRs related to the client-side code.
+- `Server`: For issues or PRs related to the server-side code.
+- `Common`: For issues or PRs that affect both client and server code.
+- `Documentation`: For changes or issues related to documentation.
+- `DevOps`: For issues or PRs related to infrastructure, CI/CD, or deployment.
 - When opening an issue or PR, select the most appropriate labels to help maintainers triage and prioritize.
 - If unsure which label to use, leave a comment and maintainers will assist.

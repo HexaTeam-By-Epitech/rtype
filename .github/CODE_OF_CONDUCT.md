@@ -30,4 +30,4 @@ This Code of Conduct applies both within project spaces (GitHub, Discord, etc.) 
 Instances of unacceptable behavior may lead to a warning, temporary ban, or permanent removal from the project, depending on severity. Maintainers will handle all incidents fairly and consistently.
 
 ## Acknowledgements
-This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org/), version 2.1, licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org/), version 2.1, licensed under [GPL-3.0 license](https://www.gnu.org/licenses/gpl-3.0.fr.html).

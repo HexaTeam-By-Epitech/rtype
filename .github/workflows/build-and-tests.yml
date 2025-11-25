@@ -28,18 +28,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup NuGet for vcpkg cache
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mono-complete
-          
-          mono $(vcpkg fetch nuget | tail -n 1) sources add \
-            -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            -storepasswordincleartext \
-            -name "GitHub" \
-            -username "${{ github.repository_owner }}" \
-            -password "${{ secrets.GITHUB_TOKEN }}" || true
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -50,34 +38,34 @@ jobs:
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev
 
-      - name: Setup vcpkg with cache
-        run: |
-          if [ ! -d "$HOME/vcpkg" ]; then
-            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
-          fi
-          cd "$HOME/vcpkg"
-          ./bootstrap-vcpkg.sh
-          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+      - name: Setup vcpkg
+        uses: microsoft/setup-vcpkg@v1
+        with:
+          manifestPath: vcpkg.json
+          cacheBinary: true
+          cacheHitVar: VCPKG_CACHE_HIT
 
-      - name: Cache vcpkg binaries
+      - name: Log vcpkg cache status
+        run: |
+          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT" >> $GITHUB_STEP_SUMMARY
+          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT"
+
+      - name: Cache CMake build
+        id: cmake-cache
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.nuget/packages
-            ~/vcpkg/downloads
-            ~/vcpkg/installed
-            ~/vcpkg/buildtrees
-            ~/vcpkg/packages
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          path: ${{ env.BUILD_DIR }}
+          key: cmake-release-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-
+            cmake-release-${{ runner.os }}-
 
-      - name: Install vcpkg dependencies
+      - name: Log CMake cache status
         run: |
-          cd $GITHUB_WORKSPACE
-          $VCPKG_ROOT/vcpkg install --triplet x64-linux
+          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}" >> $GITHUB_STEP_SUMMARY
+          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}"
 
       - name: Configure CMake
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
         run: |
           cmake -B ${{ env.BUILD_DIR }} \
             -DCMAKE_BUILD_TYPE=Release \
@@ -88,6 +76,7 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Build project
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
         run: cmake --build ${{ env.BUILD_DIR }} --config Release -j$(nproc)
 
       - name: Run cppcheck
@@ -167,18 +156,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup NuGet for vcpkg cache
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mono-complete
-          
-          mono $(vcpkg fetch nuget | tail -n 1) sources add \
-            -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            -storepasswordincleartext \
-            -name "GitHub" \
-            -username "${{ github.repository_owner }}" \
-            -password "${{ secrets.GITHUB_TOKEN }}" || true
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -189,32 +166,31 @@ jobs:
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev python3
 
-      - name: Setup vcpkg with cache
-        run: |
-          if [ ! -d "$HOME/vcpkg" ]; then
-            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
-          fi
-          cd "$HOME/vcpkg"
-          ./bootstrap-vcpkg.sh
-          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+      - name: Setup vcpkg
+        uses: microsoft/setup-vcpkg@v1
+        with:
+          manifestPath: vcpkg.json
+          cacheBinary: true
+          cacheHitVar: VCPKG_CACHE_HIT
 
-      - name: Cache vcpkg binaries
+      - name: Log vcpkg cache status
+        run: |
+          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT" >> $GITHUB_STEP_SUMMARY
+          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT"
+
+      - name: Cache CMake build
+        id: cmake-cache
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.nuget/packages
-            ~/vcpkg/downloads
-            ~/vcpkg/installed
-            ~/vcpkg/buildtrees
-            ~/vcpkg/packages
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          path: ${{ env.BUILD_DIR }}
+          key: cmake-debug-coverage-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-
+            cmake-debug-coverage-${{ runner.os }}-
 
-      - name: Install vcpkg dependencies
+      - name: Log CMake cache status
         run: |
-          cd $GITHUB_WORKSPACE
-          $VCPKG_ROOT/vcpkg install --triplet x64-linux
+          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}" >> $GITHUB_STEP_SUMMARY
+          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}"
 
       - name: Configure CMake with Coverage
         run: |

@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 env:
-  VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
+  VCPKG_BINARY_SOURCES: "clear;nuget,GitHub,readwrite"
   BUILD_DIR: build
   CC: gcc-13
   CXX: g++-13
@@ -28,12 +28,17 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Export GitHub Actions cache for vcpkg
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+      - name: Setup NuGet for vcpkg cache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mono-complete
+          
+          mono $(vcpkg fetch nuget | tail -n 1) sources add \
+            -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            -storepasswordincleartext \
+            -name "GitHub" \
+            -username "${{ github.repository_owner }}" \
+            -password "${{ secrets.GITHUB_TOKEN }}" || true
 
       - name: Install system dependencies
         run: |
@@ -45,7 +50,7 @@ jobs:
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev
 
-      - name: Setup vcpkg
+      - name: Setup vcpkg with cache
         run: |
           if [ ! -d "$HOME/vcpkg" ]; then
             git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
@@ -53,6 +58,16 @@ jobs:
           cd "$HOME/vcpkg"
           ./bootstrap-vcpkg.sh
           echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nuget/packages
+            ${{ env.HOME }}/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
 
       - name: Install vcpkg dependencies
         run: |
@@ -79,7 +94,6 @@ jobs:
           
           EXCLUDES="-i ${{ env.BUILD_DIR }}/vcpkg_installed"
           
-          # XML output for artifacts
           cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
             --enable=warning,style,performance,portability \
             --inconclusive \
@@ -90,7 +104,6 @@ jobs:
             --suppress=unmatchedSuppression \
             $EXCLUDES 2> cppcheck.xml || true
           
-          # Text output for logs
           cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
             --enable=warning,style,performance,portability \
             --inconclusive \
@@ -103,7 +116,6 @@ jobs:
           
           echo "::endgroup::"
           
-          # Count issues
           ERROR_COUNT=$(grep -c 'severity="error"' cppcheck.xml || true)
           WARNING_COUNT=$(grep -c 'severity="warning"' cppcheck.xml || true)
           
@@ -152,12 +164,17 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Export GitHub Actions cache for vcpkg
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+      - name: Setup NuGet for vcpkg cache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mono-complete
+          
+          mono $(vcpkg fetch nuget | tail -n 1) sources add \
+            -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            -storepasswordincleartext \
+            -name "GitHub" \
+            -username "${{ github.repository_owner }}" \
+            -password "${{ secrets.GITHUB_TOKEN }}" || true
 
       - name: Install system dependencies
         run: |
@@ -169,7 +186,7 @@ jobs:
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev python3
 
-      - name: Setup vcpkg
+      - name: Setup vcpkg with cache
         run: |
           if [ ! -d "$HOME/vcpkg" ]; then
             git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
@@ -177,6 +194,16 @@ jobs:
           cd "$HOME/vcpkg"
           ./bootstrap-vcpkg.sh
           echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nuget/packages
+            ${{ env.HOME }}/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
 
       - name: Install vcpkg dependencies
         run: |
@@ -202,7 +229,6 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}
         run: |
           ctest --output-on-failure --verbose --timeout 300 || true
-          # Don't fail here, we'll check results later
 
       - name: Generate coverage data
         working-directory: ${{ env.BUILD_DIR }}
@@ -214,7 +240,6 @@ jobs:
             --rc lcov_branch_coverage=1 \
             --ignore-errors mismatch || true
           
-          # Filter out system and vcpkg files
           lcov --remove coverage.info \
             '/usr/*' \
             '*/vcpkg_installed/*' \
@@ -223,7 +248,6 @@ jobs:
             --output-file coverage_filtered.info \
             --rc lcov_branch_coverage=1 || true
           
-          # Generate HTML report
           genhtml coverage_filtered.info \
             --output-directory coverage_html \
             --rc lcov_branch_coverage=1 || true
@@ -243,6 +267,16 @@ jobs:
             coverage.json \
             --include client,server
 
+      - name: Prepare combined results for Discord
+        if: always()
+        run: |
+          jq -s '{"tests": .[0], "coverage": .[1]}' \
+            test-results.json \
+            coverage.json > combined-results.json
+          
+          echo "✅ Combined results created"
+          ls -lh combined-results.json
+
       - name: Generate GitHub Summary
         run: |
           python3 .github/scripts/generate_summary.py \
@@ -257,21 +291,17 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: |
           if [ -n "$DISCORD_WEBHOOK" ]; then
-            python3 .github/scripts/discord_notifier.py \
-              combined \
-              combined-results.json
+            if [ -f "combined-results.json" ]; then
+              python3 .github/scripts/discord_notifier.py \
+                combined \
+                combined-results.json
+            else
+              echo "❌ combined-results.json not found, skipping Discord notification"
+            fi
           else
             echo "⚠️  DISCORD_WEBHOOK not set, skipping notification"
           fi
         continue-on-error: true
-
-      - name: Prepare combined results for Discord
-        if: always()
-        run: |
-          # Combine test and coverage into single JSON for Discord
-          jq -s '{"tests": .[0], "coverage": .[1]}' \
-            test-results.json \
-            coverage.json > combined-results.json
 
       - name: Check test results
         run: |

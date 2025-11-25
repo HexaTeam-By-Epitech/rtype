@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 env:
-  VCPKG_BINARY_SOURCES: "clear;nuget,GitHub,readwrite"
+  VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
   BUILD_DIR: build
   CC: gcc-13
   CXX: g++-13
@@ -28,6 +28,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Export GitHub Actions cache for vcpkg
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -37,34 +43,19 @@ jobs:
             libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev
-
       - name: Setup vcpkg
-        uses: lukka/setup-vcpkg@v1
-        with:
-          vcpkgArguments: '--triplet x64-linux'
-          cacheHitVar: VCPKG_CACHE_HIT
-
-      - name: Log vcpkg cache status
         run: |
-          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT" >> $GITHUB_STEP_SUMMARY
-          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT"
-
-      - name: Cache CMake build
-        id: cmake-cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.BUILD_DIR }}
-          key: cmake-release-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'vcpkg.json') }}
-          restore-keys: |
-            cmake-release-${{ runner.os }}-
-
-      - name: Log CMake cache status
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          fi
+          cd "$HOME/vcpkg"
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+      - name: Install vcpkg dependencies
         run: |
-          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}" >> $GITHUB_STEP_SUMMARY
-          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}"
-
+          cd $GITHUB_WORKSPACE
+          $VCPKG_ROOT/vcpkg install --triplet x64-linux
       - name: Configure CMake
-        if: steps.cmake-cache.outputs.cache-hit != 'true'
         run: |
           cmake -B ${{ env.BUILD_DIR }} \
             -DCMAKE_BUILD_TYPE=Release \
@@ -73,9 +64,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-
       - name: Build project
-        if: steps.cmake-cache.outputs.cache-hit != 'true'
         run: cmake --build ${{ env.BUILD_DIR }} --config Release -j$(nproc)
 
       - name: Run cppcheck
@@ -85,6 +74,7 @@ jobs:
           
           EXCLUDES="-i ${{ env.BUILD_DIR }}/vcpkg_installed"
           
+          # XML output for artifacts
           cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
             --enable=warning,style,performance,portability \
             --inconclusive \
@@ -95,6 +85,7 @@ jobs:
             --suppress=unmatchedSuppression \
             $EXCLUDES 2> cppcheck.xml || true
           
+          # Text output for logs
           cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
             --enable=warning,style,performance,portability \
             --inconclusive \
@@ -107,6 +98,7 @@ jobs:
           
           echo "::endgroup::"
           
+          # Count issues
           ERROR_COUNT=$(grep -c 'severity="error"' cppcheck.xml || true)
           WARNING_COUNT=$(grep -c 'severity="warning"' cppcheck.xml || true)
           
@@ -123,7 +115,6 @@ jobs:
           fi
           
           echo "✓ Static analysis passed"
-
       - name: Upload cppcheck results
         if: always()
         uses: actions/upload-artifact@v4
@@ -155,6 +146,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Export GitHub Actions cache for vcpkg
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -164,32 +161,18 @@ jobs:
             libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev python3
-
       - name: Setup vcpkg
-        uses: lukka/setup-vcpkg@v1
-        with:
-          vcpkgArguments: '--triplet x64-linux'
-          cacheHitVar: VCPKG_CACHE_HIT
-
-      - name: Log vcpkg cache status
         run: |
-          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT" >> $GITHUB_STEP_SUMMARY
-          echo "VCPKG_CACHE_HIT: $VCPKG_CACHE_HIT"
-
-      - name: Cache CMake build
-        id: cmake-cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.BUILD_DIR }}
-          key: cmake-debug-coverage-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'vcpkg.json') }}
-          restore-keys: |
-            cmake-debug-coverage-${{ runner.os }}-
-
-      - name: Log CMake cache status
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          fi
+          cd "$HOME/vcpkg"
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+      - name: Install vcpkg dependencies
         run: |
-          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}" >> $GITHUB_STEP_SUMMARY
-          echo "CMAKE_CACHE_HIT: ${{ steps.cmake-cache.outputs.cache-hit }}"
-
+          cd $GITHUB_WORKSPACE
+          $VCPKG_ROOT/vcpkg install --triplet x64-linux
       - name: Configure CMake with Coverage
         run: |
           cmake -B ${{ env.BUILD_DIR }} \
@@ -201,7 +184,6 @@ jobs:
             -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
             -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
             -DCMAKE_EXE_LINKER_FLAGS="--coverage"
-
       - name: Build project with coverage
         run: cmake --build ${{ env.BUILD_DIR }} --config Debug -j$(nproc)
 
@@ -209,7 +191,7 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}
         run: |
           ctest --output-on-failure --verbose --timeout 300 || true
-
+          # Don't fail here, we'll check results later
       - name: Generate coverage data
         working-directory: ${{ env.BUILD_DIR }}
         run: |
@@ -220,6 +202,7 @@ jobs:
             --rc lcov_branch_coverage=1 \
             --ignore-errors mismatch || true
           
+          # Filter out system and vcpkg files
           lcov --remove coverage.info \
             '/usr/*' \
             '*/vcpkg_installed/*' \
@@ -228,42 +211,29 @@ jobs:
             --output-file coverage_filtered.info \
             --rc lcov_branch_coverage=1 || true
           
+          # Generate HTML report
           genhtml coverage_filtered.info \
             --output-directory coverage_html \
             --rc lcov_branch_coverage=1 || true
           
           echo "Coverage report generated"
-
       - name: Parse test results
         run: |
           python3 .github/scripts/parse_test_results.py \
             ${{ env.BUILD_DIR }} \
             test-results.json
-
       - name: Parse coverage results
         run: |
           python3 .github/scripts/parse_coverage.py \
             ${{ env.BUILD_DIR }}/coverage_filtered.info \
             coverage.json \
             --include client,server
-
-      - name: Prepare combined results for Discord
-        if: always()
-        run: |
-          jq -s '{"tests": .[0], "coverage": .[1]}' \
-            test-results.json \
-            coverage.json > combined-results.json
-          
-          echo "✅ Combined results created"
-          ls -lh combined-results.json
-
       - name: Generate GitHub Summary
         run: |
           python3 .github/scripts/generate_summary.py \
             combined \
             test-results.json \
             coverage.json
-
       - name: Send Discord notification
         if: always()
         env:
@@ -271,18 +241,21 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: |
           if [ -n "$DISCORD_WEBHOOK" ]; then
-            if [ -f "combined-results.json" ]; then
-              python3 .github/scripts/discord_notifier.py \
-                combined \
-                combined-results.json
-            else
-              echo "❌ combined-results.json not found, skipping Discord notification"
-            fi
+            python3 .github/scripts/discord_notifier.py \
+              combined \
+              combined-results.json
           else
             echo "⚠️  DISCORD_WEBHOOK not set, skipping notification"
           fi
         continue-on-error: true
 
+      - name: Prepare combined results for Discord
+        if: always()
+        run: |
+          # Combine test and coverage into single JSON for Discord
+          jq -s '{"tests": .[0], "coverage": .[1]}' \
+            test-results.json \
+            coverage.json > combined-results.json
       - name: Check test results
         run: |
           FAILED=$(jq -r '.failed' test-results.json)
@@ -301,7 +274,6 @@ jobs:
           fi
           
           echo "✓ All tests passed"
-
       - name: Check coverage threshold
         run: |
           LINE_COV=$(jq -r '.line_coverage' coverage.json)
@@ -314,7 +286,6 @@ jobs:
           else
             echo "✓ Coverage meets threshold"
           fi
-
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

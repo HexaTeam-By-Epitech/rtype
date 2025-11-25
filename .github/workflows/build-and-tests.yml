@@ -39,10 +39,9 @@ jobs:
             libflac-dev libvorbis-dev
 
       - name: Setup vcpkg
-        uses: microsoft/setup-vcpkg@v1
+        uses: lukka/setup-vcpkg@v1
         with:
-          manifestPath: vcpkg.json
-          cacheBinary: true
+          vcpkgArguments: '--triplet x64-linux'
           cacheHitVar: VCPKG_CACHE_HIT
 
       - name: Log vcpkg cache status
@@ -167,10 +166,9 @@ jobs:
             libflac-dev libvorbis-dev python3
 
       - name: Setup vcpkg
-        uses: microsoft/setup-vcpkg@v1
+        uses: lukka/setup-vcpkg@v1
         with:
-          manifestPath: vcpkg.json
-          cacheBinary: true
+          vcpkgArguments: '--triplet x64-linux'
           cacheHitVar: VCPKG_CACHE_HIT
 
       - name: Log vcpkg cache status

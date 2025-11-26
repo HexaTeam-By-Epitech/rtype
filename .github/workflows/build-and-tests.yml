@@ -1,207 +1,316 @@
 name: Build and Tests
 
 on:
-  push:
-    branches: [ dev, main ]
   pull_request:
+    branches: [ dev ]
+  push:
     branches: [ dev ]
 
 permissions:
   contents: read
   checks: write
+  pull-requests: write
 
 env:
-  VCPKG_TRIPLET: x64-linux
+  VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
   BUILD_DIR: build
-  ARTIFACTS_DIR: artifacts/tests
+  CC: gcc-13
+  CXX: g++-13
 
 jobs:
-  tests-and-coverage:
-    name: Tests & Coverage (Linux)
+  build-and-analysis:
+    name: Build & Static Analysis
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
+      - name: Export GitHub Actions cache for vcpkg
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git cmake ninja-build pkg-config curl zsh lcov
-
-      - name: Cache vcpkg
-        uses: actions/cache@v3
-        with:
-          path: |
-            $HOME/vcpkg/installed
-            $HOME/vcpkg/packages
-            $HOME/vcpkg/buildtrees
-            $HOME/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-
-
-      - name: Cache CMake build
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.BUILD_DIR }}
-          key: cmake-tests-${{ runner.os }}-${{ hashFiles('CMakeLists.txt','client/CMakeLists.txt','server/CMakeLists.txt') }}
-          restore-keys: |
-            cmake-tests-${{ runner.os }}-
-
-      - name: Setup vcpkg (manifest mode)
+          sudo apt-get install -y \
+            build-essential git cmake ninja-build pkg-config curl zip unzip tar \
+            cppcheck gcc-13 g++-13 \
+            libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libudev-dev libgl1-mesa-dev libopenal-dev \
+            libflac-dev libvorbis-dev
+      - name: Setup vcpkg
         run: |
-          chmod +x scripts/setup_vcpkg_and_cmake.sh
-          ./scripts/setup_vcpkg_and_cmake.sh --triplet ${{ env.VCPKG_TRIPLET }} --no-build
-        shell: bash
-
-      - name: Configure with coverage
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          fi
+          cd "$HOME/vcpkg"
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+      - name: Install vcpkg dependencies
         run: |
-          cmake -S . -B ${{ env.BUILD_DIR }} \
-            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
-            -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TRIPLET }} \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
-            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
-
-      - name: Build all targets
+          cd $GITHUB_WORKSPACE
+          $VCPKG_ROOT/vcpkg install --triplet x64-linux
+      - name: Configure CMake
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --target r-type_client -- -j$(nproc)
-          cmake --build ${{ env.BUILD_DIR }} --target r-type_server -- -j$(nproc)
-          cmake --build ${{ env.BUILD_DIR }} --target client_tests -- -j$(nproc)
-          cmake --build ${{ env.BUILD_DIR }} --target server_tests -- -j$(nproc)
+          cmake -B ${{ env.BUILD_DIR }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=${{ env.CC }} \
+            -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - name: Build project
+        run: cmake --build ${{ env.BUILD_DIR }} --config Release -j$(nproc)
 
-      - name: Run tests
+      - name: Run cppcheck
         run: |
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-on-failure -j 2
-
-      - name: Debug test output
-        if: always()
-        run: |
-          echo "=== Checking Testing directory ==="
-          ls -la ${{ env.BUILD_DIR }}/Testing/ || true
-          ls -la ${{ env.BUILD_DIR }}/Testing/Temporary/ || true
-          echo "=== Checking for XML files ==="
-          find ${{ env.BUILD_DIR }} -name "*.xml" -type f || true
-          echo "=== Last 50 lines of LastTest.log ==="
-          tail -50 ${{ env.BUILD_DIR }}/Testing/Temporary/LastTest.log || true
-
-      - name: Parse test results
-        if: always()
-        run: |
-          chmod +x .github/scripts/parse_test_results.py
-          mkdir -p ${{ env.ARTIFACTS_DIR }}
-          .github/scripts/parse_test_results.py ${{ env.BUILD_DIR }} ${{ env.ARTIFACTS_DIR }}/test-results.json
-
-      - name: Generate coverage data
-        if: always()
-        run: |
-          echo "::group::Generating coverage data"
+          set -o pipefail
+          echo "::group::Running cppcheck with compile_commands.json"
           
-          # Capture coverage data
-          lcov --capture --directory ${{ env.BUILD_DIR }} \
-            --output-file ${{ env.ARTIFACTS_DIR }}/coverage.info \
-            --ignore-errors mismatch,inconsistent || true
+          EXCLUDES="-i ${{ env.BUILD_DIR }}/vcpkg_installed"
           
-          # Filter out system headers and vcpkg
-          lcov --remove ${{ env.ARTIFACTS_DIR }}/coverage.info \
-            '/usr/*' \
-            '*/vcpkg_installed/*' \
-            '*/vcpkg/*' \
-            '*/tests/*' \
-            --output-file ${{ env.ARTIFACTS_DIR }}/coverage-filtered.info \
-            --ignore-errors unused,inconsistent || true
+          # XML output for artifacts
+          cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+            --enable=warning,style,performance,portability \
+            --inconclusive \
+            --std=c++23 \
+            --xml --xml-version=2 \
+            --suppress=missingIncludeSystem \
+            --suppress=checkersReport \
+            --suppress=unmatchedSuppression \
+            $EXCLUDES 2> cppcheck.xml || true
           
-          # Keep only client and server directories
-          lcov --extract ${{ env.ARTIFACTS_DIR }}/coverage-filtered.info \
-            '*/client/*' \
-            '*/server/*' \
-            --output-file ${{ env.ARTIFACTS_DIR }}/coverage-final.info \
-            --ignore-errors unused,inconsistent || true
-          
-          # Generate HTML report
-          genhtml ${{ env.ARTIFACTS_DIR }}/coverage-final.info \
-            --output-directory ${{ env.ARTIFACTS_DIR }}/coverage-html \
-            --title "R-Type Code Coverage" \
-            --legend --show-details || true
+          # Text output for logs
+          cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+            --enable=warning,style,performance,portability \
+            --inconclusive \
+            --std=c++23 \
+            --suppress=missingIncludeSystem \
+            --suppress=checkersReport \
+            --suppress=unmatchedSuppression \
+            --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
+            $EXCLUDES 2>&1 | tee cppcheck.txt || true
           
           echo "::endgroup::"
           
-          # Show summary
-          lcov --summary ${{ env.ARTIFACTS_DIR }}/coverage-final.info 2>&1 | tee ${{ env.ARTIFACTS_DIR }}/coverage-summary.txt || true
-
-      - name: Parse coverage data
+          # Count issues
+          ERROR_COUNT=$(grep -c 'severity="error"' cppcheck.xml || true)
+          WARNING_COUNT=$(grep -c 'severity="warning"' cppcheck.xml || true)
+          
+          echo "::notice::Cppcheck found $ERROR_COUNT error(s) and $WARNING_COUNT warning(s)"
+          
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "::error::cppcheck found $ERROR_COUNT critical error(s)"
+            head -20 cppcheck.txt
+            exit 1
+          fi
+          
+          if [ "$WARNING_COUNT" -gt 15 ]; then
+            echo "::warning::cppcheck found $WARNING_COUNT warnings (threshold: 15)"
+          fi
+          
+          echo "✓ Static analysis passed"
+      - name: Upload cppcheck results
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-report
+          path: |
+            cppcheck.xml
+            cppcheck.txt
+          retention-days: 30
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-release
+          path: |
+            ${{ env.BUILD_DIR }}/server/r-type_server
+            ${{ env.BUILD_DIR }}/client/r-type_client
+          retention-days: 7
+
+  tests-and-coverage:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: build-and-analysis
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Export GitHub Actions cache for vcpkg
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+      - name: Install system dependencies
         run: |
-          chmod +x .github/scripts/parse_coverage.py
-          .github/scripts/parse_coverage.py \
-            ${{ env.ARTIFACTS_DIR }}/coverage-final.info \
-            ${{ env.ARTIFACTS_DIR }}/coverage.json \
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build \
+            gcc-13 g++-13 lcov gcovr \
+            libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libudev-dev libgl1-mesa-dev libopenal-dev \
+            libflac-dev libvorbis-dev python3
+      - name: Setup vcpkg
+        run: |
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          fi
+          cd "$HOME/vcpkg"
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+      - name: Install vcpkg dependencies
+        run: |
+          cd $GITHUB_WORKSPACE
+          $VCPKG_ROOT/vcpkg install --triplet x64-linux
+      - name: Configure CMake with Coverage
+        run: |
+          cmake -B ${{ env.BUILD_DIR }} \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=${{ env.CC }} \
+            -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+            -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+      - name: Build project with coverage
+        run: cmake --build ${{ env.BUILD_DIR }} --config Debug -j$(nproc)
+
+      - name: Run tests
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          ctest --output-on-failure --verbose --timeout 300 || true
+          # Don't fail here, we'll check results later
+      - name: Generate coverage data
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          echo "Generating LCOV coverage data..."
+          lcov --capture \
+            --directory . \
+            --output-file coverage.info \
+            --rc lcov_branch_coverage=1 \
+            --ignore-errors mismatch || true
+          
+          # Filter out system and vcpkg files
+          lcov --remove coverage.info \
+            '/usr/*' \
+            '*/vcpkg_installed/*' \
+            '*/build/*' \
+            '*/tests/*' \
+            --output-file coverage_filtered.info \
+            --rc lcov_branch_coverage=1 || true
+          
+          # Generate HTML report
+          genhtml coverage_filtered.info \
+            --output-directory coverage_html \
+            --rc lcov_branch_coverage=1 || true
+          
+          echo "Coverage report generated"
+      - name: Parse test results
+        run: |
+          python3 .github/scripts/parse_test_results.py \
+            ${{ env.BUILD_DIR }} \
+            test-results.json
+      - name: Parse coverage results
+        run: |
+          python3 .github/scripts/parse_coverage.py \
+            ${{ env.BUILD_DIR }}/coverage_filtered.info \
+            coverage.json \
             --include client,server
-
-      - name: Generate GitHub summary
-        if: always()
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
+      - name: Generate GitHub Summary
         run: |
-          chmod +x .github/scripts/generate_summary.py
-          if [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ] && [ -f ${{ env.ARTIFACTS_DIR }}/coverage.json ]; then
-            .github/scripts/generate_summary.py combined \
-              ${{ env.ARTIFACTS_DIR }}/test-results.json \
-              ${{ env.ARTIFACTS_DIR }}/coverage.json
-          elif [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ]; then
-            .github/scripts/generate_summary.py tests ${{ env.ARTIFACTS_DIR }}/test-results.json
-          fi
-
-      - name: Create combined data for Discord
-        if: always()
-        run: |
-          if [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ] && [ -f ${{ env.ARTIFACTS_DIR }}/coverage.json ]; then
-            jq -n \
-              --slurpfile tests ${{ env.ARTIFACTS_DIR }}/test-results.json \
-              --slurpfile coverage ${{ env.ARTIFACTS_DIR }}/coverage.json \
-              '{tests: $tests[0], coverage: $coverage[0]}' \
-              > ${{ env.ARTIFACTS_DIR }}/combined.json
-          fi
-
+          python3 .github/scripts/generate_summary.py \
+            combined \
+            test-results.json \
+            coverage.json
       - name: Send Discord notification
         if: always()
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: |
-          chmod +x .github/scripts/discord_notifier.py
-          if [ -f ${{ env.ARTIFACTS_DIR }}/combined.json ]; then
-            .github/scripts/discord_notifier.py combined ${{ env.ARTIFACTS_DIR }}/combined.json
-          elif [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ]; then
-            .github/scripts/discord_notifier.py tests ${{ env.ARTIFACTS_DIR }}/test-results.json
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            python3 .github/scripts/discord_notifier.py \
+              combined \
+              combined-results.json
+          else
+            echo "⚠️  DISCORD_WEBHOOK not set, skipping notification"
           fi
+        continue-on-error: true
 
+      - name: Prepare combined results for Discord
+        if: always()
+        run: |
+          # Combine test and coverage into single JSON for Discord
+          jq -s '{"tests": .[0], "coverage": .[1]}' \
+            test-results.json \
+            coverage.json > combined-results.json
+      - name: Check test results
+        run: |
+          FAILED=$(jq -r '.failed' test-results.json)
+          TOTAL=$(jq -r '.total' test-results.json)
+          
+          echo "Tests: $FAILED failed out of $TOTAL total"
+          
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::$FAILED test(s) failed"
+            exit 1
+          fi
+          
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::warning::No tests were run"
+            exit 1
+          fi
+          
+          echo "✓ All tests passed"
+      - name: Check coverage threshold
+        run: |
+          LINE_COV=$(jq -r '.line_coverage' coverage.json)
+          THRESHOLD=60.0
+          
+          echo "Line coverage: ${LINE_COV}%"
+          
+          if (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
+            echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
+          else
+            echo "✓ Coverage meets threshold"
+          fi
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: |
-            ${{ env.ARTIFACTS_DIR }}/test-results.json
-            ${{ env.ARTIFACTS_DIR }}/coverage.json
-            ${{ env.ARTIFACTS_DIR }}/combined.json
-            ${{ env.ARTIFACTS_DIR }}/coverage-summary.txt
+            test-results.json
+            ${{ env.BUILD_DIR }}/Testing/
+          retention-days: 30
 
-      - name: Upload coverage report
+      - name: Upload coverage results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-html-report
-          path: ${{ env.ARTIFACTS_DIR }}/coverage-html
+          name: coverage-report
+          path: |
+            coverage.json
+            ${{ env.BUILD_DIR }}/coverage_filtered.info
+            ${{ env.BUILD_DIR }}/coverage_html/
+          retention-days: 30
 
-      - name: Check for test failures
+      - name: Upload combined results
         if: always()
-        run: |
-          if [ -f ${{ env.ARTIFACTS_DIR }}/test-results.json ]; then
-            FAILED=$(jq -r '.failed' ${{ env.ARTIFACTS_DIR }}/test-results.json)
-            if [ "$FAILED" -gt 0 ]; then
-              echo "::error::$FAILED test(s) failed"
-              exit 1
-            fi
-          fi
+        uses: actions/upload-artifact@v4
+        with:
+          name: combined-results
+          path: combined-results.json
+          retention-days: 30

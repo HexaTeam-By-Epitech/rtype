@@ -108,105 +108,6 @@ class DiscordNotifier:
             print(f"❌ Unexpected error: {e}", file=sys.stderr)
             return False
 
-    def create_codeql_embed(self, findings: List[tuple], severity_counts: Dict[str, int]) -> Dict:
-        """Create embed for CodeQL analysis results."""
-        total = len(findings)
-
-        # Determine color and status
-        if severity_counts.get('error', 0) > 0:
-            color = 0xED4245  # Red
-            status_emoji = '🔴'
-            status_text = "Issues Found"
-        elif severity_counts.get('warning', 0) > 0:
-            color = 0xFEE75C  # Yellow
-            status_emoji = '🟡'
-            status_text = "Warnings Detected"
-        elif severity_counts.get('note', 0) > 0:
-            color = 0x5865F2  # Blurple
-            status_emoji = '🔵'
-            status_text = "Notes Found"
-        else:
-            color = 0x57F287  # Green
-            status_emoji = '✅'
-            status_text = "Analysis Complete"
-
-        repo = self.context.get('repository', 'unknown/repo')
-        embed = self._get_base_embed(
-            f"{status_emoji} CodeQL Static Analysis",
-            f"**{status_text}** for `{repo}`",
-            color
-        )
-
-        # Add summary field
-        if not severity_counts:
-            summary_value = "✅ No findings detected"
-        else:
-            lines = []
-            if severity_counts.get('error', 0) > 0:
-                lines.append(f"🔴 Errors: **{severity_counts['error']}**")
-            if severity_counts.get('warning', 0) > 0:
-                lines.append(f"🟡 Warnings: **{severity_counts['warning']}**")
-            if severity_counts.get('note', 0) > 0:
-                lines.append(f"🔵 Notes: **{severity_counts['note']}**")
-            if severity_counts.get('information', 0) > 0:
-                lines.append(f"ℹ️ Info: **{severity_counts['information']}**")
-            lines.append(f"\n📈 **Total:** {total}")
-            summary_value = "\n".join(lines)
-
-        embed["fields"].append({
-            "name": "📊 Analysis Summary",
-            "value": summary_value,
-            "inline": False
-        })
-
-        # Add top findings
-        if findings:
-            top_findings = findings[:5]
-            lines = []
-
-            for severity, rule, location, message in top_findings:
-                emoji = {
-                    'error': '🔴',
-                    'warning': '🟡',
-                    'note': '🔵',
-                    'information': 'ℹ️'
-                }.get(severity.lower(), '⚪')
-
-                display_msg = message[:60] + '...' if len(message) > 60 else message
-                display_loc = location.split('/')[-1] if '/' in location else location
-                if len(display_loc) > 40:
-                    display_loc = '...' + display_loc[-37:]
-
-                lines.append(f"{emoji} `{rule}`")
-                lines.append(f"└ {display_loc}")
-                if display_msg:
-                    lines.append(f"   _{display_msg}_")
-                lines.append("")
-
-            value = "\n".join(lines)
-            if len(value) > 1024:
-                value = value[:1021] + "..."
-
-            embed["fields"].append({
-                "name": "🔍 Top Findings",
-                "value": value or "No details available",
-                "inline": False
-            })
-
-        # Add action link
-        run_id = self.context.get('run_id', '')
-        if run_id:
-            repo = self.context.get('repository', 'unknown/repo')
-            server_url = os.environ.get('GITHUB_SERVER_URL', 'https://github.com')
-            workflow_url = f"{server_url}/{repo}/actions/runs/{run_id}"
-            embed["fields"].append({
-                "name": "🔗 Actions",
-                "value": f"[View Full Report]({workflow_url})",
-                "inline": False
-            })
-
-        return embed
-
     def create_test_embed(self, test_results: Dict) -> Dict:
         """Create embed for unit test results."""
         total = test_results.get('total', 0)
@@ -397,7 +298,7 @@ def main():
     # Determine notification type from command line args
     if len(sys.argv) < 2:
         print("Usage: discord_notifier.py <type> [data_file]")
-        print("Types: codeql, tests, coverage, combined")
+        print("Types: tests, coverage, combined")
         return 1
 
     notification_type = sys.argv[1]
@@ -406,30 +307,7 @@ def main():
     notifier = DiscordNotifier(webhook_url)
 
     try:
-        if notification_type == 'codeql':
-            # Load CodeQL findings
-            from pathlib import Path
-            summary_path = data_file or 'artifacts/codeql/codeql-summary.txt'
-
-            findings = []
-            if os.path.exists(summary_path):
-                with open(summary_path, 'r', encoding='utf-8') as f:
-                    next(f, None)  # Skip header
-                    for line in f:
-                        parts = line.strip().split('\t', 3)
-                        while len(parts) < 4:
-                            parts.append('')
-                        findings.append(tuple(parts[:4]))
-
-            # Count by severity
-            severity_counts = {}
-            for severity, _, _, _ in findings:
-                sev_lower = severity.lower()
-                severity_counts[sev_lower] = severity_counts.get(sev_lower, 0) + 1
-
-            embed = notifier.create_codeql_embed(findings, severity_counts)
-
-        elif notification_type == 'tests':
+        if notification_type == 'tests':
             # Load test results
             if not data_file:
                 print("❌ Test results file required")
@@ -486,4 +364,3 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
-

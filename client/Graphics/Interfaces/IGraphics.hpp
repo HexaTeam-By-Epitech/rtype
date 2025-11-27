@@ -9,8 +9,10 @@
 
 class IGraphics {
    public:
+    // Destructor
     virtual ~IGraphics() = default;
 
+    // Window management
     virtual void initWindow(int width, int height, const char *title) = 0;
     virtual void clearWindow() = 0;
     virtual void displayWindow() = 0;

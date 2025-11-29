@@ -10,6 +10,8 @@ if (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 endif ()
 
 project(rtype LANGUAGES CXX)
+
+find_package(raylib REQUIRED)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Global settings

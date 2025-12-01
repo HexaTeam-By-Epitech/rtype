@@ -42,3 +42,6 @@ r-type_server
 
 build
 vcpkg_installed
+
+#doxygen output
+docs/html/

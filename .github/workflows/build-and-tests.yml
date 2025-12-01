@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 env:
-  VCPKG_BINARY_SOURCES: 'clear;gh,readwrite'
+  VCPKG_BINARY_SOURCES: 'clear;default'
   BUILD_DIR: build
   CC: gcc-13
   CXX: g++-13

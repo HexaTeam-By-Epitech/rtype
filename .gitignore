@@ -42,6 +42,6 @@ r-type_server
 
 build
 vcpkg_installed
+assets
 
-#doxygen output
-public/doxygen/
+public

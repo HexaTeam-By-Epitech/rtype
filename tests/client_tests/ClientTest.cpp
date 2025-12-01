@@ -4,3 +4,5 @@
 ** File description:
 ** ClientTest.cpp
 */
+
+#include <gtest/gtest.h>

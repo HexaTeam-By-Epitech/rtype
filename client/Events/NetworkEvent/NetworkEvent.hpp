@@ -8,55 +8,134 @@
 #ifndef NETWORKEVENT_HPP
 #define NETWORKEVENT_HPP
 
-#include "../IEvent.hpp"
-#include <vector>
 #include <cstdint>
+#include <vector>
+#include "../IEvent.hpp"
 
+/**
+ * @enum NetworkMessageType
+ * @brief Types of network messages exchanged between client and server
+ * 
+ * Defines all possible message types in the R-Type network protocol.
+ */
 enum class NetworkMessageType {
-    CONNECT,
-    DISCONNECT,
-    PLAYER_INPUT,
-    WORLD_STATE,
-    SPAWN_ENTITY,
-    DESTROY_ENTITY,
-    PING,
-    PONG
+    CONNECT,         ///< Client connection request
+    DISCONNECT,      ///< Client disconnection notification
+    PLAYER_INPUT,    ///< Player input data from client
+    WORLD_STATE,     ///< Authoritative world state from server
+    SPAWN_ENTITY,    ///< Spawn a new entity (enemy, projectile, etc.)
+    DESTROY_ENTITY,  ///< Remove an entity from the world
+    PING,            ///< Latency measurement request
+    PONG             ///< Latency measurement response
 };
 
+/**
+ * @class NetworkEvent
+ * @brief Event representing a network message
+ * 
+ * NetworkEvent encapsulates network messages received from or sent to the server:
+ * - Message type (WORLD_STATE, PLAYER_INPUT, etc.)
+ * - Raw binary data payload
+ * - Timestamp for latency measurement
+ * 
+ * Flow:
+ * - Replicator receives UDP packet → Creates NetworkEvent → Publishes on EventBus
+ * - Game systems subscribe to NetworkEvent → Process data → Update game state
+ * 
+ * @note Data is stored as raw bytes; interpretation depends on message type
+ * @note Timestamp is set by Replicator for RTT calculation
+ */
 class NetworkEvent : public IEvent {
-public:
+   public:
+    /**
+     * @brief Construct a network event
+     * 
+     * @param type Type of network message
+     * @param data Raw binary data payload
+     */
     NetworkEvent(NetworkMessageType type, std::vector<uint8_t> data)
         : _type(type), _data(std::move(data)), _timestamp(0) {}
 
+    /**
+     * @brief Get the message type
+     * @return Type of network message
+     */
     NetworkMessageType getType() const { return _type; }
-    const std::vector<uint8_t>& getData() const { return _data; }
+
+    /**
+     * @brief Get the message data
+     * @return Reference to binary data payload
+     */
+    const std::vector<uint8_t> &getData() const { return _data; }
+
+    /**
+     * @brief Get the timestamp
+     * @return Timestamp when message was received (milliseconds)
+     */
     uint64_t getTimestamp() const { return _timestamp; }
-    
+
+    /**
+     * @brief Set the timestamp
+     * @param timestamp Time when message was received
+     */
     void setTimestamp(uint64_t timestamp) { _timestamp = timestamp; }
 
-private:
-    NetworkMessageType _type;
-    std::vector<uint8_t> _data;
-    uint64_t _timestamp;
+   private:
+    NetworkMessageType _type;    ///< Type of network message
+    std::vector<uint8_t> _data;  ///< Raw binary data payload
+    uint64_t _timestamp;         ///< Timestamp for latency measurement
 };
 
+/**
+ * @class ConnectionEvent
+ * @brief Event representing a connection state change
+ * 
+ * ConnectionEvent signals changes in the client-server connection:
+ * - Successfully connected to server
+ * - Disconnected from server
+ * - Connection failed
+ * 
+ * Published by Replicator when connection state changes.
+ * Subscribed by UI systems to show connection status.
+ * 
+ * @note Contains optional error message for failed connections
+ */
 class ConnectionEvent : public IEvent {
-public:
+   public:
+    /**
+     * @enum Status
+     * @brief Connection status states
+     */
     enum class Status {
-        CONNECTED,
-        DISCONNECTED,
-        FAILED
+        CONNECTED,     ///< Successfully connected to server
+        DISCONNECTED,  ///< Disconnected from server
+        FAILED         ///< Connection attempt failed
     };
 
-    explicit ConnectionEvent(Status status, const std::string& message = "")
+    /**
+     * @brief Construct a connection event
+     * 
+     * @param status Connection status
+     * @param message Optional status message (e.g., error description)
+     */
+    explicit ConnectionEvent(Status status, const std::string &message = "")
         : _status(status), _message(message) {}
 
+    /**
+     * @brief Get the connection status
+     * @return Current connection status
+     */
     Status getStatus() const { return _status; }
-    const std::string& getMessage() const { return _message; }
 
-private:
-    Status _status;
-    std::string _message;
+    /**
+     * @brief Get the status message
+     * @return Optional message (empty if no message)
+     */
+    const std::string &getMessage() const { return _message; }
+
+   private:
+    Status _status;        ///< Connection status
+    std::string _message;  ///< Optional status message
 };
 
 #endif

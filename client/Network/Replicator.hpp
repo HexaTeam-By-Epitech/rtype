@@ -8,13 +8,13 @@
 #ifndef REPLICATOR_HPP
 #define REPLICATOR_HPP
 
-#include <string>
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <vector>
 #include "../Core/EventBus/EventBus.hpp"
-#include "../Events/NetworkEvent/NetworkEvent.hpp"
 #include "../Events/InputEvent/InputEvent.hpp"
+#include "../Events/NetworkEvent/NetworkEvent.hpp"
 
 /**
  * @class Replicator
@@ -45,8 +45,7 @@
  * - Publishes ConnectionEvent on state changes
  */
 class Replicator {
-public:
-
+   public:
     /**
      * @brief Constructor with EventBus reference
      * 
@@ -56,8 +55,8 @@ public:
      * 
      * @note The Replicator automatically subscribes to InputEvent
      */
-    explicit Replicator(EventBus& eventBus);
-    
+    explicit Replicator(EventBus &eventBus);
+
     /**
      * @brief Destructor
      * 
@@ -78,8 +77,8 @@ public:
      * @note Blocking until timeout (recommended: 5 seconds)
      * @note Publishes ConnectionEvent::CONNECTED or FAILED
      */
-    bool connect(const std::string& host, uint16_t port);
-    
+    bool connect(const std::string &host, uint16_t port);
+
     /**
      * @brief Disconnect from the server
      * 
@@ -87,14 +86,14 @@ public:
      * Publishes a ConnectionEvent::DISCONNECTED.
      */
     void disconnect();
-    
+
     /**
      * @brief Check if connected to server
      * 
      * @return true if connection is active, false otherwise
      */
     bool isConnected() const;
-    
+
     /**
      * @brief Update the network system
      * 
@@ -110,7 +109,7 @@ public:
      * @note Non-blocking (asynchronous reading)
      */
     void update();
-    
+
     /**
      * @brief Send a packet to the server
      * 
@@ -122,8 +121,8 @@ public:
      * @note Non-blocking
      * @note Automatically adds a timestamp for latency measurement
      */
-    void sendPacket(NetworkMessageType type, const std::vector<uint8_t>& data);
-    
+    void sendPacket(NetworkMessageType type, const std::vector<uint8_t> &data);
+
     /**
      * @brief Get current latency in milliseconds
      * 
@@ -135,7 +134,7 @@ public:
      * @note Rolling average over the last 10 pings
      */
     uint32_t getLatency() const;
-    
+
     /**
      * @brief Get packet loss rate as percentage
      * 
@@ -148,18 +147,18 @@ public:
      */
     uint32_t getPacketLoss() const;
 
-private:
-    void onInputEvent(const InputEvent& event);
-    void processIncomingPacket(const std::vector<uint8_t>& packet);
+   private:
+    void onInputEvent(const InputEvent &event);
+    void processIncomingPacket(const std::vector<uint8_t> &packet);
 
-    EventBus& _eventBus;
+    EventBus &_eventBus;
     bool _connected = false;
     std::string _serverHost;
     uint16_t _serverPort = 0;
 
     uint32_t _latency = 0;
     uint32_t _packetLoss = 0;
-    
+
     // TODO: Ajouter socket UDP/TCP
 };
 

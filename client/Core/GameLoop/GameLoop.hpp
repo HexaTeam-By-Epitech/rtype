@@ -9,10 +9,10 @@
 #define GAMELOOP_HPP
 
 #include <memory>
-#include "../EventBus/EventBus.hpp"
 #include "../../Input/InputBuffer.hpp"
 #include "../../Network/Replicator.hpp"
 #include "../../Rendering/Rendering.hpp"
+#include "../EventBus/EventBus.hpp"
 
 /**
  * @class GameLoop
@@ -42,7 +42,7 @@
  * - Essential for client prediction and network synchronization
  */
 class GameLoop {
-public:
+   public:
     /**
      * @brief Default constructor
      * 
@@ -50,7 +50,7 @@ public:
      * Call initialize() to start.
      */
     GameLoop();
-    
+
     /**
      * @brief Destructor
      * 
@@ -75,7 +75,7 @@ public:
      * @note Must be called before run()
      */
     bool initialize();
-    
+
     /**
      * @brief Start the main game loop
      * 
@@ -108,7 +108,7 @@ public:
      * @note Uses fixed timestep for simulation
      */
     void run();
-    
+
     /**
      * @brief Stop and clean up all subsystems
      * 
@@ -122,7 +122,7 @@ public:
      * @note Idempotent (can be called multiple times)
      */
     void shutdown();
-    
+
     /**
      * @brief Stop the game loop
      * 
@@ -134,7 +134,7 @@ public:
      */
     void stop();
 
-private:
+   private:
     /**
      * @brief Update game logic (variable timestep)
      * 
@@ -143,7 +143,7 @@ private:
      * @param deltaTime Time elapsed since last call (in seconds)
      */
     void update(float deltaTime);
-    
+
     /**
      * @brief Update physics simulation (fixed timestep)
      * 
@@ -152,21 +152,21 @@ private:
      * @param fixedDeltaTime Fixed simulation time (1/60 = 0.0167s)
      */
     void fixedUpdate(float fixedDeltaTime);
-    
+
     /**
      * @brief Perform rendering of current frame
      * 
      * Delegates to Rendering system.
      */
     void render();
-    
+
     /**
      * @brief Process player inputs
      * 
      * Reads keyboard/mouse events and publishes them on EventBus.
      */
     void processInput();
-    
+
     /**
      * @brief Calculate time elapsed since last frame
      * 
@@ -174,7 +174,6 @@ private:
      */
     float calculateDeltaTime();
 
-    
     std::unique_ptr<EventBus> _eventBus;
     std::unique_ptr<InputBuffer> _inputBuffer;
     std::unique_ptr<Replicator> _replicator;

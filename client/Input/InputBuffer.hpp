@@ -10,8 +10,8 @@
 
 #include <cstdint>
 #include <deque>
-#include <vector>
 #include <optional>
+#include <vector>
 #include "../Events/InputEvent/InputEvent.hpp"
 
 /**
@@ -34,8 +34,7 @@
  * 7. Replay stored inputs from frame N
  */
 class InputBuffer {
-public:
-
+   public:
     /**
      * @struct StoredInput
      * @brief Structure representing a stored input with metadata
@@ -50,7 +49,7 @@ public:
      * @brief Default constructor
      */
     InputBuffer() = default;
-    
+
     /**
      * @brief Default destructor
      */
@@ -83,7 +82,7 @@ public:
      * @note If startFrame is older than oldest input, returns from beginning
      */
     std::vector<StoredInput> getInputsSince(uint32_t startFrame) const;
-    
+
     /**
      * @brief Clear inputs up to a given frame
      * 
@@ -96,7 +95,7 @@ public:
      * @note Allows limiting buffer size in production
      */
     void clearUntil(uint32_t frameNumber);
-    
+
     /**
      * @brief Get the last stored input
      * 
@@ -105,7 +104,7 @@ public:
      * @note Useful to know the last player state
      */
     std::optional<StoredInput> getLastInput() const;
-    
+
     /**
      * @brief Clear the buffer completely
      * 
@@ -113,7 +112,7 @@ public:
      * or game reset.
      */
     void clear();
-    
+
     /**
      * @brief Get the number of stored inputs
      * 
@@ -123,7 +122,7 @@ public:
      */
     size_t size() const;
 
-private:
+   private:
     std::deque<StoredInput> _inputs;
     uint32_t _oldestFrame = 0;
 };

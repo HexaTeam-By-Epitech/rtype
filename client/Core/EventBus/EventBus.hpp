@@ -41,19 +41,19 @@
  * @endcode
  */
 class EventBus {
-public:
+   public:
     /**
      * @brief Callback type for events
      * @tparam T Event type (must inherit from IEvent)
      */
     template <typename T>
-    using EventCallback = std::function<void(const T&)>;
+    using EventCallback = std::function<void(const T &)>;
 
     /**
      * @brief Default constructor
      */
     EventBus() = default;
-    
+
     /**
      * @brief Default destructor
      */
@@ -88,7 +88,7 @@ public:
      * @note Exceptions in callbacks are not handled
      */
     template <typename T>
-    void publish(const T& event);
+    void publish(const T &event);
 
     /**
      * @brief Clear all subscriptions
@@ -98,8 +98,8 @@ public:
      */
     void clear();
 
-private:
-    std::unordered_map<std::type_index, std::vector<std::function<void(const IEvent&)>>> _subscribers;
+   private:
+    std::unordered_map<std::type_index, std::vector<std::function<void(const IEvent &)>>> _subscribers;
 };
 
 #endif

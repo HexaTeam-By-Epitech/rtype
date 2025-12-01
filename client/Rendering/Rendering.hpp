@@ -8,8 +8,8 @@
 #ifndef RENDERING_HPP
 #define RENDERING_HPP
 
-#include <string>
 #include <cstdint>
+#include <string>
 #include "../Core/EventBus/EventBus.hpp"
 
 /**
@@ -30,7 +30,7 @@
  * 
  */
 class Rendering {
-public:
+   public:
     /**
      * @brief Constructor with EventBus reference
      * 
@@ -38,8 +38,8 @@ public:
      * 
      * @note Does not create the window, call initialize() after
      */
-    Rendering(EventBus& eventBus);
-    
+    Rendering(EventBus &eventBus);
+
     /**
      * @brief Destructor
      * 
@@ -62,8 +62,8 @@ public:
      * @note Recommended: 1920x1080 for R-Type
      * @note Depends on Raylib wrapper implementation (not yet available)
      */
-    bool initialize(uint32_t width, uint32_t height, const std::string& title);
-    
+    bool initialize(uint32_t width, uint32_t height, const std::string &title);
+
     /**
      * @brief Stop the rendering system and destroy window
      * 
@@ -71,7 +71,7 @@ public:
      * Closes the window properly.
      */
     void shutdown();
-    
+
     /**
      * @brief Perform rendering of current frame
      * 
@@ -83,7 +83,7 @@ public:
      * @note Implementation pending Raylib wrapper availability
      */
     void render();
-    
+
     /**
      * @brief Check if window is open
      * 
@@ -92,7 +92,7 @@ public:
      * @note Returns false if user closes the window
      */
     bool isWindowOpen() const;
-    
+
     /**
      * @brief Load a texture from file
      * 
@@ -107,8 +107,8 @@ public:
      * @note Supported formats depend on Raylib wrapper implementation
      * @note Wrapper implementation pending
      */
-    bool loadTexture(const std::string& id, const std::string& path);
-    
+    bool loadTexture(const std::string &id, const std::string &path);
+
     /**
      * @brief Draw a sprite on screen
      * 
@@ -124,9 +124,9 @@ public:
      * @note Call order determines render order (Z-order)
      * @note Uses Raylib wrapper's sprite rendering (pending implementation)
      */
-    void drawSprite(const std::string& textureId, float x, float y, 
-                    float rotation = 0.0f, float scale = 1.0f);
-    
+    void drawSprite(const std::string &textureId, float x, float y, float rotation = 0.0f,
+                    float scale = 1.0f);
+
     /**
      * @brief Draw text on screen
      * 
@@ -141,15 +141,15 @@ public:
      * @note Rendered on top of sprites (UI)
      * @note Font rendering via Raylib wrapper (not yet implemented)
      */
-    void drawText(const std::string& text, float x, float y, uint32_t size = 24);
-    
+    void drawText(const std::string &text, float x, float y, uint32_t size = 24);
+
     /**
      * @brief Get window width
      * 
      * @return Width in pixels
      */
     uint32_t getWidth() const;
-    
+
     /**
      * @brief Get window height
      * 
@@ -157,8 +157,8 @@ public:
      */
     uint32_t getHeight() const;
 
-private:
-    EventBus& _eventBus;
+   private:
+    EventBus &_eventBus;
     bool _initialized = false;
     uint32_t _width = 0;
     uint32_t _height = 0;

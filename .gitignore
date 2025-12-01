@@ -44,4 +44,4 @@ build
 vcpkg_installed
 
 #doxygen output
-docs/html/
+public/doxygen/

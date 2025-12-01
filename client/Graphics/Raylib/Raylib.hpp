@@ -12,15 +12,25 @@
 #include "../Interfaces/IGraphics.hpp"
 
 namespace Graphics {
+    /**
+     * @brief Raylib implementation of the IGraphics interface
+     */
     class Raylib : public IGraphics {
        public:
         // Constructor / Destructor
+        /**
+         * @brief Construct a new Raylib graphics object
+         */
         Raylib();
+        /**
+         * @brief Destroy the Raylib graphics object and cleanup resources
+         */
         ~Raylib() override;
 
         // Window management
         void InitWindow(int width, int height, const char *title) override;
         void ClearWindow() override;
+        void StartDrawing() override;
         void DisplayWindow() override;
         bool IsWindowOpen() const override;
         void CloseWindow() override;
@@ -68,5 +78,6 @@ namespace Graphics {
        private:
         std::vector<Font> _fonts;
         std::vector<Texture2D> _textures;
+        Color _clearColor{255, 255, 255, 255};
     };
 }  // namespace Graphics

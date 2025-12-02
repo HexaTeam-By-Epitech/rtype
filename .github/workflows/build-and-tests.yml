@@ -191,14 +191,25 @@ jobs:
             --rc branch_coverage=1 \
             --ignore-errors mismatch
           
-          # Filter out system and vcpkg files
-          lcov --remove coverage.info \
-            '/usr/*' \
-            '${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed/*' \
-            '${{ github.workspace }}/tests/*' \
-            --output-file coverage_filtered.info \
+          # Keep only project sources, then drop toolchain noise
+          lcov --extract coverage.info \
+            '${{ github.workspace }}/client/*' \
+            '${{ github.workspace }}/server/*' \
+            --output-file coverage_project.info \
             --rc branch_coverage=1 \
             --ignore-errors unused
+          
+          lcov --remove coverage_project.info \
+            '/usr/*' \
+            '${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed/*' \
+            --output-file coverage_filtered.info \
+            --rc branch_coverage=1 \
+            --ignore-errors empty
+          
+          if ! grep -q '^SF:' coverage_filtered.info; then
+            echo "⚠️  No project sources remained after filtering" >&2
+            cp coverage_project.info coverage_filtered.info
+          fi
 
           # Generate HTML report
           genhtml coverage_filtered.info \
@@ -217,6 +228,10 @@ jobs:
             ${{ env.BUILD_DIR }}/coverage_filtered.info \
             coverage.json \
             --include client,server
+          \
+          if ! jq -e '.lines_total > 0' coverage.json > /dev/null; then
+            echo "::warning::Parsed coverage has zero executable lines"
+          fi
       - name: Prepare combined results for Discord
         if: always()
         run: |
@@ -269,7 +284,9 @@ jobs:
           
           echo "Line coverage: ${LINE_COV}%"
           
-          if (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
+          if [[ "$LINE_COV" == "null" ]] || [[ "$LINE_COV" == "" ]]; then
+            echo "::warning::Coverage data missing"
+          elif (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
             echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
           else
             echo "✓ Coverage meets threshold"

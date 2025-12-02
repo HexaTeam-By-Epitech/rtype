@@ -204,7 +204,7 @@ jobs:
             '${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed/*' \
             --output-file coverage_filtered.info \
             --rc branch_coverage=1 \
-            --ignore-errors empty
+            --ignore-errors empty,unused
           
           if ! grep -q '^SF:' coverage_filtered.info; then
             echo "⚠️  No project sources remained after filtering" >&2

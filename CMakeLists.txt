@@ -36,5 +36,8 @@ if (BUILD_CLIENT)
     add_subdirectory(client)
 endif ()
 
+# Add serialization module (shared lib for client/server)
+add_subdirectory(common/serialization)
+
 # Add tests directory (will use find_package(GTest) inside)
 add_subdirectory(tests)

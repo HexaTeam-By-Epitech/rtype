@@ -6,3 +6,7 @@
 */
 
 #include <gtest/gtest.h>
+
+TEST(ServerTest, DummyTest) {
+    ASSERT_TRUE(true);
+}

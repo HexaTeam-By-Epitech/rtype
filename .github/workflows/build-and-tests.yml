@@ -180,8 +180,7 @@ jobs:
       - name: Run tests
         working-directory: ${{ env.BUILD_DIR }}
         run: |
-          ctest --output-on-failure --verbose --timeout 300 || true
-          # Don't fail here, we'll check results later
+          ctest --output-on-failure --verbose --timeout 300
       - name: Generate coverage data
         working-directory: ${{ env.BUILD_DIR }}
         run: |
@@ -190,21 +189,20 @@ jobs:
             --directory . \
             --output-file coverage.info \
             --rc lcov_branch_coverage=1 \
-            --ignore-errors mismatch || true
+            --ignore-errors mismatch
           
           # Filter out system and vcpkg files
           lcov --remove coverage.info \
             '/usr/*' \
-            '*/vcpkg_installed/*' \
-            '*/build/*' \
-            '*/tests/*' \
+            '${{ github.workspace }}/vcpkg_installed/*' \
+            '${{ github.workspace }}/tests/*' \
             --output-file coverage_filtered.info \
-            --rc lcov_branch_coverage=1 || true
-          
+            --rc lcov_branch_coverage=1
+
           # Generate HTML report
           genhtml coverage_filtered.info \
             --output-directory coverage_html \
-            --rc lcov_branch_coverage=1 || true
+            --rc lcov_branch_coverage=1
           
           echo "Coverage report generated"
       - name: Parse test results
@@ -218,6 +216,13 @@ jobs:
             ${{ env.BUILD_DIR }}/coverage_filtered.info \
             coverage.json \
             --include client,server
+      - name: Prepare combined results for Discord
+        if: always()
+        run: |
+          # Combine test and coverage into single JSON for Discord
+          jq -s '{"tests": .[0], "coverage": .[1]}' \
+            test-results.json \
+            coverage.json > combined-results.json
       - name: Generate GitHub Summary
         run: |
           python3 .github/scripts/generate_summary.py \
@@ -238,14 +243,6 @@ jobs:
             echo "⚠️  DISCORD_WEBHOOK not set, skipping notification"
           fi
         continue-on-error: true
-
-      - name: Prepare combined results for Discord
-        if: always()
-        run: |
-          # Combine test and coverage into single JSON for Discord
-          jq -s '{"tests": .[0], "coverage": .[1]}' \
-            test-results.json \
-            coverage.json > combined-results.json
       - name: Check test results
         run: |
           FAILED=$(jq -r '.failed' test-results.json)

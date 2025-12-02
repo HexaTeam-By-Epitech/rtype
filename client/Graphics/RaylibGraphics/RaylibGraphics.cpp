@@ -5,14 +5,14 @@
 ** Raylib
 */
 
-#include "Raylib.hpp"
+#include "RaylibGraphics.hpp"
 #include <limits>
 
 namespace Graphics {
     // Constructor / Destructor
-    Raylib::Raylib() {}
+    RaylibGraphics::RaylibGraphics() {}
 
-    Raylib::~Raylib() {
+    RaylibGraphics::~RaylibGraphics() {
         for (auto &font : _fonts) {
             ::UnloadFont(font);
         }
@@ -23,68 +23,68 @@ namespace Graphics {
     }
 
     // Window management
-    void Raylib::InitWindow(int width, int height, const char *title) {
+    void RaylibGraphics::InitWindow(int width, int height, const char *title) {
         ::InitWindow(width, height, title);
     }
 
-    void Raylib::ClearWindow() {
+    void RaylibGraphics::ClearWindow() {
         ::ClearBackground(_clearColor);
     }
 
-    void Raylib::StartDrawing() {
+    void RaylibGraphics::StartDrawing() {
         ::BeginDrawing();
     }
 
-    void Raylib::DisplayWindow() {
+    void RaylibGraphics::DisplayWindow() {
         ::EndDrawing();
     }
 
-    bool Raylib::IsWindowOpen() const {
+    bool RaylibGraphics::IsWindowOpen() const {
         return !::WindowShouldClose();
     }
 
-    void Raylib::CloseWindow() {
+    void RaylibGraphics::CloseWindow() {
         ::CloseWindow();
     }
 
-    void Raylib::SetWindowTitle(const char *title) {
+    void RaylibGraphics::SetWindowTitle(const char *title) {
         ::SetWindowTitle(title);
     }
 
-    void Raylib::SetWindowSize(int width, int height) {
+    void RaylibGraphics::SetWindowSize(int width, int height) {
         ::SetWindowSize(width, height);
     }
 
-    void Raylib::ToggleFullScreen() {
+    void RaylibGraphics::ToggleFullScreen() {
         ::ToggleFullscreen();
     }
 
-    void Raylib::SetTargetFPS(int fps) {
+    void RaylibGraphics::SetTargetFPS(int fps) {
         ::SetTargetFPS(fps);
     }
 
-    void Raylib::SetClearColor(unsigned int color) {
+    void RaylibGraphics::SetClearColor(unsigned int color) {
         _clearColor.a = (color >> 24) & 0xFF;
         _clearColor.r = (color >> 16) & 0xFF;
         _clearColor.g = (color >> 8) & 0xFF;
         _clearColor.b = color & 0xFF;
     }
 
-    void Raylib::TakeScreenshot(const char *filepath) {
+    void RaylibGraphics::TakeScreenshot(const char *filepath) {
         ::TakeScreenshot(filepath);
     }
 
     // Time / profiling
-    float Raylib::GetTime() const {
+    float RaylibGraphics::GetTime() const {
         return ::GetTime();
     }
 
-    float Raylib::GetDeltaTime() const {
+    float RaylibGraphics::GetDeltaTime() const {
         return ::GetFrameTime();
     }
 
     // Basic drawing primitives
-    void Raylib::DrawRect(int x, int y, int width, int height, unsigned int color) {
+    void RaylibGraphics::DrawRect(int x, int y, int width, int height, unsigned int color) {
         Color clr;
         clr.a = (color >> 24) & 0xFF;
         clr.r = (color >> 16) & 0xFF;
@@ -93,7 +93,7 @@ namespace Graphics {
         ::DrawRectangleLines(x, y, width, height, clr);
     }
 
-    void Raylib::DrawRectFilled(int x, int y, int width, int height, unsigned int color) {
+    void RaylibGraphics::DrawRectFilled(int x, int y, int width, int height, unsigned int color) {
         Color clr;
         clr.a = (color >> 24) & 0xFF;
         clr.r = (color >> 16) & 0xFF;
@@ -102,7 +102,7 @@ namespace Graphics {
         ::DrawRectangle(x, y, width, height, clr);
     }
 
-    void Raylib::DrawCircle(int x, int y, int radius, unsigned int color) {
+    void RaylibGraphics::DrawCircle(int x, int y, int radius, unsigned int color) {
         Color clr;
         clr.a = (color >> 24) & 0xFF;
         clr.r = (color >> 16) & 0xFF;
@@ -111,7 +111,7 @@ namespace Graphics {
         ::DrawCircleLines(x, y, radius, clr);
     }
 
-    void Raylib::DrawCircleFilled(int x, int y, int radius, unsigned int color) {
+    void RaylibGraphics::DrawCircleFilled(int x, int y, int radius, unsigned int color) {
         Color clr;
         clr.a = (color >> 24) & 0xFF;
         clr.r = (color >> 16) & 0xFF;
@@ -120,7 +120,7 @@ namespace Graphics {
         ::DrawCircle(x, y, radius, clr);
     }
     // Fonts / text
-    int Raylib::LoadFont(const char *filepath, int size) {
+    int RaylibGraphics::LoadFont(const char *filepath, int size) {
         Font font = ::LoadFontEx(filepath, size, 0, 0);
         if (font.texture.id == 0)
             return -1;
@@ -128,13 +128,14 @@ namespace Graphics {
         return _fonts.size() - 1;
     }
 
-    void Raylib::UnloadFont(int fontHandle) {
+    void RaylibGraphics::UnloadFont(int fontHandle) {
         if (fontHandle >= 0 && static_cast<size_t>(fontHandle) < _fonts.size()) {
             ::UnloadFont(_fonts[fontHandle]);
         }
     }
 
-    void Raylib::DrawText(int fontHandle, const char *text, int x, int y, int fontSize, unsigned int color) {
+    void RaylibGraphics::DrawText(int fontHandle, const char *text, int x, int y, int fontSize,
+                                  unsigned int color) {
         Color clr;
         clr.a = (color >> 24) & 0xFF;
         clr.r = (color >> 16) & 0xFF;
@@ -148,7 +149,7 @@ namespace Graphics {
             ::DrawText(text, x, y, fontSize, clr);
     }
 
-    int Raylib::GetFontHeight(int fontHandle, int fontSize) {
+    int RaylibGraphics::GetFontHeight(int fontHandle, int fontSize) {
         if (fontHandle >= 0 && static_cast<size_t>(fontHandle) < _fonts.size()) {
             return _fonts[fontHandle].baseSize;
         }
@@ -156,7 +157,7 @@ namespace Graphics {
     }
 
     // Textures / sprites / images
-    int Raylib::LoadTexture(const char *filepath) {
+    int RaylibGraphics::LoadTexture(const char *filepath) {
         Texture2D texture = ::LoadTexture(filepath);
         if (texture.id == 0)
             return -1;
@@ -164,7 +165,7 @@ namespace Graphics {
         return _textures.size() - 1;
     }
 
-    int Raylib::CreateTextureFromMemory(const void *pixels, int width, int height, int format) {
+    int RaylibGraphics::CreateTextureFromMemory(const void *pixels, int width, int height, int format) {
         Image img;
         img.data = const_cast<void *>(pixels);
         img.width = width;
@@ -176,19 +177,19 @@ namespace Graphics {
         return _textures.size() - 1;
     }
 
-    void Raylib::UpdateTexture(int textureHandle, const void *pixels) {
+    void RaylibGraphics::UpdateTexture(int textureHandle, const void *pixels) {
         if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
             ::UpdateTexture(_textures[textureHandle], pixels);
         }
     }
 
-    void Raylib::UnloadTexture(int textureHandle) {
+    void RaylibGraphics::UnloadTexture(int textureHandle) {
         if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
             ::UnloadTexture(_textures[textureHandle]);
         }
     }
 
-    void Raylib::DrawTexture(int textureHandle, int x, int y, unsigned int tint) {
+    void RaylibGraphics::DrawTexture(int textureHandle, int x, int y, unsigned int tint) {
         if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
             Color clr;
             clr.a = (tint >> 24) & 0xFF;
@@ -199,8 +200,8 @@ namespace Graphics {
         }
     }
 
-    void Raylib::DrawTextureEx(int textureHandle, int srcX, int srcY, int srcW, int srcH, float destX,
-                               float destY, float rotation, float scale, unsigned int tint) {
+    void RaylibGraphics::DrawTextureEx(int textureHandle, int srcX, int srcY, int srcW, int srcH, float destX,
+                                       float destY, float rotation, float scale, unsigned int tint) {
         if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
             Color clr;
             clr.a = (tint >> 24) & 0xFF;
@@ -217,27 +218,27 @@ namespace Graphics {
     }
 
     // Input helpers
-    bool Raylib::IsKeyPressed(int key) const {
+    bool RaylibGraphics::IsKeyPressed(int key) const {
         return ::IsKeyPressed(key);
     }
 
-    bool Raylib::IsKeyDown(int key) const {
+    bool RaylibGraphics::IsKeyDown(int key) const {
         return ::IsKeyDown(key);
     }
 
-    bool Raylib::IsKeyReleased(int key) const {
+    bool RaylibGraphics::IsKeyReleased(int key) const {
         return ::IsKeyReleased(key);
     }
 
-    bool Raylib::IsMouseButtonPressed(int button) const {
+    bool RaylibGraphics::IsMouseButtonPressed(int button) const {
         return ::IsMouseButtonPressed(button);
     }
 
-    bool Raylib::IsMouseButtonDown(int button) const {
+    bool RaylibGraphics::IsMouseButtonDown(int button) const {
         return ::IsMouseButtonDown(button);
     }
 
-    void Raylib::GetMousePosition(float &x, float &y) const {
+    void RaylibGraphics::GetMousePosition(float &x, float &y) const {
         Vector2 pos = ::GetMousePosition();
         x = pos.x;
         y = pos.y;

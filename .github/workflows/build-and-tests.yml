@@ -180,8 +180,7 @@ jobs:
       - name: Run tests
         working-directory: ${{ env.BUILD_DIR }}
         run: |
-          ctest --output-on-failure --verbose --timeout 300 || true
-          # Don't fail here, we'll check results later
+          ctest --output-on-failure --verbose --timeout 300
       - name: Generate coverage data
         working-directory: ${{ env.BUILD_DIR }}
         run: |
@@ -189,22 +188,33 @@ jobs:
           lcov --capture \
             --directory . \
             --output-file coverage.info \
-            --rc lcov_branch_coverage=1 \
-            --ignore-errors mismatch || true
+            --rc branch_coverage=1 \
+            --ignore-errors mismatch
           
-          # Filter out system and vcpkg files
-          lcov --remove coverage.info \
+          # Keep only project sources, then drop toolchain noise
+          lcov --extract coverage.info \
+            '${{ github.workspace }}/client/*' \
+            '${{ github.workspace }}/server/*' \
+            --output-file coverage_project.info \
+            --rc branch_coverage=1 \
+            --ignore-errors unused
+          
+          lcov --remove coverage_project.info \
             '/usr/*' \
-            '*/vcpkg_installed/*' \
-            '*/build/*' \
-            '*/tests/*' \
+            '${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed/*' \
             --output-file coverage_filtered.info \
-            --rc lcov_branch_coverage=1 || true
+            --rc branch_coverage=1 \
+            --ignore-errors empty,unused
           
+          if ! grep -q '^SF:' coverage_filtered.info; then
+            echo "⚠️  No project sources remained after filtering" >&2
+            cp coverage_project.info coverage_filtered.info
+          fi
+
           # Generate HTML report
           genhtml coverage_filtered.info \
             --output-directory coverage_html \
-            --rc lcov_branch_coverage=1 || true
+            --rc branch_coverage=1
           
           echo "Coverage report generated"
       - name: Parse test results
@@ -218,6 +228,17 @@ jobs:
             ${{ env.BUILD_DIR }}/coverage_filtered.info \
             coverage.json \
             --include client,server
+          \
+          if ! jq -e '.lines_total > 0' coverage.json > /dev/null; then
+            echo "::warning::Parsed coverage has zero executable lines"
+          fi
+      - name: Prepare combined results for Discord
+        if: always()
+        run: |
+          # Combine test and coverage into single JSON for Discord
+          jq -s '{"tests": .[0], "coverage": .[1]}' \
+            test-results.json \
+            coverage.json > combined-results.json
       - name: Generate GitHub Summary
         run: |
           python3 .github/scripts/generate_summary.py \
@@ -238,14 +259,6 @@ jobs:
             echo "⚠️  DISCORD_WEBHOOK not set, skipping notification"
           fi
         continue-on-error: true
-
-      - name: Prepare combined results for Discord
-        if: always()
-        run: |
-          # Combine test and coverage into single JSON for Discord
-          jq -s '{"tests": .[0], "coverage": .[1]}' \
-            test-results.json \
-            coverage.json > combined-results.json
       - name: Check test results
         run: |
           FAILED=$(jq -r '.failed' test-results.json)
@@ -271,7 +284,9 @@ jobs:
           
           echo "Line coverage: ${LINE_COV}%"
           
-          if (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
+          if [[ "$LINE_COV" == "null" ]] || [[ "$LINE_COV" == "" ]]; then
+            echo "::warning::Coverage data missing"
+          elif (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
             echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
           else
             echo "✓ Coverage meets threshold"

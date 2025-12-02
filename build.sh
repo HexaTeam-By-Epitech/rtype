@@ -8,8 +8,8 @@ set -euo pipefail
 # =====================
 BUILD_DIR="build"
 # Allow overriding compilers via environment variables if needed
-: "${CC:=gcc-13}"
-: "${CXX:=g++-13}"
+: "${CC:=gcc}"
+: "${CXX:=g++}"
 
 # =====================
 # Utility functions

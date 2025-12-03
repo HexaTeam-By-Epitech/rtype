@@ -277,26 +277,6 @@ TEST(ColliderTest, HasUniqueComponentType) {
     EXPECT_EQ(collider.getType(), ecs::getComponentType<ecs::Collider>());
 }
 
-TEST(ColliderTest, DefaultConstructorWithSimpleParameters) {
-    ecs::Transform transform;
-
-    EXPECT_EQ(transform.getPosition().x, 0);
-    EXPECT_EQ(transform.getPosition().y, 0);
-    EXPECT_EQ(transform.getRotation(), 0);
-    EXPECT_EQ(transform.getScale().x, 1);
-    EXPECT_EQ(transform.getScale().y, 1);
-}
-
-TEST(ColliderTest, TwoParameterConstructor) {
-    ecs::Transform transform(100, 200);
-
-    EXPECT_EQ(transform.getPosition().x, 100);
-    EXPECT_EQ(transform.getPosition().y, 200);
-    EXPECT_EQ(transform.getRotation(), 0);
-    EXPECT_EQ(transform.getScale().x, 1);
-    EXPECT_EQ(transform.getScale().y, 1);
-}
-
 // ========================================
 // Component Type Uniqueness Test
 // ========================================
@@ -310,7 +290,7 @@ TEST(AllComponentsTest, AllComponentTypesAreUnique) {
     ecs::ComponentType weaponType = ecs::getComponentType<ecs::Weapon>();
     ecs::ComponentType colliderType = ecs::getComponentType<ecs::Collider>();
 
-    // Vérifier que tous les types sont différents
+    // Verify all component types are unique
     EXPECT_NE(transformType, velocityType);
     EXPECT_NE(transformType, healthType);
     EXPECT_NE(transformType, playerType);

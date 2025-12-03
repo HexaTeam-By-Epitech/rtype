@@ -11,37 +11,92 @@
 #include "IComponent.hpp"
 
 namespace ecs {
+    /**
+     * @class Health
+     * @brief Component representing entity health and invincibility.
+     * 
+     * Stores current and maximum health values, as well as temporary invincibility state.
+     * The invincibility timer is decremented by systems to manage temporary immunity.
+     */
     class Health : public IComponent {
        public:
-        // Constructors
-        Health(int maxHealth)
-            : _current(maxHealth), _max(maxHealth), _invincible(false), _timer(0) {}
+        /**
+         * @brief Constructor with maximum health only.
+         * Sets current health equal to max health.
+         * @param maxHealth Maximum health points
+         */
+        Health(int maxHealth) : _current(maxHealth), _max(maxHealth), _invincible(false), _timer(0) {}
+
+        /**
+         * @brief Constructor with current and maximum health.
+         * @param currentHealth Starting health points
+         * @param maxHealth Maximum health points
+         */
         Health(int currentHealth, int maxHealth)
             : _current(currentHealth), _max(maxHealth), _invincible(false), _timer(0) {}
+
         ~Health() override = default;
 
-        // Getters
+        /**
+         * @brief Get current health points.
+         * @return int Current health value.
+         */
         int getCurrentHealth() const { return _current; }
+
+        /**
+         * @brief Get maximum health points.
+         * @return int Maximum health value.
+         */
         int getMaxHealth() const { return _max; }
+
+        /**
+         * @brief Check if entity is invincible.
+         * @return bool True if invincible, false otherwise.
+         */
         bool isInvincible() const { return _invincible; }
+
+        /**
+         * @brief Get remaining invincibility time.
+         * @return int Timer value in frames/ticks.
+         */
         int getInvincibilityTimer() const { return _timer; }
 
-        // Setters
+        /**
+         * @brief Set maximum health.
+         * @param health New maximum health value
+         */
         void setMaxHealth(int health) { _max = health; }
+
+        /**
+         * @brief Set current health.
+         * @param health New current health value
+         */
         void setCurrentHealth(int health) { _current = health; }
+
+        /**
+         * @brief Set invincibility state.
+         * @param invincible True to enable invincibility
+         */
         void setInvincible(bool invincible) { _invincible = invincible; }
+
+        /**
+         * @brief Set invincibility timer.
+         * @param timer Timer value in frames/ticks
+         */
         void setInvincibilityTimer(int timer) { _timer = timer; }
 
-        // Override getType method
-        ComponentType getType() const override {
-            return getComponentType<Health>();
-        }
-        private:
-        int _current;
-        int _max;
-        bool _invincible;
-        int _timer;
+        /**
+         * @brief Get the component type ID.
+         * @return ComponentType Unique ID for Health component.
+         */
+        ComponentType getType() const override { return getComponentType<Health>(); }
+
+       private:
+        int _current;      ///< Current health points
+        int _max;          ///< Maximum health points
+        bool _invincible;  ///< Invincibility state
+        int _timer;        ///< Invincibility duration timer
     };
-}
+}  // namespace ecs
 
 #endif

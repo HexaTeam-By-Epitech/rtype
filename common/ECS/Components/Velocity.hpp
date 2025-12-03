@@ -11,39 +11,71 @@
 #include "IComponent.hpp"
 
 namespace ecs {
+    /**
+     * @class Velocity
+     * @brief Component representing movement direction and speed.
+     * 
+     * This component stores the velocity data for moving entities.
+     * Direction should typically be normalized, and speed determines magnitude.
+     */
     class Velocity : public IComponent {
        public:
+        /**
+         * @struct Vector2
+         * @brief 2D vector for direction.
+         */
         struct Vector2 {
-            int x;
-            int y;
+            int x;  ///< X component
+            int y;  ///< Y component
         };
 
-        // Constructors
-        Velocity(int dirX, int dirY, int speed)
-            : _direction{dirX, dirY}, _speed(speed) {}
+        /**
+         * @brief Constructor with direction and speed.
+         * @param dirX X direction component
+         * @param dirY Y direction component
+         * @param speed Movement speed
+         */
+        Velocity(int dirX, int dirY, int speed) : _direction{dirX, dirY}, _speed(speed) {}
         ~Velocity() override = default;
 
-        // Getters
+        /**
+         * @brief Get the direction vector.
+         * @return Vector2 The movement direction.
+         */
         Vector2 getDirection() const { return _direction; }
+
+        /**
+         * @brief Get the movement speed.
+         * @return int The speed value.
+         */
         int getSpeed() const { return _speed; }
 
-        // Setters
+        /**
+         * @brief Set the direction vector.
+         * @param dirX New X direction
+         * @param dirY New Y direction
+         */
         void setDirection(int dirX, int dirY) {
             _direction.x = dirX;
             _direction.y = dirY;
         }
+
+        /**
+         * @brief Set the movement speed.
+         * @param speed New speed value
+         */
         void setSpeed(int speed) { _speed = speed; }
 
-        // Override getType method
-        ComponentType getType() const override {
-            return getComponentType<Velocity>();
-        }
-        
+        /**
+         * @brief Get the component type ID.
+         * @return ComponentType Unique ID for Velocity component.
+         */
+        ComponentType getType() const override { return getComponentType<Velocity>(); }
+
        private:
-        Vector2 _direction;
-        int _speed;
-       
+        Vector2 _direction;  ///< Movement direction vector
+        int _speed;          ///< Movement speed
     };
-}
+}  // namespace ecs
 
 #endif

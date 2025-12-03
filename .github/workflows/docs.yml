@@ -2,7 +2,7 @@ name: Deploy Documentation
 
 on:
   push:
-    branches: [ "feat/common/build-system-ci-pipeline" ]
+    branches: [ "main" ]
 
 permissions:
   contents: read

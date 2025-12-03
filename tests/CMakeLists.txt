@@ -17,7 +17,8 @@ find_package(GTest CONFIG REQUIRED)
 
 # ECS tests
 add_executable(ecs_tests
-    ecs_tests/ComponentTest.cpp
+    ecs_tests/IComponentTest.cpp
+    ecs_tests/ComponentsTest.cpp
 )
 
 target_include_directories(ecs_tests PRIVATE 

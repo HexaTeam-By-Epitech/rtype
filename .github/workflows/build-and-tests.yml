@@ -19,8 +19,8 @@ env:
   CXX: g++-14
 
 jobs:
-  build-and-analysis:
-    name: Build & Static Analysis
+  build-test-analyze:
+    name: Build, Analysis & Coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -34,11 +34,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential git cmake ninja-build pkg-config \
-            cppcheck gcc-14 g++-14 \
+            cppcheck gcc-14 g++-14 lcov gcovr \
             libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev \
-            libxinerama-dev xorg-dev libglu1-mesa-dev
+            libxinerama-dev xorg-dev libglu1-mesa-dev python3
 
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
@@ -58,14 +58,12 @@ jobs:
             -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      - name: Build project
+      - name: Build Release
         run: cmake --build --preset linux-release -j$(nproc)
 
       - name: Run cppcheck
         run: |
           set -o pipefail
-          echo "::group::Running cppcheck with compile_commands.json"
-          
           BUILD_PATH="build/linux-release"
           EXCLUDES="-i ${BUILD_PATH}/vcpkg_installed"
           
@@ -89,23 +87,13 @@ jobs:
             --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
             $EXCLUDES 2>&1 | tee cppcheck.txt || true
           
-          echo "::endgroup::"
-          
           ERROR_COUNT=$(grep -c 'severity="error"' cppcheck.xml || true)
           WARNING_COUNT=$(grep -c 'severity="warning"' cppcheck.xml || true)
           
-          echo "::notice::Cppcheck found $ERROR_COUNT error(s) and $WARNING_COUNT warning(s)"
-          
           if [ "$ERROR_COUNT" -gt 0 ]; then
-            echo "::error::cppcheck found $ERROR_COUNT critical error(s)"
             head -20 cppcheck.txt
             exit 1
           fi
-          
-          if [ "$WARNING_COUNT" -gt 15 ]; then
-            echo "::warning::cppcheck found $WARNING_COUNT warnings (threshold: 15)"
-          fi
-          echo "✓ Static analysis passed"
 
       - name: Upload cppcheck results
         if: always()
@@ -117,7 +105,7 @@ jobs:
             cppcheck.txt
           retention-days: 30
 
-      - name: Upload build artifacts
+      - name: Upload binaries
         if: success()
         uses: actions/upload-artifact@v4
         with:
@@ -127,40 +115,7 @@ jobs:
             build/linux-release/client/r-type_client
           retention-days: 7
 
-  tests-and-coverage:
-    name: Tests & Coverage
-    runs-on: ubuntu-latest
-    needs: build-and-analysis
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential cmake ninja-build \
-            gcc-14 g++-14 lcov gcovr \
-            libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
-            libudev-dev libgl1-mesa-dev libopenal-dev \
-            libflac-dev libvorbis-dev python3 \
-            libxinerama-dev xorg-dev libglu1-mesa-dev
-
-      - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
-        with:
-          path: .cache/vcpkg_bin
-          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            vcpkg-bin-${{ runner.os }}-
-
-      - name: Bootstrap vcpkg
-        run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
-
-      - name: Configure CMake with Coverage
+      - name: Configure CMake (Coverage)
         run: |
           cmake --preset linux-debug \
             -DCMAKE_C_COMPILER=${{ env.CC }} \
@@ -169,7 +124,7 @@ jobs:
             -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
             -DCMAKE_EXE_LINKER_FLAGS="--coverage"
 
-      - name: Build project with coverage
+      - name: Build Coverage
         run: cmake --build --preset linux-debug -j$(nproc)
 
       - name: Run tests
@@ -178,7 +133,6 @@ jobs:
       - name: Generate coverage data
         working-directory: build/linux-debug
         run: |
-          echo "Generating LCOV coverage data..."
           lcov --gcov-tool /usr/bin/gcov-14 --capture \
             --directory . \
             --output-file coverage.info \
@@ -200,15 +154,12 @@ jobs:
             --ignore-errors empty,unused
           
           if ! grep -q '^SF:' coverage_filtered.info; then
-            echo "⚠️  No project sources remained after filtering" >&2
             cp coverage_project.info coverage_filtered.info
           fi
-          
+
           genhtml coverage_filtered.info \
             --output-directory coverage_html \
             --rc branch_coverage=1
-          
-          echo "Coverage report generated"
 
       - name: Parse test results
         run: |
@@ -223,14 +174,12 @@ jobs:
             coverage.json \
             --include client,server
 
-      - name: Prepare combined results for Discord
+      - name: Prepare combined results
         if: always()
         run: |
-          echo "Checking files..."
           if [ -f test-results.json ] && [ -f coverage.json ]; then
             jq -s '{"tests": .[0], "coverage": .[1]}' test-results.json coverage.json > combined-results.json
           else
-            echo "⚠️ Missing files for combination. Creating dummy JSON."
             echo '{"error": "Missing reports"}' > combined-results.json
           fi
 
@@ -251,8 +200,6 @@ jobs:
             python3 .github/scripts/discord_notifier.py \
               combined \
               combined-results.json
-          else
-            echo "⚠️  DISCORD_WEBHOOK not set, skipping notification"
           fi
         continue-on-error: true
 
@@ -260,34 +207,31 @@ jobs:
         run: |
           FAILED=$(jq -r '.failed' test-results.json)
           TOTAL=$(jq -r '.total' test-results.json)
-          echo "Tests: $FAILED failed out of $TOTAL total"
           if [ "$FAILED" -gt 0 ]; then
-            echo "::error::$FAILED test(s) failed"
             exit 1
           fi
           if [ "$TOTAL" -eq 0 ]; then
-            echo "::warning::No tests were run"
             exit 1
           fi
-          echo "✓ All tests passed"
 
       - name: Check coverage threshold
         run: |
           LINE_COV=$(jq -r '.line_coverage' coverage.json)
           THRESHOLD=60.0
-          echo "Line coverage: ${LINE_COV}%"
-          if [[ "$LINE_COV" == "null" ]] || [[ "$LINE_COV" == "" ]]; then
-            echo "::warning::Coverage data missing"
-          elif (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
-            echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
-          else
-            echo "✓ Coverage meets threshold"
+          if [[ "$LINE_COV" != "null" ]] && [[ "$LINE_COV" != "" ]]; then
+            if (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
+              echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
+            fi
           fi
 
-      - name: Upload combined results
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: combined-results
-          path: combined-results.json
+          name: reports
+          path: |
+            test-results.json
+            coverage.json
+            combined-results.json
+            build/linux-debug/coverage_html/
           retention-days: 30

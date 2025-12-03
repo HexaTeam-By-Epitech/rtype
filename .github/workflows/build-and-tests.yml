@@ -179,7 +179,7 @@ jobs:
         working-directory: build/linux-debug
         run: |
           echo "Generating LCOV coverage data..."
-          lcov --capture \
+          lcov --gcov-tool /usr/bin/gcov-14 --capture \
             --directory . \
             --output-file coverage.info \
             --rc branch_coverage=1 \
@@ -203,7 +203,7 @@ jobs:
             echo "⚠️  No project sources remained after filtering" >&2
             cp coverage_project.info coverage_filtered.info
           fi
-
+          
           genhtml coverage_filtered.info \
             --output-directory coverage_html \
             --rc branch_coverage=1

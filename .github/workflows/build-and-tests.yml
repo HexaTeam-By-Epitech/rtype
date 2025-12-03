@@ -1,25 +1,43 @@
 name: Build and Tests
 
 on:
+  workflow_dispatch:
+
+  push:
+    branches: [ main, dev ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+
   pull_request:
     branches: [ dev ]
-  push:
-    branches: [ dev ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
   checks: write
   pull-requests: write
+  actions: write
 
 env:
-  VCPKG_BINARY_SOURCES: 'clear;default'
-  BUILD_DIR: build
-  CC: gcc-13
-  CXX: g++-13
+  VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.cache/vcpkg_bin,readwrite'
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+  CC: gcc-14
+  CXX: g++-14
 
 jobs:
-  build-and-analysis:
-    name: Build & Static Analysis
+  build-test-analyze:
+    name: Build, Analysis & Coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -32,45 +50,41 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential git cmake ninja-build pkg-config curl zip unzip tar \
-            cppcheck gcc-13 g++-13 \
+            build-essential git cmake ninja-build pkg-config \
+            cppcheck gcc-14 g++-14 lcov gcovr \
             libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev \
-            libxinerama-dev xorg-dev libglu1-mesa-dev
-      - name: Setup vcpkg
+            libxinerama-dev xorg-dev libglu1-mesa-dev python3
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/vcpkg_bin
+          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-bin-${{ runner.os }}-
+
+      - name: Bootstrap vcpkg
+        run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Configure CMake (Release)
         run: |
-          if [ ! -d "$HOME/vcpkg" ]; then
-            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
-          fi
-          cd "$HOME/vcpkg"
-          ./bootstrap-vcpkg.sh
-          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
-      - name: Install vcpkg dependencies
-        run: |
-          cd $GITHUB_WORKSPACE
-          $VCPKG_ROOT/vcpkg install --triplet x64-linux
-      - name: Configure CMake
-        run: |
-          cmake -B ${{ env.BUILD_DIR }} \
-            -DCMAKE_BUILD_TYPE=Release \
+          cmake --preset linux-release \
             -DCMAKE_C_COMPILER=${{ env.CC }} \
             -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            -DVCPKG_TARGET_TRIPLET=x64-linux \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-      - name: Build project
-        run: cmake --build ${{ env.BUILD_DIR }} --config Release -j$(nproc)
+
+      - name: Build Release
+        run: cmake --build --preset linux-release -j$(nproc)
 
       - name: Run cppcheck
         run: |
           set -o pipefail
-          echo "::group::Running cppcheck with compile_commands.json"
+          BUILD_PATH="build/linux-release"
+          EXCLUDES="-i ${BUILD_PATH}/vcpkg_installed"
           
-          EXCLUDES="-i ${{ env.BUILD_DIR }}/vcpkg_installed"
-          
-          # XML output for artifacts
-          cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+          cppcheck --project=${BUILD_PATH}/compile_commands.json \
             --enable=warning,style,performance,portability \
             --inconclusive \
             --std=c++23 \
@@ -80,8 +94,7 @@ jobs:
             --suppress=unmatchedSuppression \
             $EXCLUDES 2> cppcheck.xml || true
           
-          # Text output for logs
-          cppcheck --project=${{ env.BUILD_DIR }}/compile_commands.json \
+          cppcheck --project=${BUILD_PATH}/compile_commands.json \
             --enable=warning,style,performance,portability \
             --inconclusive \
             --std=c++23 \
@@ -91,25 +104,14 @@ jobs:
             --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
             $EXCLUDES 2>&1 | tee cppcheck.txt || true
           
-          echo "::endgroup::"
-          
-          # Count issues
           ERROR_COUNT=$(grep -c 'severity="error"' cppcheck.xml || true)
           WARNING_COUNT=$(grep -c 'severity="warning"' cppcheck.xml || true)
           
-          echo "::notice::Cppcheck found $ERROR_COUNT error(s) and $WARNING_COUNT warning(s)"
-          
           if [ "$ERROR_COUNT" -gt 0 ]; then
-            echo "::error::cppcheck found $ERROR_COUNT critical error(s)"
             head -20 cppcheck.txt
             exit 1
           fi
-          
-          if [ "$WARNING_COUNT" -gt 15 ]; then
-            echo "::warning::cppcheck found $WARNING_COUNT warnings (threshold: 15)"
-          fi
-          
-          echo "✓ Static analysis passed"
+
       - name: Upload cppcheck results
         if: always()
         uses: actions/upload-artifact@v4
@@ -120,78 +122,40 @@ jobs:
             cppcheck.txt
           retention-days: 30
 
-      - name: Upload build artifacts
+      - name: Upload binaries
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: binaries-release
           path: |
-            ${{ env.BUILD_DIR }}/server/r-type_server
-            ${{ env.BUILD_DIR }}/client/r-type_client
+            build/linux-release/server/r-type_server
+            build/linux-release/client/r-type_client
           retention-days: 7
 
-  tests-and-coverage:
-    name: Tests & Coverage
-    runs-on: ubuntu-latest
-    needs: build-and-analysis
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install system dependencies
+      - name: Configure CMake (Coverage)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential cmake ninja-build \
-            gcc-13 g++-13 lcov gcovr \
-            libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
-            libudev-dev libgl1-mesa-dev libopenal-dev \
-            libflac-dev libvorbis-dev python3 \
-            libxinerama-dev xorg-dev libglu1-mesa-dev
-      - name: Setup vcpkg
-        run: |
-          if [ ! -d "$HOME/vcpkg" ]; then
-            git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
-          fi
-          cd "$HOME/vcpkg"
-          ./bootstrap-vcpkg.sh
-          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
-      - name: Install vcpkg dependencies
-        run: |
-          cd $GITHUB_WORKSPACE
-          $VCPKG_ROOT/vcpkg install --triplet x64-linux
-      - name: Configure CMake with Coverage
-        run: |
-          cmake -B ${{ env.BUILD_DIR }} \
-            -DCMAKE_BUILD_TYPE=Debug \
+          cmake --preset linux-debug \
             -DCMAKE_C_COMPILER=${{ env.CC }} \
             -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            -DVCPKG_TARGET_TRIPLET=x64-linux \
             -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
             -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
             -DCMAKE_EXE_LINKER_FLAGS="--coverage"
-      - name: Build project with coverage
-        run: cmake --build ${{ env.BUILD_DIR }} --config Debug -j$(nproc)
+
+      - name: Build Coverage
+        run: cmake --build --preset linux-debug -j$(nproc)
 
       - name: Run tests
-        working-directory: ${{ env.BUILD_DIR }}
-        run: |
-          ctest --output-on-failure --verbose --timeout 300
+        run: ctest --preset linux-debug --verbose --timeout 300 --output-junit test-results.xml
+
       - name: Generate coverage data
-        working-directory: ${{ env.BUILD_DIR }}
+        working-directory: build/linux-debug
         run: |
-          echo "Generating LCOV coverage data..."
-          lcov --capture \
+          lcov --gcov-tool /usr/bin/gcov-14 --capture \
             --directory . \
             --output-file coverage.info \
             --rc branch_coverage=1 \
             --ignore-errors mismatch
           
-          # Keep only project sources, then drop toolchain noise
           lcov --extract coverage.info \
             '${{ github.workspace }}/client/*' \
             '${{ github.workspace }}/server/*' \
@@ -201,50 +165,48 @@ jobs:
           
           lcov --remove coverage_project.info \
             '/usr/*' \
-            '${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed/*' \
+            '${{ github.workspace }}/build/linux-debug/vcpkg_installed/*' \
             --output-file coverage_filtered.info \
             --rc branch_coverage=1 \
             --ignore-errors empty,unused
           
           if ! grep -q '^SF:' coverage_filtered.info; then
-            echo "⚠️  No project sources remained after filtering" >&2
             cp coverage_project.info coverage_filtered.info
           fi
 
-          # Generate HTML report
           genhtml coverage_filtered.info \
             --output-directory coverage_html \
             --rc branch_coverage=1
-          
-          echo "Coverage report generated"
+
       - name: Parse test results
         run: |
           python3 .github/scripts/parse_test_results.py \
-            ${{ env.BUILD_DIR }} \
+            build/linux-debug \
             test-results.json
+
       - name: Parse coverage results
         run: |
           python3 .github/scripts/parse_coverage.py \
-            ${{ env.BUILD_DIR }}/coverage_filtered.info \
+            build/linux-debug/coverage_filtered.info \
             coverage.json \
             --include client,server
-          \
-          if ! jq -e '.lines_total > 0' coverage.json > /dev/null; then
-            echo "::warning::Parsed coverage has zero executable lines"
-          fi
-      - name: Prepare combined results for Discord
+
+      - name: Prepare combined results
         if: always()
         run: |
-          # Combine test and coverage into single JSON for Discord
-          jq -s '{"tests": .[0], "coverage": .[1]}' \
-            test-results.json \
-            coverage.json > combined-results.json
+          if [ -f test-results.json ] && [ -f coverage.json ]; then
+            jq -s '{"tests": .[0], "coverage": .[1]}' test-results.json coverage.json > combined-results.json
+          else
+            echo '{"error": "Missing reports"}' > combined-results.json
+          fi
+
       - name: Generate GitHub Summary
         run: |
           python3 .github/scripts/generate_summary.py \
             combined \
             test-results.json \
             coverage.json
+
       - name: Send Discord notification
         if: always()
         env:
@@ -255,67 +217,58 @@ jobs:
             python3 .github/scripts/discord_notifier.py \
               combined \
               combined-results.json
-          else
-            echo "⚠️  DISCORD_WEBHOOK not set, skipping notification"
           fi
         continue-on-error: true
+
       - name: Check test results
         run: |
           FAILED=$(jq -r '.failed' test-results.json)
           TOTAL=$(jq -r '.total' test-results.json)
-          
-          echo "Tests: $FAILED failed out of $TOTAL total"
-          
           if [ "$FAILED" -gt 0 ]; then
-            echo "::error::$FAILED test(s) failed"
             exit 1
           fi
-          
           if [ "$TOTAL" -eq 0 ]; then
-            echo "::warning::No tests were run"
             exit 1
           fi
-          
-          echo "✓ All tests passed"
-      - name: Check coverage threshold
+
+      - name: Check Coverage and Prepare Badge
         run: |
           LINE_COV=$(jq -r '.line_coverage' coverage.json)
-          THRESHOLD=60.0
+          echo "COVERAGE_VAL=${LINE_COV%.*}%" >> $GITHUB_ENV
           
-          echo "Line coverage: ${LINE_COV}%"
-          
-          if [[ "$LINE_COV" == "null" ]] || [[ "$LINE_COV" == "" ]]; then
-            echo "::warning::Coverage data missing"
-          elif (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
-            echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
+          if (( $(echo "$LINE_COV >= 80" | bc -l) )); then
+            echo "COVERAGE_COLOR=green" >> $GITHUB_ENV
+          elif (( $(echo "$LINE_COV >= 60" | bc -l) )); then
+            echo "COVERAGE_COLOR=yellow" >> $GITHUB_ENV
           else
-            echo "✓ Coverage meets threshold"
+            echo "COVERAGE_COLOR=red" >> $GITHUB_ENV
           fi
-      - name: Upload test results
+          
+          THRESHOLD=60.0
+          if (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
+             echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
+          fi
+
+      - name: Update Coverage Badge
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: b7449f68c0857ebff4c2c848415dc9f8
+          filename: rtype-coverage.json
+          label: coverage
+          message: ${{ env.COVERAGE_VAL }}
+          color: ${{ env.COVERAGE_COLOR }}
+          namedLogo: c++
+
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: reports
           path: |
             test-results.json
-            ${{ env.BUILD_DIR }}/Testing/
-          retention-days: 30
-
-      - name: Upload coverage results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: |
             coverage.json
-            ${{ env.BUILD_DIR }}/coverage_filtered.info
-            ${{ env.BUILD_DIR }}/coverage_html/
-          retention-days: 30
-
-      - name: Upload combined results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: combined-results
-          path: combined-results.json
+            combined-results.json
+            build/linux-debug/coverage_html/
           retention-days: 30

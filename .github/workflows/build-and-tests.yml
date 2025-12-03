@@ -128,7 +128,7 @@ jobs:
         run: cmake --build --preset linux-debug -j$(nproc)
 
       - name: Run tests
-        run: ctest --preset linux-debug --verbose --timeout 300
+        run: ctest --preset linux-debug --verbose --timeout 300 --output-junit test-results.xml
 
       - name: Generate coverage data
         working-directory: build/linux-debug

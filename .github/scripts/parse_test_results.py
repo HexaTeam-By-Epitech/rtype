@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Parse CTest/GTest results and generate JSON summary.
-Optimized for JUnit XML and robust log parsing.
+Optimized for JUnit XML and accurate Total Duration parsing.
 """
 import os
 import sys
@@ -10,6 +10,20 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional
+
+def get_real_duration_from_log(build_dir: str) -> float:
+    """Extract the real wall-clock time from LastTest.log."""
+    try:
+        log_file = Path(build_dir) / 'Testing' / 'Temporary' / 'LastTest.log'
+        if log_file.exists():
+            content = log_file.read_text(encoding='utf-8', errors='ignore')
+            # Recherche la ligne: Total Test time (real) =   0.12 sec
+            match = re.search(r'Total Test time \(real\) =\s+([\d.]+)\s+sec', content)
+            if match:
+                return float(match.group(1))
+    except Exception:
+        pass
+    return 0.0
 
 def parse_ctest_output(build_dir: str) -> Dict:
     """Parse CTest output from Testing directory (Fallback)."""
@@ -25,64 +39,46 @@ def parse_ctest_output(build_dir: str) -> Dict:
     if test_xml_files:
         try:
             tree = ET.parse(test_xml_files[0])
-            for test in tree.findall('.//Test'):
-                results['total'] += 1
-                status = test.get('Status')
-                name = test.findtext('.//Name', 'Unknown')
+            root = tree.getroot()
+            testing = root.find('Testing')
+            if testing:
+                for test in testing.findall('.//Test'):
+                    results['total'] += 1
+                    status = test.get('Status')
+                    name = test.findtext('.//Name', 'Unknown')
 
-                # Get precise duration
-                time_val = test.findtext('.//Results/NamedMeasurement[@name="Execution Time"]/Value')
-                if time_val:
-                    results['duration'] += float(time_val)
+                    if status == 'passed': results['passed'] += 1
+                    elif status == 'failed':
+                        results['failed'] += 1
+                        results['failed_tests'].append(name)
+                    else: results['skipped'] += 1
 
-                if status == 'passed': results['passed'] += 1
-                elif status == 'failed':
-                    results['failed'] += 1
-                    results['failed_tests'].append(name)
-                else: results['skipped'] += 1
+            # On ignore la durée XML ici car elle est souvent imprécise pour les tests rapides
+            # On laisse le main() récupérer la durée réelle via get_real_duration_from_log
             print(f"✅ Parsed CTest XML: {test_xml_files[0]}")
             return results
         except Exception:
             pass
 
-    # 2. Fallback: Parse LastTest.log with improved Regex
+    # 2. Fallback: Parse LastTest.log
     last_test_log = testing_dir / 'Temporary' / 'LastTest.log'
     if last_test_log.exists():
         print("📋 Parsing LastTest.log...")
         try:
-            with open(last_test_log, 'r') as f:
-                content = f.read()
+            content = last_test_log.read_text(encoding='utf-8', errors='ignore')
+            # Regex simple pour compter les statuts
+            # Test #1: server_tests ... Passed
+            passed = len(re.findall(r'Test\s+#\d+:.*?\s+Passed', content))
+            failed = len(re.findall(r'Test\s+#\d+:.*?\s+(Failed|\*\*\*Failed)', content))
 
-                # Regex 1: Format verbose standard
-                # Test #1: server_tests .....................   Passed    0.02 sec
-                patterns = [
-                    r'Test\s+#\d+:\s+(.+?)\s+\.+\s+(Passed|Failed)\s+([\d.]+)\s+sec',
-                    r'"([^"]+)"\s+start\s+time:.*?Test\s+time\s+=\s+([\d.]+)\s+sec.*?Test\s+(Passed|Failed)'
-                ]
+            results['total'] = passed + failed
+            results['passed'] = passed
+            results['failed'] = failed
 
-                for pattern in patterns:
-                    matches = re.finditer(pattern, content, re.MULTILINE)
-                    found = False
-                    for match in matches:
-                        found = True
-                        groups = match.groups()
-                        # Gérer l'ordre des groupes selon le pattern
-                        if len(groups) == 3:
-                            if pattern.startswith(r'Test'): # Pattern 1
-                                name, status, duration = groups
-                            else: # Pattern 2
-                                name, duration, status = groups
-
-                            results['total'] += 1
-                            results['duration'] += float(duration)
-
-                            if 'Passed' in status:
-                                results['passed'] += 1
-                            else:
-                                results['failed'] += 1
-                                results['failed_tests'].append(name)
-
-                    if found: break # Stop if one pattern worked
+            # Récupérer les noms des failed
+            failed_matches = re.finditer(r'Test\s+#\d+:\s+(.+?)\s+\.+\s+(Failed|\*\*\*Failed)', content)
+            for m in failed_matches:
+                results['failed_tests'].append(m.group(1))
 
         except Exception as e:
             print(f"⚠️ Error parsing log: {e}")
@@ -90,7 +86,7 @@ def parse_ctest_output(build_dir: str) -> Dict:
     return results
 
 def parse_junit_xml(xml_path: str) -> Dict:
-    """Parse JUnit XML output (High Precision)."""
+    """Parse JUnit XML output."""
     results = {
         'total': 0, 'passed': 0, 'failed': 0, 'skipped': 0,
         'duration': 0.0, 'failed_tests': []
@@ -99,14 +95,14 @@ def parse_junit_xml(xml_path: str) -> Dict:
         tree = ET.parse(xml_path)
         root = tree.getroot()
 
-        # Handle multiple testsuites or single testsuite
         suites = root.findall('.//testsuite') or [root] if root.tag == 'testsuite' else []
 
         for suite in suites:
             results['total'] += int(suite.get('tests', 0))
             results['failed'] += int(suite.get('failures', 0)) + int(suite.get('errors', 0))
             results['skipped'] += int(suite.get('skipped', 0))
-            # JUnit duration is usually precise float
+
+            # JUnit duration (sum of individual tests)
             results['duration'] += float(suite.get('time', 0))
 
             for case in suite.findall('testcase'):
@@ -123,11 +119,9 @@ def main():
     if len(sys.argv) < 2: return 1
     build_dir, output_file = sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else 'test-results.json'
 
-    # 1. Prioritize JUnit XML (Precision & Reliability)
-    # Cherche test-results.xml (généré par notre modif YAML) ou junit-results.xml
+    # 1. Prioritize JUnit XML for counts (Reliable Pass/Fail)
     junit_files = list(Path(build_dir).glob('**/*test-results.xml')) + \
-                  list(Path('.').glob('**/*test-results.xml')) + \
-                  list(Path(build_dir).glob('**/junit*.xml'))
+                  list(Path('.').glob('**/*test-results.xml'))
 
     final_results = {'total': 0}
 
@@ -135,10 +129,19 @@ def main():
         print(f"📄 Found JUnit XML: {junit_files[0]}")
         final_results = parse_junit_xml(str(junit_files[0]))
 
-    # 2. Fallback to CTest parsing if JUnit failed/empty
-    if final_results['total'] == 0:
-        print("⚠️ No JUnit data, falling back to CTest parsing")
+    if final_results.get('total', 0) == 0:
+        print("⚠️ No JUnit data or empty, falling back to CTest parsing")
         final_results = parse_ctest_output(build_dir)
+
+    # 2. OVERRIDE DURATION: Always try to get the "Real" wall-clock time from CTest logs
+    # Because JUnit sums up 0ms + 0ms = 0ms, but CTest knows the process took 0.12s
+    real_duration = get_real_duration_from_log(build_dir)
+    if real_duration > 0:
+        print(f"⏱️  Using real duration from log: {real_duration}s")
+        final_results['duration'] = real_duration
+    elif final_results.get('duration', 0) == 0:
+        # Fallback cosmetic if everything failed (avoid 0.00s if possible)
+        final_results['duration'] = 0.01
 
     # Write output
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)

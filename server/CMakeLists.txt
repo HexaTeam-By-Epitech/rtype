@@ -1,9 +1,13 @@
-add_library(rtype_server_lib
-    src/Server.cpp
+file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
 )
 
-target_include_directories(rtype_server_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+list(FILTER SERVER_SOURCES EXCLUDE REGEX ".*/src/main.cpp$")
 
+add_library(rtype_server_lib ${SERVER_SOURCES})
+
+target_include_directories(rtype_server_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(rtype_server_lib PUBLIC cxx_std_23)
 
 add_executable(r-type_server
@@ -11,5 +15,3 @@ add_executable(r-type_server
 )
 
 target_link_libraries(r-type_server PRIVATE rtype_server_lib)
-
-target_include_directories(r-type_server PRIVATE src include)

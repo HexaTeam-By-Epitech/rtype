@@ -1,6 +1,7 @@
 name: Mirror Workflow
 on:
-  [ push ]
+  push:
+    branches: [ "main", "dev" ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

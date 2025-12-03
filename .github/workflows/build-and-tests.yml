@@ -13,7 +13,7 @@ permissions:
   actions: write
 
 env:
-  VCPKG_BINARY_SOURCES: 'clear;nuget,GitHubAction,readwrite'
+  VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.cache/vcpkg_bin,readwrite'
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
   CC: gcc-14
   CXX: g++-14
@@ -34,22 +34,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential git cmake ninja-build pkg-config \
-            cppcheck gcc-14 g++-14 mono-devel \
+            cppcheck gcc-14 g++-14 \
             libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev \
             libxinerama-dev xorg-dev libglu1-mesa-dev
 
-      - name: Export GitHub Actions Cache Environment
-        uses: actions/github-script@v7
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
         with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+          path: .cache/vcpkg_bin
+          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-bin-${{ runner.os }}-
 
       - name: Bootstrap vcpkg
-        run: |
-          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+        run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
       - name: Configure CMake (Release)
         run: |
@@ -143,18 +143,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake ninja-build \
-            gcc-13 g++-13 lcov gcovr \
+            gcc-14 g++-14 lcov gcovr \
             libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
             libudev-dev libgl1-mesa-dev libopenal-dev \
             libflac-dev libvorbis-dev python3 \
             libxinerama-dev xorg-dev libglu1-mesa-dev
 
-      - name: Export GitHub Actions Cache Environment
-        uses: actions/github-script@v7
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
         with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+          path: .cache/vcpkg_bin
+          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-bin-${{ runner.os }}-
 
       - name: Bootstrap vcpkg
         run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
@@ -214,44 +215,24 @@ jobs:
           python3 .github/scripts/parse_test_results.py \
             build/linux-debug \
             test-results.json
+
       - name: Parse coverage results
         run: |
           python3 .github/scripts/parse_coverage.py \
             build/linux-debug/coverage_filtered.info \
             coverage.json \
             --include client,server
-          \
-          if ! jq -e '.lines_total > 0' coverage.json > /dev/null; then
-            echo "::warning::Parsed coverage has zero executable lines"
-          fi
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            test-results.json
-            build/linux-debug/Testing/
-          retention-days: 30
-
-      - name: Upload coverage results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: |
-            coverage.json
-            build/linux-debug/coverage_filtered.info
-            build/linux-debug/coverage_html/
-          retention-days: 30
 
       - name: Prepare combined results for Discord
         if: always()
         run: |
-          jq -s '{"tests": .[0], "coverage": .[1]}' \
-            test-results.json \
-            coverage.json > combined-results.json
+          echo "Checking files..."
+          if [ -f test-results.json ] && [ -f coverage.json ]; then
+            jq -s '{"tests": .[0], "coverage": .[1]}' test-results.json coverage.json > combined-results.json
+          else
+            echo "⚠️ Missing files for combination. Creating dummy JSON."
+            echo '{"error": "Missing reports"}' > combined-results.json
+          fi
 
       - name: Generate GitHub Summary
         run: |

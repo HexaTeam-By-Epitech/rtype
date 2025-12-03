@@ -13,7 +13,7 @@ permissions:
   actions: write
 
 env:
-  VCPKG_BINARY_SOURCES: 'clear;gha,readwrite'
+  VCPKG_BINARY_SOURCES: 'clear;nuget,GitHubAction,readwrite'
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
   CC: gcc-14
   CXX: g++-14

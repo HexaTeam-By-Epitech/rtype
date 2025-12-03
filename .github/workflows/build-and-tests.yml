@@ -88,8 +88,6 @@ jobs:
             $EXCLUDES 2>&1 | tee cppcheck.txt || true
           
           ERROR_COUNT=$(grep -c 'severity="error"' cppcheck.xml || true)
-          WARNING_COUNT=$(grep -c 'severity="warning"' cppcheck.xml || true)
-          
           if [ "$ERROR_COUNT" -gt 0 ]; then
             head -20 cppcheck.txt
             exit 1
@@ -214,15 +212,35 @@ jobs:
             exit 1
           fi
 
-      - name: Check coverage threshold
+      - name: Check Coverage and Prepare Badge
         run: |
           LINE_COV=$(jq -r '.line_coverage' coverage.json)
-          THRESHOLD=60.0
-          if [[ "$LINE_COV" != "null" ]] && [[ "$LINE_COV" != "" ]]; then
-            if (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
-              echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
-            fi
+          echo "COVERAGE_VAL=${LINE_COV%.*}%" >> $GITHUB_ENV
+          
+          if (( $(echo "$LINE_COV >= 80" | bc -l) )); then
+            echo "COVERAGE_COLOR=green" >> $GITHUB_ENV
+          elif (( $(echo "$LINE_COV >= 60" | bc -l) )); then
+            echo "COVERAGE_COLOR=yellow" >> $GITHUB_ENV
+          else
+            echo "COVERAGE_COLOR=red" >> $GITHUB_ENV
           fi
+          
+          THRESHOLD=60.0
+          if (( $(echo "$LINE_COV < $THRESHOLD" | bc -l) )); then
+             echo "::warning::Coverage ${LINE_COV}% is below threshold ${THRESHOLD}%"
+          fi
+
+      - name: Update Coverage Badge
+        #if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: b7449f68c0857ebff4c2c848415dc9f8
+          filename: rtype-coverage.json
+          label: coverage
+          message: ${{ env.COVERAGE_VAL }}
+          color: ${{ env.COVERAGE_COLOR }}
+          namedLogo: c++
 
       - name: Upload artifacts
         if: always()

@@ -8,7 +8,20 @@
 #ifndef ISYSTEM_HPP_
 #define ISYSTEM_HPP_
 
+#include <cstdint>
+
 namespace ecs {
+    // Placeholder declaration
+    class Registry;
+
+    /**
+     * @brief Type alias for component bitmask.
+     * 
+     * Used to represent which components are required by a system.
+     * Each bit corresponds to a component type ID.
+     */
+    using ComponentMask = std::uint64_t;
+
     /**
      * @class ISystem
      * @brief Base interface for all ECS systems.
@@ -18,6 +31,7 @@ namespace ecs {
      * 
      * @note Systems should be stateless when possible.
      * @note Logic processes entities based on their component composition.
+     * @note Each system defines which components it requires via getComponentMask().
      */
     class ISystem {
        public:
@@ -25,7 +39,29 @@ namespace ecs {
          * @brief Virtual destructor.
          */
         virtual ~ISystem() = default;
+
+        /**
+         * @brief Update the system logic for one frame.
+         * 
+         * Called every frame by the game loop. The system processes all entities
+         * that match its component requirements.
+         * 
+         * @param registry Reference to the ECS registry containing all entities
+         * @param deltaTime Time elapsed since last frame (in seconds)
+         */
+        virtual void update(Registry &registry, float deltaTime) = 0;
+
+        /**
+         * @brief Get the bitmask of required components.
+         * 
+         * Returns a bitmask indicating which components an entity must have
+         * to be processed by this system. The Registry uses this mask to filter entities.
+         * 
+         * @return ComponentMask Bitmask of required component types
+         * 
+         */
+        virtual ComponentMask getComponentMask() const = 0;
     };
-}
+}  // namespace ecs
 
 #endif

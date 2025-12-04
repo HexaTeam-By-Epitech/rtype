@@ -8,6 +8,9 @@
 #ifndef MOVEMENTSYSTEM_HPP_
 #define MOVEMENTSYSTEM_HPP_
 
+#include "../../Components/IComponent.hpp"
+#include "../../Components/Transform.hpp"
+#include "../../Components/Velocity.hpp"
 #include "../ISystem.hpp"
 
 namespace ecs {
@@ -20,8 +23,33 @@ namespace ecs {
      */
     class MovementSystem : public ISystem {
        public:
+        /**
+         * @brief Default constructor.
+         */
         MovementSystem() = default;
+
+        /**
+         * @brief Default destructor.
+         */
         ~MovementSystem() override = default;
+
+        /**
+         * @brief Updates entity positions based on their velocities.
+         * 
+         * Applies velocity vectors and speed to transform positions.
+         * Movement is frame-rate independent using deltaTime.
+         * 
+         * @param registry Reference to the ECS registry
+         * @param deltaTime Time elapsed since last frame (in seconds)
+         */
+        void update(Registry &registry, float deltaTime) override;
+
+        /**
+         * @brief Gets the component mask for this system.
+         * 
+         * @return ComponentMask requiring Transform and Velocity components
+         */
+        ComponentMask getComponentMask() const override;
     };
 }
 

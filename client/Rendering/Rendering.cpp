@@ -13,7 +13,13 @@ Rendering::~Rendering() {
     shutdown();
 }
 
-bool Rendering::initialize(uint32_t width, uint32_t height, const std::string &title) {}
+bool Rendering::initialize(uint32_t width, uint32_t height, const std::string &title) {
+    (void)width;
+    (void)height;
+    (void)title;
+
+    return true;
+}
 
 void Rendering::shutdown() {
     _initialized = false;
@@ -25,11 +31,27 @@ bool Rendering::isWindowOpen() const {
     return _initialized;
 }
 
-bool Rendering::loadTexture(const std::string &id, const std::string &path) {}
+bool Rendering::loadTexture(const std::string &id, const std::string &path) {
+    (void)id;
+    (void)path;
 
-void Rendering::drawSprite(const std::string &textureId, float x, float y, float rotation, float scale) {}
+    return true;
+}
 
-void Rendering::drawText(const std::string &text, float x, float y, uint32_t size) {}
+void Rendering::drawSprite(const std::string &textureId, float x, float y, float rotation, float scale) {
+    (void)textureId;
+    (void)x;
+    (void)y;
+    (void)rotation;
+    (void)scale;
+}
+
+void Rendering::drawText(const std::string &text, float x, float y, uint32_t size) {
+    (void)text;
+    (void)x;
+    (void)y;
+    (void)size;
+}
 
 uint32_t Rendering::getWidth() const {
     return _width;

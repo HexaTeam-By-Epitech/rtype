@@ -5,7 +5,7 @@ STRIP_FROM_PATH        = .
 
 RECURSIVE              = YES
 USE_MDFILE_AS_MAINPAGE = README.md
-INPUT                  = client server include README.md
+INPUT                  = client server common README.md
 FILE_PATTERNS          = *.cpp *.hpp *.h
 EXCLUDE_PATTERNS       = */build/* */vcpkg/* */tests/* */.git/*
 

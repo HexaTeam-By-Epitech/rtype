@@ -17,13 +17,16 @@ find_package(GTest CONFIG REQUIRED)
 
 # ECS tests
 add_executable(ecs_tests
-    ecs_tests/IComponentTest.cpp
-    ecs_tests/ComponentsTest.cpp
+        ecs_tests/IComponentTest.cpp
+        ecs_tests/ComponentsTest.cpp
+        ecs_tests/RegistryTest.cpp
+        ../common/ECS/Registry.cpp
+        ../common/ECS/Registry.tpp
 )
 
-target_include_directories(ecs_tests PRIVATE 
-    ${CMAKE_SOURCE_DIR}/common/ECS
-    ${CMAKE_SOURCE_DIR}/common/ECS/Components
+target_include_directories(ecs_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/common/ECS
+        ${CMAKE_SOURCE_DIR}/common/ECS/Components
 )
 
 target_link_libraries(ecs_tests PRIVATE GTest::gtest_main)
@@ -32,7 +35,7 @@ add_test(NAME ecs_tests COMMAND ecs_tests)
 
 # Server tests
 add_executable(server_tests
-    server_tests/ServerTest.cpp
+        server_tests/ServerTest.cpp
 )
 
 target_include_directories(server_tests PRIVATE ${CMAKE_SOURCE_DIR}/server/include)

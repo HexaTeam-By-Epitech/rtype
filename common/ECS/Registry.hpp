@@ -5,30 +5,31 @@
 ** Registry
 */
 
+/**
+* @file Registry.hpp
+* @brief Registry for the ECS (Entity-Component System).
+*
+* Provides facilities to create/destroy entities, assign components
+* to entities via signatures (bitsets), and register component types.
+*/
+
 #pragma once
 
+#include <atomic>
 #include <bitset>
 #include <random>
 #include <typeindex>
 #include <unordered_map>
 
-namespace ecs {
-
-    /**
- * @file Registry.hpp
- * @brief Registry for the ECS (Entity-Component System).
- *
- * Provides facilities to create/destroy entities, assign components
- * to entities via signatures (bitsets), and register component types.
- */
-
 #define N_MAX_COMPONENTS 32
-    /**
+/**
  * @brief Maximum number of distinct component types supported by the Registry.
  *
  * This value determines the size of the Signature bitset. Each registered
  * component type is assigned a unique bit position in the Signature.
  */
+
+namespace ecs {
 
     /**
  * @brief Bitset representing the set of components attached to an entity.
@@ -80,6 +81,17 @@ namespace ecs {
      * uniform distribution to span valid Address values.
      */
         void _initRandomizer();
+
+        /**
+         * @brief Thread-safe lock for registering entities
+         */
+        std::atomic_bool _entityLock;
+
+        /**
+         * @brief Thread-safe lock for registering components
+         * Permits a safer implementation of ecs::getComponentType<>()
+         */
+        std::atomic_bool _componentLock;
 
         /**
      * @brief Register a component type and allocate a bit in the Signature.
@@ -176,3 +188,5 @@ namespace ecs {
         Signature getSignature(Address address);
     };
 }  // namespace ecs
+
+#include "Registry.tpp"

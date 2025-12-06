@@ -11,8 +11,8 @@ namespace server {
 
 // Methods are empty for now (structure only)
 
-void MatchmakingService::addPlayer(int playerId) {}
-void MatchmakingService::removePlayer(int playerId) {}
+void MatchmakingService::addPlayer([[maybe_unused]]int playerId) {}
+void MatchmakingService::removePlayer([[maybe_unused]]int playerId) {}
 void MatchmakingService::startMatch() {}
 
 } // namespace server

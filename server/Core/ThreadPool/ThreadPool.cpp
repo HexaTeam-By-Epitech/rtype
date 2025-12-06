@@ -18,7 +18,7 @@ ThreadPool::ThreadPool(size_t threadCount)
 ThreadPool::~ThreadPool() {
 }
 
-void ThreadPool::enqueue(Task task) {
+void ThreadPool::enqueue([[maybe_unused]] Task task) {
     // Prototype only: implementation will be added later
 }
 

@@ -1,28 +1,23 @@
 /*
 ** EPITECH PROJECT, 2025
-** Created by hugo on 06/12/2025
-** File description:
-** EventBus.cpp — Minimal server-side implementation
+** EventBus.cpp
+** Server-side EventBus implementation
 */
 
 #include "EventBus.hpp"
 
 namespace Server {
 
-// Empty prototypes for initial compilation
-template <typename T>
-size_t EventBus::subscribe(EventCallback<T> callback)
-{
-    (void)callback;
-    return 0;
-}
+/**
+ * @file EventBus.cpp
+ * @brief Implementation of EventBus class.
+ * 
+ * This file provides minimal implementations for EventBus member functions.
+ * The actual subscription and publishing logic is implemented as templates
+ * in the header file, since template functions must be defined in the header.
+ */
 
-template <typename T>
-void EventBus::publish(const T &event)
-{
-    (void)event;
-}
-
+/// Clear all subscriptions from the bus
 void EventBus::clear()
 {
     _subscribers.clear();

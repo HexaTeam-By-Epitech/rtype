@@ -10,7 +10,7 @@
 namespace server {
 
 // Implementation will go here
-bool AuthService::authenticate(const std::string &username, const std::string &password) {
+bool AuthService::authenticate([[maybe_unused]] const std::string &username, [[maybe_unused]] const std::string &password) {
     return false;
 }
 

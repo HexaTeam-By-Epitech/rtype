@@ -11,17 +11,17 @@ namespace server {
 
 // Methods are empty for now
 
-std::shared_ptr<Session> SessionManager::createSession(const std::string &id) {
+std::shared_ptr<Session> SessionManager::createSession([[maybe_unused]] const std::string &id) {
     // Implementation goes here
     return nullptr;
 }
 
-std::shared_ptr<Session> SessionManager::getSession(const std::string &id) {
+std::shared_ptr<Session> SessionManager::getSession([[maybe_unused]] const std::string &id) {
     // Implementation goes here
     return nullptr;
 }
 
-void SessionManager::removeSession(const std::string &id) {
+void SessionManager::removeSession([[maybe_unused]] const std::string &id) {
     // Implementation goes here
 }
 

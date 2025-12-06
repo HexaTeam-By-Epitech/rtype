@@ -11,16 +11,16 @@ namespace server {
 
 // Methods are empty for now (structure only)
 
-void RoomManager::createRoom(const std::string &id) {
+void RoomManager::createRoom([[maybe_unused]] const std::string &id) {
     // Implementation will go here
 }
 
-std::shared_ptr<Room> RoomManager::getRoom(const std::string &id) {
+std::shared_ptr<Room> RoomManager::getRoom([[maybe_unused]] const std::string &id) {
     // Implementation will go here
     return nullptr;
 }
 
-void RoomManager::removeRoom(const std::string &id) {
+void RoomManager::removeRoom([[maybe_unused]] const std::string &id) {
     // Implementation will go here
 }
 

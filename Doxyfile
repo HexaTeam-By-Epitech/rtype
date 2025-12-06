@@ -1,14 +1,31 @@
-PROJECT_NAME           = "Rtype"
-OUTPUT_DIRECTORY       = public/doxygen
+PROJECT_NAME           = "R-Type"
+PROJECT_BRIEF          = "Distributed multiplayer game engine in C++"
+OUTPUT_DIRECTORY       = public
+STRIP_FROM_PATH        = .
+
 RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+INPUT                  = client server common README.md
+FILE_PATTERNS          = *.cpp *.hpp *.h
+EXCLUDE_PATTERNS       = */build/* */vcpkg/* */tests/* */.git/*
+
 EXTRACT_ALL            = YES
-INPUT                  = client server
-FILE_PATTERNS          = *.cpp *.hpp *.c *.h
-GENERATE_LATEX         = NO      # (optionnel)
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+
+SOURCE_BROWSER         = YES
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+HAVE_DOT               = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+UML_LOOK               = YES
+CALL_GRAPH             = YES
+
+GENERATE_LATEX         = NO
 GENERATE_HTML          = YES
-GENERATE_TREEVIEW      = YES # required!
-DISABLE_INDEX          = NO
-FULL_SIDEBAR           = NO
+GENERATE_TREEVIEW      = YES
+HTML_COLORSTYLE        = LIGHT
 HTML_EXTRA_STYLESHEET  = doxygen-awesome-css/doxygen-awesome.css \
-                        doxygen-awesome-css/doxygen-awesome-sidebar-only.css
-HTML_COLORSTYLE        = LIGHT # required with Doxygen >= 1.9.5
+                         doxygen-awesome-css/doxygen-awesome-sidebar-only.css

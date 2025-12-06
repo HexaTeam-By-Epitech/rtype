@@ -21,7 +21,6 @@ add_executable(ecs_tests
         ecs_tests/ComponentsTest.cpp
         ecs_tests/RegistryTest.cpp
         ../common/ECS/Registry.cpp
-        ../common/ECS/Registry.tpp
 )
 
 target_include_directories(ecs_tests PRIVATE

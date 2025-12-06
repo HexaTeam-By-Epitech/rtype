@@ -6,17 +6,16 @@
 */
 
 #include "Registry.hpp"
+
+#include <condition_variable>
 #include <iostream>
 #include <limits>
-#include "IComponent.hpp"
 
 namespace ecs {
     Registry::Registry() {
         _signatures = {};
         _componentMap = {};
         _initRandomizer();
-        _entityLock = 0;
-        _componentLock = 0;
     }
 
     Registry::~Registry() {
@@ -39,45 +38,36 @@ namespace ecs {
     }
 
     Signature Registry::_registerComponent(const std::type_index componentType) {
-        while (_componentLock)
-            ;
-        _componentLock = true;
+        std::unique_lock lock(componentLock_);
 
         int offset = _componentMap.size();
-        std::cout << "Size of map is " << offset << std::endl;
         Signature sign = 0;
 
-        if (offset >= N_MAX_COMPONENTS)
+        if (offset >= N_MAX_COMPONENTS) {
             return sign;
-        sign = 1;
-        while (offset > 0) {
-            sign <<= 1;
-            offset -= 1;
         }
+        sign = 1 << offset;
         _componentMap[componentType] = sign;
 
-        _componentLock = false;
         return sign;
     }
 
     Address Registry::newEntity() {
-        while (_entityLock)
-            ;
-        _entityLock = true;
+        std::unique_lock lock(entityLock_);
         const Address addr = this->_generateRandomAddress();
         Signature signature;
-        signature.reset();
 
         _signatures[addr] = signature;
-        _entityLock = false;
         return addr;
     }
 
     void Registry::destroyEntity(Address addr) {
+        std::unique_lock lock(entityLock_);
         _signatures.erase(addr);
     }
 
     Signature Registry::getSignature(Address address) {
+        std::shared_lock lock(entityLock_);
         Signature sign = 0u;
         if (_signatures.contains(address)) {
             sign = _signatures[address];

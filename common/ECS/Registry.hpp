@@ -18,6 +18,7 @@
 #include <atomic>
 #include <bitset>
 #include <random>
+#include <shared_mutex>
 #include <typeindex>
 #include <unordered_map>
 
@@ -85,13 +86,13 @@ namespace ecs {
         /**
          * @brief Thread-safe lock for registering entities
          */
-        std::atomic_bool _entityLock;
+        std::shared_mutex entityLock_;
 
         /**
          * @brief Thread-safe lock for registering components
          * Permits a safer implementation of ecs::getComponentType<>()
          */
-        std::atomic_bool _componentLock;
+        std::shared_mutex componentLock_;
 
         /**
      * @brief Register a component type and allocate a bit in the Signature.

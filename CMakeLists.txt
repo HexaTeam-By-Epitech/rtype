@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(rtype LANGUAGES CXX)
 
 find_package(raylib REQUIRED)
+find_package(enet CONFIG REQUIRED)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -25,5 +26,6 @@ if (BUILD_CLIENT)
 endif ()
 
 add_subdirectory(common/serialization)
+add_subdirectory(common/Networking)
 
 add_subdirectory(tests)

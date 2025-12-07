@@ -43,6 +43,9 @@ namespace ecs {
         int offset = _componentMap.size();
         Signature sign = 0;
 
+        if (_componentMap.contains(componentType))
+            return sign;
+
         if (offset >= N_MAX_COMPONENTS) {
             return sign;
         }

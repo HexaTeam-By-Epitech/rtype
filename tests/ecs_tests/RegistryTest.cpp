@@ -199,8 +199,8 @@ TEST(RegisteryTest, AddTooMuchComponents) {
 
 #undef DECL_TEST_COMP
 
-    // Register the first 32 distinct components successfully.
-    // They should not throw because the Registry supports up to N_MAX_COMPONENTS (32).
+    // Register 32 distinct component types (TestComponent0 through TestComponent31),
+    // which should succeed as it exactly matches N_MAX_COMPONENTS (32) limit.
     ASSERT_NO_THROW(reg.addEntityProp<TestComponent0>(addr));
     ASSERT_NO_THROW(reg.addEntityProp<TestComponent1>(addr));
     ASSERT_NO_THROW(reg.addEntityProp<TestComponent2>(addr));

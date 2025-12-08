@@ -32,6 +32,16 @@ $(VCPKG_EXE):
     else \
        cd $(VCPKG_DIR) && ./bootstrap-vcpkg.sh; \
     fi
+    
+format:
+	find . -type f \
+		-not -path "*/build/*" \
+		-not -path "*/vcpkg/*" \
+		-not -path "*/vcpkg_installed/*" \
+		-not -path "*/cmake-build-debug/*" \
+		-not -path "*/.git/*" \
+		\( -name "*.cpp" -o -name "*.hpp" -o -name "*.c" -o -name "*.h" -o -name "*.cc" \) \
+		-exec clang-format -i -verbose -style=file {} +
 
 debug: setup_hooks $(VCPKG_EXE)
 	cmake --preset $(PRESET_DEBUG)

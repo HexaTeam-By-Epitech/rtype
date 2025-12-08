@@ -46,6 +46,7 @@ format:
 debug: setup_hooks $(VCPKG_EXE)
 	cmake --preset $(PRESET_DEBUG)
 	cmake --build --preset $(PRESET_DEBUG) -j $(NPROCS)
+	@ln -sf $(BUILD_DIR)/$(PRESET_DEBUG)/compile_commands.json .
 
 release: setup_hooks $(VCPKG_EXE)
 	cmake --preset $(PRESET_RELEASE)

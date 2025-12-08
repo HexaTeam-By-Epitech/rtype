@@ -47,3 +47,4 @@ assets
 public
 
 *.DS_Store
+compile_commands.json

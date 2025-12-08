@@ -9,7 +9,7 @@
 #include "Server.hpp"
 
 int main() {
-    Server s("127.0.0.1");
+    server::Server s("127.0.0.1");
     std::cout << "Hello World from server! host=" << s.getHost() << std::endl;
     return 0;
 }

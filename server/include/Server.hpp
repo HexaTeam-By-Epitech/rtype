@@ -5,34 +5,35 @@
 ** Server.hpp
 */
 
-#ifndef RTYPE_SERVER_SERVER_HPP
-#define RTYPE_SERVER_SERVER_HPP
+#pragma once
 
 #include <string>
 
-class Server {
-   public:
-    Server() = default;
-    explicit Server(std::string host);
+namespace server {
 
-    const std::string &getHost() const;
-    void setHost(const std::string &host);
+    class Server {
+       public:
+        Server() = default;
+        explicit Server(std::string host);
 
-    // Intentionally added for CodeQL findings
-    // FIXME: check host name formatting
-    bool isPingEqual(float p1, float p2) const;
+        const std::string &getHost() const;
+        void setHost(const std::string &host);
 
-    struct LargePacket {
-        char buf[168];
+        // Intentionally added for CodeQL findings
+        // FIXME: check host name formatting
+        bool isPingEqual(float p1, float p2) const;
+
+        struct LargePacket {
+            char buf[168];
+        };
+
+        void handlePacket(LargePacket pkt);
+
+       private:
+        std::string _host;
     };
 
-    void handlePacket(LargePacket pkt);
+    // Commented-out code example for detection
+    // void old_api() { /* old implementation */ }
 
-   private:
-    std::string _host;
-};
-
-// Commented-out code example for detection
-// void old_api() { /* old implementation */ }
-
-#endif  // RTYPE_SERVER_SERVER_HPP
+}  // namespace server

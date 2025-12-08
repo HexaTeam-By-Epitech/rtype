@@ -108,9 +108,11 @@ namespace ecs {
         if (_signatures.contains(address)) {
             _signatures[address] |= componentSign;
         } else {
-            std::cerr
-                << "[ecs::Registry::addEntityProp] Warning: given address does not exist in the Registery ("
-                << address << ")" << std::endl;
+            const std::string errorMsg =
+                "[ecs::Registry::addEntityProp] ERROR: given address does not exist in the Registry (" +
+                std::to_string(address) + ")";
+            std::cerr << errorMsg << std::endl;
+            throw std::runtime_error(errorMsg);
         }
     }
 

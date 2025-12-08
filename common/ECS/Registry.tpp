@@ -1,12 +1,10 @@
 
 #pragma once
 #include <iostream>
-#include <mutex>
 
 namespace ecs {
     template <typename T>
     void Registry::addEntityProp(Address address) {
-        std::unique_lock lock(entityLock_);
         const std::type_index componentType(typeid(T));
         Signature componentSign = 0;
 

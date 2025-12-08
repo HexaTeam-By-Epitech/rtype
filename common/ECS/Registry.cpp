@@ -7,7 +7,6 @@
 
 #include "Registry.hpp"
 
-#include <condition_variable>
 #include <iostream>
 #include <limits>
 
@@ -38,8 +37,6 @@ namespace ecs {
     }
 
     Signature Registry::_registerComponent(const std::type_index componentType) {
-        std::unique_lock lock(componentLock_);
-
         int offset = _componentMap.size();
         Signature sign = 0;
 
@@ -56,7 +53,6 @@ namespace ecs {
     }
 
     Address Registry::newEntity() {
-        std::unique_lock lock(entityLock_);
         const Address addr = this->_generateRandomAddress();
         Signature signature;
 
@@ -65,12 +61,10 @@ namespace ecs {
     }
 
     void Registry::destroyEntity(Address addr) {
-        std::unique_lock lock(entityLock_);
         _signatures.erase(addr);
     }
 
     Signature Registry::getSignature(Address address) {
-        std::shared_lock lock(entityLock_);
         Signature sign = 0u;
         if (_signatures.contains(address)) {
             sign = _signatures[address];

@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <any>
 #include <bitset>
 #include <random>
 #include <unordered_map>
@@ -122,6 +123,15 @@ namespace ecs {
      */
         std::unordered_map<ComponentType, Signature> _componentMap;
 
+        /**
+     * @brief Storage for component data.
+     *
+     * First key: ComponentType identifying the component type.
+     * Second key: Address (entity id).
+     * Value: std::any containing the component data.
+     */
+        std::unordered_map<ComponentType, std::unordered_map<Address, std::any>> _componentStorage;
+
        public:
         /**
      * @brief Construct a new Registry object.
@@ -147,7 +157,56 @@ namespace ecs {
         Address newEntity();
 
         /**
+     * @brief Set/add a component to an entity with its data.
+     *
+     * If the component type is not yet registered, it will be registered automatically.
+     * Updates the entity's signature and stores the component data.
+     *
+     * @tparam T The component type to set.
+     * @param address The entity Address.
+     * @param component The component data to store.
+     * @throws std::runtime_error if component limit is reached or entity doesn't exist.
+     */
+        template <typename T>
+        void setComponent(Address address, const T &component);
+
+        /**
+     * @brief Get a component from an entity.
+     *
+     * @tparam T The component type to retrieve.
+     * @param address The entity Address.
+     * @return T& Reference to the component data.
+     * @throws std::runtime_error if entity doesn't have the component.
+     */
+        template <typename T>
+        T &getComponent(Address address);
+
+        /**
+     * @brief Check if an entity has a specific component.
+     *
+     * @tparam T The component type to check.
+     * @param address The entity Address.
+     * @return bool true if the entity has the component, false otherwise.
+     */
+        template <typename T>
+        bool hasComponent(Address address);
+
+        /**
+     * @brief Remove a component from an entity.
+     *
+     * Removes the component data and updates the entity's signature.
+     *
+     * @tparam T The component type to remove.
+     * @param address The entity Address.
+     */
+        template <typename T>
+        void removeComponent(Address address);
+
+        /**
      * @brief Attach a component type T to an entity (set the component bit).
+     *
+     * @deprecated Use setComponent() instead to store component data.
+     * This method only sets the signature bit without storing data.
      *
      * If the component type T is not yet registered, it will be registered
      * automatically. If the component registration fails (component limit reached),

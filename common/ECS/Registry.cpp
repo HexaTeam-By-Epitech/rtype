@@ -20,6 +20,7 @@ namespace ecs {
     Registry::~Registry() {
         _signatures.clear();
         _componentMap.clear();
+        _componentStorage.clear();
     }
 
     void Registry::_initRandomizer() {
@@ -61,7 +62,13 @@ namespace ecs {
     }
 
     void Registry::destroyEntity(Address addr) {
+        // Remove from signatures
         _signatures.erase(addr);
+
+        // Remove all components for this entity
+        for (auto &[componentType, storage] : _componentStorage) {
+            storage.erase(addr);
+        }
     }
 
     Signature Registry::getSignature(Address address) {

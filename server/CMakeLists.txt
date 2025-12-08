@@ -1,9 +1,3 @@
-cmake_minimum_required(VERSION 3.25)
-project(rtype_server LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # Sources serveur
 file(GLOB_RECURSE SERVER_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/*.cpp"
@@ -51,4 +45,3 @@ target_link_libraries(r-type_server PRIVATE rtype_server_lib)
 
 # Include pour l’exécutable
 target_include_directories(r-type_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-

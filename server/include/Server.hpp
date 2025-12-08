@@ -11,25 +11,28 @@
 #include <string>
 
 class Server {
-public:
+   public:
     Server() = default;
     explicit Server(std::string host);
 
-    const std::string& getHost() const;
-    void setHost(const std::string& host);
+    const std::string &getHost() const;
+    void setHost(const std::string &host);
 
     // Intentionally added for CodeQL findings
     // FIXME: check host name formatting
     bool isPingEqual(float p1, float p2) const;
 
-    struct LargePacket { char buf[168]; };
+    struct LargePacket {
+        char buf[168];
+    };
+
     void handlePacket(LargePacket pkt);
 
-private:
+   private:
     std::string _host;
 };
 
 // Commented-out code example for detection
 // void old_api() { /* old implementation */ }
 
-#endif // RTYPE_SERVER_SERVER_HPP
+#endif  // RTYPE_SERVER_SERVER_HPP

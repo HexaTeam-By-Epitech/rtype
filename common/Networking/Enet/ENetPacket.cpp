@@ -1,6 +1,6 @@
 /*
 ** EPITECH PROJECT, 2025
-** Created by GitHub Copilot on 06/12/2025.
+** Created by GitHub Copilot on 08/12/2025.
 ** File description:
 ** ENetPacket.cpp
 */
@@ -45,6 +45,7 @@ ENetPacketWrapper &ENetPacketWrapper::operator=(ENetPacketWrapper &&other) noexc
         packet_ = other.packet_;
         dataCache_ = std::move(other.dataCache_);
         dataCacheValid_ = other.dataCacheValid_;
+
         other.packet_ = nullptr;
         other.dataCacheValid_ = false;
     }
@@ -52,7 +53,7 @@ ENetPacketWrapper &ENetPacketWrapper::operator=(ENetPacketWrapper &&other) noexc
 }
 
 const std::vector<uint8_t> &ENetPacketWrapper::getData() const {
-    if (!dataCacheValid_) {
+    if (!dataCacheValid_ && packet_) {
         dataCache_.assign(packet_->data, packet_->data + packet_->dataLength);
         dataCacheValid_ = true;
     }
@@ -60,26 +61,24 @@ const std::vector<uint8_t> &ENetPacketWrapper::getData() const {
 }
 
 size_t ENetPacketWrapper::getSize() const {
-    return packet_->dataLength;
+    return packet_ ? packet_->dataLength : 0;
 }
 
 uint32_t ENetPacketWrapper::getFlags() const {
-    return packet_->flags;
+    return packet_ ? packet_->flags : 0;
 }
 
 void ENetPacketWrapper::setData(const std::vector<uint8_t> &data) {
     if (packet_) {
         enet_packet_destroy(packet_);
     }
-    packet_ =
-        enet_packet_create(data.data(), data.size(), packet_ ? packet_->flags : ENET_PACKET_FLAG_RELIABLE);
+    packet_ = enet_packet_create(data.data(), data.size(), ENET_PACKET_FLAG_RELIABLE);
     if (!packet_) {
         throw std::runtime_error("Failed to create ENet packet");
     }
-    invalidateCache();
+    dataCacheValid_ = false;
 }
 
-void ENetPacketWrapper::invalidateCache() {
-    dataCacheValid_ = false;
-    dataCache_.clear();
+ENetPacket *ENetPacketWrapper::getNativePacket() const {
+    return packet_;
 }

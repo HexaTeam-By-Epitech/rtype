@@ -64,8 +64,8 @@ add_executable(serialization_tests
 )
 
 target_include_directories(serialization_tests PRIVATE 
-    ${CMAKE_SOURCE_DIR}/common/serialization
-    ${CMAKE_BINARY_DIR}/common/serialization
+    ${CMAKE_SOURCE_DIR}/common/Serialization
+    ${CMAKE_BINARY_DIR}/common/Serialization
 )
 
 target_link_libraries(serialization_tests PRIVATE 

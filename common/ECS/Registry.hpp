@@ -129,8 +129,8 @@ namespace ecs {
         /**
      * @brief Construct a new Registry object.
      *
-     * Initializes internal maps. Random generator is initialized on demand
-     * by calling _initRandomizer() before address generation.
+     * Initializes internal maps. Addresses are generated sequentially and
+     * freed addresses are reused from a pool.
      */
         Registry();
 

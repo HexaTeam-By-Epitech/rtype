@@ -6,9 +6,9 @@
 */
 
 #include "SerializerFactory.hpp"
+#include "Capnp/CapnpGameCodec.hpp"
+#include "Capnp/CapnpSerializer.hpp"
 #include "GameCodec.hpp"
-#include "capnp/CapnpGameCodec.hpp"
-#include "capnp/CapnpSerializer.hpp"
 
 std::unique_ptr<ISerializer> createDefaultSerializer() {
     return std::make_unique<CapnpSerializer>();

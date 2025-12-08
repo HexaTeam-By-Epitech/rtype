@@ -239,3 +239,144 @@ TEST(RegisteryTest, AddTooMuchComponents) {
     // a zero signature, which causes addEntityProp to throw a runtime_error.
     ASSERT_THROW(reg.addEntityProp<TestComponent32>(addr), std::runtime_error);
 }
+
+// ===== Tests for component storage =====
+
+// Component with data for testing
+class TestDataComponent : public ecs::IComponent {
+   public:
+    int value;
+    std::string name;
+
+    TestDataComponent() : value(0), name("") {}
+    TestDataComponent(int v, const std::string &n) : value(v), name(n) {}
+
+    ecs::ComponentType getType() const override { return ecs::getComponentType<TestDataComponent>(); }
+};
+
+TEST(RegistryStorageTest, SetAndGetComponent) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    TestDataComponent comp(42, "test");
+    reg.setComponent(addr, comp);
+
+    TestDataComponent &retrieved = reg.getComponent<TestDataComponent>(addr);
+    ASSERT_EQ(retrieved.value, 42);
+    ASSERT_EQ(retrieved.name, "test");
+}
+
+TEST(RegistryStorageTest, HasComponentReturnsTrueWhenPresent) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    ASSERT_FALSE(reg.hasComponent<TestDataComponent>(addr));
+
+    TestDataComponent comp(100, "data");
+    reg.setComponent(addr, comp);
+
+    ASSERT_TRUE(reg.hasComponent<TestDataComponent>(addr));
+}
+
+TEST(RegistryStorageTest, HasComponentReturnsFalseWhenAbsent) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    ASSERT_FALSE(reg.hasComponent<TestDataComponent>(addr));
+}
+
+TEST(RegistryStorageTest, ModifyComponentData) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    TestDataComponent comp(10, "initial");
+    reg.setComponent(addr, comp);
+
+    TestDataComponent &retrieved = reg.getComponent<TestDataComponent>(addr);
+    retrieved.value = 99;
+    retrieved.name = "modified";
+
+    TestDataComponent &check = reg.getComponent<TestDataComponent>(addr);
+    ASSERT_EQ(check.value, 99);
+    ASSERT_EQ(check.name, "modified");
+}
+
+TEST(RegistryStorageTest, RemoveComponent) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    TestDataComponent comp(50, "remove_me");
+    reg.setComponent(addr, comp);
+    ASSERT_TRUE(reg.hasComponent<TestDataComponent>(addr));
+
+    reg.removeComponent<TestDataComponent>(addr);
+    ASSERT_FALSE(reg.hasComponent<TestDataComponent>(addr));
+}
+
+TEST(RegistryStorageTest, GetComponentThrowsWhenNotPresent) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    ASSERT_THROW(reg.getComponent<TestDataComponent>(addr), std::runtime_error);
+}
+
+TEST(RegistryStorageTest, SetComponentOnInvalidEntityThrows) {
+    ecs::Registry reg;
+
+    TestDataComponent comp(1, "test");
+    ASSERT_THROW(reg.setComponent(99999, comp), std::runtime_error);
+}
+
+TEST(RegistryStorageTest, MultipleComponentsOnSameEntity) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    TestDataComponent comp1(10, "first");
+    TestComponentA compA;
+
+    reg.setComponent(addr, comp1);
+    reg.addEntityProp<TestComponentA>(addr);
+
+    ASSERT_TRUE(reg.hasComponent<TestDataComponent>(addr));
+    ASSERT_TRUE(reg.hasComponent<TestComponentA>(addr));
+
+    TestDataComponent &retrieved = reg.getComponent<TestDataComponent>(addr);
+    ASSERT_EQ(retrieved.value, 10);
+    ASSERT_EQ(retrieved.name, "first");
+}
+
+TEST(RegistryStorageTest, DestroyEntityCleansUpComponents) {
+    ecs::Registry reg;
+    ecs::Address addr = reg.newEntity();
+
+    TestDataComponent comp(123, "cleanup");
+    reg.setComponent(addr, comp);
+    ASSERT_TRUE(reg.hasComponent<TestDataComponent>(addr));
+
+    reg.destroyEntity(addr);
+
+    // After destruction, has component should return false for new entity check
+    // (we can't check the old address as it doesn't exist)
+    ecs::Address addr2 = reg.newEntity();
+    ASSERT_FALSE(reg.hasComponent<TestDataComponent>(addr2));
+}
+
+TEST(RegistryStorageTest, MultipleEntitiesWithSameComponentType) {
+    ecs::Registry reg;
+    ecs::Address addr1 = reg.newEntity();
+    ecs::Address addr2 = reg.newEntity();
+
+    TestDataComponent comp1(100, "entity1");
+    TestDataComponent comp2(200, "entity2");
+
+    reg.setComponent(addr1, comp1);
+    reg.setComponent(addr2, comp2);
+
+    TestDataComponent &ret1 = reg.getComponent<TestDataComponent>(addr1);
+    TestDataComponent &ret2 = reg.getComponent<TestDataComponent>(addr2);
+
+    ASSERT_EQ(ret1.value, 100);
+    ASSERT_EQ(ret1.name, "entity1");
+    ASSERT_EQ(ret2.value, 200);
+    ASSERT_EQ(ret2.name, "entity2");
+}

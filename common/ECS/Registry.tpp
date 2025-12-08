@@ -5,7 +5,7 @@
 namespace ecs {
     template <typename T>
     void Registry::addEntityProp(Address address) {
-        const std::type_index componentType(typeid(T));
+        const ComponentType componentType = getComponentType<T>();
         Signature componentSign = 0;
 
         if (_componentMap.contains(componentType)) {

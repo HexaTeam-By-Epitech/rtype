@@ -36,7 +36,7 @@ namespace ecs {
         return addr;
     }
 
-    Signature Registry::_registerComponent(const std::type_index componentType) {
+    Signature Registry::_registerComponent(const ComponentType componentType) {
         int offset = _componentMap.size();
         Signature sign = 0;
 

@@ -17,8 +17,9 @@
 
 #include <bitset>
 #include <random>
-#include <typeindex>
 #include <unordered_map>
+
+#include "Components/IComponent.hpp"
 
 #define N_MAX_COMPONENTS 32
 /**
@@ -88,11 +89,11 @@ namespace ecs {
      * Signature is returned to indicate failure. On success, the returned
      * Signature contains a single bit set for the allocated component slot.
      *
-     * @param componentType The std::type_index identifying the component type.
+     * @param componentType The ComponentType identifying the component type.
      * @return Signature a Signature with a single bit for the component or
      *         a zero signature on failure.
      */
-        Signature _registerComponent(std::type_index componentType);
+        Signature _registerComponent(ComponentType componentType);
 
         /**
      * @brief Map of entity addresses to their component Signatures.
@@ -116,10 +117,10 @@ namespace ecs {
         /**
      * @brief Mapping of component type to the Signature bit representing that component.
      *
-     * Key: std::type_index identifying the component type.
+     * Key: ComponentType identifying the component type.
      * Value: Signature with a single bit set representing the component's position.
      */
-        std::unordered_map<std::type_index, Signature> _componentMap;
+        std::unordered_map<ComponentType, Signature> _componentMap;
 
        public:
         /**

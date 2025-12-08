@@ -39,7 +39,7 @@ class Server {
      * @param port Port to listen on
      * @param maxClients Maximum number of clients
      */
-    Server(uint16_t port, size_t maxClients = 32);
+    explicit Server(uint16_t port, size_t maxClients = 32);
 
     /**
      * @brief Destructor - clean shutdown

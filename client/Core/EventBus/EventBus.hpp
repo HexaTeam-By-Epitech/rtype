@@ -114,7 +114,7 @@ template <typename T>
 void EventBus::publish(const T &event) {
     auto it = _subscribers.find(std::type_index(typeid(T)));
     if (it != _subscribers.end()) {
-        for (auto &callback : it->second) {
+        for (const auto &callback : it->second) {
             callback(event);
         }
     }

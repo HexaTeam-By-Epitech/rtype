@@ -102,8 +102,8 @@ class ThreadSafeQueue {
      */
     void clear() {
         std::lock_guard<std::mutex> lock(_mutex);
-        std::queue<T> empty;
-        std::swap(_queue, empty);
+        std::queue<T> emptyQueue;
+        std::swap(_queue, emptyQueue);
     }
 
    private:

@@ -298,7 +298,7 @@ TEST_F(ServerTest, StressTestManyConnections) {
     for (int i = 0; i < numClients; ++i) {
         auto clientHost = createClientHost();
         auto serverAddr = createAddress("127.0.0.1", 6009);
-        auto peer = clientHost->connect(*serverAddr, 1, 0);
+        const auto *peer = clientHost->connect(*serverAddr, 1, 0);
 
         if (peer) {
             clients.push_back(std::move(clientHost));

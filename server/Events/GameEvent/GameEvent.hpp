@@ -21,7 +21,7 @@ namespace server {
        public:
         enum class Type { UNKNOWN, PLAYER_JOINED, PLAYER_LEFT, SCORE_UPDATED, GAME_STARTED, GAME_ENDED };
 
-        GameEvent(Type type);
+        explicit GameEvent(Type type);
         virtual ~GameEvent() override = default;
 
         /**

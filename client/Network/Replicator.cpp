@@ -9,9 +9,7 @@
 #include <iostream>
 #include "NetworkFactory.hpp"
 
-Replicator::Replicator(EventBus &eventBus) : _eventBus(eventBus) {
-    _host = createClientHost();
-}
+Replicator::Replicator(EventBus &eventBus) : _eventBus(eventBus), _host(createClientHost()) {}
 
 Replicator::~Replicator() {
     disconnect();

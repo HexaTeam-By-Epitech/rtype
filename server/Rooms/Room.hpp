@@ -18,7 +18,7 @@ namespace server {
      */
     class Room : public IRoom {
        public:
-        Room(const std::string &id) : _id(id) {}
+        explicit Room(const std::string &id) : _id(id) {}
         ~Room() override = default;
 
         void join(int playerId) override;

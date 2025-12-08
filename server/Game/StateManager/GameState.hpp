@@ -16,7 +16,7 @@ namespace server {
     class GameState {
        public:
         GameState() = default;
-        ~GameState() = default;
+        virtual ~GameState() = default;
 
         // Prototypes
         virtual void enter() = 0;

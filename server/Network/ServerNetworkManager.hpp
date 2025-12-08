@@ -43,7 +43,7 @@ class ServerNetworkManager {
      * @param port Port to listen on
      * @param maxClients Maximum number of clients
      */
-    ServerNetworkManager(uint16_t port, size_t maxClients = 32);
+    explicit ServerNetworkManager(uint16_t port, size_t maxClients = 32);
 
     /**
      * @brief Destructor - stops network thread

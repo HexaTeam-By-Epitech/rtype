@@ -13,18 +13,18 @@ file(GLOB SERIALIZATION_HEADERS
         "GameCodec.hpp"
 )
 
-add_library(serialization SHARED ${SERIALIZATION_SRC} ${SERIALIZATION_HEADERS})
+add_library(rtype_serialization SHARED ${SERIALIZATION_SRC} ${SERIALIZATION_HEADERS})
 
 find_package(CapnProto CONFIG REQUIRED)
 
-target_include_directories(serialization
+target_include_directories(rtype_serialization
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}        # for public headers
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/capnp  # capnp backend is internal
 )
 
-target_link_libraries(serialization PUBLIC
+target_link_libraries(rtype_serialization PUBLIC
         CapnProto::capnp
         CapnProto::capnp-rpc
         CapnProto::kj

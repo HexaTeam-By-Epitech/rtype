@@ -13,25 +13,25 @@ TEST(ServerTest, DummyTest) {
 }
 
 TEST(ServerTest, StoresInitialHost) {
-    Server::Server server{"192.168.1.5"};
+    server::Server server{"192.168.1.5"};
     EXPECT_EQ(server.getHost(), "192.168.1.5");
 }
 
 TEST(ServerTest, UpdatesHostValue) {
-    Server::Server server{"localhost"};
+    server::Server server{"localhost"};
     server.setHost("10.0.0.1");
     EXPECT_EQ(server.getHost(), "10.0.0.1");
 }
 
 TEST(ServerTest, ComparesPingValues) {
-    Server::Server server;
+    server::Server server;
     EXPECT_TRUE(server.isPingEqual(16.0f, 16.0f));
     EXPECT_FALSE(server.isPingEqual(16.0f, 17.0f));
 }
 
 TEST(ServerTest, HandlesPacketSafely) {
-    Server::Server server;
-    Server::Server::LargePacket pkt{};
+    server::Server server;
+    server::Server::LargePacket pkt{};
     pkt.buf[0] = 42;
     EXPECT_NO_THROW(server.handlePacket(pkt));
 }

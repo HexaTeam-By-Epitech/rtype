@@ -17,8 +17,9 @@
 
 #include <any>
 #include <bitset>
-#include <random>
+#include <queue>
 #include <unordered_map>
+#include <vector>
 
 #include "Components/IComponent.hpp"
 
@@ -65,23 +66,14 @@ namespace ecs {
 
        private:
         /**
-     * @brief Generate a unique random Address not currently in use.
+     * @brief Generate a unique Address for a new entity.
      *
-     * Uses the internal random number generator and distribution
-     * to produce a non-zero Address that does not already exist in
-     * the _signatures map.
+     * Reuses freed addresses if available, otherwise generates
+     * a new sequential address.
      *
      * @return Address a unique non-zero entity address.
      */
-        Address _generateRandomAddress();
-
-        /**
-     * @brief Initialize the internal random number generator and distribution.
-     *
-     * Seeds the RNG (std::mt19937) and sets up the _addressGenerator
-     * uniform distribution to span valid Address values.
-     */
-        void _initRandomizer();
+        Address _generateAddress();
 
         /**
      * @brief Register a component type and allocate a bit in the Signature.
@@ -104,16 +96,17 @@ namespace ecs {
         std::unordered_map<Address, Signature> _signatures;
 
         /**
-     * @brief Pseudo-random number generator used for address generation.
+     * @brief Next available sequential address.
      */
-        std::mt19937 _rng;
+        Address _nextAddress;
 
         /**
-     * @brief Distribution used to produce random Address values.
+     * @brief Pool of freed addresses available for reuse.
      *
-     * Produces uniformly distributed Address values in the valid range.
+     * Uses a priority queue (min-heap) to reuse the smallest freed addresses first,
+     * improving cache locality.
      */
-        std::uniform_int_distribution<Address> _addressGenerator;
+        std::priority_queue<Address, std::vector<Address>, std::greater<Address>> _freeAddresses;
 
         /**
      * @brief Mapping of component type to the Signature bit representing that component.
@@ -234,6 +227,29 @@ namespace ecs {
      * @return Signature The Signature of the entity or zero if not found.
      */
         Signature getSignature(Address address);
+
+        /**
+     * @brief Get all entities that have a specific set of components.
+     *
+     * Returns a vector of entity addresses that possess all the specified
+     * component types. This allows efficient iteration over entities matching
+     * a specific archetype.
+     *
+     * @tparam Components The component types to filter by.
+     * @return std::vector<Address> Vector of entity addresses with all specified components.
+     *
+     * @code
+     * // Get all entities with both Transform and Velocity
+     * auto entities = registry.view<Transform, Velocity>();
+     * for (auto entity : entities) {
+     *     auto& transform = registry.getComponent<Transform>(entity);
+     *     auto& velocity = registry.getComponent<Velocity>(entity);
+     *     // process...
+     * }
+     * @endcode
+     */
+        template <typename... Components>
+        std::vector<Address> view();
     };
 }  // namespace ecs
 

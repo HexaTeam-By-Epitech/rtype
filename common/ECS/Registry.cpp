@@ -7,14 +7,11 @@
 
 #include "Registry.hpp"
 
-#include <iostream>
-#include <limits>
-
 namespace ecs {
-    Registry::Registry() {
+    Registry::Registry() : _nextAddress(1) {
         _signatures = {};
         _componentMap = {};
-        _initRandomizer();
+        _componentStorage = {};
     }
 
     Registry::~Registry() {
@@ -23,18 +20,16 @@ namespace ecs {
         _componentStorage.clear();
     }
 
-    void Registry::_initRandomizer() {
-        std::random_device rd;
-        _rng = std::mt19937(rd());
-        _addressGenerator = std::uniform_int_distribution<Address>(1, std::numeric_limits<Address>::max());
-    }
+    Address Registry::_generateAddress() {
+        // Reuse a freed address if available
+        if (!_freeAddresses.empty()) {
+            Address addr = _freeAddresses.top();
+            _freeAddresses.pop();
+            return addr;
+        }
 
-    Address Registry::_generateRandomAddress() {
-        Address addr = 0;
-        do {
-            addr = _addressGenerator(_rng);
-        } while (!addr || _signatures.contains(addr));
-        return addr;
+        // Otherwise, generate a new sequential address
+        return _nextAddress++;
     }
 
     Signature Registry::_registerComponent(const ComponentType componentType) {
@@ -54,7 +49,7 @@ namespace ecs {
     }
 
     Address Registry::newEntity() {
-        const Address addr = this->_generateRandomAddress();
+        const Address addr = this->_generateAddress();
         Signature signature;
 
         _signatures[addr] = signature;
@@ -69,6 +64,9 @@ namespace ecs {
         for (auto &[componentType, storage] : _componentStorage) {
             storage.erase(addr);
         }
+
+        // Add address to the pool for reuse
+        _freeAddresses.push(addr);
     }
 
     Signature Registry::getSignature(Address address) {

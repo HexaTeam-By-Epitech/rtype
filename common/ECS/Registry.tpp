@@ -114,4 +114,34 @@ namespace ecs {
         }
     }
 
+    template <typename... Components>
+    std::vector<Address> Registry::view() {
+        std::vector<Address> result;
+
+        // Build the required signature (bitwise OR of all component signatures)
+        Signature requiredSignature = 0;
+        (
+            [&]() {
+                ComponentType componentType = getComponentType<Components>();
+                if (_componentMap.contains(componentType)) {
+                    requiredSignature |= _componentMap[componentType];
+                }
+            }(),
+            ...);
+
+        // If no components registered, return empty
+        if (requiredSignature == 0) {
+            return result;
+        }
+
+        // Iterate through all entities and check if they match the signature
+        for (const auto &[address, signature] : _signatures) {
+            if ((signature & requiredSignature) == requiredSignature) {
+                result.push_back(address);
+            }
+        }
+
+        return result;
+    }
+
 };  // namespace ecs

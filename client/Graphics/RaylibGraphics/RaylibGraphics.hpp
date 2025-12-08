@@ -9,23 +9,23 @@
 
 #include <raylib.h>
 #include <vector>
-#include "../Interfaces/IGraphics.hpp"
+#include "IGraphics.hpp"
 
 namespace Graphics {
     /**
      * @brief Raylib implementation of the IGraphics interface
      */
-    class Raylib : public IGraphics {
+    class RaylibGraphics : public IGraphics {
        public:
         // Constructor / Destructor
         /**
          * @brief Construct a new Raylib graphics object
          */
-        Raylib();
+        RaylibGraphics();
         /**
          * @brief Destroy the Raylib graphics object and cleanup resources
          */
-        ~Raylib() override;
+        ~RaylibGraphics() override;
 
         // Window management
         void InitWindow(int width, int height, const char *title) override;

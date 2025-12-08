@@ -10,6 +10,7 @@ add_library(rtype_client_lib ${CLIENT_SOURCES})
 target_include_directories(rtype_client_lib PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/Graphics
 )
 
 target_compile_features(rtype_client_lib PUBLIC cxx_std_23)

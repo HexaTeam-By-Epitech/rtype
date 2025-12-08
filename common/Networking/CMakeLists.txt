@@ -1,0 +1,38 @@
+cmake_minimum_required(VERSION 3.20)
+project(networking)
+
+file(GLOB NETWORKING_SRC
+    "NetworkFactory.cpp"
+    "enet/*.cpp"
+)
+file(GLOB NETWORKING_HEADERS
+    "NetworkFactory.hpp"
+    "IAddress.hpp"
+    "IHost.hpp"
+    "IPacket.hpp"
+    "IPeer.hpp"
+    "enet/*.hpp"
+)
+
+add_library(rtype_networking SHARED ${NETWORKING_SRC} ${NETWORKING_HEADERS})
+
+# Find ENet library
+find_package(unofficial-enet CONFIG REQUIRED)
+
+# Set include directories
+target_include_directories(rtype_networking
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}        # for public headers
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/enet  # enet wrapper is internal
+)
+
+# Link ENet library
+target_link_libraries(rtype_networking
+    PUBLIC
+        unofficial::enet::enet
+)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)

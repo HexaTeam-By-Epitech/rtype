@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include "ISerializer.hpp"
 #include <memory>
+#include "ISerializer.hpp"
 
 /**
  * @brief Create the default serializer used by the engine.

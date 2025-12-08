@@ -7,11 +7,11 @@
 
 #pragma once
 
-#include "ISerializer.hpp"
-#include "CapnpMessage.hpp"
-#include "CapnpBuilderMessage.hpp"
-#include <vector>
 #include <memory>
+#include <vector>
+#include "CapnpBuilderMessage.hpp"
+#include "CapnpMessage.hpp"
+#include "ISerializer.hpp"
 
 // NOTE: This header is intended for internal use inside the Cap'n Proto backend implementation.
 // It should *not* be included by client/server code. Only `ISerializer.hpp` should be exposed as

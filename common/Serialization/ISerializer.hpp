@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 /**
  * @class IMessage
@@ -19,7 +19,7 @@
  * serialization backend or by the gameplay/domain layer.
  */
 class IMessage {
-public:
+   public:
     virtual ~IMessage() = default;
 };
 
@@ -33,7 +33,7 @@ public:
  * gameplay code.
  */
 class ISerializer {
-public:
+   public:
     virtual ~ISerializer() = default;
 
     /**

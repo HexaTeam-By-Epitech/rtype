@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "ISerializer.hpp"
-#include "CapnpMessage.hpp"
 #include "CapnpBuilderMessage.hpp"
+#include "CapnpMessage.hpp"
+#include "ISerializer.hpp"
 
 /**
  * @class CapnpSerializer
@@ -20,7 +20,7 @@
  * CapnpBuilderMessage) are kept inside the backend.
  */
 class CapnpSerializer final : public ISerializer {
-public:
+   public:
     CapnpSerializer();
     ~CapnpSerializer() override;
 

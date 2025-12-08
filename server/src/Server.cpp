@@ -9,9 +9,13 @@
 
 Server::Server(std::string host) : _host(std::move(host)) {}
 
-const std::string& Server::getHost() const { return _host; }
+const std::string &Server::getHost() const {
+    return _host;
+}
 
-void Server::setHost(const std::string& host) { _host = host; }
+void Server::setHost(const std::string &host) {
+    _host = host;
+}
 
 bool Server::isPingEqual(float p1, float p2) const {
     // Intentional equality-on-floats

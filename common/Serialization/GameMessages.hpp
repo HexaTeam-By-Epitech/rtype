@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include "ISerializer.hpp"
 #include <cstdint>
+#include "ISerializer.hpp"
 
 /**
  * @enum GameMessageType
@@ -31,8 +31,8 @@ enum class GameMessageType : uint16_t {
  * exposing any Cap'n Proto details to client/server code.
  */
 class SpawnEntityMessage final : public IMessage {
-public:
-    uint32_t id{}; ///< Unique entity identifier
-    float x{}; ///< Spawn position X
-    float y{}; ///< Spawn position Y
+   public:
+    uint32_t id{};  ///< Unique entity identifier
+    float x{};      ///< Spawn position X
+    float y{};      ///< Spawn position Y
 };

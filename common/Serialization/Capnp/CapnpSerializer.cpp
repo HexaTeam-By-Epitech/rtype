@@ -6,11 +6,11 @@
 */
 
 #include "CapnpSerializer.hpp"
-#include "CapnpBuilderMessage.hpp"
-#include "CapnpUtils.hpp"
 #include <capnp/message.h>
 #include <kj/io.h>
 #include <stdexcept>
+#include "CapnpBuilderMessage.hpp"
+#include "CapnpUtils.hpp"
 
 CapnpSerializer::CapnpSerializer() = default;
 CapnpSerializer::~CapnpSerializer() = default;

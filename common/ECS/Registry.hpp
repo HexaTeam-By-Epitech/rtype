@@ -53,7 +53,7 @@ namespace ecs {
  * @brief Manages entities, their signatures and component type registrations.
  *
  * Responsibilities:
- * - Generate unique random addresses for new entities.
+ * - Generate unique sequential addresses for new entities, reusing freed addresses when possible.
  * - Maintain a mapping from Address -> Signature (which components an entity has).
  * - Maintain a mapping from component type (std::type_index) -> Signature bit.
  *

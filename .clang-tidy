@@ -1,27 +1,72 @@
-# Generated from CLion Inspection settings
 ---
+
+# 1. SCANNING: We enable almost everything to get a full report in the logs.
 Checks: >
-  google-*,
-  modernize-*,
-  readability-*,
-  performance-*,
+  -*,
+  clang-analyzer-*,
   bugprone-*,
+  modernize-*,
+  performance-*,
+  readability-*,
   cppcoreguidelines-*,
+  -modernize-use-trailing-return-type,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-vararg,
+  -google-runtime-references
 
-WarningsAsErrors: ''
+# 2. FILTERING: This defines the "Severity Hierarchy".
+# Only these specific categories will cause the CI to fail (Exit Code 1).
+# - clang-analyzer-*: Critical memory/logic errors (Must fix).
+# - bugprone-*: Code that will likely fail in production (Must fix).
+# - performance-*: Inefficient code (e.g., bad moves/copies), critical for a Game (Must fix).
+# - cppcoreguidelines-init-variables: Uninitialized variables cause undefined behavior (Must fix).
+#
+# Note: readability-* and modernize-* are NOT listed here. They will appear as warnings
+# but won't break the build.
+WarningsAsErrors: >
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  cppcoreguidelines-init-variables
 
-HeaderFilterRegex: '.*'
+# ----------------------------------------------------------------------------
+#  TARGET FILTERING
+# ----------------------------------------------------------------------------
+# Analyzes only your source code folders.
+HeaderFilterRegex: '^(client|server|common)/.*'
 
-AnalyzeTemporaryDtors: false
-
+# ----------------------------------------------------------------------------
+#  CHECK OPTIONS
+# ----------------------------------------------------------------------------
 CheckOptions:
+  # --- Naming Conventions ---
+  
+  # Local variables: lowerCamelCase
   - key: readability-identifier-naming.VariableCase
-    value: CamelCase
+    value: lowerCamelCase
+  
+  # Functions: PascalCase
   - key: readability-identifier-naming.FunctionCase
     value: PascalCase
+  
+  # Classes/Structs: PascalCase
   - key: readability-identifier-naming.ClassCase
     value: PascalCase
   - key: readability-identifier-naming.StructCase
     value: PascalCase
-  - key: readability-identifier-naming.EnumCase
-    value: PascalCase
+
+  # Class Private Members: lowerCamelCase with '_' prefix
+  - key: readability-identifier-naming.MemberCase
+    value: lowerCamelCase
+  - key: readability-identifier-naming.MemberPrefix
+    value: '_'
+  
+  # --- Specific Rule Tweaks ---
+  
+  # Allow short variable names (i, j, x, y, z, t)
+  - key: readability-identifier-length.MinimumVariableNameLength
+    value: 3
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: "^[i-kxyzt]$"

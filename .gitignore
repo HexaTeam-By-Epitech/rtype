@@ -45,3 +45,5 @@ vcpkg_installed
 assets
 
 public
+
+*.DS_Store

@@ -42,7 +42,7 @@ namespace ecs {
         if (offset >= N_MAX_COMPONENTS) {
             return sign;
         }
-        sign = 1 << offset;
+        sign = 1ULL << offset;
         _componentMap[componentType] = sign;
 
         return sign;

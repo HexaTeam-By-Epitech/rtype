@@ -33,7 +33,7 @@ bool ENetPeerWrapper::send(std::unique_ptr<IPacket> packet, uint8_t channelID) {
     }
 
     // Release ownership since ENet now owns the packet
-    packet.release();
+    (void)packet.release();
     return true;
 }
 

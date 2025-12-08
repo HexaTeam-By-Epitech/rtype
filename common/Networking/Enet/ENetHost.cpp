@@ -120,7 +120,7 @@ void ENetHostWrapper::broadcast(std::unique_ptr<IPacket> packet, uint8_t channel
     ENetPacket *nativePacket = enetPacket->getNativePacket();
     enet_host_broadcast(host_, channelID, nativePacket);
 
-    packet.release();  // ENet owns the packet now
+    (void)packet.release();  // ENet owns the packet now
 }
 
 void ENetHostWrapper::flush() {

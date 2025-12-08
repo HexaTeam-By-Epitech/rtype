@@ -380,3 +380,150 @@ TEST(RegistryStorageTest, MultipleEntitiesWithSameComponentType) {
     ASSERT_EQ(ret2.value, 200);
     ASSERT_EQ(ret2.name, "entity2");
 }
+
+// ===== Tests for optimized address generation =====
+
+TEST(RegistryOptimizationTest, SequentialAddressGeneration) {
+    ecs::Registry reg;
+
+    ecs::Address addr1 = reg.newEntity();
+    ecs::Address addr2 = reg.newEntity();
+    ecs::Address addr3 = reg.newEntity();
+
+    // Addresses should be sequential starting from 1
+    ASSERT_EQ(addr1, 1);
+    ASSERT_EQ(addr2, 2);
+    ASSERT_EQ(addr3, 3);
+}
+
+TEST(RegistryOptimizationTest, AddressReuse) {
+    ecs::Registry reg;
+
+    ecs::Address addr1 = reg.newEntity();
+    ecs::Address addr2 = reg.newEntity();
+    ecs::Address addr3 = reg.newEntity();
+
+    // Destroy the middle entity
+    reg.destroyEntity(addr2);
+
+    // Next entity should reuse addr2
+    ecs::Address addr4 = reg.newEntity();
+    ASSERT_EQ(addr4, addr2);
+}
+
+TEST(RegistryOptimizationTest, AddressReuseMultiple) {
+    ecs::Registry reg;
+
+    std::vector<ecs::Address> addrs;
+    for (int i = 0; i < 10; i++) {
+        addrs.push_back(reg.newEntity());
+    }
+
+    // Destroy addresses 3, 5, 7
+    reg.destroyEntity(addrs[2]);
+    reg.destroyEntity(addrs[4]);
+    reg.destroyEntity(addrs[6]);
+
+    // New entities should reuse 3, 5, 7 in order (smallest first due to min-heap)
+    ecs::Address new1 = reg.newEntity();
+    ecs::Address new2 = reg.newEntity();
+    ecs::Address new3 = reg.newEntity();
+
+    ASSERT_EQ(new1, 3);
+    ASSERT_EQ(new2, 5);
+    ASSERT_EQ(new3, 7);
+}
+
+// ===== Tests for view() iteration =====
+
+TEST(RegistryViewTest, ViewWithSingleComponent) {
+    ecs::Registry reg;
+
+    ecs::Address e1 = reg.newEntity();
+    ecs::Address e2 = reg.newEntity();
+    ecs::Address e3 = reg.newEntity();
+
+    TestDataComponent comp1(10, "e1");
+    TestDataComponent comp2(20, "e2");
+
+    reg.setComponent(e1, comp1);
+    reg.setComponent(e2, comp2);
+    // e3 has no component
+
+    auto entities = reg.view<TestDataComponent>();
+
+    ASSERT_EQ(entities.size(), 2);
+    ASSERT_TRUE(std::find(entities.begin(), entities.end(), e1) != entities.end());
+    ASSERT_TRUE(std::find(entities.begin(), entities.end(), e2) != entities.end());
+    ASSERT_TRUE(std::find(entities.begin(), entities.end(), e3) == entities.end());
+}
+
+TEST(RegistryViewTest, ViewWithMultipleComponents) {
+    ecs::Registry reg;
+
+    ecs::Address e1 = reg.newEntity();
+    ecs::Address e2 = reg.newEntity();
+    ecs::Address e3 = reg.newEntity();
+    ecs::Address e4 = reg.newEntity();
+
+    TestDataComponent data1(1, "e1");
+    TestDataComponent data2(2, "e2");
+    TestDataComponent data4(4, "e4");
+
+    reg.setComponent(e1, data1);
+    reg.addEntityProp<TestComponentA>(e1);
+
+    reg.setComponent(e2, data2);
+    // e2 has only TestDataComponent
+
+    reg.addEntityProp<TestComponentA>(e3);
+    // e3 has only TestComponentA
+
+    reg.setComponent(e4, data4);
+    reg.addEntityProp<TestComponentA>(e4);
+    // e4 has both
+
+    // View entities with both TestDataComponent AND TestComponentA
+    auto entities = reg.view<TestDataComponent, TestComponentA>();
+
+    ASSERT_EQ(entities.size(), 2);
+    ASSERT_TRUE(std::find(entities.begin(), entities.end(), e1) != entities.end());
+    ASSERT_TRUE(std::find(entities.begin(), entities.end(), e4) != entities.end());
+}
+
+TEST(RegistryViewTest, ViewWithNoMatches) {
+    ecs::Registry reg;
+
+    ecs::Address e1 = reg.newEntity();
+    reg.addEntityProp<TestComponentA>(e1);
+
+    auto entities = reg.view<TestDataComponent>();
+
+    ASSERT_EQ(entities.size(), 0);
+}
+
+TEST(RegistryViewTest, ViewIterationPattern) {
+    ecs::Registry reg;
+
+    // Create entities with different component combinations
+    for (int i = 0; i < 5; i++) {
+        ecs::Address e = reg.newEntity();
+        TestDataComponent comp(i * 10, "entity" + std::to_string(i));
+        reg.setComponent(e, comp);
+
+        if (i % 2 == 0) {
+            reg.addEntityProp<TestComponentA>(e);
+        }
+    }
+
+    // Iterate and modify components
+    auto entities = reg.view<TestDataComponent, TestComponentA>();
+
+    for (auto entity : entities) {
+        auto &comp = reg.getComponent<TestDataComponent>(entity);
+        comp.value += 5;
+    }
+
+    // Verify modifications (entities 0, 2, 4 have TestComponentA)
+    ASSERT_EQ(entities.size(), 3);
+}

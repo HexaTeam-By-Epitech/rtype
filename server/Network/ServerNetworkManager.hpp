@@ -11,10 +11,10 @@
 #include <functional>
 #include <memory>
 #include <thread>
-#include "../../common/Networking/IHost.hpp"
-#include "../../common/Networking/NetworkFactory.hpp"
-#include "../../common/Threading/ThreadSafeQueue.hpp"
-#include "../../common/serialization/Capnp/NetworkMessages.hpp"
+#include "Capnp/NetworkMessages.hpp"
+#include "IHost.hpp"
+#include "NetworkFactory.hpp"
+#include "ThreadSafeQueue.hpp"
 
 /**
  * @class ServerNetworkManager

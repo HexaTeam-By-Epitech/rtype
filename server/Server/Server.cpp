@@ -9,8 +9,8 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
-#include "../../common/Networking/NetworkFactory.hpp"
-#include "../../common/serialization/Capnp/NetworkMessages.hpp"
+#include "Capnp/NetworkMessages.hpp"
+#include "NetworkFactory.hpp"
 
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 

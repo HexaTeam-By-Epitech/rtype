@@ -15,13 +15,13 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include "../../common/Networking/IHost.hpp"
-#include "../../common/Networking/IPeer.hpp"
-#include "../../common/Threading/ThreadSafeQueue.hpp"
-#include "../../common/serialization/Capnp/NetworkMessages.hpp"
 #include "../Core/EventBus/EventBus.hpp"
 #include "../Events/InputEvent/InputEvent.hpp"
 #include "../Events/NetworkEvent/NetworkEvent.hpp"
+#include "Capnp/NetworkMessages.hpp"
+#include "IHost.hpp"
+#include "IPeer.hpp"
+#include "ThreadSafeQueue.hpp"
 
 /**
  * @class Replicator

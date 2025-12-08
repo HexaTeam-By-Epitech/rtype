@@ -7,7 +7,7 @@
 
 #include "Replicator.hpp"
 #include <iostream>
-#include "../../common/Networking/NetworkFactory.hpp"
+#include "NetworkFactory.hpp"
 
 Replicator::Replicator(EventBus &eventBus) : _eventBus(eventBus) {
     _host = createClientHost();

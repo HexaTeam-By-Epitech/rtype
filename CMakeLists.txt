@@ -32,7 +32,7 @@ if (BUILD_CLIENT)
     add_subdirectory(client)
 endif ()
 
-add_subdirectory(common/Serialization)
+add_subdirectory(common/serialization)
 add_subdirectory(common/Networking)
 add_subdirectory(common/Threading)
 

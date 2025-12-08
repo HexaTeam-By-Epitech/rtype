@@ -9,7 +9,7 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
-#include "../../common/Networking/NetworkFactory.hpp"
+#include "NetworkFactory.hpp"
 
 Client::Client(const std::string &playerName, const std::string &host, uint16_t port)
     : _playerName(playerName), _serverHost(host), _serverPort(port) {}

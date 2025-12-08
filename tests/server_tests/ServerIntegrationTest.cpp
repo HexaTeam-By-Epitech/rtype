@@ -8,10 +8,10 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <thread>
-#include "../../common/Networking/NetworkFactory.hpp"
-#include "../../common/serialization/Capnp/NetworkMessages.hpp"
-#include "../../server/Network/ServerNetworkManager.hpp"
-#include "../../server/Server/Server.hpp"
+#include "Capnp/NetworkMessages.hpp"
+#include "Network/ServerNetworkManager.hpp"
+#include "NetworkFactory.hpp"
+#include "Server/Server.hpp"
 
 // ============================================================================
 // ServerNetworkManager Tests

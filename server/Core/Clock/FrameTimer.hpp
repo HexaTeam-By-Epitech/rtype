@@ -34,7 +34,7 @@ namespace server {
         double elapsed() const;
 
        private:
-        std::chrono::steady_clock::time_point _start;
+        std::chrono::steady_clock::time_point _start{std::chrono::steady_clock::now()};
     };
 
 }  // namespace server

@@ -19,9 +19,9 @@ namespace server {
         ~GameState() = default;
 
         // Prototypes
-        void enter();
-        void exit();
-        void update(float dt);
+        virtual void enter() = 0;
+        virtual void exit() = 0;
+        virtual void update(float dt) = 0;
     };
 
 }  // namespace server

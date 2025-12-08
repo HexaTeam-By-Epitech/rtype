@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace Server {
+namespace server {
 
     class Server {
        public:
@@ -36,4 +36,4 @@ namespace Server {
     // Commented-out code example for detection
     // void old_api() { /* old implementation */ }
 
-}  // namespace Server
+}  // namespace server

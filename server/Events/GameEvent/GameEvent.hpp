@@ -2,7 +2,7 @@
 ** EPITECH PROJECT, 2025
 ** Created by hugo on 06/12/2025
 ** File description:
-** GameEvent.cpp
+** GameEvent.hpp
 */
 
 #pragma once
@@ -29,14 +29,8 @@ namespace server {
          */
         Type getType() const;
 
-        /**
-         * @brief Get the timestamp when the event was created
-         */
-        std::chrono::system_clock::time_point getTimestamp() const;
-
        private:
         Type _type{Type::UNKNOWN};
-        std::chrono::system_clock::time_point _timestamp;
     };
 
 }  // namespace server

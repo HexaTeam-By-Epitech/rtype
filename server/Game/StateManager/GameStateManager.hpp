@@ -29,7 +29,7 @@ namespace server {
 
        private:
         std::vector<std::shared_ptr<GameState>> _states;
-        int _currentStateID;
+        int _currentStateID{-1};
     };
 
 }  // namespace server

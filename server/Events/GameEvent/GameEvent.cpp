@@ -9,14 +9,10 @@
 
 namespace server {
 
-    GameEvent::GameEvent(Type type) : _type(type), _timestamp(std::chrono::system_clock::now()) {}
+    GameEvent::GameEvent(Type type) : _type(type) {}
 
     GameEvent::Type GameEvent::getType() const {
         return _type;
-    }
-
-    std::chrono::system_clock::time_point GameEvent::getTimestamp() const {
-        return _timestamp;
     }
 
 }  // namespace server

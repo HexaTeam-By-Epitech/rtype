@@ -9,8 +9,7 @@
 
 namespace server {
 
-    NetworkEvent::NetworkEvent(Type type, int clientId)
-        : _type(type), _clientId(clientId), _timestamp(std::chrono::system_clock::now()) {}
+    NetworkEvent::NetworkEvent(Type type, int clientId) : _type(type), _clientId(clientId) {}
 
     NetworkEvent::Type NetworkEvent::getType() const {
         return _type;
@@ -18,10 +17,6 @@ namespace server {
 
     int NetworkEvent::getClientId() const {
         return _clientId;
-    }
-
-    std::chrono::system_clock::time_point NetworkEvent::getTimestamp() const {
-        return _timestamp;
     }
 
 }  // namespace server

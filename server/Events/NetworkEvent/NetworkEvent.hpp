@@ -36,15 +36,9 @@ namespace server {
          */
         int getClientId() const;
 
-        /**
-         * @brief Get the timestamp when the event was created
-         */
-        std::chrono::system_clock::time_point getTimestamp() const;
-
        private:
         Type _type{Type::UNKNOWN};
         int _clientId{-1};
-        std::chrono::system_clock::time_point _timestamp;
     };
 
 }  // namespace server

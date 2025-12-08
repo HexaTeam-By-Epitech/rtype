@@ -24,6 +24,20 @@ namespace server {
          * @brief Get the ID of the created entity
          */
         int getEntityId() const;
+
+        /**
+		 * @brief Construct a new EntityCreatedEvent
+		 * @param entityId The ID of the created entity
+		 */
+        explicit EntityCreatedEvent(int entityId) : _entityId(entityId) {}
+        ~EntityCreatedEvent() override = default;
+        /**
+		 * @brief Get the ID of the created entity
+		 */
+        int getEntityId() const { return _entityId; }
+
+       private:
+        int _entityId;
     };
 
 }  // namespace server

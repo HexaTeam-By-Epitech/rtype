@@ -7,7 +7,7 @@
 
 #include "Server.hpp"
 
-namespace Server {
+namespace server {
 
     Server::Server(std::string host) : _host(std::move(host)) {}
 
@@ -27,4 +27,4 @@ namespace Server {
         (void)pkt;
     }
 
-}  // namespace Server
+}  // namespace server

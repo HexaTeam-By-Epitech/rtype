@@ -7,22 +7,28 @@
 
 #pragma once
 
-namespace Server {
+namespace server {
 
     /**
      * @class IEventBus
-     * @brief Interface minimale pour EventBus
-     * 
-     * Se limite à la méthode clear() qui n'est pas template.
+     * @brief Minimal interface for the EventBus
+     *
+     * This interface only exposes the clear() method, as template-based
+     * subscribe/publish functions cannot be virtualized. Implementations
+     * extending this interface must provide the internal storage and
+     * logic for event subscriptions.
      */
     class IEventBus {
        public:
         virtual ~IEventBus() = default;
 
         /**
-         * @brief Clear all subscriptions
+         * @brief Remove all event subscriptions
+         *
+         * Clears every registered handler for all event types.
+         * Called typically during shutdown or reinitialization.
          */
         virtual void clear() = 0;
     };
 
-}  // namespace Server
+}  // namespace server

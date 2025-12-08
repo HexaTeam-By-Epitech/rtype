@@ -14,7 +14,7 @@
 #include <vector>
 #include "IEventBus.hpp"
 
-namespace Server {
+namespace server {
 
     /**
      * @class EventBus
@@ -57,13 +57,17 @@ namespace Server {
          * @return Subscription ID
          * 
          * Adds the callback to the list of subscribers for type T.
-         * Callbacks are stored using type-erasure with std::function<void(const void &)>,
-         * allowing multiple event types to coexist in the same bus.
+         * Callbacks are stored using type-erasure with std::any.
+         * The wrapper converts std::any back to T before invoking user callbacks.
          */
         template <typename T>
         size_t subscribe(EventCallback<T> callback) {
-            auto &vec = _subscribers[typeid(T)];
-            vec.push_back([callback](const auto &e) { callback(*static_cast<const T *>(&e)); });
+            auto &vec = _subscribers[std::type_index(typeid(T))];
+
+            vec.push_back([callback = std::move(callback)](const std::any &a) {
+                callback(std::any_cast<const T &>(a));
+            });
+
             return vec.size() - 1;
         }
 
@@ -77,11 +81,14 @@ namespace Server {
          */
         template <typename T>
         void publish(const T &event) {
-            auto it = _subscribers.find(typeid(T));
-            if (it != _subscribers.end()) {
-                for (auto &cb : it->second)
-                    cb(event);
-            }
+            auto it = _subscribers.find(std::type_index(typeid(T)));
+            if (it == _subscribers.end())
+                return;
+
+            const std::any box = event;
+
+            for (auto &cb : it->second)
+                cb(box);
         }
 
         /**
@@ -89,17 +96,17 @@ namespace Server {
          * 
          * Completely clears the event bus, removing all subscribers for all event types.
          */
-        void clear() override;
+        void clear() override { _subscribers.clear(); }
 
        private:
         /**
          * @brief Container of subscribers per event type
          * 
          * Each event type T is identified by typeid(T). Callbacks are stored using
-         * type-erasure (std::function<void(const void &)>), allowing multiple
+         * type-erasure (std::function<void(const std::any &)>), allowing multiple
          * types to coexist in the same bus.
          */
         std::unordered_map<std::type_index, std::vector<std::function<void(const std::any &)>>> _subscribers;
     };
 
-}  // namespace Server
+}  // namespace server

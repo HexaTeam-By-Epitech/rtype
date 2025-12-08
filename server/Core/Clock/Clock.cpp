@@ -9,9 +9,8 @@
 
 namespace server {
 
-FrameTimer& Clock::getFrameTimer() {
-    return _frameTimer;
-}
+    FrameTimer &Clock::getFrameTimer() {
+        return _frameTimer;
+    }
 
-} // namespace server
-
+}  // namespace server

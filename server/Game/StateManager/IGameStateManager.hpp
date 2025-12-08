@@ -11,18 +11,17 @@
 
 namespace server {
 
-/**
- * @class IGameStateManager
- * @brief Interface for managing game states
- */
-class IGameStateManager {
-public:
-    virtual ~IGameStateManager() = default;
+    /**
+     * @class IGameStateManager
+     * @brief Interface for managing game states
+     */
+    class IGameStateManager {
+       public:
+        virtual ~IGameStateManager() = default;
 
-    // Prototypes
-    virtual void changeState(int stateID) = 0;
-    virtual int getCurrentState() const = 0;
-};
+        // Prototypes
+        virtual void changeState(int stateID) = 0;
+        virtual int getCurrentState() const = 0;
+    };
 
-} // namespace server
-
+}  // namespace server

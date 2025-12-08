@@ -11,18 +11,17 @@
 
 namespace server {
 
-class Session : public ISession {
-public:
-    Session() = default;
-    ~Session() override = default;
+    class Session : public ISession {
+       public:
+        Session() = default;
+        ~Session() override = default;
 
-    std::string getId() const override;
-    bool isActive() const override;
+        std::string getId() const override;
+        bool isActive() const override;
 
-private:
-    std::string _id;
-    bool _active{false};
-};
+       private:
+        std::string _id;
+        bool _active{false};
+    };
 
-} // namespace server
-
+}  // namespace server

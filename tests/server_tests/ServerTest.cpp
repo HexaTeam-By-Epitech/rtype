@@ -35,4 +35,3 @@ TEST(ServerTest, HandlesPacketSafely) {
     pkt.buf[0] = 42;
     EXPECT_NO_THROW(server.handlePacket(pkt));
 }
-

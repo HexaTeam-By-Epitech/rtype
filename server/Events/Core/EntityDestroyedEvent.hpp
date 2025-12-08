@@ -11,20 +11,19 @@
 
 namespace server {
 
-/**
- * @class EntityDestroyedEvent
- * @brief Triggered when an entity is destroyed
- */
-class EntityDestroyedEvent : public IEvent {
-public:
-    EntityDestroyedEvent() = default;
-    ~EntityDestroyedEvent() override = default;
-
     /**
-     * @brief Get the ID of the destroyed entity
+     * @class EntityDestroyedEvent
+     * @brief Triggered when an entity is destroyed
      */
-    int getEntityId() const;
-};
+    class EntityDestroyedEvent : public IEvent {
+       public:
+        EntityDestroyedEvent() = default;
+        ~EntityDestroyedEvent() override = default;
 
-} // namespace server
+        /**
+         * @brief Get the ID of the destroyed entity
+         */
+        int getEntityId() const;
+    };
 
+}  // namespace server

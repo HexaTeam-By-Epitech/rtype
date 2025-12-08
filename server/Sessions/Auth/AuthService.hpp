@@ -11,13 +11,12 @@
 
 namespace server {
 
-class AuthService : public IAuthService {
-public:
-    AuthService() = default;
-    ~AuthService() override = default;
+    class AuthService : public IAuthService {
+       public:
+        AuthService() = default;
+        ~AuthService() override = default;
 
-    bool authenticate(const std::string &username, const std::string &password) override;
-};
+        bool authenticate(const std::string &username, const std::string &password) override;
+    };
 
-} // namespace server
-
+}  // namespace server

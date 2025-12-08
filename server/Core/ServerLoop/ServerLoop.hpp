@@ -11,25 +11,24 @@
 
 namespace server {
 
-/**
- * @class ServerLoop
- * @brief Implementation of the main server loop
- *
- * Provides a concrete server loop implementing IServerLoop interface.
- * Currently contains only function prototypes.
- */
-class ServerLoop : public IServerLoop {
-public:
-    ServerLoop() = default;
-    ~ServerLoop() override = default;
+    /**
+     * @class ServerLoop
+     * @brief Implementation of the main server loop
+     *
+     * Provides a concrete server loop implementing IServerLoop interface.
+     * Currently contains only function prototypes.
+     */
+    class ServerLoop : public IServerLoop {
+       public:
+        ServerLoop() = default;
+        ~ServerLoop() override = default;
 
-    void start() override;
-    void stop() override;
-    bool isRunning() const override;
+        void start() override;
+        void stop() override;
+        bool isRunning() const override;
 
-private:
-    bool _running{false};
-};
+       private:
+        bool _running{false};
+    };
 
-} // namespace server
-
+}  // namespace server

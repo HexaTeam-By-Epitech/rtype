@@ -7,27 +7,26 @@
 
 #pragma once
 
-#include "IRoomManager.hpp"
 #include <unordered_map>
+#include "IRoomManager.hpp"
 
 namespace server {
 
-/**
- * @class RoomManager
- * @brief Concrete implementation of IRoomManager
- */
-class RoomManager : public IRoomManager {
-public:
-    RoomManager() = default;
-    ~RoomManager() override = default;
+    /**
+     * @class RoomManager
+     * @brief Concrete implementation of IRoomManager
+     */
+    class RoomManager : public IRoomManager {
+       public:
+        RoomManager() = default;
+        ~RoomManager() override = default;
 
-    void createRoom(const std::string &id) override;
-    std::shared_ptr<Room> getRoom(const std::string &id) override;
-    void removeRoom(const std::string &id) override;
+        void createRoom(const std::string &id) override;
+        std::shared_ptr<Room> getRoom(const std::string &id) override;
+        void removeRoom(const std::string &id) override;
 
-private:
-    std::unordered_map<std::string, std::shared_ptr<Room>> _rooms;
-};
+       private:
+        std::unordered_map<std::string, std::shared_ptr<Room>> _rooms;
+    };
 
-} // namespace server
-
+}  // namespace server

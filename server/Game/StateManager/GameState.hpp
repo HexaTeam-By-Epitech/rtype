@@ -9,20 +9,19 @@
 
 namespace server {
 
-/**
- * @class GameState
- * @brief Represents a single game state
- */
-class GameState {
-public:
-    GameState() = default;
-    ~GameState() = default;
+    /**
+     * @class GameState
+     * @brief Represents a single game state
+     */
+    class GameState {
+       public:
+        GameState() = default;
+        ~GameState() = default;
 
-    // Prototypes
-    void enter();
-    void exit();
-    void update(float dt);
-};
+        // Prototypes
+        void enter();
+        void exit();
+        void update(float dt);
+    };
 
-} // namespace server
-
+}  // namespace server

@@ -9,21 +9,20 @@
 
 namespace server {
 
-// Methods are empty for now
+    // Methods are empty for now
 
-std::shared_ptr<Session> SessionManager::createSession([[maybe_unused]] const std::string &id) {
-    // Implementation goes here
-    return nullptr;
-}
+    std::shared_ptr<Session> SessionManager::createSession([[maybe_unused]] const std::string &id) {
+        // Implementation goes here
+        return nullptr;
+    }
 
-std::shared_ptr<Session> SessionManager::getSession([[maybe_unused]] const std::string &id) {
-    // Implementation goes here
-    return nullptr;
-}
+    std::shared_ptr<Session> SessionManager::getSession([[maybe_unused]] const std::string &id) {
+        // Implementation goes here
+        return nullptr;
+    }
 
-void SessionManager::removeSession([[maybe_unused]] const std::string &id) {
-    // Implementation goes here
-}
+    void SessionManager::removeSession([[maybe_unused]] const std::string &id) {
+        // Implementation goes here
+    }
 
-} // namespace server
-
+}  // namespace server

@@ -11,34 +11,33 @@
 
 namespace server {
 
-/**
- * @class IRoom
- * @brief Interface for a game room
- *
- * Defines basic operations for a game room like joining, leaving, and retrieving information.
- */
-class IRoom {
-public:
-    virtual ~IRoom() = default;
-
     /**
-     * @brief Join a player to the room
-     * @param playerId Unique identifier of the player
+     * @class IRoom
+     * @brief Interface for a game room
+     *
+     * Defines basic operations for a game room like joining, leaving, and retrieving information.
      */
-    virtual void join(int playerId) = 0;
+    class IRoom {
+       public:
+        virtual ~IRoom() = default;
 
-    /**
-     * @brief Remove a player from the room
-     * @param playerId Unique identifier of the player
-     */
-    virtual void leave(int playerId) = 0;
+        /**
+         * @brief Join a player to the room
+         * @param playerId Unique identifier of the player
+         */
+        virtual void join(int playerId) = 0;
 
-    /**
-     * @brief Get the room's unique identifier
-     * @return Room ID
-     */
-    virtual std::string getId() const = 0;
-};
+        /**
+         * @brief Remove a player from the room
+         * @param playerId Unique identifier of the player
+         */
+        virtual void leave(int playerId) = 0;
 
-} // namespace server
+        /**
+         * @brief Get the room's unique identifier
+         * @return Room ID
+         */
+        virtual std::string getId() const = 0;
+    };
 
+}  // namespace server

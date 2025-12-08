@@ -9,10 +9,10 @@
 
 namespace server {
 
-// Implementation will go here
-bool AuthService::authenticate([[maybe_unused]] const std::string &username, [[maybe_unused]] const std::string &password) {
-    return false;
-}
+    // Implementation will go here
+    bool AuthService::authenticate([[maybe_unused]] const std::string &username,
+                                   [[maybe_unused]] const std::string &password) {
+        return false;
+    }
 
-} // namespace server
-
+}  // namespace server

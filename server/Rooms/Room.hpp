@@ -7,28 +7,27 @@
 
 #pragma once
 
-#include "IRoom.hpp"
 #include <vector>
+#include "IRoom.hpp"
 
 namespace server {
 
-/**
- * @class Room
- * @brief Concrete implementation of IRoom
- */
-class Room : public IRoom {
-public:
-    Room(const std::string &id) : _id(id) {}
-    ~Room() override = default;
+    /**
+     * @class Room
+     * @brief Concrete implementation of IRoom
+     */
+    class Room : public IRoom {
+       public:
+        Room(const std::string &id) : _id(id) {}
+        ~Room() override = default;
 
-    void join(int playerId) override;
-    void leave(int playerId) override;
-    std::string getId() const override;
+        void join(int playerId) override;
+        void leave(int playerId) override;
+        std::string getId() const override;
 
-private:
-    std::string _id;
-    std::vector<int> _players;
-};
+       private:
+        std::string _id;
+        std::vector<int> _players;
+    };
 
-} // namespace server
-
+}  // namespace server

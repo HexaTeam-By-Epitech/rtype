@@ -7,30 +7,29 @@
 
 #pragma once
 
-#include "IGameStateManager.hpp"
-#include "GameState.hpp"
-#include <vector>
 #include <memory>
+#include <vector>
+#include "GameState.hpp"
+#include "IGameStateManager.hpp"
 
 namespace server {
 
-/**
- * @class GameStateManager
- * @brief Handles switching between game states
- */
-class GameStateManager : public IGameStateManager {
-public:
-    GameStateManager() = default;
-    ~GameStateManager() override = default;
+    /**
+     * @class GameStateManager
+     * @brief Handles switching between game states
+     */
+    class GameStateManager : public IGameStateManager {
+       public:
+        GameStateManager() = default;
+        ~GameStateManager() override = default;
 
-    // Prototypes
-    void changeState(int stateID) override;
-    int getCurrentState() const override;
+        // Prototypes
+        void changeState(int stateID) override;
+        int getCurrentState() const override;
 
-private:
-    std::vector<std::shared_ptr<GameState>> _states;
-    int _currentStateID;
-};
+       private:
+        std::vector<std::shared_ptr<GameState>> _states;
+        int _currentStateID;
+    };
 
-} // namespace server
-
+}  // namespace server

@@ -7,27 +7,26 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
 namespace server {
 
-class ISession {
-public:
-    virtual ~ISession() = default;
+    class ISession {
+       public:
+        virtual ~ISession() = default;
 
-    /**
-     * @brief Get the session ID
-     * @return std::string Session identifier
-     */
-    virtual std::string getId() const = 0;
+        /**
+         * @brief Get the session ID
+         * @return std::string Session identifier
+         */
+        virtual std::string getId() const = 0;
 
-    /**
-     * @brief Check if session is active
-     * @return true if active, false otherwise
-     */
-    virtual bool isActive() const = 0;
-};
+        /**
+         * @brief Check if session is active
+         * @return true if active, false otherwise
+         */
+        virtual bool isActive() const = 0;
+    };
 
-} // namespace server
-
+}  // namespace server

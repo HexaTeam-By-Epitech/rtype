@@ -9,22 +9,21 @@
 
 namespace server {
 
-/**
- * @class GameRules
- * @brief Contains the rules and constraints of the game
- *
- * Defines constants and validation methods that govern game logic.
- */
-class GameRules {
-public:
-    GameRules() = default;
-    ~GameRules() = default;
+    /**
+     * @class GameRules
+     * @brief Contains the rules and constraints of the game
+     *
+     * Defines constants and validation methods that govern game logic.
+     */
+    class GameRules {
+       public:
+        GameRules() = default;
+        ~GameRules() = default;
 
-    // Prototypes
-    int getMaxPlayers() const;
-    int getMaxScore() const;
-    bool isMoveValid(int x, int y) const;
-};
+        // Prototypes
+        int getMaxPlayers() const;
+        int getMaxScore() const;
+        bool isMoveValid(int x, int y) const;
+    };
 
-} // namespace server
-
+}  // namespace server

@@ -11,20 +11,19 @@
 
 namespace server {
 
-/**
- * @class EntityCreatedEvent
- * @brief Triggered when a new entity is created
- */
-class EntityCreatedEvent : public IEvent {
-public:
-    EntityCreatedEvent() = default;
-    ~EntityCreatedEvent() override = default;
-
     /**
-     * @brief Get the ID of the created entity
+     * @class EntityCreatedEvent
+     * @brief Triggered when a new entity is created
      */
-    int getEntityId() const;
-};
+    class EntityCreatedEvent : public IEvent {
+       public:
+        EntityCreatedEvent() = default;
+        ~EntityCreatedEvent() override = default;
 
-} // namespace server
+        /**
+         * @brief Get the ID of the created entity
+         */
+        int getEntityId() const;
+    };
 
+}  // namespace server

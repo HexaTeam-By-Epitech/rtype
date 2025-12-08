@@ -9,21 +9,20 @@
 
 namespace Server {
 
-/**
- * @class IEventBus
- * @brief Interface minimale pour EventBus
- * 
- * Se limite à la méthode clear() qui n'est pas template.
- */
-class IEventBus {
-public:
-    virtual ~IEventBus() = default;
-
     /**
-     * @brief Clear all subscriptions
+     * @class IEventBus
+     * @brief Interface minimale pour EventBus
+     * 
+     * Se limite à la méthode clear() qui n'est pas template.
      */
-    virtual void clear() = 0;
-};
+    class IEventBus {
+       public:
+        virtual ~IEventBus() = default;
 
-} // namespace Server
+        /**
+         * @brief Clear all subscriptions
+         */
+        virtual void clear() = 0;
+    };
 
+}  // namespace Server

@@ -9,17 +9,16 @@
 
 namespace server {
 
-void ServerLoop::start() {
-    // TODO: implement start logic
-}
+    void ServerLoop::start() {
+        // TODO: implement start logic
+    }
 
-void ServerLoop::stop() {
-    // TODO: implement stop logic
-}
+    void ServerLoop::stop() {
+        // TODO: implement stop logic
+    }
 
-bool ServerLoop::isRunning() const {
-    return _running;
-}
+    bool ServerLoop::isRunning() const {
+        return _running;
+    }
 
-} // namespace server
-
+}  // namespace server

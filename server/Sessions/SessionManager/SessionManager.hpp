@@ -7,23 +7,22 @@
 
 #pragma once
 
-#include "ISessionManager.hpp"
 #include <unordered_map>
+#include "ISessionManager.hpp"
 
 namespace server {
 
-class SessionManager : public ISessionManager {
-public:
-    SessionManager() = default;
-    ~SessionManager() override = default;
+    class SessionManager : public ISessionManager {
+       public:
+        SessionManager() = default;
+        ~SessionManager() override = default;
 
-    std::shared_ptr<Session> createSession(const std::string &id) override;
-    std::shared_ptr<Session> getSession(const std::string &id) override;
-    void removeSession(const std::string &id) override;
+        std::shared_ptr<Session> createSession(const std::string &id) override;
+        std::shared_ptr<Session> getSession(const std::string &id) override;
+        void removeSession(const std::string &id) override;
 
-private:
-    std::unordered_map<std::string, std::shared_ptr<Session>> _sessions;
-};
+       private:
+        std::unordered_map<std::string, std::shared_ptr<Session>> _sessions;
+    };
 
-} // namespace server
-
+}  // namespace server

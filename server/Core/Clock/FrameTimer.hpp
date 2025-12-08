@@ -11,31 +11,30 @@
 
 namespace server {
 
-/**
- * @class FrameTimer
- * @brief Utility class to measure frame durations
- *
- * Provides a way to track elapsed time between frames.
- */
-class FrameTimer {
-public:
-    FrameTimer() = default;
-    ~FrameTimer() = default;
-
     /**
-     * @brief Reset the timer to the current time
+     * @class FrameTimer
+     * @brief Utility class to measure frame durations
+     *
+     * Provides a way to track elapsed time between frames.
      */
-    void reset();
+    class FrameTimer {
+       public:
+        FrameTimer() = default;
+        ~FrameTimer() = default;
 
-    /**
-     * @brief Get the elapsed time in seconds since last reset
-     * @return elapsed time in seconds
-     */
-    double elapsed() const;
+        /**
+         * @brief Reset the timer to the current time
+         */
+        void reset();
 
-private:
-    std::chrono::steady_clock::time_point _start;
-};
+        /**
+         * @brief Get the elapsed time in seconds since last reset
+         * @return elapsed time in seconds
+         */
+        double elapsed() const;
 
-} // namespace server
+       private:
+        std::chrono::steady_clock::time_point _start;
+    };
 
+}  // namespace server

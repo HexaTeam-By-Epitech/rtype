@@ -9,7 +9,6 @@
 
 namespace server {
 
-// Implementation will be added later
+    // Implementation will be added later
 
-} // namespace server
-
+}  // namespace server

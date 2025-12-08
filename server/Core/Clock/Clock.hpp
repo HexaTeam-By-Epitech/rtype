@@ -11,26 +11,25 @@
 
 namespace server {
 
-/**
- * @class Clock
- * @brief Main clock for server timing
- *
- * Manages frame timing and provides access to a FrameTimer.
- */
-class Clock {
-public:
-    Clock() = default;
-    ~Clock() = default;
-
     /**
-     * @brief Get reference to the frame timer
-     * @return FrameTimer reference
+     * @class Clock
+     * @brief Main clock for server timing
+     *
+     * Manages frame timing and provides access to a FrameTimer.
      */
-    FrameTimer& getFrameTimer();
+    class Clock {
+       public:
+        Clock() = default;
+        ~Clock() = default;
 
-private:
-    FrameTimer _frameTimer;
-};
+        /**
+         * @brief Get reference to the frame timer
+         * @return FrameTimer reference
+         */
+        FrameTimer &getFrameTimer();
 
-} // namespace server
+       private:
+        FrameTimer _frameTimer;
+    };
 
+}  // namespace server

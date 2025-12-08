@@ -7,23 +7,22 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
 namespace server {
 
-class IAuthService {
-public:
-    virtual ~IAuthService() = default;
+    class IAuthService {
+       public:
+        virtual ~IAuthService() = default;
 
-    /**
-     * @brief Authenticate a user
-     * @param username Username
-     * @param password Password
-     * @return true if credentials are valid
-     */
-    virtual bool authenticate(const std::string &username, const std::string &password) = 0;
-};
+        /**
+         * @brief Authenticate a user
+         * @param username Username
+         * @param password Password
+         * @return true if credentials are valid
+         */
+        virtual bool authenticate(const std::string &username, const std::string &password) = 0;
+    };
 
-} // namespace server
-
+}  // namespace server

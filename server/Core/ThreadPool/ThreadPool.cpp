@@ -10,29 +10,24 @@
 
 namespace server {
 
-ThreadPool::ThreadPool(size_t threadCount)
-: _threadCount(threadCount)
-{
-}
+    ThreadPool::ThreadPool(size_t threadCount) : _threadCount(threadCount) {}
 
-ThreadPool::~ThreadPool() {
-}
+    ThreadPool::~ThreadPool() {}
 
-void ThreadPool::enqueue([[maybe_unused]] Task task) {
-    // Prototype only: implementation will be added later
-}
+    void ThreadPool::enqueue([[maybe_unused]] Task task) {
+        // Prototype only: implementation will be added later
+    }
 
-void ThreadPool::start() {
-    // Prototype only: implementation will be added later
-}
+    void ThreadPool::start() {
+        // Prototype only: implementation will be added later
+    }
 
-void ThreadPool::stop() {
-    // Prototype only: implementation will be added later
-}
+    void ThreadPool::stop() {
+        // Prototype only: implementation will be added later
+    }
 
-size_t ThreadPool::size() const {
-    return _threadCount;
-}
+    size_t ThreadPool::size() const {
+        return _threadCount;
+    }
 
-} // namespace server
-
+}  // namespace server

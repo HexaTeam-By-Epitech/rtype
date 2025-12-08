@@ -11,27 +11,26 @@
 
 namespace server {
 
-/**
- * @class IEvent
- * @brief Base interface for all events
- *
- * Provides timestamp information and serves as a
- * polymorphic base for all event types.
- */
-class IEvent {
-public:
-    IEvent() : _timestamp(std::chrono::system_clock::now()) {}
-    virtual ~IEvent() = default;
-
     /**
-     * @brief Get the event creation timestamp
-     * @return std::chrono::system_clock::time_point
+     * @class IEvent
+     * @brief Base interface for all events
+     *
+     * Provides timestamp information and serves as a
+     * polymorphic base for all event types.
      */
-    std::chrono::system_clock::time_point getTimestamp() const { return _timestamp; }
+    class IEvent {
+       public:
+        IEvent() : _timestamp(std::chrono::system_clock::now()) {}
+        virtual ~IEvent() = default;
 
-private:
-    std::chrono::system_clock::time_point _timestamp;
-};
+        /**
+         * @brief Get the event creation timestamp
+         * @return std::chrono::system_clock::time_point
+         */
+        std::chrono::system_clock::time_point getTimestamp() const { return _timestamp; }
 
-} // namespace server
+       private:
+        std::chrono::system_clock::time_point _timestamp;
+    };
 
+}  // namespace server

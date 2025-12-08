@@ -5,8 +5,7 @@
 ** InputEvent.hpp
 */
 
-#ifndef INPUTEVENT_HPP
-#define INPUTEVENT_HPP
+#pragma once
 
 #include "../IEvent.hpp"
 
@@ -89,5 +88,3 @@ class InputEvent : public IEvent {
     InputState _state;      ///< The state of the input
     uint32_t _frameNumber;  ///< Frame number for network synchronization
 };
-
-#endif

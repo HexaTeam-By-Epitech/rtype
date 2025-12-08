@@ -5,8 +5,7 @@
 ** Replicator.hpp
 */
 
-#ifndef REPLICATOR_HPP
-#define REPLICATOR_HPP
+#pragma once
 
 #include <cstdint>
 #include <functional>
@@ -161,5 +160,3 @@ class Replicator {
 
     // TODO: Ajouter socket UDP/TCP
 };
-
-#endif

@@ -5,8 +5,7 @@
 ** NetworkEvent.hpp
 */
 
-#ifndef NETWORKEVENT_HPP
-#define NETWORKEVENT_HPP
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -137,5 +136,3 @@ class ConnectionEvent : public IEvent {
     Status _status;        ///< Connection status
     std::string _message;  ///< Optional status message
 };
-
-#endif

@@ -5,8 +5,7 @@
 ** Player
 */
 
-#ifndef PLAYER_HPP_
-#define PLAYER_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -77,5 +76,3 @@ namespace ecs {
         int _playerId;  ///< Unique player identifier
     };
 }  // namespace ecs
-
-#endif

@@ -5,8 +5,7 @@
 ** IEvent.hpp
 */
 
-#ifndef IEVENT_HPP_
-#define IEVENT_HPP_
+#pragma once
 
 /**
  * @interface IEvent
@@ -32,5 +31,3 @@ class IEvent {
      */
     virtual ~IEvent() = default;
 };
-
-#endif

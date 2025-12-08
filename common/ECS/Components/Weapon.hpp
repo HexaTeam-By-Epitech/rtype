@@ -5,8 +5,7 @@
 ** Weapon
 */
 
-#ifndef WEAPON_HPP_
-#define WEAPON_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -92,5 +91,3 @@ namespace ecs {
         int _damage;          ///< Base damage dealt
     };
 }  // namespace ecs
-
-#endif

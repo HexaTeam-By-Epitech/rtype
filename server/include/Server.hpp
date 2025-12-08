@@ -5,8 +5,7 @@
 ** Server.hpp
 */
 
-#ifndef RTYPE_SERVER_SERVER_HPP
-#define RTYPE_SERVER_SERVER_HPP
+#pragma once
 
 #include <string>
 
@@ -34,5 +33,3 @@ class Server {
 
 // Commented-out code example for detection
 // void old_api() { /* old implementation */ }
-
-#endif  // RTYPE_SERVER_SERVER_HPP

@@ -5,8 +5,7 @@
 ** EventBus.hpp
 */
 
-#ifndef EVENTBUS_HPP
-#define EVENTBUS_HPP
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -101,5 +100,3 @@ class EventBus {
    private:
     std::unordered_map<std::type_index, std::vector<std::function<void(const IEvent &)>>> _subscribers;
 };
-
-#endif

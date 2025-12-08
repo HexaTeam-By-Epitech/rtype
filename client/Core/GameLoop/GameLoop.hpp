@@ -5,8 +5,7 @@
 ** GameLoop.hpp
 */
 
-#ifndef GAMELOOP_HPP
-#define GAMELOOP_HPP
+#pragma once
 
 #include <memory>
 #include "../../Input/InputBuffer.hpp"
@@ -186,5 +185,3 @@ class GameLoop {
     float _accumulator = 0.0f;
     uint32_t _currentFrame = 0;
 };
-
-#endif

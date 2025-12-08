@@ -5,8 +5,7 @@
 ** Transform
 */
 
-#ifndef TRANSFORM_HPP_
-#define TRANSFORM_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -111,5 +110,3 @@ namespace ecs {
         Vector2 _scale;     ///< Scale factors (default: 1, 1)
     };
 }  // namespace ecs
-
-#endif

@@ -5,8 +5,7 @@
 ** InputBuffer.hpp
 */
 
-#ifndef INPUTBUFFER_HPP
-#define INPUTBUFFER_HPP
+#pragma once
 
 #include <cstdint>
 #include <deque>
@@ -126,5 +125,3 @@ class InputBuffer {
     std::deque<StoredInput> _inputs;
     uint32_t _oldestFrame = 0;
 };
-
-#endif

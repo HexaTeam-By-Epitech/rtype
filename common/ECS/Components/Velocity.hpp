@@ -5,8 +5,7 @@
 ** Velocity
 */
 
-#ifndef VELOCITY_HPP_
-#define VELOCITY_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -77,5 +76,3 @@ namespace ecs {
         int _speed;          ///< Movement speed
     };
 }  // namespace ecs
-
-#endif

@@ -5,8 +5,7 @@
 ** IComponent
 */
 
-#ifndef ICOMPONENT_HPP_
-#define ICOMPONENT_HPP_
+#pragma once
 
 #include <cstddef>
 
@@ -77,5 +76,3 @@ namespace ecs {
         return typeID;
     }
 }  // namespace ecs
-
-#endif

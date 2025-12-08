@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "ISerializer.hpp"
-#include <functional>
 #include <capnp/message.h>
+#include <functional>
+#include "ISerializer.hpp"
 
 /**
  * @class CapnpBuilderMessage
@@ -23,7 +23,7 @@
  * must not be manipulated directly by client/server code.
  */
 class CapnpBuilderMessage : public IMessage {
-public:
+   public:
     /**
      * @brief Function type used to fill the Cap'n Proto builder.
      */
@@ -36,6 +36,6 @@ public:
      */
     [[nodiscard]] const FillerFn &filler() const noexcept { return filler_; }
 
-private:
+   private:
     FillerFn filler_;
 };

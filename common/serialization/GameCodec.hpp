@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include "ISerializer.hpp"
-#include "GameMessages.hpp"
-#include <vector>
 #include <memory>
+#include <vector>
+#include "GameMessages.hpp"
+#include "ISerializer.hpp"
 
 /**
  * @class IGameCodec
@@ -23,7 +23,7 @@
  * any other backend.
  */
 class IGameCodec {
-public:
+   public:
     virtual ~IGameCodec() = default;
 
     /**

@@ -7,8 +7,8 @@
 
 #include "CapnpGameCodec.hpp"
 
-#include "GameMessages.hpp"
 #include <kj/io.h>
+#include "GameMessages.hpp"
 
 // NOTE: In a real project, you would include the generated Cap'n Proto
 // schema header here, e.g.:
@@ -27,11 +27,8 @@ std::vector<uint8_t> CapnpGameCodec::encodeSpawn(const SpawnEntityMessage &messa
     //   root.setX(message.x);
     //   root.setY(message.y);
     //
-    auto iMsg = makeCapnpBuilderMessage([
-            id = message.id,
-            x = message.x,
-            y = message.y
-        ](capnp::MallocMessageBuilder &builder) {
+    auto iMsg = makeCapnpBuilderMessage(
+        [id = message.id, x = message.x, y = message.y](capnp::MallocMessageBuilder &builder) {
             // TODO: Replace this pseudo-code with concrete Cap'n Proto schema code.
             // auto root = builder.initRoot<game::SpawnEntity>();
             // root.setId(id);
@@ -63,6 +60,6 @@ SpawnEntityMessage CapnpGameCodec::decodeSpawn(const std::vector<uint8_t> &data)
     //
     // For now, we simply construct an empty message to illustrate the API.
     SpawnEntityMessage msg;
-    (void)data; // suppress unused warning for the example implementation
+    (void)data;  // suppress unused warning for the example implementation
     return msg;
 }

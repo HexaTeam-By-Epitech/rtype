@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include "GameCodec.hpp"
-#include "CapnpSerializer.hpp"
-#include "CapnpFactories.hpp"
 #include <capnp/message.h>
+#include "CapnpFactories.hpp"
+#include "CapnpSerializer.hpp"
+#include "GameCodec.hpp"
 
 /**
  * @class CapnpGameCodec
@@ -22,7 +22,7 @@
  * client/server code remains backend-agnostic.
  */
 class CapnpGameCodec final : public IGameCodec {
-public:
+   public:
     CapnpGameCodec();
     ~CapnpGameCodec() override = default;
 
@@ -31,6 +31,6 @@ public:
     std::vector<uint8_t> encodeSpawn(const SpawnEntityMessage &message) override;
     SpawnEntityMessage decodeSpawn(const std::vector<uint8_t> &data) override;
 
-private:
+   private:
     CapnpSerializer _serializer;
 };

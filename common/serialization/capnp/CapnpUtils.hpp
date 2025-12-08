@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include <vector>
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 #include <kj/io.h>
+#include <vector>
 
 // Serialize a Cap'n Proto message builder into a vector<uint8_t>
 inline std::vector<uint8_t> serializeCapnpMessage(capnp::MallocMessageBuilder &builder) {

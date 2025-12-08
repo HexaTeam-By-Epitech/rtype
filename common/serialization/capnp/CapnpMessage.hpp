@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "ISerializer.hpp"
-#include <vector>
 #include <cstdint>
+#include <vector>
+#include "ISerializer.hpp"
 
 /**
  * @class CapnpMessage
@@ -20,7 +20,7 @@
  * exposed to gameplay modules.
  */
 class CapnpMessage final : public IMessage {
-public:
+   public:
     CapnpMessage() = default;
     explicit CapnpMessage(std::vector<uint8_t> data) : data_(std::move(data)) {}
 
@@ -34,6 +34,6 @@ public:
      */
     std::vector<uint8_t> &data() noexcept { return data_; }
 
-private:
+   private:
     std::vector<uint8_t> data_;
 };

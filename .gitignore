@@ -49,3 +49,10 @@ public
 *.DS_Store
 compile_commands.json
 .cache
+
+# Coverage files
+coverage/
+*.gcda
+*.gcno
+*.gcov
+coverage.info

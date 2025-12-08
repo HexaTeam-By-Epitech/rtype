@@ -16,7 +16,7 @@ ifeq ($(UNAME_S),Darwin)
     NPROCS = $(shell sysctl -n hw.ncpu)
 endif
 
-.PHONY: all clean fclean re debug release tests server client run-server run-client setup_hooks
+.PHONY: all clean fclean re debug release tests coverage server client run-server run-client setup_hooks
 
 all: debug
 
@@ -69,8 +69,48 @@ run-client: client
 tests: debug
 	ctest --preset $(PRESET_DEBUG)
 
+coverage: setup_hooks $(VCPKG_EXE)
+	@if ! command -v lcov > /dev/null; then \
+		echo "ERROR: lcov is not installed"; \
+		echo "Please install it with:"; \
+		echo "  - macOS: brew install lcov"; \
+		echo "  - Linux: sudo apt-get install lcov"; \
+		exit 1; \
+	fi
+	@echo "Building with coverage enabled..."
+	cmake --preset $(PRESET_DEBUG) -DENABLE_COVERAGE=ON
+	cmake --build --preset $(PRESET_DEBUG) -j $(NPROCS)
+	@echo "Running tests..."
+	ctest --preset $(PRESET_DEBUG) --output-on-failure
+	@echo "Generating coverage report..."
+	@mkdir -p coverage
+	@lcov --capture --directory $(BUILD_DIR)/$(PRESET_DEBUG) --output-file coverage/coverage.info \
+		--ignore-errors inconsistent,inconsistent \
+		--ignore-errors mismatch,mismatch \
+		--ignore-errors unused,unused \
+		--exclude '/usr/*' \
+		--exclude '*/vcpkg_installed/*' \
+		--exclude '*/vcpkg/*' \
+		--exclude '*/tests/*' \
+		--exclude '*/build/*' \
+		--exclude '*/.cache/*' \
+		--exclude '*/IHost.hpp'
+	@lcov --remove coverage/coverage.info '/usr/*' '*/vcpkg_installed/*' '*/vcpkg/*' '*/tests/*' '*/build/*' '*/.cache/*' '*/IHost.hpp' -o coverage/coverage.info \
+		--ignore-errors inconsistent,inconsistent \
+		--ignore-errors unused,unused
+	@echo ""
+	@echo "========================================"
+	@echo "Coverage Report"
+	@echo "========================================"
+	@lcov --list coverage/coverage.info \
+		--ignore-errors inconsistent,inconsistent
+
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -rf coverage
+	@find . -name "*.gcda" -delete 2>/dev/null || true
+	@find . -name "*.gcno" -delete 2>/dev/null || true
+	@find . -name "*.gcov" -delete 2>/dev/null || true
 
 fclean: clean
 	rm -rf vcpkg_installed

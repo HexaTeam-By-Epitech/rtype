@@ -64,7 +64,7 @@ IPeer *ENetHostWrapper::connect(const IAddress &address, size_t channelCount, ui
     return getOrCreatePeerWrapper(peer);
 }
 
-std::optional<NetworkEvent> ENetHostWrapper::service(uint32_t timeout) {
+std::optional<HostNetworkEvent> ENetHostWrapper::service(uint32_t timeout) {
     ENetEvent event;
     int result = enet_host_service(host_, &event, timeout);
 
@@ -72,7 +72,7 @@ std::optional<NetworkEvent> ENetHostWrapper::service(uint32_t timeout) {
         return std::nullopt;
     }
 
-    NetworkEvent netEvent;
+    HostNetworkEvent netEvent;
     netEvent.type = convertENetEventType(event.type);
     netEvent.peer = getOrCreatePeerWrapper(event.peer);
     netEvent.channelID = event.channelID;
@@ -123,16 +123,16 @@ ENetPeerWrapper *ENetHostWrapper::getOrCreatePeerWrapper(ENetPeer *peer) {
     return ptr;
 }
 
-EventType ENetHostWrapper::convertENetEventType(ENetEventType type) {
+NetworkEventType ENetHostWrapper::convertENetEventType(ENetEventType type) {
     switch (type) {
         case ENET_EVENT_TYPE_CONNECT:
-            return EventType::CONNECT;
+            return NetworkEventType::CONNECT;
         case ENET_EVENT_TYPE_DISCONNECT:
-            return EventType::DISCONNECT;
+            return NetworkEventType::DISCONNECT;
         case ENET_EVENT_TYPE_RECEIVE:
-            return EventType::RECEIVE;
+            return NetworkEventType::RECEIVE;
         case ENET_EVENT_TYPE_NONE:
         default:
-            return EventType::NONE;
+            return NetworkEventType::NONE;
     }
 }

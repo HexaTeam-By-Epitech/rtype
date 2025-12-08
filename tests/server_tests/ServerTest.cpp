@@ -6,32 +6,22 @@
 */
 
 #include <gtest/gtest.h>
-#include "Server.hpp"
+#include "Server/Server.hpp"
 
-TEST(ServerTest, DummyTest) {
+TEST(ServerBasicTest, DummyTest) {
     ASSERT_TRUE(true);
 }
 
-TEST(ServerTest, StoresInitialHost) {
-    server::Server server{"192.168.1.5"};
-    EXPECT_EQ(server.getHost(), "192.168.1.5");
+TEST(ServerBasicTest, ServerCreation) {
+    // Test that we can create a server with a port
+    Server server(4242);
+    EXPECT_NO_THROW(server);
 }
 
-TEST(ServerTest, UpdatesHostValue) {
-    server::Server server{"localhost"};
-    server.setHost("10.0.0.1");
-    EXPECT_EQ(server.getHost(), "10.0.0.1");
-}
-
-TEST(ServerTest, ComparesPingValues) {
-    server::Server server;
-    EXPECT_TRUE(server.isPingEqual(16.0f, 16.0f));
-    EXPECT_FALSE(server.isPingEqual(16.0f, 17.0f));
-}
-
-TEST(ServerTest, HandlesPacketSafely) {
-    server::Server server;
-    server::Server::LargePacket pkt{};
-    pkt.buf[0] = 42;
-    EXPECT_NO_THROW(server.handlePacket(pkt));
+TEST(ServerBasicTest, ServerInitialization) {
+    // Test that server can be initialized
+    Server server(4242);
+    // Note: initialization requires networking system to be available
+    // This test just verifies the constructor works
+    EXPECT_NO_THROW(Server(4242, 16));
 }

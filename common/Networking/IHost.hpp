@@ -15,10 +15,10 @@
 #include "IPeer.hpp"
 
 /**
- * @enum EventType
+ * @enum NetworkEventType
  * @brief Type of network event.
  */
-enum class EventType {
+enum class NetworkEventType {
     NONE,        ///< No event occurred.
     CONNECT,     ///< A peer has connected.
     DISCONNECT,  ///< A peer has disconnected.
@@ -26,15 +26,15 @@ enum class EventType {
 };
 
 /**
- * @struct NetworkEvent
+ * @struct HostNetworkEvent
  * @brief Represents a network event (connection, disconnection, or received data).
  */
-struct NetworkEvent {
-    EventType type = EventType::NONE;  ///< Type of the event.
-    IPeer *peer = nullptr;             ///< Peer associated with the event.
-    std::unique_ptr<IPacket> packet;   ///< Packet received (only for RECEIVE events).
-    uint8_t channelID = 0;             ///< Channel on which the event occurred.
-    uint32_t data = 0;                 ///< Additional data (e.g., disconnect reason).
+struct HostNetworkEvent {
+    NetworkEventType type = NetworkEventType::NONE;  ///< Type of the event.
+    IPeer *peer = nullptr;                           ///< Peer associated with the event.
+    std::unique_ptr<IPacket> packet;                 ///< Packet received (only for RECEIVE events).
+    uint8_t channelID = 0;                           ///< Channel on which the event occurred.
+    uint32_t data = 0;                               ///< Additional data (e.g., disconnect reason).
 };
 
 /**
@@ -64,9 +64,9 @@ class IHost {
      * @brief Service the host, processing network events.
      *
      * @param timeout Maximum time to wait for events in milliseconds.
-     * @return Optional NetworkEvent if an event occurred, std::nullopt otherwise.
+     * @return Optional HostNetworkEvent if an event occurred, std::nullopt otherwise.
      */
-    virtual std::optional<NetworkEvent> service(uint32_t timeout = 0) = 0;
+    virtual std::optional<HostNetworkEvent> service(uint32_t timeout = 0) = 0;
 
     /**
      * @brief Broadcast a packet to all connected peers.

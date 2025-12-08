@@ -8,24 +8,43 @@
 #ifndef REPLICATOR_HPP
 #define REPLICATOR_HPP
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
+#include <thread>
 #include <vector>
+#include "../../common/Networking/IHost.hpp"
+#include "../../common/Networking/IPeer.hpp"
+#include "../../common/Threading/ThreadSafeQueue.hpp"
+#include "../../common/serialization/Capnp/NetworkMessages.hpp"
 #include "../Core/EventBus/EventBus.hpp"
 #include "../Events/InputEvent/InputEvent.hpp"
 #include "../Events/NetworkEvent/NetworkEvent.hpp"
 
 /**
  * @class Replicator
- * @brief Client-server network replication manager
+ * @brief Client-server network replication manager with dedicated network thread
  * 
  * The Replicator is responsible for:
- * - UDP/TCP communication with the server
+ * - UDP/TCP communication with the server (dedicated thread)
  * - Sending player inputs to the server
  * - Receiving world state from the server
  * - Measuring latency and packet loss
  * - Publishing network events on the EventBus
+ * 
+ * Multi-threading architecture:
+ * ```
+ * NETWORK THREAD                    GAME THREAD (ECS)
+ * ┌──────────────────┐              ┌──────────────────┐
+ * │ while(running) { │              │ GameLoop {       │
+ * │   service()      │              │   processNetwork │
+ * │   receive packet │──[Queue]────>│   update ECS     │
+ * │   push to queue  │              │   render         │
+ * │ }                │              │ }                │
+ * └──────────────────┘              └──────────────────┘
+ * ```
  * 
  * Communication flow:
  * ```
@@ -41,7 +60,7 @@
  * 
  * EventBus integration:
  * - Listens to InputEvent to send them to server
- * - Publishes NetworkEvent when data arrives
+ * - Publishes NetworkEvent when data arrives (from game thread)
  * - Publishes ConnectionEvent on state changes
  */
 class Replicator {
@@ -95,20 +114,40 @@ class Replicator {
     bool isConnected() const;
 
     /**
-     * @brief Update the network system
+     * @brief Process incoming network messages
      * 
-     * Processes incoming packets, handles heartbeat, and measures latency.
-     * Must be called every frame of the game loop.
+     * Processes messages from the network thread queue and publishes them
+     * on the EventBus. Must be called every frame from the game thread.
      * 
      * Actions performed:
-     * - Reading pending UDP packets
-     * - Processing and publishing NetworkEvent
-     * - Sending heartbeat if necessary
-     * - Updating network statistics
+     * - Pop messages from thread-safe queue
+     * - Decode message content
+     * - Publish NetworkEvent on EventBus
      * 
-     * @note Non-blocking (asynchronous reading)
+     * @note Non-blocking, processes all available messages
+     * @note Thread-safe: called from game thread, reads from network thread queue
      */
-    void update();
+    void processMessages();
+
+    /**
+     * @brief Start the dedicated network thread
+     * 
+     * Launches a background thread that continuously polls the network
+     * for incoming packets and pushes them to the message queue.
+     * 
+     * @note Automatically called by connect()
+     * @note Thread runs until disconnect() is called
+     */
+    void startNetworkThread();
+
+    /**
+     * @brief Stop the dedicated network thread
+     * 
+     * Signals the network thread to stop and waits for it to join.
+     * 
+     * @note Automatically called by disconnect()
+     */
+    void stopNetworkThread();
 
     /**
      * @brief Send a packet to the server
@@ -147,7 +186,29 @@ class Replicator {
      */
     uint32_t getPacketLoss() const;
 
+    /**
+     * @brief Send connect request to server with player name.
+     * 
+     * @param playerName The player's name/pseudo
+     * @return true if the packet was sent successfully
+     */
+    bool sendConnectRequest(const std::string &playerName);
+
    private:
+    /**
+     * @brief Network thread main loop
+     * 
+     * Continuously polls the network for incoming packets.
+     * Runs in a dedicated thread until _running is set to false.
+     */
+    void networkThreadLoop();
+
+    /**
+     * @brief Handle an incoming packet from the network
+     * @param packet Raw packet data
+     * 
+     * Decodes the packet and creates a NetworkEvent.
+     */
     void onInputEvent(const InputEvent &event);
     void processIncomingPacket(const std::vector<uint8_t> &packet);
 
@@ -159,7 +220,13 @@ class Replicator {
     uint32_t _latency = 0;
     uint32_t _packetLoss = 0;
 
-    // TODO: Ajouter socket UDP/TCP
+    std::unique_ptr<IHost> _host;
+    IPeer *_serverPeer = nullptr;
+
+    // Multi-threading components
+    std::thread _networkThread;                       ///< Dedicated network thread
+    std::atomic<bool> _running{false};                ///< Network thread running flag
+    ThreadSafeQueue<NetworkEvent> _incomingMessages;  ///< Queue for messages from network thread
 };
 
 #endif

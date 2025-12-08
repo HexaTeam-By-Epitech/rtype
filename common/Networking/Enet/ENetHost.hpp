@@ -51,7 +51,7 @@ class ENetHostWrapper final : public IHost {
     ENetHostWrapper &operator=(const ENetHostWrapper &) = delete;
 
     IPeer *connect(const IAddress &address, size_t channelCount = 1, uint32_t data = 0) override;
-    std::optional<NetworkEvent> service(uint32_t timeout = 0) override;
+    std::optional<HostNetworkEvent> service(uint32_t timeout = 0) override;
     void broadcast(std::unique_ptr<IPacket> packet, uint8_t channelID = 0) override;
     void flush() override;
     [[nodiscard]] size_t getPeerCount() const override;
@@ -63,5 +63,5 @@ class ENetHostWrapper final : public IHost {
     std::unordered_map<ENetPeer *, std::unique_ptr<ENetPeerWrapper>> peers_;
 
     ENetPeerWrapper *getOrCreatePeerWrapper(ENetPeer *peer);
-    static EventType convertENetEventType(ENetEventType type);
+    static NetworkEventType convertENetEventType(ENetEventType type);
 };

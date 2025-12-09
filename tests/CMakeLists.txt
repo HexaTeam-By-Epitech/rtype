@@ -20,12 +20,19 @@ add_executable(ecs_tests
         ecs_tests/IComponentTest.cpp
         ecs_tests/ComponentsTest.cpp
         ecs_tests/RegistryTest.cpp
+        ecs_tests/SystemsTest.cpp
         ../common/ECS/Registry.cpp
+        ../common/ECS/Systems/MovementSystem/MovementSystem.cpp
+        ../common/ECS/Systems/HealthSystem/HealthSystem.cpp
+        ../common/ECS/Systems/WeaponSystem/WeaponSystem.cpp
+        ../common/ECS/Systems/ProjectileSystem/ProjectileSystem.cpp
+        ../common/ECS/Systems/BoundarySystem/BoundarySystem.cpp
 )
 
 target_include_directories(ecs_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/common/ECS
         ${CMAKE_SOURCE_DIR}/common/ECS/Components
+        ${CMAKE_SOURCE_DIR}/common/ECS/Systems
 )
 
 target_link_libraries(ecs_tests PRIVATE GTest::gtest_main)

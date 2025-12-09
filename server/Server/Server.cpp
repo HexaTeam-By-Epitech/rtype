@@ -160,7 +160,7 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 auto payload = NetworkMessages::getPayload(event.packet->getData());
                 auto input = C2S::PlayerInput::deserialize(payload);
 
-                std::cout << "[Server] Received input from client (seq: " << input.sequenceId
+                std::cout << "[Server] Received input from client (seq: " << input._sequenceId
                           << ", actions: " << input.actions.size() << ")" << std::endl;
                 break;
             }

@@ -33,16 +33,15 @@ namespace ecs {
     }
 
     Signature Registry::_registerComponent(const ComponentType componentType) {
-        int offset = _componentMap.size();
         Signature sign = 0;
 
         if (_componentMap.contains(componentType))
-            return sign;
+            return _componentMap[componentType];
 
-        if (offset >= N_MAX_COMPONENTS) {
+        if (componentType >= N_MAX_COMPONENTS) {
             return sign;
         }
-        sign = 1ULL << offset;
+        sign.set(componentType);
         _componentMap[componentType] = sign;
 
         return sign;

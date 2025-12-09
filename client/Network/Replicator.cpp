@@ -37,7 +37,7 @@ bool Replicator::connect(const std::string &host, uint16_t port) {
     startNetworkThread();
 
     // Don't set _connected yet - wait for CONNECT event in network thread
-    _connected = false;
+    _connected.store(false);
     return true;
 }
 
@@ -49,35 +49,37 @@ void Replicator::disconnect() {
         _serverPeer->disconnect();
         _serverPeer = nullptr;
     }
-    _connected = false;
+    _connected.store(false);
 }
 
 bool Replicator::isConnected() const {
-    return _connected;
+    return _connected.load();
 }
 
 void Replicator::startNetworkThread() {
-    if (_running) {
-        return;  // Thread already running
+    bool expected = false;
+    // Atomically check if _running is false and set it to true
+    // This prevents multiple threads from creating the network thread
+    if (!_running.compare_exchange_strong(expected, true)) {
+        return;  // Thread already running or being started
     }
 
-    _running = true;
     _networkThread = std::thread(&Replicator::networkThreadLoop, this);
 }
 
 void Replicator::stopNetworkThread() {
-    if (!_running) {
+    if (!_running.load()) {
         return;  // Thread not running
     }
 
-    _running = false;
+    _running.store(false);
     if (_networkThread.joinable()) {
         _networkThread.join();
     }
 }
 
 void Replicator::networkThreadLoop() {
-    while (_running) {
+    while (_running.load()) {
         if (!_host) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
@@ -106,7 +108,7 @@ void Replicator::networkThreadLoop() {
                 break;
 
             case NetworkEventType::CONNECT:
-                _connected = true;
+                _connected.store(true);
                 // Publish connection event
                 {
                     NetworkEvent netEvent(NetworkMessageType::CONNECT, {});
@@ -115,7 +117,7 @@ void Replicator::networkThreadLoop() {
                 break;
 
             case NetworkEventType::DISCONNECT:
-                _connected = false;
+                _connected.store(false);
                 _serverPeer = nullptr;
                 // Publish disconnection event
                 {
@@ -146,7 +148,7 @@ void Replicator::processMessages() {
 }
 
 void Replicator::sendPacket(NetworkMessageType type, const std::vector<uint8_t> &data) {
-    if (!_serverPeer || !_connected) {
+    if (!_serverPeer || !_connected.load()) {
         return;
     }
 
@@ -155,7 +157,7 @@ void Replicator::sendPacket(NetworkMessageType type, const std::vector<uint8_t> 
 }
 
 bool Replicator::sendConnectRequest(const std::string &playerName) {
-    if (!_serverPeer || !_connected) {
+    if (!_serverPeer || !_connected.load()) {
         return false;
     }
 

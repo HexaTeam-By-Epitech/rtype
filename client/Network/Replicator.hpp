@@ -213,7 +213,7 @@ class Replicator {
     void processIncomingPacket(const std::vector<uint8_t> &packet);
 
     EventBus &_eventBus;
-    bool _connected = false;
+    std::atomic<bool> _connected{false};
     std::string _serverHost;
     uint16_t _serverPort = 0;
 

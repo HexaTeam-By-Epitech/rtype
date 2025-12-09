@@ -95,10 +95,12 @@ const IAddress &ENetPeerWrapper::getAddress() const {
         throw std::runtime_error("Cannot get address of null peer");
     }
 
-    // Create and cache the address wrapper
-    static thread_local ENetAddressWrapper addressWrapper(peer_->address);
-    addressWrapper = ENetAddressWrapper(peer_->address);
-    return addressWrapper;
+    // Create and cache the address wrapper in member variable
+    // This ensures thread-safety and correct address for this specific peer
+    if (!cachedAddress_) {
+        cachedAddress_ = std::make_unique<ENetAddressWrapper>(peer_->address);
+    }
+    return *cachedAddress_;
 }
 
 uint32_t ENetPeerWrapper::getID() const {

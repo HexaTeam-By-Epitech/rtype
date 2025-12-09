@@ -78,7 +78,7 @@ class ServerNetworkManager {
     /**
      * @brief Check if server is running
      */
-    bool isRunning() const { return _running; }
+    bool isRunning() const { return _running.load(); }
 
    private:
     /**

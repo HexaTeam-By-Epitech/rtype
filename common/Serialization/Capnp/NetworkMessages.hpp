@@ -119,8 +119,19 @@ namespace NetworkMessages {
         // Read payload length
         uint32_t length = packet[2] | (packet[3] << 8) | (packet[4] << 16) | (packet[5] << 24);
 
-        // Validate
+        // Validate length is reasonable (max 10MB to prevent DoS attacks)
+        constexpr uint32_t MAX_PAYLOAD_SIZE = 10 * 1024 * 1024;
+        if (length > MAX_PAYLOAD_SIZE) {
+            return {};
+        }
+
+        // Validate the declared length doesn't exceed actual packet size
         if (packet.size() < 6 + length) {
+            return {};
+        }
+
+        // Additional sanity check: ensure no integer overflow when adding 6 + length
+        if (length > packet.size() - 6) {
             return {};
         }
 
@@ -161,9 +172,22 @@ namespace NetworkMessages {
         // Read length
         uint32_t length =
             bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24);
+
+        // Validate length is reasonable (max 1MB for strings to prevent DoS)
+        constexpr uint32_t MAX_STRING_SIZE = 1024 * 1024;
+        if (length > MAX_STRING_SIZE) {
+            return "";
+        }
+
         offset += 4;
 
+        // Validate the declared length doesn't exceed actual buffer size
         if (bytes.size() < offset + length) {
+            return "";
+        }
+
+        // Additional sanity check: ensure no integer overflow
+        if (length > bytes.size() - offset) {
             return "";
         }
 

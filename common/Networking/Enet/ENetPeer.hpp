@@ -8,6 +8,8 @@
 #pragma once
 
 #include <enet/enet.h>
+#include <memory>
+#include "ENetAddress.hpp"
 #include "IPeer.hpp"
 
 class ENetPeerWrapper final : public IPeer {
@@ -30,4 +32,5 @@ class ENetPeerWrapper final : public IPeer {
 
    private:
     ENetPeer *peer_;
+    mutable std::unique_ptr<ENetAddressWrapper> cachedAddress_;
 };

@@ -138,9 +138,10 @@ const IAddress &ENetHostWrapper::getAddress() const {
         throw std::runtime_error("Host is null");
     }
 
-    // Create address wrapper from host's address using the direct constructor
-    static thread_local ENetAddressWrapper cachedAddress(host_->address);
-    // Update the cached address with current host address
-    cachedAddress = ENetAddressWrapper(host_->address);
-    return cachedAddress;
+    // Create and cache the address wrapper in member variable
+    // This ensures thread-safety and correct address for this specific host
+    if (!cachedAddress_) {
+        cachedAddress_ = std::make_unique<ENetAddressWrapper>(host_->address);
+    }
+    return *cachedAddress_;
 }

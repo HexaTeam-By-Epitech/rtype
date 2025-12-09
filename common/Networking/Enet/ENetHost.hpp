@@ -10,6 +10,7 @@
 #include <enet/enet.h>
 #include <map>
 #include <memory>
+#include "ENetAddress.hpp"
 #include "IHost.hpp"
 
 class ENetPeerWrapper;
@@ -40,4 +41,5 @@ class ENetHostWrapper final : public IHost {
    private:
     ENetHost *host_;
     std::map<ENetPeer *, std::unique_ptr<ENetPeerWrapper>> peers_;
+    mutable std::unique_ptr<ENetAddressWrapper> cachedAddress_;
 };

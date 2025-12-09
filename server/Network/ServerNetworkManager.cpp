@@ -16,6 +16,14 @@ ServerNetworkManager::~ServerNetworkManager() {
 }
 
 bool ServerNetworkManager::start() {
+    // Atomically check if _running is false and set it to true
+    // This prevents multiple threads from starting the server simultaneously
+    bool expected = false;
+    if (!_running.compare_exchange_strong(expected, true)) {
+        std::cerr << "[ServerNetworkManager] Server is already running" << std::endl;
+        return false;
+    }
+
     try {
         // Create server host
         auto address = createAddress("0.0.0.0", _port);
@@ -24,25 +32,26 @@ bool ServerNetworkManager::start() {
         std::cout << "[ServerNetworkManager] Server listening on port " << _port << std::endl;
 
         // Start network thread
-        _running = true;
         _networkThread = std::thread(&ServerNetworkManager::networkThreadLoop, this);
 
         return true;
 
     } catch (const std::exception &e) {
         std::cerr << "[ServerNetworkManager] Failed to start: " << e.what() << std::endl;
+        // Reset _running to false since we failed to start
+        _running.store(false);
         return false;
     }
 }
 
 void ServerNetworkManager::stop() {
-    if (!_running) {
+    if (!_running.load()) {
         return;
     }
 
     std::cout << "[ServerNetworkManager] Stopping network thread..." << std::endl;
 
-    _running = false;
+    _running.store(false);
 
     if (_networkThread.joinable()) {
         _networkThread.join();
@@ -56,7 +65,7 @@ void ServerNetworkManager::stop() {
 void ServerNetworkManager::networkThreadLoop() {
     std::cout << "[ServerNetworkManager] Network thread started" << std::endl;
 
-    while (_running) {
+    while (_running.load()) {
         if (!_host) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;

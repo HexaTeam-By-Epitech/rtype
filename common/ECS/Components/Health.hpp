@@ -25,7 +25,8 @@ namespace ecs {
          * Sets current health equal to max health.
          * @param maxHealth Maximum health points
          */
-        Health(int maxHealth) : _current(maxHealth), _max(maxHealth), _invincible(false), _timer(0) {}
+        explicit Health(int maxHealth)
+            : _current(maxHealth), _max(maxHealth), _invincible(false), _timer(0) {}
 
         /**
          * @brief Constructor with current and maximum health.

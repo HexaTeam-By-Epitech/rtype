@@ -4,6 +4,7 @@
   "dependencies": [
     "gtest",
     "raylib",
-    "capnproto"
+    "capnproto",
+    "enet"
   ]
 }

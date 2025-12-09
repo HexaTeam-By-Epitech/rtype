@@ -15,6 +15,14 @@ enable_testing()
 
 option(BUILD_SERVER "Build R-Type server" ON)
 option(BUILD_CLIENT "Build R-Type client" ON)
+option(ENABLE_COVERAGE "Enable code coverage reporting" OFF)
+
+# Coverage configuration
+if(ENABLE_COVERAGE)
+    message(STATUS "Code coverage enabled")
+    add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+    add_link_options(--coverage)
+endif()
 
 if (BUILD_SERVER)
     add_subdirectory(server)
@@ -24,6 +32,8 @@ if (BUILD_CLIENT)
     add_subdirectory(client)
 endif ()
 
-add_subdirectory(common/serialization)
+add_subdirectory(common/Serialization)
+add_subdirectory(common/Networking)
+add_subdirectory(common/Threading)
 
 add_subdirectory(tests)

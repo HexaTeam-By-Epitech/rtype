@@ -250,6 +250,25 @@ namespace ecs {
      */
         template <typename... Components>
         std::vector<Address> view();
+
+        /**
+     * @brief Get all entities matching a specific component mask.
+     *
+     * Returns a vector of entity addresses that have all the components
+     * specified by the bitmask. This is the low-level filtering method
+     * used by systems for efficient entity queries.
+     *
+     * @param requiredMask Bitmask of required components (from ComponentMask)
+     * @return std::vector<Address> Vector of entity addresses matching the mask.
+     *
+     * @code
+     * // Get entities matching a specific mask
+     * ComponentMask mask = (1ULL << getComponentType<Transform>()) | 
+     *                      (1ULL << getComponentType<Velocity>());
+     * auto entities = registry.getEntitiesWithMask(mask);
+     * @endcode
+     */
+        std::vector<Address> getEntitiesWithMask(Signature requiredMask);
     };
 }  // namespace ecs
 

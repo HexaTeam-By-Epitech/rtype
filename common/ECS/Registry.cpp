@@ -76,4 +76,20 @@ namespace ecs {
         }
         return sign;
     }
+
+    std::vector<Address> Registry::getEntitiesWithMask(Signature requiredMask) {
+        std::vector<Address> result;
+
+        if (requiredMask == 0) {
+            return result;
+        }
+
+        for (const auto &[address, signature] : _signatures) {
+            if ((signature & requiredMask) == requiredMask) {
+                result.push_back(address);
+            }
+        }
+
+        return result;
+    }
 }  // namespace ecs

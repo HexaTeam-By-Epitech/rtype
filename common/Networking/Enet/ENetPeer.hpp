@@ -31,6 +31,6 @@ class ENetPeerWrapper final : public IPeer {
     [[nodiscard]] ENetPeer *getNativePeer() const;
 
    private:
-    ENetPeer *peer_;
-    mutable std::unique_ptr<ENetAddressWrapper> cachedAddress_;
+    ENetPeer *_peer;
+    mutable std::unique_ptr<ENetAddressWrapper> _cachedAddress;
 };

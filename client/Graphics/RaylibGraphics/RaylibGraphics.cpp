@@ -13,10 +13,10 @@ namespace Graphics {
     RaylibGraphics::RaylibGraphics() {}
 
     RaylibGraphics::~RaylibGraphics() {
-        for (const auto &font : _fonts) {
+        for (const Font &font : _fonts) {
             ::UnloadFont(font);
         }
-        for (const auto &texture : _textures) {
+        for (const Texture2D &texture : _textures) {
             ::UnloadTexture(texture);
         }
         ::CloseWindow();

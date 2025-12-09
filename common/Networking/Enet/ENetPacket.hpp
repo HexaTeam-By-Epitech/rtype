@@ -32,7 +32,7 @@ class ENetPacketWrapper final : public IPacket {
     [[nodiscard]] ENetPacket *getNativePacket() const;
 
    private:
-    ENetPacket *packet_;
-    mutable std::vector<uint8_t> dataCache_;
-    mutable bool dataCacheValid_;
+    ENetPacket *_packet;
+    mutable std::vector<uint8_t> _dataCache;
+    mutable bool _dataCacheValid;
 };

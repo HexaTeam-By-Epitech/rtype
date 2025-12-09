@@ -10,14 +10,14 @@
 #include "ENetAddress.hpp"
 #include "ENetPacket.hpp"
 
-ENetPeerWrapper::ENetPeerWrapper(ENetPeer *peer) : peer_(peer) {
-    if (!peer_) {
+ENetPeerWrapper::ENetPeerWrapper(ENetPeer *peer) : _peer(peer) {
+    if (!_peer) {
         throw std::invalid_argument("ENetPeer cannot be null");
     }
 }
 
 bool ENetPeerWrapper::send(std::unique_ptr<IPacket> packet, uint8_t channelID) {
-    if (!peer_ || !packet) {
+    if (!_peer || !packet) {
         return false;
     }
 
@@ -28,7 +28,7 @@ bool ENetPeerWrapper::send(std::unique_ptr<IPacket> packet, uint8_t channelID) {
     }
 
     ENetPacket *nativePacket = enetPacket->getNativePacket();
-    if (enet_peer_send(peer_, channelID, nativePacket) < 0) {
+    if (enet_peer_send(_peer, channelID, nativePacket) < 0) {
         return false;
     }
 
@@ -38,33 +38,33 @@ bool ENetPeerWrapper::send(std::unique_ptr<IPacket> packet, uint8_t channelID) {
 }
 
 void ENetPeerWrapper::disconnect(uint32_t data) {
-    if (peer_) {
-        enet_peer_disconnect(peer_, data);
+    if (_peer) {
+        enet_peer_disconnect(_peer, data);
     }
 }
 
 void ENetPeerWrapper::disconnectNow(uint32_t data) {
-    if (peer_) {
-        enet_peer_disconnect_now(peer_, data);
+    if (_peer) {
+        enet_peer_disconnect_now(_peer, data);
     }
 }
 
 void ENetPeerWrapper::disconnectLater(uint32_t data) {
-    if (peer_) {
-        enet_peer_disconnect_later(peer_, data);
+    if (_peer) {
+        enet_peer_disconnect_later(_peer, data);
     }
 }
 
 ENetPeer *ENetPeerWrapper::getNativePeer() const {
-    return peer_;
+    return _peer;
 }
 
 PeerState ENetPeerWrapper::getState() const {
-    if (!peer_) {
+    if (!_peer) {
         return PeerState::DISCONNECTED;
     }
 
-    switch (peer_->state) {
+    switch (_peer->state) {
         case ENET_PEER_STATE_DISCONNECTED:
             return PeerState::DISCONNECTED;
         case ENET_PEER_STATE_CONNECTING:
@@ -91,41 +91,41 @@ PeerState ENetPeerWrapper::getState() const {
 }
 
 const IAddress &ENetPeerWrapper::getAddress() const {
-    if (!peer_) {
+    if (!_peer) {
         throw std::runtime_error("Cannot get address of null peer");
     }
 
     // Create and cache the address wrapper in member variable
     // This ensures thread-safety and correct address for this specific peer
-    if (!cachedAddress_) {
-        cachedAddress_ = std::make_unique<ENetAddressWrapper>(peer_->address);
+    if (!_cachedAddress) {
+        _cachedAddress = std::make_unique<ENetAddressWrapper>(_peer->address);
     }
-    return *cachedAddress_;
+    return *_cachedAddress;
 }
 
 uint32_t ENetPeerWrapper::getID() const {
-    if (!peer_) {
+    if (!_peer) {
         return 0;
     }
-    return peer_->connectID;
+    return _peer->connectID;
 }
 
 uint32_t ENetPeerWrapper::getRoundTripTime() const {
-    if (!peer_) {
+    if (!_peer) {
         return 0;
     }
-    return peer_->roundTripTime;
+    return _peer->roundTripTime;
 }
 
 void ENetPeerWrapper::setData(void *data) {
-    if (peer_) {
-        peer_->data = data;
+    if (_peer) {
+        _peer->data = data;
     }
 }
 
 void *ENetPeerWrapper::getData() const {
-    if (!peer_) {
+    if (!_peer) {
         return nullptr;
     }
-    return peer_->data;
+    return _peer->data;
 }

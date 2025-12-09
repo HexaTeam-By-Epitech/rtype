@@ -14,8 +14,8 @@
 // Client constructor
 ENetHostWrapper::ENetHostWrapper(size_t maxConnections, size_t maxChannels, uint32_t incomingBandwidth,
                                  uint32_t outgoingBandwidth) {
-    host_ = enet_host_create(nullptr, maxConnections, maxChannels, incomingBandwidth, outgoingBandwidth);
-    if (!host_) {
+    _host = enet_host_create(nullptr, maxConnections, maxChannels, incomingBandwidth, outgoingBandwidth);
+    if (!_host) {
         throw std::runtime_error("Failed to create ENet client host");
     }
 }
@@ -29,15 +29,15 @@ ENetHostWrapper::ENetHostWrapper(const IAddress &address, size_t maxConnections,
     }
 
     const ENetAddress &nativeAddr = enetAddr->getNativeAddress();
-    host_ = enet_host_create(&nativeAddr, maxConnections, maxChannels, incomingBandwidth, outgoingBandwidth);
-    if (!host_) {
+    _host = enet_host_create(&nativeAddr, maxConnections, maxChannels, incomingBandwidth, outgoingBandwidth);
+    if (!_host) {
         throw std::runtime_error("Failed to create ENet server host");
     }
 }
 
 ENetHostWrapper::~ENetHostWrapper() {
-    if (host_) {
-        enet_host_destroy(host_);
+    if (_host) {
+        enet_host_destroy(_host);
     }
 }
 
@@ -48,7 +48,7 @@ IPeer *ENetHostWrapper::connect(const IAddress &address, size_t channelCount, ui
     }
 
     const ENetAddress &nativeAddr = enetAddr->getNativeAddress();
-    ENetPeer *peer = enet_host_connect(host_, &nativeAddr, channelCount, data);
+    ENetPeer *peer = enet_host_connect(_host, &nativeAddr, channelCount, data);
     if (!peer) {
         throw std::runtime_error("Failed to connect to host");
     }
@@ -56,14 +56,14 @@ IPeer *ENetHostWrapper::connect(const IAddress &address, size_t channelCount, ui
     // Store peer wrapper
     auto peerWrapper = std::make_unique<ENetPeerWrapper>(peer);
     IPeer *result = peerWrapper.get();
-    peers_[peer] = std::move(peerWrapper);
+    _peers[peer] = std::move(peerWrapper);
 
     return result;
 }
 
 std::optional<HostNetworkEvent> ENetHostWrapper::service(uint32_t timeout) {
     ENetEvent event;
-    int result = enet_host_service(host_, &event, timeout);
+    int result = enet_host_service(_host, &event, timeout);
 
     if (result > 0) {
         HostNetworkEvent netEvent;
@@ -73,26 +73,26 @@ std::optional<HostNetworkEvent> ENetHostWrapper::service(uint32_t timeout) {
             case ENET_EVENT_TYPE_CONNECT:
                 netEvent.type = NetworkEventType::CONNECT;
                 // Create peer wrapper if not exists
-                if (peers_.find(event.peer) == peers_.end()) {
+                if (_peers.find(event.peer) == _peers.end()) {
                     auto peerWrapper = std::make_unique<ENetPeerWrapper>(event.peer);
                     netEvent.peer = peerWrapper.get();
-                    peers_[event.peer] = std::move(peerWrapper);
+                    _peers[event.peer] = std::move(peerWrapper);
                 } else {
-                    netEvent.peer = peers_[event.peer].get();
+                    netEvent.peer = _peers[event.peer].get();
                 }
                 break;
 
             case ENET_EVENT_TYPE_DISCONNECT:
                 netEvent.type = NetworkEventType::DISCONNECT;
-                if (peers_.find(event.peer) != peers_.end()) {
-                    netEvent.peer = peers_[event.peer].get();
+                if (_peers.find(event.peer) != _peers.end()) {
+                    netEvent.peer = _peers[event.peer].get();
                 }
                 break;
 
             case ENET_EVENT_TYPE_RECEIVE:
                 netEvent.type = NetworkEventType::RECEIVE;
-                if (peers_.find(event.peer) != peers_.end()) {
-                    netEvent.peer = peers_[event.peer].get();
+                if (_peers.find(event.peer) != _peers.end()) {
+                    netEvent.peer = _peers[event.peer].get();
                 }
                 netEvent.packet = std::make_unique<ENetPacketWrapper>(event.packet);
                 break;
@@ -118,30 +118,30 @@ void ENetHostWrapper::broadcast(std::unique_ptr<IPacket> packet, uint8_t channel
     }
 
     ENetPacket *nativePacket = enetPacket->getNativePacket();
-    enet_host_broadcast(host_, channelID, nativePacket);
+    enet_host_broadcast(_host, channelID, nativePacket);
 
     (void)packet.release();  // ENet owns the packet now
 }
 
 void ENetHostWrapper::flush() {
-    if (host_) {
-        enet_host_flush(host_);
+    if (_host) {
+        enet_host_flush(_host);
     }
 }
 
 size_t ENetHostWrapper::getPeerCount() const {
-    return host_ ? host_->connectedPeers : 0;
+    return _host ? _host->connectedPeers : 0;
 }
 
 const IAddress &ENetHostWrapper::getAddress() const {
-    if (!host_) {
+    if (!_host) {
         throw std::runtime_error("Host is null");
     }
 
     // Create and cache the address wrapper in member variable
     // This ensures thread-safety and correct address for this specific host
-    if (!cachedAddress_) {
-        cachedAddress_ = std::make_unique<ENetAddressWrapper>(host_->address);
+    if (!_cachedAddress) {
+        _cachedAddress = std::make_unique<ENetAddressWrapper>(_host->address);
     }
-    return *cachedAddress_;
+    return *_cachedAddress;
 }

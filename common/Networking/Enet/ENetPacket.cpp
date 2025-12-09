@@ -9,76 +9,76 @@
 #include <cstring>
 #include <stdexcept>
 
-ENetPacketWrapper::ENetPacketWrapper(ENetPacket *packet) : packet_(packet), dataCacheValid_(false) {
-    if (!packet_) {
+ENetPacketWrapper::ENetPacketWrapper(ENetPacket *packet) : _packet(packet), _dataCacheValid(false) {
+    if (!_packet) {
         throw std::invalid_argument("ENetPacket cannot be null");
     }
 }
 
 ENetPacketWrapper::ENetPacketWrapper(const std::vector<uint8_t> &data, uint32_t flags)
-    : packet_(nullptr), dataCacheValid_(false) {
-    packet_ = enet_packet_create(data.data(), data.size(), flags);
-    if (!packet_) {
+    : _packet(nullptr), _dataCacheValid(false) {
+    _packet = enet_packet_create(data.data(), data.size(), flags);
+    if (!_packet) {
         throw std::runtime_error("Failed to create ENet packet");
     }
 }
 
 ENetPacketWrapper::~ENetPacketWrapper() {
-    if (packet_) {
-        enet_packet_destroy(packet_);
+    if (_packet) {
+        enet_packet_destroy(_packet);
     }
 }
 
 ENetPacketWrapper::ENetPacketWrapper(ENetPacketWrapper &&other) noexcept
-    : packet_(other.packet_),
-      dataCache_(std::move(other.dataCache_)),
-      dataCacheValid_(other.dataCacheValid_) {
-    other.packet_ = nullptr;
-    other.dataCacheValid_ = false;
+    : _packet(other._packet),
+      _dataCache(std::move(other._dataCache)),
+      _dataCacheValid(other._dataCacheValid) {
+    other._packet = nullptr;
+    other._dataCacheValid = false;
 }
 
 ENetPacketWrapper &ENetPacketWrapper::operator=(ENetPacketWrapper &&other) noexcept {
     if (this != &other) {
-        if (packet_) {
-            enet_packet_destroy(packet_);
+        if (_packet) {
+            enet_packet_destroy(_packet);
         }
-        packet_ = other.packet_;
-        dataCache_ = std::move(other.dataCache_);
-        dataCacheValid_ = other.dataCacheValid_;
+        _packet = other._packet;
+        _dataCache = std::move(other._dataCache);
+        _dataCacheValid = other._dataCacheValid;
 
-        other.packet_ = nullptr;
-        other.dataCacheValid_ = false;
+        other._packet = nullptr;
+        other._dataCacheValid = false;
     }
     return *this;
 }
 
 const std::vector<uint8_t> &ENetPacketWrapper::getData() const {
-    if (!dataCacheValid_ && packet_) {
-        dataCache_.assign(packet_->data, packet_->data + packet_->dataLength);
-        dataCacheValid_ = true;
+    if (!_dataCacheValid && _packet) {
+        _dataCache.assign(_packet->data, _packet->data + _packet->dataLength);
+        _dataCacheValid = true;
     }
-    return dataCache_;
+    return _dataCache;
 }
 
 size_t ENetPacketWrapper::getSize() const {
-    return packet_ ? packet_->dataLength : 0;
+    return _packet ? _packet->dataLength : 0;
 }
 
 uint32_t ENetPacketWrapper::getFlags() const {
-    return packet_ ? packet_->flags : 0;
+    return _packet ? _packet->flags : 0;
 }
 
 void ENetPacketWrapper::setData(const std::vector<uint8_t> &data) {
-    if (packet_) {
-        enet_packet_destroy(packet_);
+    if (_packet) {
+        enet_packet_destroy(_packet);
     }
-    packet_ = enet_packet_create(data.data(), data.size(), ENET_PACKET_FLAG_RELIABLE);
-    if (!packet_) {
+    _packet = enet_packet_create(data.data(), data.size(), ENET_PACKET_FLAG_RELIABLE);
+    if (!_packet) {
         throw std::runtime_error("Failed to create ENet packet");
     }
-    dataCacheValid_ = false;
+    _dataCacheValid = false;
 }
 
 ENetPacket *ENetPacketWrapper::getNativePacket() const {
-    return packet_;
+    return _packet;
 }

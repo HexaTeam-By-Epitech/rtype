@@ -24,7 +24,7 @@ bool Replicator::connect(const std::string &host, uint16_t port) {
     _serverPort = port;
 
     // Create address for server
-    auto address = createAddress(host, port);
+    std::unique_ptr<IAddress> address = createAddress(host, port);
 
     // Connect to server (asynchronous - will get CONNECT event later)
     _serverPeer = _host->connect(*address, 2, 0);

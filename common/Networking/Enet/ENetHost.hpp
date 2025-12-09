@@ -39,7 +39,7 @@ class ENetHostWrapper final : public IHost {
     [[nodiscard]] const IAddress &getAddress() const override;
 
    private:
-    ENetHost *host_;
-    std::map<ENetPeer *, std::unique_ptr<ENetPeerWrapper>> peers_;
-    mutable std::unique_ptr<ENetAddressWrapper> cachedAddress_;
+    ENetHost *_host;
+    std::map<ENetPeer *, std::unique_ptr<ENetPeerWrapper>> _peers;
+    mutable std::unique_ptr<ENetAddressWrapper> _cachedAddress;
 };

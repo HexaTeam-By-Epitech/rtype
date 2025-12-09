@@ -27,5 +27,5 @@ class ENetAddressWrapper final : public IAddress {
     [[nodiscard]] ENetAddress &getNativeAddress();
 
    private:
-    ENetAddress address_;
+    ENetAddress _address;
 };

@@ -20,7 +20,7 @@ namespace server {
      */
     class ThreadPool : public IThreadPool {
        public:
-        ThreadPool(size_t threadCount);
+        explicit ThreadPool(size_t threadCount);
         ~ThreadPool() override;
 
         void enqueue(Task task) override;

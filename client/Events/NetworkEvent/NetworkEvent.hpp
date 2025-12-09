@@ -36,6 +36,7 @@ enum class NetworkMessageType {
  * NetworkEvent encapsulates network messages received from or sent to the server:
  * - Message type (WORLD_STATE, PLAYER_INPUT, etc.)
  * - Raw binary data payload
+ * - Decoded message content (for convenience)
  * - Timestamp for latency measurement
  * 
  * Flow:
@@ -80,10 +81,23 @@ class NetworkEvent : public IEvent {
      */
     void setTimestamp(uint64_t timestamp) { _timestamp = timestamp; }
 
+    /**
+     * @brief Get decoded message content (for convenience)
+     * @return Decoded message string
+     */
+    const std::string &getMessageContent() const { return _messageContent; }
+
+    /**
+     * @brief Set decoded message content
+     * @param content Decoded message
+     */
+    void setMessageContent(const std::string &content) { _messageContent = content; }
+
    private:
-    NetworkMessageType _type;    ///< Type of network message
-    std::vector<uint8_t> _data;  ///< Raw binary data payload
-    uint64_t _timestamp;         ///< Timestamp for latency measurement
+    NetworkMessageType _type;     ///< Type of network message
+    std::vector<uint8_t> _data;   ///< Raw binary data payload
+    uint64_t _timestamp;          ///< Timestamp for latency measurement
+    std::string _messageContent;  ///< Decoded message content (optional, for convenience)
 };
 
 /**

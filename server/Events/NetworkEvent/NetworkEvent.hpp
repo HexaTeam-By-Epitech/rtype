@@ -23,7 +23,7 @@ namespace server {
        public:
         enum class Type { UNKNOWN, CLIENT_CONNECTED, CLIENT_DISCONNECTED, MESSAGE_RECEIVED, MESSAGE_SENT };
 
-        NetworkEvent(Type type, int clientId = -1);
+        explicit NetworkEvent(Type type, int clientId = -1);
         virtual ~NetworkEvent() override = default;
 
         /**

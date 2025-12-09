@@ -87,7 +87,7 @@ namespace server {
 
             const std::any box = event;
 
-            for (auto &cb : it->second)
+            for (const auto &cb : it->second)
                 cb(box);
         }
 

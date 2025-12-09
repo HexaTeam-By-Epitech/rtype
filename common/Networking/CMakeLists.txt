@@ -3,7 +3,7 @@ project(networking)
 
 file(GLOB NETWORKING_SRC
     "NetworkFactory.cpp"
-    "enet/*.cpp"
+    "Enet/*.cpp"
 )
 file(GLOB NETWORKING_HEADERS
     "NetworkFactory.hpp"
@@ -11,7 +11,7 @@ file(GLOB NETWORKING_HEADERS
     "IHost.hpp"
     "IPacket.hpp"
     "IPeer.hpp"
-    "enet/*.hpp"
+    "Enet/*.hpp"
 )
 
 add_library(rtype_networking SHARED ${NETWORKING_SRC} ${NETWORKING_HEADERS})
@@ -24,7 +24,7 @@ target_include_directories(rtype_networking
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}        # for public headers
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/enet  # enet wrapper is internal
+        ${CMAKE_CURRENT_SOURCE_DIR}/Enet  # Enet wrapper is internal
 )
 
 # Link ENet library

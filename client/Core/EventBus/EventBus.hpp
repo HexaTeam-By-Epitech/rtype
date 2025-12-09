@@ -102,4 +102,22 @@ class EventBus {
     std::unordered_map<std::type_index, std::vector<std::function<void(const IEvent &)>>> _subscribers;
 };
 
+// Template implementations must be in header for linker
+template <typename T>
+size_t EventBus::subscribe(EventCallback<T> callback) {
+    auto &vec = _subscribers[std::type_index(typeid(T))];
+    vec.push_back([callback = std::move(callback)](const IEvent &e) { callback(static_cast<const T &>(e)); });
+    return vec.size() - 1;
+}
+
+template <typename T>
+void EventBus::publish(const T &event) {
+    auto it = _subscribers.find(std::type_index(typeid(T)));
+    if (it != _subscribers.end()) {
+        for (const auto &callback : it->second) {
+            callback(event);
+        }
+    }
+}
+
 #endif

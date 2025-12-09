@@ -5,7 +5,8 @@ file(GLOB_RECURSE SERVER_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/Game/**/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Rooms/**/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Sessions/**/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Network/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Server/*.cpp"
 )
 
 # Librairie serveur
@@ -15,7 +16,6 @@ add_library(rtype_server_lib ${SERVER_SOURCES})
 target_include_directories(rtype_server_lib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/Core
         ${CMAKE_CURRENT_SOURCE_DIR}/Events
         ${CMAKE_CURRENT_SOURCE_DIR}/Events/Core
@@ -35,13 +35,17 @@ target_include_directories(rtype_server_lib
 
 target_compile_features(rtype_server_lib PUBLIC cxx_std_23)
 
+target_link_libraries(rtype_server_lib PUBLIC
+    rtype_serialization
+    rtype_networking
+    rtype_threading
+)
+
 # Exécutable serveur
 add_executable(r-type_server
-    src/main.cpp
+    main.cpp
 )
 
 # Link avec la lib
 target_link_libraries(r-type_server PRIVATE rtype_server_lib)
 
-# Include pour l’exécutable
-target_include_directories(r-type_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

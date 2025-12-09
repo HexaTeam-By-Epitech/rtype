@@ -38,7 +38,7 @@ class Rendering {
      * 
      * @note Does not create the window, call initialize() after
      */
-    Rendering(EventBus &eventBus);
+    explicit Rendering(EventBus &eventBus);
 
     /**
      * @brief Destructor

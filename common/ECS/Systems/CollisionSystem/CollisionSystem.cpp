@@ -13,6 +13,7 @@ namespace ecs {
      * @brief Performs collision detection between all collidable entities.
      */
     void CollisionSystem::update(Registry &registry, float deltaTime) {
+        (void)deltaTime;  // Collision detection is instantaneous, deltaTime not needed
         auto entities = registry.getEntitiesWithMask(this->getComponentMask());
         std::vector<std::uint32_t> entitiesVec(entities.begin(), entities.end());
 
@@ -44,15 +45,15 @@ namespace ecs {
                                     const Collider::Vector2 &offset1, const Transform::Vector2 &pos2,
                                     const Collider::Vector2 &size2, const Collider::Vector2 &offset2) const {
 
-        int left1 = pos1.x + offset1.x;
-        int right1 = left1 + size1.x;
-        int top1 = pos1.y + offset1.y;
-        int bottom1 = top1 + size1.y;
+        float left1 = pos1.x + offset1.x;
+        float right1 = left1 + size1.x;
+        float top1 = pos1.y + offset1.y;
+        float bottom1 = top1 + size1.y;
 
-        int left2 = pos2.x + offset2.x;
-        int right2 = left2 + size2.x;
-        int top2 = pos2.y + offset2.y;
-        int bottom2 = top2 + size2.y;
+        float left2 = pos2.x + offset2.x;
+        float right2 = left2 + size2.x;
+        float top2 = pos2.y + offset2.y;
+        float bottom2 = top2 + size2.y;
 
         return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2);
     }
@@ -68,4 +69,4 @@ namespace ecs {
     ComponentMask CollisionSystem::getComponentMask() const {
         return (1ULL << getComponentType<Transform>()) | (1ULL << getComponentType<Collider>());
     }
-}
+}  // namespace ecs

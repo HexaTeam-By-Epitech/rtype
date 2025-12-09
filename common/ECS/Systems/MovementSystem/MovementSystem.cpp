@@ -19,11 +19,11 @@ namespace ecs {
             auto &velocity = registry.getComponent<Velocity>(entityId);
 
             auto direction = velocity.getDirection();
-            int speed = velocity.getSpeed();
+            float speed = velocity.getSpeed();
             auto pos = transform.getPosition();
 
-            int newX = pos.x + direction.x * speed * deltaTime;
-            int newY = pos.y + direction.y * speed * deltaTime;
+            float newX = pos.x + direction.x * speed * deltaTime;
+            float newY = pos.y + direction.y * speed * deltaTime;
             transform.setPosition(newX, newY);
         }
     }
@@ -31,4 +31,4 @@ namespace ecs {
     ComponentMask MovementSystem::getComponentMask() const {
         return (1ULL << getComponentType<Transform>()) | (1ULL << getComponentType<Velocity>());
     }
-}
+}  // namespace ecs

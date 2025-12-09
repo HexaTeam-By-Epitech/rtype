@@ -18,9 +18,9 @@ namespace ecs {
         for (auto entityId : entities) {
             auto &weapon = registry.getComponent<Weapon>(entityId);
 
-            int cooldown = weapon.getCooldown();
-            if (cooldown > 0) {
-                weapon.setCooldown(cooldown - 1);
+            float cooldown = weapon.getCooldown();
+            if (cooldown > 0.0f) {
+                weapon.setCooldown(cooldown - deltaTime);
             }
         }
     }
@@ -28,4 +28,4 @@ namespace ecs {
     ComponentMask WeaponSystem::getComponentMask() const {
         return (1ULL << getComponentType<Weapon>()) | (1ULL << getComponentType<Transform>());
     }
-}
+}  // namespace ecs

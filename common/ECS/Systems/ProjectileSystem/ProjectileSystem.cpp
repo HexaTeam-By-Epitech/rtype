@@ -6,8 +6,8 @@
 */
 
 #include "ProjectileSystem.hpp"
-#include "../../Components/IComponent.hpp"
 #include <vector>
+#include "../../Components/IComponent.hpp"
 
 namespace ecs {
     void ProjectileSystem::update(Registry &registry, float deltaTime) {
@@ -17,10 +17,10 @@ namespace ecs {
         for (auto entityId : entities) {
             auto &projectile = registry.getComponent<Projectile>(entityId);
 
-            int newLifetime = projectile.getLifetime() - 1;
+            float newLifetime = projectile.getLifetime() - deltaTime;
             projectile.setLifetime(newLifetime);
 
-            if (newLifetime <= 0) {
+            if (newLifetime <= 0.0f) {
                 toDestroy.push_back(entityId);
             }
         }
@@ -33,4 +33,4 @@ namespace ecs {
     ComponentMask ProjectileSystem::getComponentMask() const {
         return (1ULL << getComponentType<Projectile>());
     }
-}
+}  // namespace ecs

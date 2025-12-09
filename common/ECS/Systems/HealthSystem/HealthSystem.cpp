@@ -20,12 +20,12 @@ namespace ecs {
             auto &health = registry.getComponent<Health>(entityId);
 
             if (health.isInvincible()) {
-                int timer = health.getInvincibilityTimer() - 1;
+                float timer = health.getInvincibilityTimer() - deltaTime;
                 health.setInvincibilityTimer(timer);
 
-                if (timer <= 0) {
+                if (timer <= 0.0f) {
                     health.setInvincible(false);
-                    health.setInvincibilityTimer(0);
+                    health.setInvincibilityTimer(0.0f);
                 }
             }
 
@@ -42,4 +42,4 @@ namespace ecs {
     ComponentMask HealthSystem::getComponentMask() const {
         return (1ULL << getComponentType<Health>());
     }
-}
+}  // namespace ecs

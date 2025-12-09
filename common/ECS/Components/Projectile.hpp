@@ -24,11 +24,11 @@ namespace ecs {
         /**
          * @brief Constructor with projectile parameters.
          * @param damage Damage dealt on impact
-         * @param lifetime Duration before auto-destruction (in frames/ticks)
+         * @param lifetime Duration before auto-destruction (in seconds)
          * @param ownerId Entity ID of the shooter
          * @param friendly True if friendly projectile, false if enemy
          */
-        Projectile(int damage, int lifetime, std::uint32_t ownerId, bool friendly)
+        Projectile(int damage, float lifetime, std::uint32_t ownerId, bool friendly)
             : _damage(damage), _lifetime(lifetime), _ownerId(ownerId), _friendly(friendly) {}
         ~Projectile() override = default;
 
@@ -40,9 +40,9 @@ namespace ecs {
 
         /**
          * @brief Get remaining lifetime.
-         * @return int Frames/ticks before auto-destruction.
+         * @return float Seconds before auto-destruction.
          */
-        int getLifetime() const { return _lifetime; }
+        float getLifetime() const { return _lifetime; }
 
         /**
          * @brief Get owner entity ID.
@@ -64,9 +64,9 @@ namespace ecs {
 
         /**
          * @brief Set remaining lifetime.
-         * @param lifetime New lifetime value
+         * @param lifetime New lifetime value in seconds
          */
-        void setLifetime(int lifetime) { _lifetime = lifetime; }
+        void setLifetime(float lifetime) { _lifetime = lifetime; }
 
         /**
          * @brief Set owner entity ID.
@@ -88,7 +88,7 @@ namespace ecs {
 
        private:
         int _damage;             ///< Damage dealt on impact
-        int _lifetime;           ///< Remaining lifetime in frames/ticks
+        float _lifetime;         ///< Remaining lifetime in seconds
         std::uint32_t _ownerId;  ///< Entity ID of the shooter
         bool _friendly;          ///< Team affiliation (true=friendly, false=enemy)
     };

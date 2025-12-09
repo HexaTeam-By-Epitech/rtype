@@ -25,17 +25,17 @@ namespace ecs {
          * @brief 2D vector for direction.
          */
         struct Vector2 {
-            int x;  ///< X component
-            int y;  ///< Y component
+            float x;  ///< X component
+            float y;  ///< Y component
         };
 
         /**
          * @brief Constructor with direction and speed.
          * @param dirX X direction component
          * @param dirY Y direction component
-         * @param speed Movement speed
+         * @param speed Movement speed in units per second
          */
-        Velocity(int dirX, int dirY, int speed) : _direction{dirX, dirY}, _speed(speed) {}
+        Velocity(float dirX, float dirY, float speed) : _direction{dirX, dirY}, _speed(speed) {}
         ~Velocity() override = default;
 
         /**
@@ -46,25 +46,25 @@ namespace ecs {
 
         /**
          * @brief Get the movement speed.
-         * @return int The speed value.
+         * @return float The speed value in units per second.
          */
-        int getSpeed() const { return _speed; }
+        float getSpeed() const { return _speed; }
 
         /**
          * @brief Set the direction vector.
          * @param dirX New X direction
          * @param dirY New Y direction
          */
-        void setDirection(int dirX, int dirY) {
+        void setDirection(float dirX, float dirY) {
             _direction.x = dirX;
             _direction.y = dirY;
         }
 
         /**
          * @brief Set the movement speed.
-         * @param speed New speed value
+         * @param speed New speed value in units per second
          */
-        void setSpeed(int speed) { _speed = speed; }
+        void setSpeed(float speed) { _speed = speed; }
 
         /**
          * @brief Get the component type ID.
@@ -74,7 +74,7 @@ namespace ecs {
 
        private:
         Vector2 _direction;  ///< Movement direction vector
-        int _speed;          ///< Movement speed
+        float _speed;        ///< Movement speed in units per second
     };
 }  // namespace ecs
 

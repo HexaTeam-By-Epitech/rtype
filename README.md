@@ -521,7 +521,7 @@ No! The entire campaign can be played offline in single-player or local co-op. I
 <details>
 <summary><b>Q: Can I play with a controller?</b></summary>
 
-Absolutely! R-Type Remake supports all major controllers including Xbox, PlayStation, Nintendo Switch Pro Controller, and standard USB joysticks.
+Absolutely! S-Type supports all major controllers including Xbox, PlayStation, Nintendo Switch Pro Controller, and standard USB joysticks.
 </details>
 
 <details>
@@ -533,13 +533,13 @@ Yes! Up to 4 players can play together locally on the same computer (requires mu
 <details>
 <summary><b>Q: How difficult is this game?</b></summary>
 
-R-Type is known for its challenge! We offer multiple difficulty settings from Easy (for newcomers) to Insane (for veterans). Practice mode lets you master any stage with unlimited lives.
+S-Type is known for its challenge! We offer multiple difficulty settings from Easy (for newcomers) to Insane (for veterans). Practice mode lets you master any stage with unlimited lives.
 </details>
 
 <details>
 <summary><b>Q: Are there microtransactions?</b></summary>
 
-No! R-Type Remake is a complete game with no microtransactions, loot boxes, or DLC. Buy once, play forever!
+No! S-Type Remake is a complete game with no microtransactions, loot boxes, or DLC. Buy once, play forever!
 </details>
 
 <details>
@@ -627,7 +627,7 @@ Feedback
 
 ## 📜 Credits
 
-**R-Type Remake** is a fan project created with love and respect for the original masterpiece by Irem Corporation.
+**S-Type** is a fan project created by HexaTeam with love and respect for the original masterpiece by Irem Corporation.
 
 ### Original Game
 - **Developer:** Irem Corporation (1987)
@@ -638,7 +638,7 @@ Feedback
 This project was created by passionate developers as an educational tribute to the original game.
 
 **Special Thanks:**
-- The entire R-Type community
+- The entire S-Type community
 - All our beta testers
 - Everyone who supported this project
 
@@ -651,7 +651,6 @@ This is a **non-commercial fan project** created for educational purposes.
 - R-Type™ is a registered trademark of Irem Software Engineering Inc.
 - This project is not affiliated with, endorsed by, or associated with Irem Corporation
 - All original game assets, characters, and concepts belong to their respective copyright holders
-- This remake uses original assets created specifically for this project
 
 **For educational and non-commercial use only.**
 

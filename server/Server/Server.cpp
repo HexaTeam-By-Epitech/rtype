@@ -9,6 +9,7 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include "Capnp/Messages/Messages.hpp"  // Cap'n Proto DTOs
 #include "Capnp/NetworkMessages.hpp"
 #include "NetworkFactory.hpp"
 
@@ -60,27 +61,113 @@ void Server::handlePacket(HostNetworkEvent &event) {
     }
 
     try {
+        using namespace RType::Messages;
+
         // Get message type
         auto messageType = NetworkMessages::getMessageType(event.packet->getData());
 
         switch (messageType) {
-            case NetworkMessages::MessageType::CONNECT_REQUEST: {
+            case NetworkMessages::MessageType::HANDSHAKE_REQUEST: {
                 // Parse connect request
                 std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData());
-                std::cout << "[Server] Player connected: " << playerName << std::endl;
+                std::cout << "[Server] Player '" << playerName << "' requesting to join..." << std::endl;
 
-                // Send response
-                std::string responseMsg = "Hello " + playerName + ", welcome to R-Type!";
-                auto responseData = NetworkMessages::createConnectResponse(responseMsg);
-                auto packet = createPacket(responseData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+                // Assign unique entity ID to new player
+                static uint32_t nextPlayerId = 1000;  // Start player IDs at 1000
+                uint32_t newPlayerId = nextPlayerId++;
+
+                std::cout << "[Server] Creating player entity (ID: " << newPlayerId << ")" << std::endl;
+
+                // ============================================================
+                // CREATE GAMESTART MESSAGE
+                // ============================================================
+                S2C::GameStart gameStart;
+                gameStart.yourEntityId = newPlayerId;
+                gameStart.initialState.serverTick = 0;
+
+                // ============================================================
+                // ADD NEW PLAYER TO INITIAL STATE
+                // ============================================================
+                S2C::EntityState newPlayerEntity;
+                newPlayerEntity.entityId = newPlayerId;
+                newPlayerEntity.type = Shared::EntityType::Player;
+                newPlayerEntity.position = Shared::Vec2(50.0f, 300.0f);  // Spawn on left side
+                newPlayerEntity.health = 100;
+                gameStart.initialState.entities.push_back(newPlayerEntity);
+
+                // ============================================================
+                // ADD EXISTING PLAYERS (example: simulate other players)
+                // ============================================================
+                // TODO: Replace with actual ECS query to get all existing players
+                // For now, let's add 2 dummy players as example
+                if (nextPlayerId > 1001) {  // If not the first player
+                    S2C::EntityState otherPlayer;
+                    otherPlayer.entityId = 1000;
+                    otherPlayer.type = Shared::EntityType::Player;
+                    otherPlayer.position = Shared::Vec2(50.0f, 200.0f);
+                    otherPlayer.health = 85;
+                    gameStart.initialState.entities.push_back(otherPlayer);
+                }
+
+                // ============================================================
+                // ADD ENEMIES (example game state)
+                // ============================================================
+                S2C::EntityState enemy1;
+                enemy1.entityId = 2001;
+                enemy1.type = Shared::EntityType::EnemyType1;
+                enemy1.position = Shared::Vec2(600.0f, 150.0f);
+                enemy1.health = 50;
+                gameStart.initialState.entities.push_back(enemy1);
+
+                S2C::EntityState enemy2;
+                enemy2.entityId = 2002;
+                enemy2.type = Shared::EntityType::EnemyType1;
+                enemy2.position = Shared::Vec2(700.0f, 400.0f);
+                enemy2.health = 50;
+                gameStart.initialState.entities.push_back(enemy2);
+
+                // ============================================================
+                // ADD BULLETS (example)
+                // ============================================================
+                S2C::EntityState bullet;
+                bullet.entityId = 3001;
+                bullet.type = Shared::EntityType::PlayerBullet;
+                bullet.position = Shared::Vec2(250.0f, 300.0f);
+                // Note: bullets don't have health (std::optional)
+                gameStart.initialState.entities.push_back(bullet);
+
+                // ============================================================
+                // SERIALIZE AND SEND
+                // ============================================================
+                auto gameStartPayload = gameStart.serialize();
+                auto gameStartPacket = NetworkMessages::createMessage(
+                    NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
+                auto packet = createPacket(gameStartPacket, static_cast<uint32_t>(PacketFlag::RELIABLE));
                 event.peer->send(std::move(packet), 0);
 
-                std::cout << "[Server] Sent welcome message to " << playerName << std::endl;
+                std::cout << "[Server] ✓ Sent GameStart to '" << playerName << "'" << std::endl;
+                std::cout << "[Server]   - Your entity ID: " << newPlayerId << std::endl;
+                std::cout << "[Server]   - Total entities: " << gameStart.initialState.entities.size()
+                          << std::endl;
+                std::cout << "[Server]   - Players: " << (nextPlayerId - 1000) << std::endl;
+                std::cout << "[Server]   - Enemies: 2" << std::endl;
+                std::cout << "[Server]   - Bullets: 1" << std::endl;
+                break;
+            }
+
+            case NetworkMessages::MessageType::C2S_PLAYER_INPUT: {
+                // TODO: Handle player input
+                auto payload = NetworkMessages::getPayload(event.packet->getData());
+                auto input = C2S::PlayerInput::deserialize(payload);
+
+                std::cout << "[Server] Received input from client (seq: " << input.sequenceId
+                          << ", actions: " << input.actions.size() << ")" << std::endl;
                 break;
             }
 
             default:
-                std::cout << "[Server] Received unknown message type" << std::endl;
+                std::cout << "[Server] Received unknown message type: " << static_cast<int>(messageType)
+                          << std::endl;
                 break;
         }
 
@@ -106,14 +193,51 @@ void Server::run() {
     std::cout << "[Server] ========================================" << std::endl;
 
     _running = true;
+    uint32_t currentTick = 0;
+    uint32_t lastBroadcastTick = 0;
+    const uint32_t BROADCAST_INTERVAL = 3;  // Broadcast every 3 ticks (~50ms at 60 FPS)
 
     // Game loop (60 FPS)
     while (_running && _networkManager->isRunning()) {
         // Process network messages from network thread
         _networkManager->processMessages();
 
-        // TODO: Update ECS systems
-        // TODO: Broadcast world state to clients
+        // TODO: Update ECS systems (physics, AI, collisions, etc.)
+
+        // ============================================================
+        // BROADCAST GAME STATE TO ALL CLIENTS
+        // ============================================================
+        if (currentTick - lastBroadcastTick >= BROADCAST_INTERVAL) {
+            using namespace RType::Messages;
+
+            S2C::GameState state;
+            state.serverTick = currentTick;
+
+            // TODO: Query ECS for all entities
+            // For now, add example entities (moving enemy)
+            S2C::EntityState enemy;
+            enemy.entityId = 2001;
+            enemy.type = Shared::EntityType::EnemyType1;
+            // Simulate movement: enemy moves left
+            float enemyX = 600.0f - (currentTick * 0.5f);
+            if (enemyX < 0)
+                enemyX = 800.0f;  // Wrap around
+            enemy.position = Shared::Vec2(enemyX, 150.0f);
+            enemy.health = 50;
+            state.entities.push_back(enemy);
+
+            // Serialize and broadcast
+            auto payload = state.serialize();
+            auto packet =
+                NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
+
+            // TODO: Broadcast to all connected clients
+            // _networkManager->broadcastToAll(packet);
+
+            lastBroadcastTick = currentTick;
+        }
+
+        currentTick++;
 
         // Sleep to maintain ~60 FPS
         std::this_thread::sleep_for(std::chrono::milliseconds(16));

@@ -16,8 +16,7 @@ namespace ecs {
     /**
      * @brief Checks entities against boundaries and destroys out-of-bounds entities.
      */
-    void BoundarySystem::update(Registry &registry, float deltaTime) {
-        (void)deltaTime;  // Boundary checking is instantaneous, deltaTime not needed
+    void BoundarySystem::update(Registry &registry, [[maybe_unused]] float deltaTime) {
         auto entities = registry.getEntitiesWithMask(this->getComponentMask());
         std::vector<std::uint32_t> toDestroy;
 

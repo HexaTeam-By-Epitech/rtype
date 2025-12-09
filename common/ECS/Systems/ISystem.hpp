@@ -9,10 +9,10 @@
 #define ISYSTEM_HPP_
 
 #include <cstdint>
+#include "../Registry.hpp"
 
 namespace ecs {
     // Placeholder declaration
-    class Registry;
 
     /**
      * @brief Type alias for component bitmask.

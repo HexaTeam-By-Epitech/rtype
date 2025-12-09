@@ -12,8 +12,7 @@ namespace ecs {
     /**
      * @brief Performs collision detection between all collidable entities.
      */
-    void CollisionSystem::update(Registry &registry, float deltaTime) {
-        (void)deltaTime;  // Collision detection is instantaneous, deltaTime not needed
+    void CollisionSystem::update(Registry &registry, [[maybe_unused]] float deltaTime) {
         auto entities = registry.getEntitiesWithMask(this->getComponentMask());
         std::vector<std::uint32_t> entitiesVec(entities.begin(), entities.end());
 

@@ -13,7 +13,7 @@
 #include "IComponent.hpp"
 #include "Registry.hpp"
 
-TEST(RegisteryTest, AddTooMuchComponents) {
+TEST(RegistryTest, AddTooMuchComponents) {
     ecs::Registry reg = ecs::Registry();
     ecs::Address addr = reg.newEntity();
 

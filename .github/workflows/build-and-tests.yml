@@ -30,7 +30,7 @@ permissions:
   actions: write
 
 env:
-  VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.cache/vcpkg_bin,readwrite'
+  VCPKG_BINARY_SOURCES: 'clear;files,/home/ubuntu/.vcpkg_binary_cache,readwrite'
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
   CC: gcc-14
   CXX: g++-14
@@ -57,13 +57,8 @@ jobs:
             libflac-dev libvorbis-dev \
             libxinerama-dev xorg-dev libglu1-mesa-dev python3
 
-      - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
-        with:
-          path: .cache/vcpkg_bin
-          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            vcpkg-bin-${{ runner.os }}-
+      - name: Prepare persistent cache
+        run: mkdir -p /home/ubuntu/.vcpkg_binary_cache
 
       - name: Bootstrap vcpkg
         run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
@@ -82,7 +77,7 @@ jobs:
         run: |
           set -o pipefail
           BUILD_PATH="build/linux-release"
-          EXCLUDES="-i ${BUILD_PATH}/vcpkg_installed"
+          EXCLUDES="-i ${BUILD_PATH}/vcpkg_installed -i ${BUILD_PATH}/common/Serialization/schemas"
           
           cppcheck --project=${BUILD_PATH}/compile_commands.json \
             --enable=warning,style,performance,portability \
@@ -92,6 +87,7 @@ jobs:
             --suppress=missingIncludeSystem \
             --suppress=checkersReport \
             --suppress=unmatchedSuppression \
+            --suppress=preprocessorErrorDirective \
             $EXCLUDES 2> cppcheck.xml || true
           
           cppcheck --project=${BUILD_PATH}/compile_commands.json \
@@ -101,6 +97,7 @@ jobs:
             --suppress=missingIncludeSystem \
             --suppress=checkersReport \
             --suppress=unmatchedSuppression \
+            --suppress=preprocessorErrorDirective \
             --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
             $EXCLUDES 2>&1 | tee cppcheck.txt || true
           

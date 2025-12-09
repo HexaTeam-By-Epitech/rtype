@@ -8,6 +8,7 @@
 #ifndef ICOMPONENT_HPP_
 #define ICOMPONENT_HPP_
 
+#include <atomic>
 #include <cstddef>
 
 namespace ecs {
@@ -49,11 +50,11 @@ namespace ecs {
      * a different ID. It's used internally by getComponentType<T>().
      * 
      * @return ComponentType A new unique component type ID.
-     * @warning This function is not thread-safe.
+     * @note This function is thread-safe.
      */
     inline ComponentType getUniqueComponentType() {
-        static ComponentType lastID = 0;
-        return lastID++;
+        static std::atomic<ComponentType> lastID{0};
+        return lastID.fetch_add(1);
     }
 
     /**

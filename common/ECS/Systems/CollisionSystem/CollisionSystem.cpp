@@ -32,7 +32,9 @@ namespace ecs {
                 }
 
                 if (checkAABB(transform1.getPosition(), collider1.getSize(), collider1.getOffset(),
-                              transform2.getPosition(), collider2.getSize(), collider2.getOffset())) {}
+                              transform2.getPosition(), collider2.getSize(), collider2.getOffset())) {
+                    // TODO: Handle collision response (events, physics, etc.)
+                }
             }
         }
     }

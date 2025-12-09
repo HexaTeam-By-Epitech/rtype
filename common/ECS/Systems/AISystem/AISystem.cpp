@@ -33,11 +33,11 @@ namespace ecs {
         int pattern = enemy.getAttackPattern();
         auto pos = transform.getPosition();
 
-        // Example movement patterns based on attackPattern ID
+        // TODO: Implement different movement patterns based on enemy type
     }
 
     ComponentMask AISystem::getComponentMask() const {
         return (1ULL << getComponentType<Enemy>()) | (1ULL << getComponentType<Transform>()) |
                (1ULL << getComponentType<Velocity>());
     }
-}
+}  // namespace ecs

@@ -15,7 +15,7 @@ namespace ecs {
         _spawnTimer += deltaTime;
 
         if (_spawnTimer >= _spawnInterval && _enemiesSpawned < _enemiesPerWave) {
-            // entity spawning logic to be implemented here
+            // TODO: Implement actual enemy entity creation with components
 
             _enemiesSpawned++;
             _spawnTimer = 0.0f;
@@ -42,4 +42,4 @@ namespace ecs {
     ComponentMask SpawnSystem::getComponentMask() const {
         return 0;
     }
-}
+}  // namespace ecs

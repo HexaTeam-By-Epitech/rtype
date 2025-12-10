@@ -26,15 +26,15 @@ namespace RType::Messages::C2S {
      */
     class JoinGame {
        public:
-        std::string _playerName;
+        std::string playerName;
 
         JoinGame() = default;
-        explicit JoinGame(const std::string &name) : _playerName(name) {}
+        explicit JoinGame(const std::string &name) : playerName(name) {}
 
         [[nodiscard]] std::vector<uint8_t> serialize() const {
             capnp::MallocMessageBuilder message;
             auto builder = message.initRoot<::JoinGame>();
-            builder.setPlayerName(_playerName);
+            builder.setPlayerName(playerName);
 
             auto bytes = capnp::messageToFlatArray(message);
             auto byteArray = bytes.asBytes();

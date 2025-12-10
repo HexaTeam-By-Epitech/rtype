@@ -55,10 +55,15 @@ namespace RType::Messages::S2C {
             // Ensure buffer is word-aligned for Cap'n Proto (undefined behavior if not)
             KJ_REQUIRE(data.size() % sizeof(capnp::word) == 0,
                        "Serialized data size must be a multiple of capnp::word");
-            auto aligned = kj::heapArray<uint8_t>(data.size());
-            memcpy(aligned.begin(), data.data(), data.size());
-            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(aligned.begin()),
-                                                  data.size() / sizeof(capnp::word));
+            const capnp::word *wordPtr = nullptr;
+            if (reinterpret_cast<uintptr_t>(data.data()) % alignof(capnp::word) == 0) {
+                wordPtr = reinterpret_cast<const capnp::word *>(data.data());
+            } else {
+                auto aligned = kj::heapArray<uint8_t>(data.size());
+                memcpy(aligned.begin(), data.data(), data.size());
+                wordPtr = reinterpret_cast<const capnp::word *>(aligned.begin());
+            }
+            kj::ArrayPtr<const capnp::word> words(wordPtr, data.size() / sizeof(capnp::word));
 
             capnp::FlatArrayMessageReader message(words);
             auto reader = message.getRoot<::GameState>();

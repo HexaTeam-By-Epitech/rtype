@@ -64,7 +64,7 @@ namespace RType::Messages::Shared {
             case Action::Shoot:
                 return ::Action::SHOOT;
         }
-        return ::Action::MOVE_UP;  // fallback
+        __builtin_unreachable();
     }
 
     inline Action fromCapnpAction(::Action action) {
@@ -80,7 +80,7 @@ namespace RType::Messages::Shared {
             case ::Action::SHOOT:
                 return Action::Shoot;
         }
-        return Action::MoveUp;  // fallback
+        __builtin_unreachable();
     }
 
     inline ::EntityType toCapnpEntityType(EntityType type) {
@@ -94,7 +94,7 @@ namespace RType::Messages::Shared {
             case EntityType::EnemyBullet:
                 return ::EntityType::ENEMY_BULLET;
         }
-        return ::EntityType::PLAYER;  // fallback
+        __builtin_unreachable();
     }
 
     inline EntityType fromCapnpEntityType(::EntityType type) {
@@ -108,7 +108,7 @@ namespace RType::Messages::Shared {
             case ::EntityType::ENEMY_BULLET:
                 return EntityType::EnemyBullet;
         }
-        return EntityType::Player;  // fallback
+        __builtin_unreachable();
     }
 
     inline ::DestroyReason toCapnpDestroyReason(DestroyReason reason) {
@@ -120,7 +120,7 @@ namespace RType::Messages::Shared {
             case DestroyReason::Collision:
                 return ::DestroyReason::COLLISION;
         }
-        return ::DestroyReason::KILLED_BY_PLAYER;  // fallback
+        __builtin_unreachable();
     }
 
     inline DestroyReason fromCapnpDestroyReason(::DestroyReason reason) {
@@ -132,7 +132,21 @@ namespace RType::Messages::Shared {
             case ::DestroyReason::COLLISION:
                 return DestroyReason::Collision;
         }
-        return DestroyReason::KilledByPlayer;  // fallback
+        __builtin_unreachable();
     }
+
+    /**
+     * @brief Data Transfer Object for player input
+     * 
+     * Contains the sequence ID and a list of actions for the player.
+     */
+    struct PlayerInputDTO {
+        uint32_t sequenceId;
+        std::vector<Action> actions{};
+
+        PlayerInputDTO() : sequenceId(0) {}
+        PlayerInputDTO(uint32_t sequenceId, const std::vector<Action> &actions)
+            : sequenceId(sequenceId), actions(actions) {}
+    };
 
 }  // namespace RType::Messages::Shared

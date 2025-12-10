@@ -95,19 +95,16 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 newPlayerEntity.health = 100;
                 gameStart.initialState.entities.push_back(newPlayerEntity);
 
-                // ============================================================
-                // ADD EXISTING PLAYERS (example: simulate other players)
-                // ============================================================
-                // TODO: Replace with actual ECS query to get all existing players
-                // For now, let's add all previous player IDs as example 'other players'
-                for (uint32_t id = 1000; id < newPlayerId; ++id) {
-                    S2C::EntityState otherPlayer;
-                    otherPlayer.entityId = id;
-                    otherPlayer.type = Shared::EntityType::Player;
-                    otherPlayer.position = Shared::Vec2(50.0F, 200.0F + 50.0F * (id - 1000));
-                    otherPlayer.health = 85;
-                    gameStart.initialState.entities.push_back(otherPlayer);
-                }
+                // TODO: Query ECS or use a set of active player IDs to populate initialState.entities with real players only.
+                // The following placeholder logic is removed because it sends phantom players:
+                // for (uint32_t id = 1000; id < newPlayerId; ++id) {
+                //     S2C::EntityState otherPlayer;
+                //     otherPlayer.entityId = id;
+                //     otherPlayer.type = Shared::EntityType::Player;
+                //     otherPlayer.position = Shared::Vec2(50.0F, 200.0F + 50.0F * (id - 1000));
+                //     otherPlayer.health = 85;
+                //     gameStart.initialState.entities.push_back(otherPlayer);
+                // }
 
                 // ============================================================
                 // ENTITY ID RANGES (documented):

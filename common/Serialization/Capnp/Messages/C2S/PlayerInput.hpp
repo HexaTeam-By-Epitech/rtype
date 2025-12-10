@@ -74,7 +74,11 @@ namespace RType::Messages::C2S {
             PlayerInput result;
             result._sequenceId = reader.getSequenceId();
 
+            static constexpr size_t MAX_ACTIONS_PER_INPUT = 32;
             auto actionsReader = reader.getActions();
+            if (actionsReader.size() > MAX_ACTIONS_PER_INPUT) {
+                throw std::runtime_error("Too many actions in PlayerInput message");
+            }
             result.actions.reserve(actionsReader.size());
             for (auto action : actionsReader) {
                 result.actions.push_back(Shared::fromCapnpAction(action));

@@ -73,8 +73,8 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 std::cout << "[Server] Player '" << playerName << "' requesting to join..." << std::endl;
 
                 // Assign unique entity ID to new player
-                static uint32_t nextPlayerId = 1000;  // Start player IDs at 1000
-                uint32_t newPlayerId = nextPlayerId++;
+                static std::atomic<uint32_t> nextPlayerId{1000};  // Start player IDs at 1000
+                uint32_t newPlayerId = nextPlayerId.fetch_add(1);
 
                 std::cout << "[Server] Creating player entity (ID: " << newPlayerId << ")" << std::endl;
 
@@ -99,16 +99,21 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 // ADD EXISTING PLAYERS (example: simulate other players)
                 // ============================================================
                 // TODO: Replace with actual ECS query to get all existing players
-                // For now, let's add 2 dummy players as example
-                if (nextPlayerId > 1001) {  // If not the first player
+                // For now, let's add all previous player IDs as example 'other players'
+                for (uint32_t id = 1000; id < newPlayerId; ++id) {
                     S2C::EntityState otherPlayer;
-                    otherPlayer.entityId = 1000;
+                    otherPlayer.entityId = id;
                     otherPlayer.type = Shared::EntityType::Player;
-                    otherPlayer.position = Shared::Vec2(50.0f, 200.0f);
+                    otherPlayer.position = Shared::Vec2(50.0F, 200.0F + 50.0F * (id - 1000));
                     otherPlayer.health = 85;
                     gameStart.initialState.entities.push_back(otherPlayer);
                 }
 
+                // ============================================================
+                // ENTITY ID RANGES (documented):
+                //   Players: 1000-1999
+                //   Enemies: 2000-2999
+                //   Bullets: 3000-3999
                 // ============================================================
                 // ADD ENEMIES (example game state)
                 // ============================================================
@@ -133,7 +138,7 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 bullet.entityId = 3001;
                 bullet.type = Shared::EntityType::PlayerBullet;
                 bullet.position = Shared::Vec2(250.0f, 300.0f);
-                // Note: bullets don't have health (std::optional)
+                bullet.health = -1;  // No health: -1 is sentinel value for 'no health' in serialization
                 gameStart.initialState.entities.push_back(bullet);
 
                 // ============================================================
@@ -216,12 +221,13 @@ void Server::run() {
             // TODO: Query ECS for all entities
             // For now, add example entities (moving enemy)
             S2C::EntityState enemy;
-            enemy.entityId = 2001;
+            enemy.entityId = 2003;  // Use a different ID than GameStart demo enemies to avoid duplication
             enemy.type = Shared::EntityType::EnemyType1;
             // Simulate movement: enemy moves left
             float enemyX = 600.0f - (currentTick * 0.5f);
-            if (enemyX < 0)
+            if (enemyX < 0) {
                 enemyX = 800.0f;  // Wrap around
+            }
             enemy.position = Shared::Vec2(enemyX, 150.0f);
             enemy.health = 50;
             state.entities.push_back(enemy);

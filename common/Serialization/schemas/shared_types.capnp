@@ -9,24 +9,22 @@ struct Vec2 {
 }
 
 enum Action {
-  moveUp @0;
-  moveDown @1;
-  moveLeft @2;
-  moveRight @3;
-  shoot @4;
+  MoveUp @0;
+  MoveDown @1;
+  MoveLeft @2;
+  MoveRight @3;
+  Shoot @4;
 }
 
 enum EntityType {
-  player @0;
-  enemyType1 @1;
-  playerBullet @2;
-  enemyBullet @3;
+  Player @0;
+  EnemyType1 @1;
+  PlayerBullet @2;
+  EnemyBullet @3;
 }
 
 enum DestroyReason {
-  killedByPlayer @0;
-  outOfBounds @1;
-  collision @2;
+  KilledByPlayer @0;
+  OutOfBounds @1;
+  Collision @2;
 }
-
-

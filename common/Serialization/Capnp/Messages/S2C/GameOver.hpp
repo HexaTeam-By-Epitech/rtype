@@ -40,7 +40,12 @@ namespace RType::Messages::S2C {
         }
 
         static GameOver deserialize(const std::vector<uint8_t> &data) {
-            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(data.data()),
+            // Ensure buffer is word-aligned for Cap'n Proto (undefined behavior if not)
+            KJ_REQUIRE(data.size() % sizeof(capnp::word) == 0,
+                       "Serialized data size must be a multiple of capnp::word");
+            auto aligned = kj::heapArray<uint8_t>(data.size());
+            memcpy(aligned.begin(), data.data(), data.size());
+            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(aligned.begin()),
                                                   data.size() / sizeof(capnp::word));
 
             capnp::FlatArrayMessageReader message(words);

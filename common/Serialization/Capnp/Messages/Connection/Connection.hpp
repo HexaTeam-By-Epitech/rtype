@@ -23,20 +23,20 @@ namespace RType::Messages::Connection {
     class HandshakeRequest {
        public:
         std::string _clientVersion;
-        std::string playerName;
-        uint64_t timestamp;
+        std::string _playerName;
+        uint64_t _timestamp;
 
-        HandshakeRequest() : timestamp(0) {}
+        HandshakeRequest() : _timestamp(0) {}
 
         HandshakeRequest(const std::string &version, const std::string &name, uint64_t ts)
-            : _clientVersion(version), playerName(name), timestamp(ts) {}
+            : _clientVersion(version), _playerName(name), _timestamp(ts) {}
 
         [[nodiscard]] std::vector<uint8_t> serialize() const {
             capnp::MallocMessageBuilder message;
             auto builder = message.initRoot<::HandshakeRequest>();
             builder.setClientVersion(_clientVersion);
-            builder.setPlayerName(playerName);
-            builder.setTimestamp(timestamp);
+            builder.setPlayerName(_playerName);
+            builder.setTimestamp(_timestamp);
 
             auto bytes = capnp::messageToFlatArray(message);
             auto byteArray = bytes.asBytes();
@@ -44,7 +44,12 @@ namespace RType::Messages::Connection {
         }
 
         static HandshakeRequest deserialize(const std::vector<uint8_t> &data) {
-            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(data.data()),
+            // Ensure buffer is word-aligned for Cap'n Proto (undefined behavior if not)
+            KJ_REQUIRE(data.size() % sizeof(capnp::word) == 0,
+                       "Serialized data size must be a multiple of capnp::word");
+            auto aligned = kj::heapArray<uint8_t>(data.size());
+            memcpy(aligned.begin(), data.data(), data.size());
+            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(aligned.begin()),
                                                   data.size() / sizeof(capnp::word));
             capnp::FlatArrayMessageReader message(words);
             auto reader = message.getRoot<::HandshakeRequest>();
@@ -83,7 +88,12 @@ namespace RType::Messages::Connection {
         }
 
         static HandshakeResponse deserialize(const std::vector<uint8_t> &data) {
-            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(data.data()),
+            // Ensure buffer is word-aligned for Cap'n Proto (undefined behavior if not)
+            KJ_REQUIRE(data.size() % sizeof(capnp::word) == 0,
+                       "Serialized data size must be a multiple of capnp::word");
+            auto aligned = kj::heapArray<uint8_t>(data.size());
+            memcpy(aligned.begin(), data.data(), data.size());
+            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(aligned.begin()),
                                                   data.size() / sizeof(capnp::word));
             capnp::FlatArrayMessageReader msg(words);
             auto reader = msg.getRoot<::HandshakeResponse>();
@@ -122,7 +132,12 @@ namespace RType::Messages::Connection {
         }
 
         static PingMessage deserialize(const std::vector<uint8_t> &data) {
-            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(data.data()),
+            // Ensure buffer is word-aligned for Cap'n Proto (undefined behavior if not)
+            KJ_REQUIRE(data.size() % sizeof(capnp::word) == 0,
+                       "Serialized data size must be a multiple of capnp::word");
+            auto aligned = kj::heapArray<uint8_t>(data.size());
+            memcpy(aligned.begin(), data.data(), data.size());
+            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(aligned.begin()),
                                                   data.size() / sizeof(capnp::word));
             capnp::FlatArrayMessageReader message(words);
             auto reader = message.getRoot<::PingMessage>();
@@ -156,7 +171,12 @@ namespace RType::Messages::Connection {
         }
 
         static PongMessage deserialize(const std::vector<uint8_t> &data) {
-            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(data.data()),
+            // Ensure buffer is word-aligned for Cap'n Proto (undefined behavior if not)
+            KJ_REQUIRE(data.size() % sizeof(capnp::word) == 0,
+                       "Serialized data size must be a multiple of capnp::word");
+            auto aligned = kj::heapArray<uint8_t>(data.size());
+            memcpy(aligned.begin(), data.data(), data.size());
+            kj::ArrayPtr<const capnp::word> words(reinterpret_cast<const capnp::word *>(aligned.begin()),
                                                   data.size() / sizeof(capnp::word));
             capnp::FlatArrayMessageReader message(words);
             auto reader = message.getRoot<::PongMessage>();

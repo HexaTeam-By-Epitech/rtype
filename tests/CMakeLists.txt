@@ -63,6 +63,9 @@ add_test(NAME networking_tests COMMAND networking_tests)
 # Serialization tests
 add_executable(serialization_tests
     serialization_tests/SerializationTest.cpp
+    serialization_tests/GameStateTest.cpp
+    serialization_tests/GameStartTest.cpp
+    serialization_tests/PlayerInputTest.cpp
 )
 
 target_include_directories(serialization_tests PRIVATE 
@@ -92,4 +95,3 @@ target_link_libraries(threading_tests PRIVATE
 )
 
 add_test(NAME threading_tests COMMAND threading_tests)
-

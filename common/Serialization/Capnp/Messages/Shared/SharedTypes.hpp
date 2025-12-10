@@ -52,27 +52,87 @@ namespace RType::Messages::Shared {
 
     // Conversion helpers for enums
     inline ::Action toCapnpAction(Action action) {
-        return static_cast<::Action>(action);
+        switch (action) {
+            case Action::MoveUp:
+                return ::Action::MOVE_UP;
+            case Action::MoveDown:
+                return ::Action::MOVE_DOWN;
+            case Action::MoveLeft:
+                return ::Action::MOVE_LEFT;
+            case Action::MoveRight:
+                return ::Action::MOVE_RIGHT;
+            case Action::Shoot:
+                return ::Action::SHOOT;
+        }
+        return ::Action::MOVE_UP;  // fallback
     }
 
     inline Action fromCapnpAction(::Action action) {
-        return static_cast<Action>(action);
+        switch (action) {
+            case ::Action::MOVE_UP:
+                return Action::MoveUp;
+            case ::Action::MOVE_DOWN:
+                return Action::MoveDown;
+            case ::Action::MOVE_LEFT:
+                return Action::MoveLeft;
+            case ::Action::MOVE_RIGHT:
+                return Action::MoveRight;
+            case ::Action::SHOOT:
+                return Action::Shoot;
+        }
+        return Action::MoveUp;  // fallback
     }
 
     inline ::EntityType toCapnpEntityType(EntityType type) {
-        return static_cast<::EntityType>(type);
+        switch (type) {
+            case EntityType::Player:
+                return ::EntityType::PLAYER;
+            case EntityType::EnemyType1:
+                return ::EntityType::ENEMY_TYPE1;
+            case EntityType::PlayerBullet:
+                return ::EntityType::PLAYER_BULLET;
+            case EntityType::EnemyBullet:
+                return ::EntityType::ENEMY_BULLET;
+        }
+        return ::EntityType::PLAYER;  // fallback
     }
 
     inline EntityType fromCapnpEntityType(::EntityType type) {
-        return static_cast<EntityType>(type);
+        switch (type) {
+            case ::EntityType::PLAYER:
+                return EntityType::Player;
+            case ::EntityType::ENEMY_TYPE1:
+                return EntityType::EnemyType1;
+            case ::EntityType::PLAYER_BULLET:
+                return EntityType::PlayerBullet;
+            case ::EntityType::ENEMY_BULLET:
+                return EntityType::EnemyBullet;
+        }
+        return EntityType::Player;  // fallback
     }
 
     inline ::DestroyReason toCapnpDestroyReason(DestroyReason reason) {
-        return static_cast<::DestroyReason>(reason);
+        switch (reason) {
+            case DestroyReason::KilledByPlayer:
+                return ::DestroyReason::KILLED_BY_PLAYER;
+            case DestroyReason::OutOfBounds:
+                return ::DestroyReason::OUT_OF_BOUNDS;
+            case DestroyReason::Collision:
+                return ::DestroyReason::COLLISION;
+        }
+        return ::DestroyReason::KILLED_BY_PLAYER;  // fallback
     }
 
     inline DestroyReason fromCapnpDestroyReason(::DestroyReason reason) {
-        return static_cast<DestroyReason>(reason);
+        switch (reason) {
+            case ::DestroyReason::KILLED_BY_PLAYER:
+                return DestroyReason::KilledByPlayer;
+            case ::DestroyReason::OUT_OF_BOUNDS:
+                return DestroyReason::OutOfBounds;
+            case ::DestroyReason::COLLISION:
+                return DestroyReason::Collision;
+        }
+        return DestroyReason::KilledByPlayer;  // fallback
     }
 
 }  // namespace RType::Messages::Shared

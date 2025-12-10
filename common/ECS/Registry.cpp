@@ -33,16 +33,15 @@ namespace ecs {
     }
 
     Signature Registry::_registerComponent(const ComponentType componentType) {
-        int offset = _componentMap.size();
         Signature sign = 0;
 
         if (_componentMap.contains(componentType))
-            return sign;
+            return _componentMap[componentType];
 
-        if (offset >= N_MAX_COMPONENTS) {
+        if (componentType >= N_MAX_COMPONENTS) {
             return sign;
         }
-        sign = 1ULL << offset;
+        sign.set(componentType);
         _componentMap[componentType] = sign;
 
         return sign;
@@ -75,5 +74,21 @@ namespace ecs {
             sign = _signatures[address];
         }
         return sign;
+    }
+
+    std::vector<Address> Registry::getEntitiesWithMask(Signature requiredMask) {
+        std::vector<Address> result;
+
+        if (requiredMask == 0) {
+            return result;
+        }
+
+        for (const auto &[address, signature] : _signatures) {
+            if ((signature & requiredMask) == requiredMask) {
+                result.push_back(address);
+            }
+        }
+
+        return result;
     }
 }  // namespace ecs

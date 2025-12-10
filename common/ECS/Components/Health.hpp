@@ -5,8 +5,7 @@
 ** Health
 */
 
-#ifndef HEALTH_HPP_
-#define HEALTH_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -26,7 +25,7 @@ namespace ecs {
          * @param maxHealth Maximum health points
          */
         explicit Health(int maxHealth)
-            : _current(maxHealth), _max(maxHealth), _invincible(false), _timer(0) {}
+            : _current(maxHealth), _max(maxHealth), _invincible(false), _timer(0.0f) {}
 
         /**
          * @brief Constructor with current and maximum health.
@@ -34,7 +33,7 @@ namespace ecs {
          * @param maxHealth Maximum health points
          */
         Health(int currentHealth, int maxHealth)
-            : _current(currentHealth), _max(maxHealth), _invincible(false), _timer(0) {}
+            : _current(currentHealth), _max(maxHealth), _invincible(false), _timer(0.0f) {}
 
         ~Health() override = default;
 
@@ -58,9 +57,9 @@ namespace ecs {
 
         /**
          * @brief Get remaining invincibility time.
-         * @return int Timer value in frames/ticks.
+         * @return float Timer value in seconds.
          */
-        int getInvincibilityTimer() const { return _timer; }
+        float getInvincibilityTimer() const { return _timer; }
 
         /**
          * @brief Set maximum health.
@@ -82,9 +81,9 @@ namespace ecs {
 
         /**
          * @brief Set invincibility timer.
-         * @param timer Timer value in frames/ticks
+         * @param timer Timer value in seconds
          */
-        void setInvincibilityTimer(int timer) { _timer = timer; }
+        void setInvincibilityTimer(float timer) { _timer = timer; }
 
         /**
          * @brief Get the component type ID.
@@ -96,8 +95,6 @@ namespace ecs {
         int _current;      ///< Current health points
         int _max;          ///< Maximum health points
         bool _invincible;  ///< Invincibility state
-        int _timer;        ///< Invincibility duration timer
+        float _timer;      ///< Invincibility duration timer in seconds
     };
 }  // namespace ecs
-
-#endif

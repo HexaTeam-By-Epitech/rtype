@@ -5,8 +5,7 @@
 ** Collider
 */
 
-#ifndef COLLIDER_HPP_
-#define COLLIDER_HPP_
+#pragma once
 
 #include <cstdint>
 #include "IComponent.hpp"
@@ -26,8 +25,8 @@ namespace ecs {
         * @brief 2D vector for size and offset.
         */
         struct Vector2 {
-            int x;  ///< X component
-            int y;  ///< Y component
+            float x;  ///< X component
+            float y;  ///< Y component
         };
 
         /**
@@ -40,8 +39,8 @@ namespace ecs {
          * @param mask Bitmask of layers this collider can interact with
          * @param isTrigger True for trigger zones (no physics), false for solid
          */
-        Collider(int sizeX, int sizeY, int offsetX, int offsetY, std::uint32_t layer, std::uint32_t mask,
-                 bool isTrigger)
+        Collider(float sizeX, float sizeY, float offsetX, float offsetY, std::uint32_t layer,
+                 std::uint32_t mask, bool isTrigger)
             : _size{sizeX, sizeY},
               _offset{offsetX, offsetY},
               _layer(layer),
@@ -84,7 +83,7 @@ namespace ecs {
          * @param sizeX New width
          * @param sizeY New height
          */
-        void setSize(int sizeX, int sizeY) {
+        void setSize(float sizeX, float sizeY) {
             _size.x = sizeX;
             _size.y = sizeY;
         }
@@ -94,7 +93,7 @@ namespace ecs {
          * @param offsetX New X offset
          * @param offsetY New Y offset
          */
-        void setOffset(int offsetX, int offsetY) {
+        void setOffset(float offsetX, float offsetY) {
             _offset.x = offsetX;
             _offset.y = offsetY;
         }
@@ -131,5 +130,3 @@ namespace ecs {
         bool _isTrigger;       ///< True=trigger zone, false=solid collision
     };
 }  // namespace ecs
-
-#endif

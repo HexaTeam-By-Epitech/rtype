@@ -5,8 +5,7 @@
 ** Transform
 */
 
-#ifndef TRANSFORM_HPP_
-#define TRANSFORM_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -25,22 +24,22 @@ namespace ecs {
          * @brief 2D vector structure for positions and scales.
          */
         struct Vector2 {
-            int x;  ///< X coordinate
-            int y;  ///< Y coordinate
+            float x;  ///< X coordinate
+            float y;  ///< Y coordinate
         };
 
         /**
          * @brief Default constructor.
          * Initializes position to (0, 0), rotation to 0, and scale to (1, 1).
          */
-        Transform() : _position{0, 0}, _rotation(0), _scale{1, 1} {}
+        Transform() : _position{0.0f, 0.0f}, _rotation(0.0f), _scale{1.0f, 1.0f} {}
 
         /**
          * @brief Constructor with position only.
          * @param posX X position
          * @param posY Y position
          */
-        Transform(int posX, int posY) : _position{posX, posY}, _rotation(0), _scale{1, 1} {}
+        Transform(float posX, float posY) : _position{posX, posY}, _rotation(0.0f), _scale{1.0f, 1.0f} {}
 
         /**
          * @brief Full constructor with all parameters.
@@ -50,7 +49,7 @@ namespace ecs {
          * @param scaleX X scale factor
          * @param scaleY Y scale factor
          */
-        Transform(int posX, int posY, int rotation, int scaleX, int scaleY)
+        Transform(float posX, float posY, float rotation, float scaleX, float scaleY)
             : _position{posX, posY}, _rotation(rotation), _scale{scaleX, scaleY} {}
 
         ~Transform() override = default;
@@ -63,9 +62,9 @@ namespace ecs {
 
         /**
          * @brief Get the rotation angle.
-         * @return int The rotation in degrees.
+         * @return float The rotation in degrees.
          */
-        int getRotation() const { return _rotation; }
+        float getRotation() const { return _rotation; }
 
         /**
          * @brief Get the scale vector.
@@ -78,7 +77,7 @@ namespace ecs {
          * @param posX New X position
          * @param posY New Y position
          */
-        void setPosition(int posX, int posY) {
+        void setPosition(float posX, float posY) {
             _position.x = posX;
             _position.y = posY;
         }
@@ -87,14 +86,14 @@ namespace ecs {
          * @brief Set the rotation angle.
          * @param rotation New rotation in degrees
          */
-        void setRotation(int rotation) { _rotation = rotation; }
+        void setRotation(float rotation) { _rotation = rotation; }
 
         /**
          * @brief Set the scale factors.
          * @param scaleX New X scale factor
          * @param scaleY New Y scale factor
          */
-        void setScale(int scaleX, int scaleY) {
+        void setScale(float scaleX, float scaleY) {
             _scale.x = scaleX;
             _scale.y = scaleY;
         }
@@ -107,9 +106,7 @@ namespace ecs {
 
        private:
         Vector2 _position;  ///< Entity position in world space
-        int _rotation;      ///< Rotation angle in degrees
+        float _rotation;    ///< Rotation angle in degrees
         Vector2 _scale;     ///< Scale factors (default: 1, 1)
     };
 }  // namespace ecs
-
-#endif

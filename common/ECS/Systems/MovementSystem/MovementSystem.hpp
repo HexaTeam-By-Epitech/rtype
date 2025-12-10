@@ -5,8 +5,7 @@
 ** MovementSystem
 */
 
-#ifndef MOVEMENTSYSTEM_HPP_
-#define MOVEMENTSYSTEM_HPP_
+#pragma once
 
 #include "../../Components/IComponent.hpp"
 #include "../../Components/Transform.hpp"
@@ -52,5 +51,3 @@ namespace ecs {
         ComponentMask getComponentMask() const override;
     };
 }
-
-#endif

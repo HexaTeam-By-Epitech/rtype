@@ -5,8 +5,7 @@
 ** Collider
 */
 
-#ifndef COLLIDER_HPP_
-#define COLLIDER_HPP_
+#pragma once
 
 #include <cstdint>
 #include "IComponent.hpp"
@@ -131,5 +130,3 @@ namespace ecs {
         bool _isTrigger;       ///< True=trigger zone, false=solid collision
     };
 }  // namespace ecs
-
-#endif

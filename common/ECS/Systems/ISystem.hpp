@@ -5,8 +5,7 @@
 ** ISystem
 */
 
-#ifndef ISYSTEM_HPP_
-#define ISYSTEM_HPP_
+#pragma once
 
 #include <cstdint>
 #include "../Registry.hpp"
@@ -63,5 +62,3 @@ namespace ecs {
         virtual ComponentMask getComponentMask() const = 0;
     };
 }  // namespace ecs
-
-#endif

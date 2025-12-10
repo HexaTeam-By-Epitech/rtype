@@ -5,8 +5,7 @@
 ** Health
 */
 
-#ifndef HEALTH_HPP_
-#define HEALTH_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -99,5 +98,3 @@ namespace ecs {
         float _timer;      ///< Invincibility duration timer in seconds
     };
 }  // namespace ecs
-
-#endif

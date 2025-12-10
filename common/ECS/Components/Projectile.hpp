@@ -5,8 +5,7 @@
 ** Projectile
 */
 
-#ifndef PROJECTILE_HPP_
-#define PROJECTILE_HPP_
+#pragma once
 
 #include <cstdint>
 #include "IComponent.hpp"
@@ -93,5 +92,3 @@ namespace ecs {
         bool _friendly;          ///< Team affiliation (true=friendly, false=enemy)
     };
 }  // namespace ecs
-
-#endif

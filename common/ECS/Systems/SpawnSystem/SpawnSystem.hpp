@@ -5,8 +5,7 @@
 ** SpawnSystem
 */
 
-#ifndef SPAWNSYSTEM_HPP_
-#define SPAWNSYSTEM_HPP_
+#pragma once
 
 #include "../ISystem.hpp"
 
@@ -70,5 +69,3 @@ namespace ecs {
         float _spawnInterval;
     };
 }
-
-#endif

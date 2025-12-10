@@ -5,8 +5,7 @@
 ** HealthSystem
 */
 
-#ifndef HEALTHSYSTEM_HPP_
-#define HEALTHSYSTEM_HPP_
+#pragma once
 
 #include "../../Components/Health.hpp"
 #include "../../Components/IComponent.hpp"
@@ -54,5 +53,3 @@ namespace ecs {
         ComponentMask getComponentMask() const override;
     };
 }
-
-#endif

@@ -5,8 +5,7 @@
 ** WeaponSystem
 */
 
-#ifndef WEAPONSYSTEM_HPP_
-#define WEAPONSYSTEM_HPP_
+#pragma once
 
 #include "../../Components/Transform.hpp"
 #include "../../Components/Weapon.hpp"
@@ -52,5 +51,3 @@ namespace ecs {
         ComponentMask getComponentMask() const override;
     };
 }
-
-#endif

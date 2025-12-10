@@ -5,8 +5,7 @@
 ** CollisionSystem
 */
 
-#ifndef COLLISIONSYSTEM_HPP_
-#define COLLISIONSYSTEM_HPP_
+#pragma once
 
 #include "../../Components/Collider.hpp"
 #include "../../Components/Transform.hpp"
@@ -87,5 +86,3 @@ namespace ecs {
                         std::uint32_t mask2) const;
     };
 }
-
-#endif

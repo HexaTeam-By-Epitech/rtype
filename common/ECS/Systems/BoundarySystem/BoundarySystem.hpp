@@ -5,8 +5,7 @@
 ** BoundarySystem
 */
 
-#ifndef BOUNDARYSYSTEM_HPP_
-#define BOUNDARYSYSTEM_HPP_
+#pragma once
 
 #include "../../Components/IComponent.hpp"
 #include "../../Components/Transform.hpp"
@@ -68,5 +67,3 @@ namespace ecs {
         int _screenHeight;
     };
 }
-
-#endif

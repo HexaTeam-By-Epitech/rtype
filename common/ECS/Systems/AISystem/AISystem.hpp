@@ -5,8 +5,7 @@
 ** AISystem
 */
 
-#ifndef AISYSTEM_HPP_
-#define AISYSTEM_HPP_
+#pragma once
 
 #include "../../Components/Enemy.hpp"
 #include "../../Components/Transform.hpp"
@@ -64,5 +63,3 @@ namespace ecs {
                                   float deltaTime);
     };
 }
-
-#endif

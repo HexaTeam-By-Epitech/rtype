@@ -5,8 +5,7 @@
 ** Enemy
 */
 
-#ifndef ENEMY_HPP_
-#define ENEMY_HPP_
+#pragma once
 
 #include "IComponent.hpp"
 
@@ -78,5 +77,3 @@ namespace ecs {
         int _attackPattern;  ///< AI attack pattern identifier
     };
 }  // namespace ecs
-
-#endif

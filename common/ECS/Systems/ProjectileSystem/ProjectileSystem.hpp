@@ -5,8 +5,7 @@
 ** ProjectileSystem
 */
 
-#ifndef PROJECTILESYSTEM_HPP_
-#define PROJECTILESYSTEM_HPP_
+#pragma once
 
 #include "../../Components/IComponent.hpp"
 #include "../../Components/Projectile.hpp"
@@ -51,5 +50,3 @@ namespace ecs {
         ComponentMask getComponentMask() const override;
     };
 }
-
-#endif

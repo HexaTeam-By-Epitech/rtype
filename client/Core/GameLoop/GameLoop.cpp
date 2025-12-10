@@ -56,7 +56,6 @@ void GameLoop::run() {
     std::cout << "[GameLoop]   - THREAD 2 (Main):    Game logic + Rendering" << std::endl;
 
     _running = true;
-    auto lastTime = std::chrono::high_resolution_clock::now();
 
     while (_running) {
         // Calculate delta time

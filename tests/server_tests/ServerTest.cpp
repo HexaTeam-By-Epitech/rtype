@@ -14,8 +14,9 @@ TEST(ServerBasicTest, DummyTest) {
 
 TEST(ServerBasicTest, ServerCreation) {
     // Test that we can create a server with a port
-    Server server(4242);
-    EXPECT_NO_THROW(server);
+    EXPECT_NO_THROW([]() {
+        Server server(4242);
+    }());
 }
 
 TEST(ServerBasicTest, ServerInitialization) {

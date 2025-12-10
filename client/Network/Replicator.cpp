@@ -190,6 +190,7 @@ void Replicator::processMessages() {
 }
 
 void Replicator::sendPacket(NetworkMessageType type, const std::vector<uint8_t> &data) {
+    (void)type;
     if (!_serverPeer || !_connected.load()) {
         return;
     }
@@ -220,10 +221,12 @@ uint32_t Replicator::getPacketLoss() const {
 }
 
 void Replicator::onInputEvent(const InputEvent &event) {
+    (void)event;
     // TODO: Implement input event handling
 }
 
 void Replicator::processIncomingPacket(const std::vector<uint8_t> &packet) {
+    (void)packet;
     // This method is now handled by networkThreadLoop
     // Kept for backwards compatibility if needed
 }

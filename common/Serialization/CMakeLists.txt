@@ -4,15 +4,19 @@ project(serialization)
 file(GLOB SERIALIZATION_SRC
         "Capnp/*.cpp"
 )
-file(GLOB SERIALIZATION_HEADERS
+file(GLOB_RECURSE SERIALIZATION_HEADERS
         "Capnp/*.hpp"
-        "GameMessages.hpp"
 )
 
 find_package(CapnProto CONFIG REQUIRED)
 
-# Compile Cap'n Proto schemas
-capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS schemas/connection.capnp)
+# Compile Cap'n Proto schemas (modular structure)
+capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS
+        schemas/connection.capnp
+        schemas/shared_types.capnp
+        schemas/c2s_messages.capnp
+        schemas/s2c_messages.capnp
+)
 
 add_library(rtype_serialization SHARED
         ${SERIALIZATION_SRC}

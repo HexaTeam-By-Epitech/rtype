@@ -54,7 +54,7 @@ TEST_F(ServerNetworkManagerTest, SetPacketHandler) {
     ServerNetworkManager manager(5004, 10);
 
     bool handlerCalled = false;
-    manager.setPacketHandler([&handlerCalled](HostNetworkEvent &event) { handlerCalled = true; });
+    manager.setPacketHandler([&handlerCalled](HostNetworkEvent &) { handlerCalled = true; });
 
     EXPECT_FALSE(handlerCalled);  // Not called yet
 }

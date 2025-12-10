@@ -35,27 +35,37 @@ namespace NetworkMessages {
      * @brief All message types in the R-Type protocol
      * 
      * Add new types here as you need them. Each type is 2 bytes (uint16_t).
+     * 
+     * Message type mapping to Cap'n Proto wrappers:
+     * - HANDSHAKE_REQUEST -> RType::Messages::Connection::HandshakeRequest
+     * - HANDSHAKE_RESPONSE -> RType::Messages::Connection::HandshakeResponse
+     * - PING -> RType::Messages::Connection::PingMessage
+     * - PONG -> RType::Messages::Connection::PongMessage
+     * - C2S_PLAYER_INPUT -> RType::Messages::C2S::PlayerInput
+     * - C2S_JOIN_GAME -> RType::Messages::C2S::JoinGame
+     * - S2C_GAME_STATE -> RType::Messages::S2C::GameState
+     * - S2C_GAME_START -> RType::Messages::S2C::GameStart
+     * - S2C_ENTITY_DESTROYED -> RType::Messages::S2C::EntityDestroyed
+     * - S2C_GAME_OVER -> RType::Messages::S2C::GameOver
      */
     enum class MessageType : uint16_t {
         // Connection messages (0x00xx)
-        CONNECT_REQUEST = 0x0001,
-        CONNECT_RESPONSE = 0x0002,
+        HANDSHAKE_REQUEST = 0x0001,
+        HANDSHAKE_RESPONSE = 0x0002,
         DISCONNECT = 0x0003,
         KICK = 0x0004,
         PING = 0x0005,
         PONG = 0x0006,
 
-        // Gameplay messages (0x01xx)
-        SPAWN_ENTITY = 0x0100,
-        DESTROY_ENTITY = 0x0101,
-        UPDATE_ENTITY = 0x0102,
-        WORLD_STATE = 0x0103,
+        // Client to Server gameplay messages (0x01xx)
+        C2S_PLAYER_INPUT = 0x0100,
+        C2S_JOIN_GAME = 0x0101,
 
-        // Player messages (0x02xx)
-        PLAYER_INPUT = 0x0200,
-        PLAYER_STATE = 0x0201,
-        PLAYER_JOINED = 0x0202,
-        PLAYER_LEFT = 0x0203,
+        // Server to Client gameplay messages (0x02xx)
+        S2C_GAME_STATE = 0x0200,
+        S2C_GAME_START = 0x0201,
+        S2C_ENTITY_DESTROYED = 0x0202,
+        S2C_GAME_OVER = 0x0203,
 
         UNKNOWN = 0xFFFF
     };
@@ -202,21 +212,25 @@ namespace NetworkMessages {
     // ============================================================================
 
     /**
-     * @brief Create CONNECT_REQUEST message
+     * @brief Create HANDSHAKE_REQUEST message
      * @param playerName Player's name
+     * 
+     * @deprecated Use RType::Messages::Connection::HandshakeRequest wrapper instead
      */
     inline std::vector<uint8_t> createConnectRequest(const std::string &playerName) {
         auto payload = serializeString(playerName);
-        return createMessage(MessageType::CONNECT_REQUEST, payload);
+        return createMessage(MessageType::HANDSHAKE_REQUEST, payload);
     }
 
     /**
-     * @brief Parse CONNECT_REQUEST message
+     * @brief Parse HANDSHAKE_REQUEST message
      * @param packet Complete packet
      * @return Player name (empty if invalid or wrong type)
+     * 
+     * @deprecated Use RType::Messages::Connection::HandshakeRequest wrapper instead
      */
     inline std::string parseConnectRequest(const std::vector<uint8_t> &packet) {
-        if (getMessageType(packet) != MessageType::CONNECT_REQUEST) {
+        if (getMessageType(packet) != MessageType::HANDSHAKE_REQUEST) {
             return "";
         }
 
@@ -226,21 +240,25 @@ namespace NetworkMessages {
     }
 
     /**
-     * @brief Create CONNECT_RESPONSE message
+     * @brief Create HANDSHAKE_RESPONSE message
      * @param message Welcome message
+     * 
+     * @deprecated Use RType::Messages::Connection::HandshakeResponse wrapper instead
      */
     inline std::vector<uint8_t> createConnectResponse(const std::string &message) {
         auto payload = serializeString(message);
-        return createMessage(MessageType::CONNECT_RESPONSE, payload);
+        return createMessage(MessageType::HANDSHAKE_RESPONSE, payload);
     }
 
     /**
-     * @brief Parse CONNECT_RESPONSE message
+     * @brief Parse HANDSHAKE_RESPONSE message
      * @param packet Complete packet
      * @return Welcome message (empty if invalid or wrong type)
+     * 
+     * @deprecated Use RType::Messages::Connection::HandshakeResponse wrapper instead
      */
     inline std::string parseConnectResponse(const std::vector<uint8_t> &packet) {
-        if (getMessageType(packet) != MessageType::CONNECT_RESPONSE) {
+        if (getMessageType(packet) != MessageType::HANDSHAKE_RESPONSE) {
             return "";
         }
 

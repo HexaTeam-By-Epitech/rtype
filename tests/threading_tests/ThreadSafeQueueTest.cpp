@@ -93,7 +93,7 @@ TEST(ThreadSafeQueueTest, MultipleProducers) {
 
     std::vector<std::thread> threads;
     for (int t = 0; t < numThreads; ++t) {
-        threads.emplace_back([&queue, t, itemsPerThread]() {
+        threads.emplace_back([&queue, t]() {
             for (int i = 0; i < itemsPerThread; ++i) {
                 queue.push(t * itemsPerThread + i);
             }
@@ -149,7 +149,7 @@ TEST(ThreadSafeQueueTest, ProducerConsumer) {
     std::atomic<int> consumedSum{0};
 
     // Producer thread
-    std::thread producer([&queue, itemCount, &done]() {
+    std::thread producer([&queue, &done]() {
         for (int i = 0; i < itemCount; ++i) {
             queue.push(i);
         }
@@ -187,7 +187,7 @@ TEST(ThreadSafeQueueTest, MultipleProducersConsumers) {
     // Producer threads
     std::vector<std::thread> producers;
     for (int p = 0; p < numProducers; ++p) {
-        producers.emplace_back([&queue, p, itemsPerProducer]() {
+        producers.emplace_back([&queue, p]() {
             for (int i = 0; i < itemsPerProducer; ++i) {
                 queue.push(p * itemsPerProducer + i);
             }
@@ -229,15 +229,13 @@ TEST(ThreadSafeQueueTest, ConcurrentPushPop) {
     std::atomic<int> balance{0};
 
     // Thread that pushes and increments balance
-    std::thread pusher([&queue, &balance, operations]() {
+    std::thread pusher([&queue, &balance]() {
         for (int i = 0; i < operations; ++i) {
             queue.push(1);
             ++balance;
         }
     });
-
-    // Thread that pops and decrements balance
-    std::thread popper([&queue, &balance, operations]() {
+    std::thread popper([&queue, &balance]() {
         for (int i = 0; i < operations; ++i) {
             while (true) {
                 auto value = queue.tryPop();
@@ -265,13 +263,12 @@ TEST(ThreadSafeQueueTest, HighVolumeStressTest) {
     ThreadSafeQueue<int> queue;
     const int itemCount = 100000;
 
-    std::thread producer([&queue, itemCount]() {
+    std::thread producer([&queue]() {
         for (int i = 0; i < itemCount; ++i) {
             queue.push(i);
         }
     });
-
-    std::thread consumer([&queue, itemCount]() {
+    std::thread consumer([&queue]() {
         int received = 0;
         while (received < itemCount) {
             auto value = queue.tryPop();

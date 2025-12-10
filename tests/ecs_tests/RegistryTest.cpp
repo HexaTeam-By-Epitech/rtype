@@ -156,11 +156,9 @@ TEST(RegisteryTest, AddTooMuchComponents) {
 // Generate 33 distinct test component types (0..32). Each type must be
 // distinct so the Registry will attempt to register a new component slot
 // for each one.
-#define DECL_TEST_COMP(N)                                     \
-    struct TestComponent##N : public ecs::IComponent {        \
-        ecs::ComponentType getType() const override {         \
-            return ecs::getComponentType<TestComponent##N>(); \
-        }                                                     \
+#define DECL_TEST_COMP(N)                                                                                 \
+    struct TestComponent##N : public ecs::IComponent {                                                    \
+        ecs::ComponentType getType() const override { return ecs::getComponentType<TestComponent##N>(); } \
     };
 
     DECL_TEST_COMP(0)
@@ -399,9 +397,7 @@ TEST(RegistryOptimizationTest, SequentialAddressGeneration) {
 TEST(RegistryOptimizationTest, AddressReuse) {
     ecs::Registry reg;
 
-    ecs::Address addr1 = reg.newEntity();
     ecs::Address addr2 = reg.newEntity();
-    ecs::Address addr3 = reg.newEntity();
 
     // Destroy the middle entity
     reg.destroyEntity(addr2);

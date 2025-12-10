@@ -308,9 +308,7 @@ TEST(RegistryOptimizationTest, SequentialAddressGeneration) {
 TEST(RegistryOptimizationTest, AddressReuse) {
     ecs::Registry reg;
 
-    ecs::Address addr1 = reg.newEntity();
     ecs::Address addr2 = reg.newEntity();
-    ecs::Address addr3 = reg.newEntity();
 
     // Destroy the middle entity
     reg.destroyEntity(addr2);

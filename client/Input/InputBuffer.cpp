@@ -7,13 +7,21 @@
 
 #include "InputBuffer.hpp"
 
-void InputBuffer::addInput(uint32_t frameNumber, InputAction action, InputState state) {}
+void InputBuffer::addInput(uint32_t frameNumber, InputAction action, InputState state) {
+    (void)frameNumber;
+    (void)action;
+    (void)state;
+    _oldestFrame = frameNumber;
+}
 
 std::vector<InputBuffer::StoredInput> InputBuffer::getInputsSince(uint32_t startFrame) const {
+    (void)startFrame;
     return {};
 }
 
-void InputBuffer::clearUntil(uint32_t frameNumber) {}
+void InputBuffer::clearUntil(uint32_t frameNumber) {
+    (void)frameNumber;
+}
 
 std::optional<InputBuffer::StoredInput> InputBuffer::getLastInput() const {
     return std::nullopt;

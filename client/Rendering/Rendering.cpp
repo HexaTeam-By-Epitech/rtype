@@ -17,6 +17,8 @@ bool Rendering::initialize(uint32_t width, uint32_t height, const std::string &t
     (void)width;
     (void)height;
     (void)title;
+    _initialized = true;
+    _eventBus = {};
 
     return true;
 }

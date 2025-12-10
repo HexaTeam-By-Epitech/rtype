@@ -50,14 +50,14 @@ TEST(NetworkMessagesTest, GetMessageTypeConnectRequest) {
     auto data = NetworkMessages::createConnectRequest("Player1");
     auto type = NetworkMessages::getMessageType(data);
 
-    EXPECT_EQ(type, NetworkMessages::MessageType::CONNECT_REQUEST);
+    EXPECT_EQ(type, NetworkMessages::MessageType::HANDSHAKE_REQUEST);
 }
 
 TEST(NetworkMessagesTest, GetMessageTypeConnectResponse) {
     auto data = NetworkMessages::createConnectResponse("OK");
     auto type = NetworkMessages::getMessageType(data);
 
-    EXPECT_EQ(type, NetworkMessages::MessageType::CONNECT_RESPONSE);
+    EXPECT_EQ(type, NetworkMessages::MessageType::HANDSHAKE_RESPONSE);
 }
 
 TEST(NetworkMessagesTest, EmptyPlayerName) {
@@ -121,7 +121,7 @@ TEST(SerializationIntegrationTest, CompleteWorkflow) {
 
     // Simulate server receiving and parsing
     auto messageType = NetworkMessages::getMessageType(requestData);
-    EXPECT_EQ(messageType, NetworkMessages::MessageType::CONNECT_REQUEST);
+    EXPECT_EQ(messageType, NetworkMessages::MessageType::HANDSHAKE_REQUEST);
 
     std::string receivedName = NetworkMessages::parseConnectRequest(requestData);
     EXPECT_EQ(receivedName, clientName);
@@ -132,7 +132,7 @@ TEST(SerializationIntegrationTest, CompleteWorkflow) {
 
     // Simulate client receiving and parsing
     auto responseType = NetworkMessages::getMessageType(responseData);
-    EXPECT_EQ(responseType, NetworkMessages::MessageType::CONNECT_RESPONSE);
+    EXPECT_EQ(responseType, NetworkMessages::MessageType::HANDSHAKE_RESPONSE);
 
     std::string receivedMsg = NetworkMessages::parseConnectResponse(responseData);
     EXPECT_EQ(receivedMsg, responseMsg);

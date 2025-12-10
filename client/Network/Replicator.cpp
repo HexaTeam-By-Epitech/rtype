@@ -7,6 +7,7 @@
 
 #include "Replicator.hpp"
 #include <iostream>
+#include "Capnp/Messages/Messages.hpp"
 #include "NetworkFactory.hpp"
 
 Replicator::Replicator(EventBus &eventBus) : _eventBus(eventBus), _host(createClientHost()) {}
@@ -97,9 +98,16 @@ void Replicator::networkThreadLoop() {
         switch (event.type) {
             case NetworkEventType::RECEIVE:
                 if (event.packet) {
-                    // Decode message and push to queue
-                    std::string messageContent =
-                        NetworkMessages::parseConnectResponse(event.packet->getData());
+                    // Decode message type and push to queue
+                    auto messageType = NetworkMessages::getMessageType(event.packet->getData());
+                    std::string messageContent;
+
+                    // Parse based on message type
+                    if (messageType == NetworkMessages::MessageType::HANDSHAKE_RESPONSE) {
+                        messageContent = NetworkMessages::parseConnectResponse(event.packet->getData());
+                    } else if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
+                        messageContent = "GameStart received";
+                    }
 
                     NetworkEvent netEvent(NetworkMessageType::WORLD_STATE, event.packet->getData());
                     netEvent.setMessageContent(messageContent);
@@ -133,13 +141,47 @@ void Replicator::networkThreadLoop() {
 }
 
 void Replicator::processMessages() {
+    using namespace RType::Messages;
+
     // Process all available messages from network thread
     while (auto eventOpt = _incomingMessages.tryPop()) {
         auto &netEvent = *eventOpt;
 
-        // Log received messages
-        if (!netEvent.getMessageContent().empty()) {
-            std::cout << "[CLIENT] Received from server: " << netEvent.getMessageContent() << std::endl;
+        // Decode and log specific message types
+        auto messageType = NetworkMessages::getMessageType(netEvent.getData());
+
+        if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
+            // Decode GameStart message
+            auto payload = NetworkMessages::getPayload(netEvent.getData());
+            try {
+                auto gameStart = S2C::GameStart::deserialize(payload);
+
+                std::cout << "[Client] ✓ GameStart received!" << std::endl;
+                std::cout << "[Client]   - Your entity ID: " << gameStart.yourEntityId << std::endl;
+                std::cout << "[Client]   - Server tick: " << gameStart.initialState.serverTick << std::endl;
+                std::cout << "[Client]   - Total entities: " << gameStart.initialState.entities.size()
+                          << std::endl;
+
+                // Count entities by type
+                int players = 0, enemies = 0, bullets = 0;
+                for (const auto &entity : gameStart.initialState.entities) {
+                    if (entity.type == Shared::EntityType::Player)
+                        players++;
+                    else if (entity.type == Shared::EntityType::EnemyType1)
+                        enemies++;
+                    else if (entity.type == Shared::EntityType::PlayerBullet ||
+                             entity.type == Shared::EntityType::EnemyBullet)
+                        bullets++;
+                }
+
+                std::cout << "[Client]   - Players: " << players << std::endl;
+                std::cout << "[Client]   - Enemies: " << enemies << std::endl;
+                std::cout << "[Client]   - Bullets: " << bullets << std::endl;
+            } catch (const std::exception &e) {
+                std::cerr << "[Client] Error decoding GameStart: " << e.what() << std::endl;
+            }
+        } else if (!netEvent.getMessageContent().empty()) {
+            std::cout << "[Client] Received from server: " << netEvent.getMessageContent() << std::endl;
         }
 
         // Publish on EventBus for game systems to process
@@ -148,6 +190,7 @@ void Replicator::processMessages() {
 }
 
 void Replicator::sendPacket(NetworkMessageType type, const std::vector<uint8_t> &data) {
+    (void)type;
     if (!_serverPeer || !_connected.load()) {
         return;
     }
@@ -178,10 +221,12 @@ uint32_t Replicator::getPacketLoss() const {
 }
 
 void Replicator::onInputEvent(const InputEvent &event) {
+    (void)event;
     // TODO: Implement input event handling
 }
 
 void Replicator::processIncomingPacket(const std::vector<uint8_t> &packet) {
+    (void)packet;
     // This method is now handled by networkThreadLoop
     // Kept for backwards compatibility if needed
 }

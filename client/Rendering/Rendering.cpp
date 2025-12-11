@@ -7,18 +7,23 @@
 
 #include "Rendering.hpp"
 
-Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {}
+Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {
+    _graphics = Graphics::RaylibGraphics();
+}
 
 Rendering::~Rendering() {
     shutdown();
+    _graphics.CloseWindow();
+    _graphics.~RaylibGraphics();
+    r
 }
 
 bool Rendering::initialize(uint32_t width, uint32_t height, const std::string &title) {
-    (void)width;
-    (void)height;
-    (void)title;
     _initialized = true;
     _eventBus = {};
+    _graphics.InitWindow(static_cast<int>(width), static_cast<int>(height), title.c_str());
+    _width = width;
+    _height = height;
 
     return true;
 }

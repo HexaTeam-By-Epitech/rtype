@@ -12,12 +12,12 @@ Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {
 }
 
 Rendering::~Rendering() {
-    shutdown();
+    Shutdown();
     _graphics.CloseWindow();
     _graphics.~RaylibGraphics();
 }
 
-bool Rendering::initialize(uint32_t width, uint32_t height, const std::string &title) {
+bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &title) {
     _initialized = true;
     _eventBus = {};
     _graphics.InitWindow(static_cast<int>(width), static_cast<int>(height), title.c_str());
@@ -27,42 +27,49 @@ bool Rendering::initialize(uint32_t width, uint32_t height, const std::string &t
     return true;
 }
 
-void Rendering::shutdown() {
+void Rendering::Shutdown() {
     _initialized = false;
 }
 
-void Rendering::render() {}
+void Rendering::ClearWindow() {
+    if (!_initialized) {
+        return;
+    }
 
-bool Rendering::isWindowOpen() const {
+    _graphics.ClearWindow();
+}
+
+void Rendering::Render() {
+    if (!_initialized) {
+        return;
+    }
+
+    _graphics.StartDrawing();
+}
+
+bool Rendering::IsWindowOpen() const {
     return _initialized;
 }
 
-bool Rendering::loadTexture(const std::string &id, const std::string &path) {
-    (void)id;
-    (void)path;
-
+bool Rendering::LoadTexture(const std::string &textureName, const std::string &path) {
+    _graphics.LoadTexture(textureName.c_str(), path.c_str());
     return true;
 }
 
-void Rendering::drawSprite(const std::string &textureId, float x, float y, float rotation, float scale) {
-    (void)textureId;
-    (void)x;
-    (void)y;
-    (void)rotation;
-    (void)scale;
+void Rendering::DrawSprite(const std::string &textureId, float xPosition, float yPosition, float rotation,
+                           float scale) {
+    _graphics.DrawTextureEx(textureId.c_str(), 0, 0, 0, 0, xPosition, yPosition, rotation, scale, 0xFFFFFFFF);
 }
 
-void Rendering::drawText(const std::string &text, float x, float y, uint32_t size) {
-    (void)text;
-    (void)x;
-    (void)y;
-    (void)size;
+void Rendering::DrawText(const std::string &text, float xPosition, float yPosition, uint32_t size) {
+    _graphics.DrawText(-1, text.c_str(), static_cast<int>(xPosition), static_cast<int>(yPosition),
+                       static_cast<int>(size), 0xFFFFFFFF);
 }
 
-uint32_t Rendering::getWidth() const {
+uint32_t Rendering::GetWidth() const {
     return _width;
 }
 
-uint32_t Rendering::getHeight() const {
+uint32_t Rendering::GetHeight() const {
     return _height;
 }

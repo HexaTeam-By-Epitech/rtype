@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include "Core/EventBus/EventBus.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
@@ -63,7 +64,7 @@ class Rendering {
      * @note Recommended: 1920x1080 for R-Type
      * @note Depends on Raylib wrapper implementation (not yet available)
      */
-    bool initialize(uint32_t width, uint32_t height, const std::string &title);
+    bool Initialize(uint32_t width, uint32_t height, const std::string &title);
 
     /**
      * @brief Stop the rendering system and destroy window
@@ -71,7 +72,14 @@ class Rendering {
      * Frees all allocated graphical resources.
      * Closes the window properly.
      */
-    void shutdown();
+    void Shutdown();
+
+    /**
+    * @brief Clears the windows before rendering its content.
+    *
+    * @note Must be called at the beginning of each frame before drawing.
+    */
+    void ClearWindow();
 
     /**
      * @brief Perform rendering of current frame
@@ -83,7 +91,7 @@ class Rendering {
      * @note Synchronized with VSync if enabled
      * @note Implementation pending Raylib wrapper availability
      */
-    void render();
+    void Render();
 
     /**
      * @brief Check if window is open
@@ -92,8 +100,7 @@ class Rendering {
      * 
      * @note Returns false if user closes the window
      */
-    bool isWindowOpen() const;
-
+    [[nodiscard]] bool IsWindowOpen() const;
     /**
      * @brief Load a texture from file
      * 
@@ -108,7 +115,7 @@ class Rendering {
      * @note Supported formats depend on Raylib wrapper implementation
      * @note Wrapper implementation pending
      */
-    bool loadTexture(const std::string &id, const std::string &path);
+    bool LoadTexture(const std::string &textureName, const std::string &path);
 
     /**
      * @brief Draw a sprite on screen
@@ -125,8 +132,8 @@ class Rendering {
      * @note Call order determines render order (Z-order)
      * @note Uses Raylib wrapper's sprite rendering (pending implementation)
      */
-    void drawSprite(const std::string &textureId, float x, float y, float rotation = 0.0f,
-                    float scale = 1.0f);
+    void DrawSprite(const std::string &textureId, float xPosition, float yPosition, float rotation = 0.0,
+                    float scale = 1.0);
 
     /**
      * @brief Draw text on screen
@@ -142,28 +149,29 @@ class Rendering {
      * @note Rendered on top of sprites (UI)
      * @note Font rendering via Raylib wrapper (not yet implemented)
      */
-    void drawText(const std::string &text, float x, float y, uint32_t size = 24);
+    void DrawText(const std::string &text, float xPosition, float yPosition, uint32_t size = 24);
 
     /**
      * @brief Get window width
      * 
      * @return Width in pixels
      */
-    uint32_t getWidth() const;
+    [[nodiscard]] uint32_t GetWidth() const;
 
     /**
      * @brief Get window height
      * 
      * @return Height in pixels
      */
-    uint32_t getHeight() const;
+    [[nodiscard]] uint32_t GetHeight() const;
 
    private:
-    EventBus &_eventBus;
+    EventBus _eventBus;
     bool _initialized = false;
     uint32_t _width = 0;
     uint32_t _height = 0;
     Graphics::RaylibGraphics _graphics;
+    std::unordered_map<std::string, Texture2D> _textures;
 };
 
 #endif

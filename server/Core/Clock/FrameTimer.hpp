@@ -25,13 +25,17 @@ namespace server {
         /**
          * @brief Reset the timer to the current time
          */
-        void reset();
+        void reset() { _start = std::chrono::steady_clock::now(); }
 
         /**
          * @brief Get the elapsed time in seconds since last reset
          * @return elapsed time in seconds
          */
-        double elapsed() const;
+        double elapsed() const {
+            auto now = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now - _start);
+            return duration.count() / 1000000.0;
+        }
 
        private:
         std::chrono::steady_clock::time_point _start{std::chrono::steady_clock::now()};

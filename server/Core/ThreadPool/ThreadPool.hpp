@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <thread>
+#include "../../../common/Threading/ThreadSafeQueue.hpp"
 #include "IThreadPool.hpp"
 
 namespace server {
@@ -17,6 +19,7 @@ namespace server {
      * @brief Concrete implementation of IThreadPool
      *
      * Manages a fixed number of worker threads executing tasks concurrently.
+     * Uses a thread-safe queue to distribute tasks among workers.
      */
     class ThreadPool : public IThreadPool {
        public:
@@ -29,8 +32,16 @@ namespace server {
         size_t size() const override;
 
        private:
+        /**
+         * @brief Worker thread main loop
+         * Continuously pulls tasks from the queue and executes them
+         */
+        void _workerLoop();
+
         size_t _threadCount;
         std::vector<std::thread> _workers;
+        ThreadSafeQueue<Task> _taskQueue;
+        std::atomic<bool> _running{false};
     };
 
 }  // namespace server

@@ -26,7 +26,7 @@ namespace server {
          * @brief Get reference to the frame timer
          * @return FrameTimer reference
          */
-        FrameTimer &getFrameTimer();
+        FrameTimer &getFrameTimer() { return _frameTimer; }
 
        private:
         FrameTimer _frameTimer;

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "../../common/ECS/Registry.hpp"
+#include "../World/World.hpp"
 #include "IGameLogic.hpp"
 
 namespace ecs {
@@ -20,6 +21,7 @@ namespace ecs {
 }
 
 namespace server {
+    class ThreadPool;
 
     /**
      * @class GameLogic
@@ -42,10 +44,17 @@ namespace server {
      * - Multi-threaded safe (internal synchronization)
      * - Player entity management
      * - Game state snapshots
+     * - Uses World abstraction layer for entity management
      */
     class GameLogic : public IGameLogic {
        public:
-        GameLogic();
+        /**
+         * @brief Constructor
+         * @param world Optional World instance (creates one if not provided)
+         * @param threadPool Optional ThreadPool for parallel system execution
+         */
+        explicit GameLogic(std::shared_ptr<World> world = nullptr,
+                           std::shared_ptr<ThreadPool> threadPool = nullptr);
         ~GameLogic() override;
 
         bool initialize() override;
@@ -54,10 +63,16 @@ namespace server {
         void despawnPlayer(uint32_t playerId) override;
         void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) override;
 
-        ecs::Registry &getRegistry() override { return _registry; }
+        ecs::Registry &getRegistry() override { return *_world->getRegistry(); }
         uint32_t getCurrentTick() const override { return _currentTick; }
         bool isGameActive() const override { return _gameActive; }
         void resetGame() override;
+
+        /**
+         * @brief Get the World instance
+         * @return Shared pointer to World
+         */
+        std::shared_ptr<World> getWorld() { return _world; }
 
        private:
         /**
@@ -81,9 +96,10 @@ namespace server {
          */
         void _createSnapshot();
 
-        // ECS
-        ecs::Registry _registry;
+        // ECS and World
+        std::shared_ptr<World> _world;
         std::vector<std::unique_ptr<ecs::ISystem>> _systems;
+        std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
 
         // Player management
         std::unordered_map<uint32_t, ecs::Address> _playerMap;  // playerId -> entityAddress

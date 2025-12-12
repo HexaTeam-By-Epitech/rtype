@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "IEvent.hpp"
+#include "../IEvent.hpp"
 
 namespace server {
 
@@ -17,18 +17,27 @@ namespace server {
      */
     class CollisionEvent : public IEvent {
        public:
-        CollisionEvent() = default;
+        /**
+         * @brief Construct a collision event
+         * @param entityA First entity ID
+         * @param entityB Second entity ID
+         */
+        CollisionEvent(int entityA, int entityB) : _entityA(entityA), _entityB(entityB) {}
         ~CollisionEvent() override = default;
 
         /**
          * @brief Get the first entity ID involved in the collision
          */
-        int getEntityA() const;
+        int getEntityA() const { return _entityA; }
 
         /**
          * @brief Get the second entity ID involved in the collision
          */
-        int getEntityB() const;
+        int getEntityB() const { return _entityB; }
+
+       private:
+        int _entityA;
+        int _entityB;
     };
 
 }  // namespace server

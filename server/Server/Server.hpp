@@ -11,10 +11,12 @@
 #include <memory>
 #include <unordered_map>
 #include "../Network/ServerNetworkManager.hpp"
+#include "../Rooms/RoomManager/RoomManager.hpp"
+#include "../Sessions/SessionManager/SessionManager.hpp"
 
 // Forward declarations
 namespace server {
-    class DeterministicGameLoop;
+    class ServerLoop;
     class EventBus;
 }  // namespace server
 
@@ -26,14 +28,25 @@ namespace RType::Messages::Shared {
  * @class Server
  * @brief R-Type server application
  * 
- * Encapsulates the entire server:
+ * Encapsulates the entire server with proper architecture:
+ * - Session management (player authentication and tracking)
+ * - Room management (game lobbies and instances)
  * - Network communication (ServerNetworkManager)
- * - Game logic (ECS)
+ * - Game logic per room (ECS + ServerLoop)
  * - World synchronization
  * 
  * Architecture:
- * - THREAD 1: Network (ServerNetworkManager)
- * - THREAD 2: Game loop (ECS + broadcast)
+ * Server
+ *   ├── SessionManager (track connected players)
+ *   ├── RoomManager (manage game instances)
+ *   │   └── Room (contains players + game loop)
+ *   │       └── ServerLoop (60 Hz)
+ *   │           └── World (wraps ECS Registry)
+ *   │               └── GameLogic (8 systems)
+ *   └── EventBus (global events)
+ * 
+ * THREAD 1: Network (ServerNetworkManager)
+ * THREAD 2: Game loop per room (ECS + broadcast)
  * 
  * Usage:
  * @code
@@ -99,10 +112,17 @@ class Server {
 
     std::unique_ptr<ServerNetworkManager> _networkManager;
     std::shared_ptr<server::EventBus> _eventBus;
-    std::unique_ptr<server::DeterministicGameLoop> _gameLoop;
 
-    // Track player ID to peer mapping for broadcasting
-    std::unordered_map<uint32_t, IPeer *> _playerPeers;
+    // Architecture components
+    std::shared_ptr<server::SessionManager> _sessionManager;
+    std::shared_ptr<server::RoomManager> _roomManager;
+
+    // Default room (TODO: Multiple rooms with matchmaking)
+    std::shared_ptr<server::Room> _defaultRoom;
+    std::unique_ptr<server::ServerLoop> _gameLoop;
+
+    // Track session ID to peer mapping for network communication
+    std::unordered_map<std::string, IPeer *> _sessionPeers;
 
     bool _initialized = false;
     bool _running = false;

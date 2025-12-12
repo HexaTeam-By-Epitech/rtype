@@ -6,23 +6,37 @@
 */
 
 #include "SessionManager.hpp"
+#include "../../../common/Logger/Logger.hpp"
 
 namespace server {
 
-    // Methods are empty for now
+    std::shared_ptr<Session> SessionManager::createSession(const std::string &id) {
+        if (_sessions.find(id) != _sessions.end()) {
+            LOG_WARNING("Session ", id, " already exists");
+            return _sessions[id];
+        }
 
-    std::shared_ptr<Session> SessionManager::createSession([[maybe_unused]] const std::string &id) {
-        // Implementation goes here
+        auto session = std::make_shared<Session>(id);
+        _sessions[id] = session;
+
+        LOG_INFO("✓ Session created: ", id);
+        return session;
+    }
+
+    std::shared_ptr<Session> SessionManager::getSession(const std::string &id) {
+        auto it = _sessions.find(id);
+        if (it != _sessions.end()) {
+            return it->second;
+        }
         return nullptr;
     }
 
-    std::shared_ptr<Session> SessionManager::getSession([[maybe_unused]] const std::string &id) {
-        // Implementation goes here
-        return nullptr;
-    }
-
-    void SessionManager::removeSession([[maybe_unused]] const std::string &id) {
-        // Implementation goes here
+    void SessionManager::removeSession(const std::string &id) {
+        auto it = _sessions.find(id);
+        if (it != _sessions.end()) {
+            _sessions.erase(it);
+            LOG_INFO("✓ Session removed: ", id);
+        }
     }
 
 }  // namespace server

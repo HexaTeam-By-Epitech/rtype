@@ -9,8 +9,13 @@ file(GLOB_RECURSE SERVER_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/Server/*.cpp"
 )
 
+# Add ECS sources from common (needed by GameLogic)
+file(GLOB_RECURSE ECS_SOURCES
+    "${CMAKE_SOURCE_DIR}/common/ECS/*.cpp"
+)
+
 # Librairie serveur
-add_library(rtype_server_lib ${SERVER_SOURCES})
+add_library(rtype_server_lib ${SERVER_SOURCES} ${ECS_SOURCES})
 
 # Include paths pour la lib
 target_include_directories(rtype_server_lib

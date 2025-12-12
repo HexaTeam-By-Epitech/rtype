@@ -9,7 +9,18 @@
 
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include "../Network/ServerNetworkManager.hpp"
+
+// Forward declarations
+namespace server {
+    class DeterministicGameLoop;
+    class EventBus;
+}  // namespace server
+
+namespace RType::Messages::Shared {
+    enum class Action;
+}
 
 /**
  * @class Server
@@ -69,10 +80,29 @@ class Server {
      */
     void handlePacket(HostNetworkEvent &event);
 
+    /**
+     * @brief Broadcast game state to all connected clients
+     */
+    void _broadcastGameState();
+
+    /**
+     * @brief Convert Action enum to directional input (dx, dy)
+     * @param action The action to convert
+     * @param dx Output: X direction (-1, 0, 1)
+     * @param dy Output: Y direction (-1, 0, 1)
+     * @param shoot Output: true if shooting
+     */
+    void _actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot);
+
     uint16_t _port;
     size_t _maxClients;
 
     std::unique_ptr<ServerNetworkManager> _networkManager;
+    std::shared_ptr<server::EventBus> _eventBus;
+    std::unique_ptr<server::DeterministicGameLoop> _gameLoop;
+
+    // Track player ID to peer mapping for broadcasting
+    std::unordered_map<uint32_t, IPeer *> _playerPeers;
 
     bool _initialized = false;
     bool _running = false;

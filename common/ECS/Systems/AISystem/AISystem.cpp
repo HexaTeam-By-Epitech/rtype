@@ -28,11 +28,10 @@ namespace ecs {
     /**
      * @brief Applies specific movement patterns based on enemy type.
      */
-    void AISystem::applyMovementPattern(const Enemy &enemy, Transform &transform, Velocity &velocity,
-                                        float deltaTime) {
-        int pattern = enemy.getAttackPattern();
-        auto pos = transform.getPosition();
-
+    void AISystem::applyMovementPattern([[maybe_unused]] const Enemy &enemy,
+                                        [[maybe_unused]] Transform &transform,
+                                        [[maybe_unused]] Velocity &velocity,
+                                        [[maybe_unused]] float deltaTime) {
         // TODO: Implement different movement patterns based on enemy type
     }
 

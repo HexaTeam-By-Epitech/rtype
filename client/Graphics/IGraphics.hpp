@@ -195,7 +195,7 @@ namespace Graphics {
      * @param filepath Path to the image file (e.g., .png, .jpg)
      * @return Texture handle (integer ID) for use in drawing operations
      */
-        virtual int LoadTexture(const char *filepath) = 0;
+        virtual int LoadTexture(const char *textureName, const char *filepath) = 0;
 
         /**
      * @brief Create a texture from raw pixel data in memory
@@ -205,33 +205,34 @@ namespace Graphics {
      * @param format Pixel format (implementation-specific)
      * @return Texture handle (integer ID) for use in drawing operations
      */
-        virtual int CreateTextureFromMemory(const void *pixels, int width, int height, int format) = 0;
+        virtual int CreateTextureFromMemory(const char *textureName, const void *pixels, int width,
+                                            int height, int format) = 0;
 
         /**
      * @brief Update an existing texture with new pixel data
-     * @param textureHandle Texture handle returned by LoadTexture() or CreateTextureFromMemory()
+     * @param textureName Name of the texture to update
      * @param pixels Pointer to new pixel data
      */
-        virtual void UpdateTexture(int textureHandle, const void *pixels) = 0;
+        virtual void UpdateTexture(const char *textureName, const void *pixels) = 0;
 
         /**
      * @brief Unload a previously loaded texture
-     * @param textureHandle Texture handle to unload
+     * @param textureName Name of the texture to unload
      */
-        virtual void UnloadTexture(int textureHandle) = 0;
+        virtual void UnloadTexture(const char *textureName) = 0;
 
         /**
      * @brief Draw a texture at the specified position
-     * @param textureHandle Texture handle to draw
+     * @param textureName Name of the texture to draw
      * @param x X coordinate for drawing position
      * @param y Y coordinate for drawing position
      * @param tint Tint color in 0xAARRGGBB format (0xFFFFFFFF for no tint)
      */
-        virtual void DrawTexture(int textureHandle, int x, int y, unsigned int tint) = 0;
+        virtual void DrawTexture(const char *textureName, int x, int y, unsigned int tint) = 0;
 
         /**
      * @brief Draw a texture with advanced parameters (rotation, scale, source rectangle)
-     * @param textureHandle Texture handle to draw
+     * @param textureName Name of the texture to draw
      * @param srcX X coordinate of source rectangle in texture
      * @param srcY Y coordinate of source rectangle in texture
      * @param srcW Width of source rectangle
@@ -242,8 +243,9 @@ namespace Graphics {
      * @param scale Scale factor (1.0 = original size)
      * @param tint Tint color in 0xAARRGGBB format
      */
-        virtual void DrawTextureEx(int textureHandle, int srcX, int srcY, int srcW, int srcH, float destX,
-                                   float destY, float rotation, float scale, unsigned int tint) = 0;
+        virtual void DrawTextureEx(const char *textureName, int srcX, int srcY, int srcW, int srcH,
+                                   float destX, float destY, float rotation, float scale,
+                                   unsigned int tint) = 0;
 
         // ========== Input Handling ==========
 

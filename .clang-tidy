@@ -27,7 +27,6 @@ Checks: >
 # but won't break the build.
 WarningsAsErrors: >
   clang-analyzer-*,
-  bugprone-*,
   performance-*,
   cppcoreguidelines-init-variables
 

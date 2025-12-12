@@ -13,7 +13,7 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
-#include "../../Events/IEvent.hpp"
+#include "Events/IEvent.hpp"
 
 /**
  * @class EventBus

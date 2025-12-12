@@ -56,3 +56,6 @@ coverage/
 *.gcno
 *.gcov
 coverage.info
+
+.clangd
+

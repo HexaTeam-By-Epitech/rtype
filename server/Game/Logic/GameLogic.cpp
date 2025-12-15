@@ -162,8 +162,9 @@ namespace server {
             // Remove player from map
             _playerMap.erase(it);
 
-            // Entity cleanup happens in _cleanupDeadEntities()
-            LOG_INFO("✓ Player removed from game");
+            // Immediately remove entity from registry to prevent resource leak
+            _world->removeEntity(playerEntity);
+            LOG_INFO("✓ Player removed from game and entity destroyed");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to despawn player: ", e.what());
         }

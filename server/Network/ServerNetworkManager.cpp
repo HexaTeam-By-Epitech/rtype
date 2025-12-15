@@ -71,8 +71,8 @@ void ServerNetworkManager::networkThreadLoop() {
             continue;
         }
 
-        // Poll for network events (10ms timeout)
-        auto eventOpt = _host->service(10);
+        // Poll for network events (1ms timeout for faster disconnect detection)
+        auto eventOpt = _host->service(1);
         if (!eventOpt) {
             continue;
         }
@@ -102,6 +102,10 @@ void ServerNetworkManager::processMessages() {
 
             case NetworkEventType::DISCONNECT:
                 LOG_INFO("Client disconnected");
+                // Forward disconnect event to handler so Server can clean up
+                if (_packetHandler) {
+                    _packetHandler(event);
+                }
                 break;
 
             default:

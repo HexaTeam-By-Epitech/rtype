@@ -128,6 +128,39 @@ bool Server::initialize() {
 }
 
 void Server::handlePacket(HostNetworkEvent &event) {
+    // Handle disconnect events (no packet data)
+    if (event.type == NetworkEventType::DISCONNECT && event.peer) {
+        // Fast O(1) lookup using reverse map
+        auto it = _peerToSession.find(event.peer);
+        if (it != _peerToSession.end()) {
+            std::string sessionId = it->second;
+            auto session = _sessionManager->getSession(sessionId);
+            uint32_t playerId = session ? session->getPlayerId() : 0;
+
+            if (playerId != 0) {
+                LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
+
+                // Despawn player from game
+                auto &gameLogic = _gameLoop->getGameLogic();
+                gameLogic.despawnPlayer(playerId);
+
+                // Remove from room
+                _defaultRoom->leave(playerId);
+
+                // Publish PLAYER_LEFT event
+                _eventBus->publish(server::PlayerLeftEvent(playerId));
+
+                // Clean up session and mappings
+                _sessionManager->removeSession(sessionId);
+                _sessionPeers.erase(sessionId);
+                _peerToSession.erase(it);
+
+                LOG_INFO("✓ Player ", playerId, " fully cleaned up");
+            }
+        }
+        return;
+    }
+
     if (!event.packet || !event.peer) {
         return;
     }
@@ -155,6 +188,7 @@ void Server::handlePacket(HostNetworkEvent &event) {
 
                 // Track session to peer mapping for network communication
                 _sessionPeers[sessionId] = event.peer;
+                _peerToSession[event.peer] = sessionId;  // Reverse lookup for fast disconnect
 
                 // Player joins default room
                 _defaultRoom->join(newPlayerId);
@@ -207,15 +241,13 @@ void Server::handlePacket(HostNetworkEvent &event) {
                     shoot = shoot || actionShoot;
                 }
 
-                // Find session from peer
+                // Find session from peer using fast reverse lookup
                 uint32_t playerId = 0;
-                for (const auto &[sessionId, peer] : _sessionPeers) {
-                    if (peer == event.peer) {
-                        auto session = _sessionManager->getSession(sessionId);
-                        if (session) {
-                            playerId = session->getPlayerId();
-                        }
-                        break;
+                auto it = _peerToSession.find(event.peer);
+                if (it != _peerToSession.end()) {
+                    auto session = _sessionManager->getSession(it->second);
+                    if (session) {
+                        playerId = session->getPlayerId();
                     }
                 }
 

@@ -123,6 +123,8 @@ class Server {
 
     // Track session ID to peer mapping for network communication
     std::unordered_map<std::string, IPeer *> _sessionPeers;
+    // Reverse lookup: peer -> session ID for fast disconnect handling
+    std::unordered_map<IPeer *, std::string> _peerToSession;
 
     bool _initialized = false;
     bool _running = false;

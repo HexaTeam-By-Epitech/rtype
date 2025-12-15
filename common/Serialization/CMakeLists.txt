@@ -25,6 +25,13 @@ add_library(rtype_serialization SHARED
         ${CAPNP_HDRS}
 )
 
+# Enable automatic symbol export on Windows
+if(WIN32)
+    set_target_properties(rtype_serialization PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    )
+endif()
+
 target_include_directories(rtype_serialization
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}        # for public headers

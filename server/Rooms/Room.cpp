@@ -5,9 +5,9 @@
 ** Room.cpp
 */
 
-#include "Room.hpp"
+#include "server/Rooms/Room.hpp"
 #include <algorithm>
-#include "../../common/Logger/Logger.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 

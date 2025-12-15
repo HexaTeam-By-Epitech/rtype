@@ -5,7 +5,7 @@
 ** GameStateManager.cpp
 */
 
-#include "GameStateManager.hpp"
+#include "server/Game/StateManager/GameStateManager.hpp"
 
 namespace server {
 

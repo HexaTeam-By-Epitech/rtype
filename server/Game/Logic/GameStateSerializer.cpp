@@ -5,17 +5,16 @@
 ** GameStateSerializer.cpp - Game state serialization implementation
 */
 
-#include "GameStateSerializer.hpp"
+#include "server/Game/Logic/GameStateSerializer.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-
-#include "../../common/ECS/Components/Health.hpp"
-#include "../../common/ECS/Components/IComponent.hpp"
-#include "../../common/ECS/Components/Player.hpp"
-#include "../../common/ECS/Components/Transform.hpp"
-#include "../../common/ECS/Components/Velocity.hpp"
-#include "../../common/ECS/Registry.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/IComponent.hpp"
+#include "common/ECS/Components/Player.hpp"
+#include "common/ECS/Components/Transform.hpp"
+#include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Registry.hpp"
 
 namespace server {
 

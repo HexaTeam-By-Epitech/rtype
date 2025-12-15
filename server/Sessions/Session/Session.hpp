@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "ISession.hpp"
+#include "server/Sessions/Session/ISession.hpp"
 
 namespace server {
 

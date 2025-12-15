@@ -9,8 +9,8 @@
 
 #include <atomic>
 #include <thread>
-#include "../../../common/Threading/ThreadSafeQueue.hpp"
-#include "IThreadPool.hpp"
+#include "common/Threading/ThreadSafeQueue.hpp"
+#include "server/Core/ThreadPool/IThreadPool.hpp"
 
 namespace server {
 

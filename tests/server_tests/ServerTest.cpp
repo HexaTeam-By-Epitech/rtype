@@ -6,7 +6,7 @@
 */
 
 #include <gtest/gtest.h>
-#include "Server/Server.hpp"
+#include "server/Server/Server.hpp"
 
 TEST(ServerBasicTest, DummyTest) {
     ASSERT_TRUE(true);

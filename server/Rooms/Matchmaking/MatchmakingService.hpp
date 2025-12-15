@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "IMatchmakingService.hpp"
+#include "server/Rooms/Matchmaking/IMatchmakingService.hpp"
 
 namespace server {
 

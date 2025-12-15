@@ -5,19 +5,18 @@
 ** PrefabFactory.cpp
 */
 
-#include "PrefabFactory.hpp"
+#include "server/Game/Prefabs/PrefabFactory.hpp"
 #include <stdexcept>
-#include "../../../common/Logger/Logger.hpp"
-
-#include "../../common/ECS/Components/Collider.hpp"
-#include "../../common/ECS/Components/Enemy.hpp"
-#include "../../common/ECS/Components/Health.hpp"
-#include "../../common/ECS/Components/Player.hpp"
-#include "../../common/ECS/Components/Projectile.hpp"
-#include "../../common/ECS/Components/Transform.hpp"
-#include "../../common/ECS/Components/Velocity.hpp"
-#include "../../common/ECS/Components/Weapon.hpp"
-#include "../../common/ECS/Registry.hpp"
+#include "common/ECS/Components/Collider.hpp"
+#include "common/ECS/Components/Enemy.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/Player.hpp"
+#include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Transform.hpp"
+#include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Weapon.hpp"
+#include "common/ECS/Registry.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 

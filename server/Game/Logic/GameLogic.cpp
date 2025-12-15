@@ -5,35 +5,33 @@
 ** GameLogic.cpp - Server-side game logic implementation
 */
 
-#include "GameLogic.hpp"
+#include "server/Game/Logic/GameLogic.hpp"
 #include <algorithm>
 #include <cmath>
-#include "../../../common/Logger/Logger.hpp"
-
-#include "../../common/ECS/Components/Collider.hpp"
-#include "../../common/ECS/Components/Enemy.hpp"
-#include "../../common/ECS/Components/Health.hpp"
-#include "../../common/ECS/Components/Player.hpp"
-#include "../../common/ECS/Components/Projectile.hpp"
-#include "../../common/ECS/Components/Transform.hpp"
-#include "../../common/ECS/Components/Velocity.hpp"
-#include "../../common/ECS/Components/Weapon.hpp"
-
-#include "../../Core/ThreadPool/ThreadPool.hpp"
-#include "../../common/ECS/Systems/AISystem/AISystem.hpp"
-#include "../../common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
-#include "../../common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
-#include "../../common/ECS/Systems/HealthSystem/HealthSystem.hpp"
-#include "../../common/ECS/Systems/ISystem.hpp"
-#include "../../common/ECS/Systems/MovementSystem/MovementSystem.hpp"
-#include "../../common/ECS/Systems/ProjectileSystem/ProjectileSystem.hpp"
-#include "../../common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
-#include "../../common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
+#include "common/ECS/Components/Collider.hpp"
+#include "common/ECS/Components/Enemy.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/Player.hpp"
+#include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Transform.hpp"
+#include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Weapon.hpp"
+#include "common/ECS/Systems/AISystem/AISystem.hpp"
+#include "common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
+#include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
+#include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
+#include "common/ECS/Systems/ISystem.hpp"
+#include "common/ECS/Systems/MovementSystem/MovementSystem.hpp"
+#include "common/ECS/Systems/ProjectileSystem/ProjectileSystem.hpp"
+#include "common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
+#include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
+#include "common/Logger/Logger.hpp"
+#include "server/Core/ThreadPool/ThreadPool.hpp"
 
 namespace server {
 
     GameLogic::GameLogic(std::shared_ptr<World> world, std::shared_ptr<ThreadPool> threadPool)
-        : _currentTick(0), _gameActive(false), _threadPool(threadPool) {
+        : _currentTick(0), _threadPool(threadPool), _gameActive(false) {
         // Create World with Registry if not provided
         if (!world) {
             auto registry = std::make_shared<ecs::Registry>();

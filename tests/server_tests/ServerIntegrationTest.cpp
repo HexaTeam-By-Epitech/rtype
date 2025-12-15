@@ -9,9 +9,9 @@
 #include <chrono>
 #include <thread>
 #include "Capnp/NetworkMessages.hpp"
-#include "Network/ServerNetworkManager.hpp"
 #include "NetworkFactory.hpp"
-#include "Server/Server.hpp"
+#include "server/Network/ServerNetworkManager.hpp"
+#include "server/Server/Server.hpp"
 
 // ============================================================================
 // ServerNetworkManager Tests

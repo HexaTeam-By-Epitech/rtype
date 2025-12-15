@@ -5,24 +5,24 @@
 ** Server.cpp
 */
 
-#include "Server.hpp"
+#include "server/Server/Server.hpp"
 #include <chrono>
 #include <thread>
-#include "../../common/Logger/Logger.hpp"
-#include "../Core/EventBus/EventBus.hpp"
-#include "../Core/ServerLoop/ServerLoop.hpp"
-#include "../Events/GameEvent/GameEndedEvent.hpp"
-#include "../Events/GameEvent/GameEvent.hpp"
-#include "../Events/GameEvent/GameStartedEvent.hpp"
-#include "../Events/GameEvent/PlayerJoinedEvent.hpp"
-#include "../Events/GameEvent/PlayerLeftEvent.hpp"
-#include "../Game/Logic/GameLogic.hpp"
-#include "../Game/Logic/GameStateSerializer.hpp"
-#include "../Game/World/World.hpp"
 #include "Capnp/Messages/Messages.hpp"
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Capnp/NetworkMessages.hpp"
 #include "NetworkFactory.hpp"
+#include "common/Logger/Logger.hpp"
+#include "server/Core/EventBus/EventBus.hpp"
+#include "server/Core/ServerLoop/ServerLoop.hpp"
+#include "server/Events/GameEvent/GameEndedEvent.hpp"
+#include "server/Events/GameEvent/GameEvent.hpp"
+#include "server/Events/GameEvent/GameStartedEvent.hpp"
+#include "server/Events/GameEvent/PlayerJoinedEvent.hpp"
+#include "server/Events/GameEvent/PlayerLeftEvent.hpp"
+#include "server/Game/Logic/GameLogic.hpp"
+#include "server/Game/Logic/GameStateSerializer.hpp"
+#include "server/Game/World/World.hpp"
 
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 
@@ -122,18 +122,7 @@ bool Server::initialize() {
     LOG_INFO("✓ Event subscriptions registered");
 
     _initialized = true;
-    LOG_INFO("========================================");
     LOG_INFO("✓ Initialization complete!");
-    LOG_INFO("Architecture:");
-    LOG_INFO("  Server");
-    LOG_INFO("    ├── SessionManager (player tracking)");
-    LOG_INFO("    ├── RoomManager (game instances)");
-    LOG_INFO("    │   └── Room: ", _defaultRoom->getId());
-    LOG_INFO("    ├── EventBus (events)");
-    LOG_INFO("    └── ServerLoop (IServerLoop)");
-    LOG_INFO("        └── World (wraps Registry)");
-    LOG_INFO("            └── GameLogic (8 ECS systems)");
-    LOG_INFO("========================================");
 
     return true;
 }

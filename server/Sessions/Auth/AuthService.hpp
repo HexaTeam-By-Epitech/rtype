@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "IAuthService.hpp"
+#include "server/Sessions/Auth/IAuthService.hpp"
 
 namespace server {
 

@@ -9,8 +9,8 @@
 
 #include <memory>
 #include <vector>
-#include "../../../common/ECS/Registry.hpp"
-#include "IWorld.hpp"
+#include "common/ECS/Registry.hpp"
+#include "server/Game/World/IWorld.hpp"
 
 namespace server {
 

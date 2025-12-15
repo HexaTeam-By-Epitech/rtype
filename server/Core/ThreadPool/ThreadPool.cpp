@@ -5,8 +5,8 @@
 ** ThreadPool.cpp
 */
 
-#include "ThreadPool.hpp"
-#include "../../../common/Logger/Logger.hpp"
+#include "server/Core/ThreadPool/ThreadPool.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 

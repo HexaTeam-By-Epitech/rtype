@@ -5,8 +5,8 @@
 ** SessionManager.cpp
 */
 
-#include "SessionManager.hpp"
-#include "../../../common/Logger/Logger.hpp"
+#include "server/Sessions/SessionManager/SessionManager.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 

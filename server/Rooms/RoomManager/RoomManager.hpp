@@ -8,7 +8,7 @@
 #pragma once
 
 #include <unordered_map>
-#include "IRoomManager.hpp"
+#include "server/Rooms/RoomManager/IRoomManager.hpp"
 
 namespace server {
 

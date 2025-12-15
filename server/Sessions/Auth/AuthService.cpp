@@ -5,7 +5,7 @@
 ** AuthService.cpp
 */
 
-#include "AuthService.hpp"
+#include "server/Sessions/Auth/AuthService.hpp"
 
 namespace server {
 

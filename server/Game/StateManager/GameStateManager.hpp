@@ -9,8 +9,8 @@
 
 #include <memory>
 #include <vector>
-#include "GameState.hpp"
-#include "IGameStateManager.hpp"
+#include "server/Game/StateManager/GameState.hpp"
+#include "server/Game/StateManager/IGameStateManager.hpp"
 
 namespace server {
 

@@ -11,11 +11,10 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-
-#include "../../Game/Logic/IGameLogic.hpp"
-#include "../../Game/World/IWorld.hpp"
-#include "../Clock/Clock.hpp"
-#include "IServerLoop.hpp"
+#include "server/Core/Clock/Clock.hpp"
+#include "server/Core/ServerLoop/IServerLoop.hpp"
+#include "server/Game/Logic/IGameLogic.hpp"
+#include "server/Game/World/IWorld.hpp"
 
 namespace server {
 

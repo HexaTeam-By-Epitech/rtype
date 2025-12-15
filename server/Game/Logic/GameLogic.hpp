@@ -11,10 +11,9 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
-
-#include "../../common/ECS/Registry.hpp"
-#include "../World/World.hpp"
-#include "IGameLogic.hpp"
+#include "common/ECS/Registry.hpp"
+#include "server/Game/Logic/IGameLogic.hpp"
+#include "server/Game/World/World.hpp"
 
 namespace ecs {
     class ISystem;
@@ -99,7 +98,6 @@ namespace server {
         // ECS and World
         std::shared_ptr<World> _world;
         std::vector<std::unique_ptr<ecs::ISystem>> _systems;
-        std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
 
         // Player management
         std::unordered_map<uint32_t, ecs::Address> _playerMap;  // playerId -> entityAddress
@@ -115,6 +113,7 @@ namespace server {
 
         // Game state
         uint32_t _currentTick{0};
+        std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
         bool _gameActive{false};
         std::atomic<bool> _initialized{false};
 

@@ -5,8 +5,8 @@
 ** RoomManager.cpp
 */
 
-#include "RoomManager.hpp"
-#include "../../../common/Logger/Logger.hpp"
+#include "server/Rooms/RoomManager/RoomManager.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 

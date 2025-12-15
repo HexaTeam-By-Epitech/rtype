@@ -5,7 +5,7 @@
 ** MatchmakingService.cpp
 */
 
-#include "MatchmakingService.hpp"
+#include "server/Rooms/Matchmaking/MatchmakingService.hpp"
 
 namespace server {
 

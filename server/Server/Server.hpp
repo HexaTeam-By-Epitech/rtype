@@ -10,9 +10,9 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
-#include "../Network/ServerNetworkManager.hpp"
-#include "../Rooms/RoomManager/RoomManager.hpp"
-#include "../Sessions/SessionManager/SessionManager.hpp"
+#include "server/Network/ServerNetworkManager.hpp"
+#include "server/Rooms/RoomManager/RoomManager.hpp"
+#include "server/Sessions/SessionManager/SessionManager.hpp"
 
 // Forward declarations
 namespace server {

@@ -5,9 +5,9 @@
 ** ServerLoop.cpp - Fixed timestep game loop implementation
 */
 
-#include "ServerLoop.hpp"
+#include "server/Core/ServerLoop/ServerLoop.hpp"
 #include <chrono>
-#include "../../../common/Logger/Logger.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 

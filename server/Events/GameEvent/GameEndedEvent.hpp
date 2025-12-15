@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "GameEvent.hpp"
+#include "server/Events/GameEvent/GameEvent.hpp"
 
 namespace server {
 

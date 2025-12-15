@@ -5,9 +5,9 @@
 ** World.cpp
 */
 
-#include "World.hpp"
+#include "server/Game/World/World.hpp"
 #include <algorithm>
-#include "../../../common/Logger/Logger.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 
@@ -37,7 +37,7 @@ namespace server {
         }
     }
 
-    void World::update(float dt) {
+    void World::update([[maybe_unused]] float dt) {
         // World-level update logic
         // Currently systems are called externally, but could add:
         // - Global world effects (gravity, environment)

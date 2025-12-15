@@ -5,8 +5,8 @@
 ** ServerNetworkManager.cpp
 */
 
-#include "ServerNetworkManager.hpp"
-#include "../../common/Logger/Logger.hpp"
+#include "server/Network/ServerNetworkManager.hpp"
+#include "common/Logger/Logger.hpp"
 
 ServerNetworkManager::ServerNetworkManager(uint16_t port, size_t maxClients)
     : _port(port), _maxClients(maxClients), _packetHandler(nullptr) {}

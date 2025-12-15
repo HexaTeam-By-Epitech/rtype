@@ -8,7 +8,7 @@
 #pragma once
 
 #include <unordered_map>
-#include "ISessionManager.hpp"
+#include "server/Sessions/SessionManager/ISessionManager.hpp"
 
 namespace server {
 

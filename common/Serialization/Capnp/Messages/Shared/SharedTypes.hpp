@@ -11,6 +11,13 @@
 #include <vector>
 #include "schemas/shared_types.capnp.h"
 
+// Cross-platform unreachable macro
+#ifdef _MSC_VER
+#define UNREACHABLE() __assume(0)
+#else
+#define UNREACHABLE() __builtin_unreachable()
+#endif
+
 namespace RType::Messages::Shared {
 
     /**
@@ -64,7 +71,7 @@ namespace RType::Messages::Shared {
             case Action::Shoot:
                 return ::Action::SHOOT;
         }
-        __builtin_unreachable();
+        UNREACHABLE();
     }
 
     inline Action fromCapnpAction(::Action action) {
@@ -80,7 +87,7 @@ namespace RType::Messages::Shared {
             case ::Action::SHOOT:
                 return Action::Shoot;
         }
-        __builtin_unreachable();
+        UNREACHABLE();
     }
 
     inline ::EntityType toCapnpEntityType(EntityType type) {
@@ -94,7 +101,7 @@ namespace RType::Messages::Shared {
             case EntityType::EnemyBullet:
                 return ::EntityType::ENEMY_BULLET;
         }
-        __builtin_unreachable();
+        UNREACHABLE();
     }
 
     inline EntityType fromCapnpEntityType(::EntityType type) {
@@ -108,7 +115,7 @@ namespace RType::Messages::Shared {
             case ::EntityType::ENEMY_BULLET:
                 return EntityType::EnemyBullet;
         }
-        __builtin_unreachable();
+        UNREACHABLE();
     }
 
     inline ::DestroyReason toCapnpDestroyReason(DestroyReason reason) {
@@ -120,7 +127,7 @@ namespace RType::Messages::Shared {
             case DestroyReason::Collision:
                 return ::DestroyReason::COLLISION;
         }
-        __builtin_unreachable();
+        UNREACHABLE();
     }
 
     inline DestroyReason fromCapnpDestroyReason(::DestroyReason reason) {
@@ -132,7 +139,7 @@ namespace RType::Messages::Shared {
             case ::DestroyReason::COLLISION:
                 return DestroyReason::Collision;
         }
-        __builtin_unreachable();
+        UNREACHABLE();
     }
 
     /**

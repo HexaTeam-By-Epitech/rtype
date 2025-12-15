@@ -162,7 +162,7 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg/installed
             ${{ github.workspace }}/vcpkg/packages
-            ${{ github.workspace }}/build/windows-debug/vcpkg_installed
+            ${{ github.workspace }}/build/windows-mingw-debug/vcpkg_installed
           key: ${{ runner.os }}-mingw-vcpkg-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             ${{ runner.os }}-mingw-vcpkg-
@@ -177,16 +177,16 @@ jobs:
       - name: Configure CMake
         shell: msys2 {0}
         run: |
-          cmake --preset windows-debug -DCMAKE_TOOLCHAIN_FILE=$PWD/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --preset windows-mingw-debug
 
       - name: Build
         shell: msys2 {0}
         run: |
-          cmake --build build/windows-debug --parallel
+          cmake --build build/windows-mingw-debug --parallel
 
       - name: Run tests
         shell: msys2 {0}
-        working-directory: build/windows-debug
+        working-directory: build/windows-mingw-debug
         run: |
           ctest --output-on-failure --timeout 300
 
@@ -196,8 +196,8 @@ jobs:
         with:
           name: windows-mingw-binaries
           path: |
-            build/windows-debug/server/*.exe
-            build/windows-debug/client/*.exe
+            build/windows-mingw-debug/server/*.exe
+            build/windows-mingw-debug/client/*.exe
           retention-days: 7
 
   status-check:

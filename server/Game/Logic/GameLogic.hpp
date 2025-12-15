@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 #include "common/ECS/Registry.hpp"
@@ -116,6 +117,10 @@ namespace server {
         std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
         bool _gameActive{false};
         std::atomic<bool> _initialized{false};
+
+        // Thread synchronization
+        std::mutex _inputMutex;   // Protects _pendingInput
+        std::mutex _playerMutex;  // Protects _playerMap
 
         // Constants
         static constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;  // 60 Hz

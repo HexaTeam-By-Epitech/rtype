@@ -134,8 +134,11 @@ namespace server {
             _world->getRegistry()->setComponent(
                 playerEntity, ecs::Weapon(10.0f, 0.0f, 0, 25));  // fireRate, cooldown, type, damage
 
-            // Register player
-            _playerMap[playerId] = playerEntity;
+            // Register player (protected by mutex for thread safety)
+            {
+                std::lock_guard<std::mutex> lock(_playerMutex);
+                _playerMap[playerId] = playerEntity;
+            }
             _world->addEntity(playerEntity);  // Track in World
 
             LOG_INFO("✓ Player spawned at (", PLAYER_SPAWN_X, ", ", PLAYER_SPAWN_Y,
@@ -150,17 +153,21 @@ namespace server {
 
     void GameLogic::despawnPlayer(uint32_t playerId) {
         try {
-            auto it = _playerMap.find(playerId);
-            if (it == _playerMap.end()) {
-                LOG_WARNING("Player ", playerId, " not found");
-                return;
+            ecs::Address playerEntity = 0;
+
+            // Find and remove player from map (protected by mutex)
+            {
+                std::lock_guard<std::mutex> lock(_playerMutex);
+                auto it = _playerMap.find(playerId);
+                if (it == _playerMap.end()) {
+                    LOG_WARNING("Player ", playerId, " not found");
+                    return;
+                }
+                playerEntity = it->second;
+                _playerMap.erase(it);
             }
 
-            ecs::Address playerEntity = it->second;
             LOG_INFO("Despawning player ", playerId, " (entity: ", playerEntity, ")");
-
-            // Remove player from map
-            _playerMap.erase(it);
 
             // Immediately remove entity from registry to prevent resource leak
             _world->removeEntity(playerEntity);
@@ -171,11 +178,20 @@ namespace server {
     }
 
     void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) {
+        std::lock_guard<std::mutex> lock(_inputMutex);
         _pendingInput.push_back({playerId, inputX, inputY, isShooting});
     }
 
     void GameLogic::_processInput() {
-        for (const auto &input : _pendingInput) {
+        // Move pending input to local copy under lock to minimize lock time
+        std::vector<PlayerInput> inputCopy;
+        {
+            std::lock_guard<std::mutex> lock(_inputMutex);
+            inputCopy = std::move(_pendingInput);
+            _pendingInput.clear();
+        }
+
+        for (const auto &input : inputCopy) {
             auto it = _playerMap.find(input.playerId);
             if (it == _playerMap.end()) {
                 continue;  // Player not found, skip
@@ -211,8 +227,6 @@ namespace server {
                 LOG_ERROR("Error processing input for player ", input.playerId, ": ", e.what());
             }
         }
-
-        _pendingInput.clear();
     }
 
     void GameLogic::_executeSystems(float deltaTime) {

@@ -15,6 +15,7 @@
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Registry.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 
@@ -92,8 +93,7 @@ namespace server {
                 snapshot.playerId = player.getPlayerId();
             }
         } catch (const std::exception &e) {
-            std::cerr << "[GameStateSerializer] Error serializing entity " << entityId << ": " << e.what()
-                      << std::endl;
+            LOG_ERROR("Error serializing entity ", entityId, ": ", e.what());
         }
 
         return snapshot;

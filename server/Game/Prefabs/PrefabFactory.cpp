@@ -104,7 +104,7 @@ namespace server {
 
             return projectile;
         } catch (const std::exception &e) {
-            std::cerr << "[PrefabFactory] Failed to create projectile: " << e.what() << std::endl;
+            LOG_ERROR("Failed to create projectile: ", e.what());
             return 0;
         }
     }

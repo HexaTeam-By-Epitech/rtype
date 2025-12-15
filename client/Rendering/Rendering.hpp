@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <string>
 #include "../Core/EventBus/EventBus.hpp"
+#include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
 /**
  * @class Rendering
@@ -162,6 +163,8 @@ class Rendering {
     bool _initialized = false;
     uint32_t _width = 0;
     uint32_t _height = 0;
+    std::string _title;
+    Graphics::IGraphics *_graphicsInstance;
 };
 
 #endif

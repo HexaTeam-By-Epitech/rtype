@@ -36,6 +36,7 @@ bool GameLoop::initialize() {
 
     // 4. Rendering
     _rendering = std::make_unique<Rendering>(*_eventBus);
+    _rendering->initialize(1920, 1080, "S-Type");
     std::cout << "[GameLoop] ✓ Rendering initialized" << std::endl;
 
     _initialized = true;

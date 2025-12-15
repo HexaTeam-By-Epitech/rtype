@@ -6,24 +6,29 @@
 */
 
 #include "Rendering.hpp"
+#include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
-Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {}
+Rendering::Rendering(EventBus &eventBus)
+    : _eventBus(eventBus), _graphicsInstance(new Graphics::RaylibGraphics()) {}
 
 Rendering::~Rendering() {
     shutdown();
 }
 
 bool Rendering::initialize(uint32_t width, uint32_t height, const std::string &title) {
-    (void)width;
-    (void)height;
-    (void)title;
+    _width = width;
+    _height = height;
+    _title = title;
+
+    // _graphicsInstance->InitWindow(_width, _height, _title.c_str());
+
     _initialized = true;
-    _eventBus = {};
 
     return true;
 }
 
 void Rendering::shutdown() {
+    _graphicsInstance->~IGraphics();
     _initialized = false;
 }
 

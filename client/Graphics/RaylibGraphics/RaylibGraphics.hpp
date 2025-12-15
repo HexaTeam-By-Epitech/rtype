@@ -8,6 +8,8 @@
 #pragma once
 
 #include <raylib.h>
+#include <string>
+#include <unordered_map>
 #include <vector>
 #include "IGraphics.hpp"
 
@@ -59,12 +61,13 @@ namespace Graphics {
         int GetFontHeight(int fontHandle, int fontSize) override;
 
         // Textures / sprites / images
-        int LoadTexture(const char *filepath) override;
-        int CreateTextureFromMemory(const void *pixels, int width, int height, int format) override;
-        void UpdateTexture(int textureHandle, const void *pixels) override;
-        void UnloadTexture(int textureHandle) override;
-        void DrawTexture(int textureHandle, int x, int y, unsigned int tint) override;
-        void DrawTextureEx(int textureHandle, int srcX, int srcY, int srcW, int srcH, float destX,
+        int LoadTexture(const char *name, const char *filepath) override;
+        int CreateTextureFromMemory(char const *textureName, const void *pixels, int width, int height,
+                                    int format) override;
+        void UpdateTexture(const char *textureName, const void *pixels) override;
+        void UnloadTexture(const char *textureName) override;
+        void DrawTexture(const char *textureName, int x, int y, unsigned int tint) override;
+        void DrawTextureEx(const char *textureName, int srcX, int srcY, int srcW, int srcH, float destX,
                            float destY, float rotation, float scale, unsigned int tint) override;
 
         // Input helpers
@@ -77,7 +80,7 @@ namespace Graphics {
 
        private:
         std::vector<Font> _fonts;
-        std::vector<Texture2D> _textures;
+        std::unordered_map<std::string, Texture2D> _textures;
         Color _clearColor{255, 255, 255, 255};
     };
 }  // namespace Graphics

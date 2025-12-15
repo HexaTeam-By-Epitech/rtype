@@ -15,6 +15,12 @@ ifeq ($(UNAME_S),Darwin)
     PRESET_RELEASE = osx-release
     NPROCS = $(shell sysctl -n hw.ncpu)
 endif
+ifeq ($(OS),Windows_NT)
+    PRESET_DEBUG = windows-debug
+    PRESET_RELEASE = windows-release
+    NPROCS = $(NUMBER_OF_PROCESSORS)
+    UNAME_S = Windows_NT
+endif
 
 .PHONY: all clean fclean re debug release tests coverage server client run-server run-client setup_hooks
 
@@ -27,11 +33,11 @@ setup_hooks:
 
 $(VCPKG_EXE):
 	git submodule update --init --recursive
-	@if [ "$(UNAME_S)" = "Windows_NT" ]; then \
-       cd $(VCPKG_DIR) && ./bootstrap-vcpkg.bat; \
-    else \
-       cd $(VCPKG_DIR) && ./bootstrap-vcpkg.sh; \
-    fi
+ifeq ($(OS),Windows_NT)
+	cd $(VCPKG_DIR) && bootstrap-vcpkg.bat
+else
+	cd $(VCPKG_DIR) && ./bootstrap-vcpkg.sh
+endif
     
 format:
 	find . -type f \

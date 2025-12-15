@@ -222,7 +222,7 @@ namespace server {
             // TODO: Identify independent systems that can run in parallel
             // (e.g., systems that don't write to same components)
             for (auto &system : _systems) {
-                _threadPool->enqueue([&system, &deltaTime, this]() {
+                _threadPool->enqueue([system = system.get(), deltaTime, this]() {
                     try {
                         system->update(*_world->getRegistry(), deltaTime);
                     } catch (const std::exception &e) {

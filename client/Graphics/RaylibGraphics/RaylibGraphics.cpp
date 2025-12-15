@@ -10,6 +10,8 @@
 
 namespace Graphics {
     // Constructor / Destructor
+    RaylibGraphics::RaylibGraphics() {}
+
     RaylibGraphics::~RaylibGraphics() {
         for (const Font &font : _fonts) {
             ::UnloadFont(font);

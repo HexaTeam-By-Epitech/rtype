@@ -171,7 +171,6 @@ class Rendering {
     uint32_t _width = 0;
     uint32_t _height = 0;
     Graphics::RaylibGraphics _graphics;
-    std::unordered_map<std::string, Texture2D> _textures;
 };
 
 #endif

@@ -58,7 +58,8 @@ void GameLoop::run() {
 
     std::string bg_path = "assets/bg.png";
 
-    _rendering->drawSprite(bg_path, 0.0f, 0.0f, 0.0f, 1.0f);
+    _rendering->loadTexture("bg", bg_path);
+    _rendering->drawSprite("bg", 0.0f, 0.0f, 0.0f, 1.0f);
 
     _running = true;
 

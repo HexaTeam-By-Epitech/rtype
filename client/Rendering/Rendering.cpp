@@ -6,6 +6,7 @@
 */
 
 #include "Rendering.hpp"
+#include <iostream>
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
 Rendering::Rendering(EventBus &eventBus)
@@ -49,6 +50,7 @@ void Rendering::render() {
         return;
 
     _graphicsInstance->ClearWindow();
+    _graphicsInstance->StartDrawing();
 
     // drawing logic goes here but :( no idea
     // wrote a queue void *, not sure about a "queue".
@@ -56,9 +58,13 @@ void Rendering::render() {
 
     // I'm mitigated delegating the rendering to here rather than the game loop
 
+    // std::cerr << "Rendering " << _toRender.size() << " items. with params :\n";
+
     for (RenderCommand rc : _toRender) {
         if (rc.type == RenderType::SPRITE) {
             auto it = _loadedTextures.find(rc.id);
+            // std::cerr << " - Sprite: " << rc.id << " at (" << rc.settings.x << ", " << rc.settings.y
+            // << ") rotation: " << rc.settings.rotation << " scale: " << rc.settings.scale << "\n";
             if (it != _loadedTextures.end()) {
                 int handle = it->second;
                 _graphicsInstance->DrawTextureEx(handle, 0, 0, 0, 0, rc.settings.x, rc.settings.y,
@@ -70,7 +76,6 @@ void Rendering::render() {
                                         0xFFFFFFFFu);
         }
     }
-
     _graphicsInstance->DisplayWindow();
 }
 

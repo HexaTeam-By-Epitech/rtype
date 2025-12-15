@@ -12,67 +12,55 @@ This project compiles and runs on:
 - 🍎 **macOS** (Apple Clang / ARM64 & x86_64)
 - 🪟 **Windows** (MSVC 2019+)
 
-## 🪟 Quick Start - Windows Build
+## 🪟 Windows Build
 
-### Prerequisites
-- **C++ Compiler** (choose one):
-  - [Visual Studio 2019+](https://visualstudio.microsoft.com/) with "Desktop development with C++" workload
-  - [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) (lighter, ~7GB vs 30GB)
-- [CMake 3.20+](https://cmake.org/download/)
-- [Ninja](https://github.com/ninja-build/ninja/releases) (optional, for faster builds)
+### Prerequisites to Install
 
-### Build Steps
+1. **[Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)**
+   - Select "Desktop development with C++" workload (~7GB)
+   
+2. **[CMake 3.20+](https://cmake.org/download/)**
+   - Check "Add CMake to system PATH" during installation
 
-1. **Clone the repository**
-```cmd
-git clone --recursive https://github.com/HexaTeam-By-Epitech/rtype.git
-cd rtype
-```
+3. **[Git for Windows](https://git-scm.com/download/win)** (includes `make` command)
 
-> ⚠️ **Already cloned without `--recursive`?** Initialize the vcpkg submodule:
-> ```cmd
-> git submodule update --init --recursive
+### Build & Run
+
+> 🚨 **CRITICAL**: You **MUST** use **"Developer Command Prompt for VS 2022"**, NOT PowerShell or CMD!
+> 
+> **How to open it:**
+> 1. Press Windows key
+> 2. Type: `Developer Command Prompt for VS 2022`
+> 3. Click on it
+> 
+> If you can't find it, run this in PowerShell **ONCE**:
+> ```powershell
+> "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat"
 > ```
 
-2. **Bootstrap vcpkg** (first time only)
+**In Developer Command Prompt:**
+
 ```cmd
-cd vcpkg
-./bootstrap-vcpkg.bat
-cd ..
+# Clone
+git clone --recursive https://github.com/HexaTeam-By-Epitech/rtype.git
+cd rtype
+
+# Build
+make debug
+
+# Run
+make run-server
+make run-client
+
+# Tests
+make tests
 ```
 
-3. **Configure CMake** (choose Debug or Release)
-```cmd
-:: Debug build
-cmake --preset windows-debug
+### Troubleshooting
 
-:: OR Release build
-cmake --preset windows-release
-```
+**Error: "Unable to find a valid Visual Studio instance"**
+→ Make sure you installed "Desktop development with C++" workload in Visual Studio Build Tools.
+→ Try opening "x64 Native Tools Command Prompt for VS 2022" instead.
 
-4. **Build the project**
-```cmd
-:: Debug build
-cmake --build build/windows-debug --config Debug --parallel
-
-:: OR Release build
-cmake --build build/windows-release --config Release --parallel
-```
-
-5. **Run the executables**
-```cmd
-:: Run server (Debug)
-build\windows-debug\server\r-type_server.exe
-
-:: Run client (Debug)
-build\windows-debug\client\r-type_client.exe
-```
-
-### Run Tests (Debug only)
-```cmd
-cd build\windows-debug
-ctest --output-on-failure -C Debug
-```
-
-💡 **Tip**: The first build will take 5-10 minutes as vcpkg downloads and compiles all dependencies (raylib, enet, capnproto, gtest). Subsequent builds are much faster!
+💡 **First build takes 5-10 minutes** (vcpkg downloads dependencies automatically)
 

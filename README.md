@@ -17,39 +17,55 @@ This project compiles and runs on:
 ### Prerequisites
 - [Visual Studio 2019+](https://visualstudio.microsoft.com/) with C++ Desktop Development workload
 - [CMake 3.20+](https://cmake.org/download/)
-- [Make for Windows](https://gnuwin32.sourceforge.net/packages/make.htm) or use Git Bash
+- [Ninja](https://github.com/ninja-build/ninja/releases) (optional, for faster builds)
 
-### Build & Run
+### Build Steps
 
+1. **Clone the repository**
 ```cmd
-# Clone the project
 git clone --recursive https://github.com/HexaTeam-By-Epitech/rtype.git
 cd rtype
-
-# Build Debug (downloads dependencies automatically)
-make debug
-
-# Or build Release
-make release
-
-# Run server
-make run-server
-
-# Run client  
-make run-client
-
-# Run tests
-make tests
 ```
 
-💡 **Tip**: The first build will take longer as vcpkg downloads and compiles dependencies (raylib, enet, capnproto, gtest).
+2. **Bootstrap vcpkg** (first time only)
+```cmd
+cd vcpkg
+bootstrap-vcpkg.bat
+cd ..
+```
 
-### Available Make Targets
-- `make debug` - Build in Debug mode
-- `make release` - Build in Release mode
-- `make server` - Build only the server
-- `make client` - Build only the client
-- `make tests` - Build and run all tests
-- `make clean` - Clean build artifacts
-- `make fclean` - Full clean (including vcpkg cache)
+3. **Configure CMake** (choose Debug or Release)
+```cmd
+:: Debug build
+cmake --preset windows-debug
+
+:: OR Release build
+cmake --preset windows-release
+```
+
+4. **Build the project**
+```cmd
+:: Debug build
+cmake --build build/windows-debug --config Debug --parallel
+
+:: OR Release build
+cmake --build build/windows-release --config Release --parallel
+```
+
+5. **Run the executables**
+```cmd
+:: Run server (Debug)
+build\windows-debug\server\r-type_server.exe
+
+:: Run client (Debug)
+build\windows-debug\client\r-type_client.exe
+```
+
+### Run Tests (Debug only)
+```cmd
+cd build\windows-debug
+ctest --output-on-failure -C Debug
+```
+
+💡 **Tip**: The first build will take 5-10 minutes as vcpkg downloads and compiles all dependencies (raylib, enet, capnproto, gtest). Subsequent builds are much faster!
 

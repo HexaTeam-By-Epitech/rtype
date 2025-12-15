@@ -34,10 +34,10 @@ namespace logger {
      */
     namespace Colors {
         constexpr const char *RESET = "\033[0m";
-        constexpr const char *GRAY = "\033[90m";
-        constexpr const char *GREEN = "\033[32m";
-        constexpr const char *YELLOW = "\033[33m";
-        constexpr const char *RED = "\033[31m";
+        constexpr const char *LOG_GRAY = "\033[90m";
+        constexpr const char *LOG_GREEN = "\033[32m";
+        constexpr const char *LOG_YELLOW = "\033[33m";
+        constexpr const char *LOG_RED = "\033[31m";
         constexpr const char *BOLD_RED = "\033[1;31m";
         constexpr const char *CYAN = "\033[36m";
         constexpr const char *BOLD_WHITE = "\033[1;37m";
@@ -85,13 +85,13 @@ namespace logger {
 
             switch (level) {
                 case Level::DEBUG:
-                    return Colors::GRAY;
+                    return Colors::LOG_GRAY;
                 case Level::INFO:
-                    return Colors::GREEN;
+                    return Colors::LOG_GREEN;
                 case Level::WARNING:
-                    return Colors::YELLOW;
+                    return Colors::LOG_YELLOW;
                 case Level::ERROR:
-                    return Colors::RED;
+                    return Colors::LOG_RED;
                 case Level::CRITICAL:
                     return Colors::BOLD_RED;
                 default:

@@ -33,7 +33,8 @@ target_include_directories(rtype_serialization
         ${CMAKE_CURRENT_SOURCE_DIR}/Capnp  # Capnp backend is internal
 )
 
-target_link_libraries(rtype_serialization PUBLIC
+target_link_libraries(rtype_serialization
+        PRIVATE
         CapnProto::capnp
         CapnProto::capnp-rpc
         CapnProto::kj

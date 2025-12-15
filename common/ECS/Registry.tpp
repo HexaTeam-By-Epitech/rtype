@@ -2,6 +2,7 @@
 #pragma once
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 namespace ecs {
     template <typename T>

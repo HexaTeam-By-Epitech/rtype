@@ -1,8 +1,5 @@
 <div align="center">
 
-
-![S-Type Banner](https://via.placeholder.com/1200x300/1a1a2e/16213e?text=R-TYPE+REMAKE+%7C+The+Legend+Returns)
-
 # 🚀👾 S-TYPE
 
 ### *The Classic Returns. Better. Faster. Together.*

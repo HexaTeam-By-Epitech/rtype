@@ -56,6 +56,10 @@ void GameLoop::run() {
     std::cout << "[GameLoop]   - THREAD 1 (Network): Replicator receiving packets" << std::endl;
     std::cout << "[GameLoop]   - THREAD 2 (Main):    Game logic + Rendering" << std::endl;
 
+    std::string bg_path = "assets/bg.png";
+
+    _rendering->drawSprite(bg_path, 0.0f, 0.0f, 0.0f, 1.0f);
+
     _running = true;
 
     while (_running) {
@@ -135,8 +139,7 @@ void GameLoop::fixedUpdate(float fixedDeltaTime) {
 }
 
 void GameLoop::render() {
-    // TODO: Delegate to rendering system
-    // _rendering->render();
+    _rendering->render();
 }
 
 void GameLoop::processInput() {

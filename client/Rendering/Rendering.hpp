@@ -9,7 +9,9 @@
 #define RENDERING_HPP
 
 #include <cstdint>
+#include <queue>
 #include <string>
+#include <unordered_map>
 #include "../Core/EventBus/EventBus.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
@@ -158,13 +160,34 @@ class Rendering {
      */
     uint32_t getHeight() const;
 
+    void clearWindow() { _graphicsInstance->ClearWindow(); }
+    void displayWindow() { _graphicsInstance->DisplayWindow(); }
+
+    struct DisplaySettings {
+        float x;
+        float y;
+        float rotation;
+        float scale;
+        uint32_t size;
+    };
+
+    enum class RenderType { SPRITE, TEXT };
+
+    struct RenderCommand {
+        RenderType type;
+        std::string id;  // textureId for SPRITE, text for TEXT
+        DisplaySettings settings;
+    };
+
    private:
     EventBus &_eventBus;
     bool _initialized = false;
     uint32_t _width = 0;
     uint32_t _height = 0;
     std::string _title;
-    Graphics::IGraphics *_graphicsInstance;
+    Graphics::IGraphics *_graphicsInstance = nullptr;
+    std::unordered_map<std::string, int> _loadedTextures;
+    std::vector<RenderCommand> _toRender;
 };
 
 #endif

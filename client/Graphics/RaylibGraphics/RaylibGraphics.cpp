@@ -16,7 +16,7 @@ namespace Graphics {
         for (const Font &font : _fonts) {
             ::UnloadFont(font);
         }
-        for (const Texture2D &texture : _textures) {
+        for (const auto &[name, texture] : _textures) {
             ::UnloadTexture(texture);
         }
         ::CloseWindow();
@@ -157,15 +157,16 @@ namespace Graphics {
     }
 
     // Textures / sprites / images
-    int RaylibGraphics::LoadTexture(const char *filepath) {
+    int RaylibGraphics::LoadTexture(const char *textureName, const char *filepath) {
         Texture2D texture = ::LoadTexture(filepath);
         if (texture.id == 0)
             return -1;
-        _textures.push_back(texture);
-        return _textures.size() - 1;
+        _textures[textureName] = texture;
+        return 0;
     }
 
-    int RaylibGraphics::CreateTextureFromMemory(const void *pixels, int width, int height, int format) {
+    int RaylibGraphics::CreateTextureFromMemory(const char *textureName, const void *pixels, int width,
+                                                int height, int format) {
         Image img;
         img.data = const_cast<void *>(pixels);
         img.width = width;
@@ -173,36 +174,44 @@ namespace Graphics {
         img.format = format;
         img.mipmaps = 1;
         Texture2D texture = ::LoadTextureFromImage(img);
-        _textures.push_back(texture);
-        return _textures.size() - 1;
+        if (texture.id == 0)
+            return -1;
+        _textures[textureName] = texture;
+        return 0;
     }
 
-    void RaylibGraphics::UpdateTexture(int textureHandle, const void *pixels) {
-        if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
-            ::UpdateTexture(_textures[textureHandle], pixels);
+    void RaylibGraphics::UpdateTexture(const char *textureName, const void *pixels) {
+        auto iter = _textures.find(textureName);
+        if (iter != _textures.end()) {
+            ::UpdateTexture(iter->second, pixels);
         }
     }
 
-    void RaylibGraphics::UnloadTexture(int textureHandle) {
-        if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
-            ::UnloadTexture(_textures[textureHandle]);
+    void RaylibGraphics::UnloadTexture(const char *textureName) {
+        auto iter = _textures.find(textureName);
+        if (iter != _textures.end()) {
+            ::UnloadTexture(iter->second);
+            _textures.erase(iter);
         }
     }
 
-    void RaylibGraphics::DrawTexture(int textureHandle, int x, int y, unsigned int tint) {
-        if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
+    void RaylibGraphics::DrawTexture(const char *textureName, int xPos, int yPos, unsigned int tint) {
+        auto iter = _textures.find(textureName);
+        if (iter != _textures.end()) {
             Color clr;
             clr.a = (tint >> 24) & 0xFF;
             clr.r = (tint >> 16) & 0xFF;
             clr.g = (tint >> 8) & 0xFF;
             clr.b = tint & 0xFF;
-            ::DrawTexture(_textures[textureHandle], x, y, clr);
+            ::DrawTexture(iter->second, xPos, yPos, clr);
         }
     }
 
-    void RaylibGraphics::DrawTextureEx(int textureHandle, int srcX, int srcY, int srcW, int srcH, float destX,
-                                       float destY, float rotation, float scale, unsigned int tint) {
-        if (textureHandle >= 0 && static_cast<size_t>(textureHandle) < _textures.size()) {
+    void RaylibGraphics::DrawTextureEx(const char *textureName, int srcX, int srcY, int srcW, int srcH,
+                                       float destX, float destY, float rotation, float scale,
+                                       unsigned int tint) {
+        auto iter = _textures.find(textureName);
+        if (iter != _textures.end()) {
             Color clr;
             clr.a = (tint >> 24) & 0xFF;
             clr.r = (tint >> 16) & 0xFF;
@@ -210,10 +219,10 @@ namespace Graphics {
             clr.b = tint & 0xFF;
 
             Rectangle source = {(float)srcX, (float)srcY, (float)srcW, (float)srcH};
-            Rectangle dest = {destX, destY, srcW * scale, srcH * scale};
+            Rectangle dest = {destX, destY, (float)srcW * scale, (float)srcH * scale};
             Vector2 origin = {0, 0};
 
-            ::DrawTexturePro(_textures[textureHandle], source, dest, origin, rotation, clr);
+            ::DrawTexturePro(iter->second, source, dest, origin, rotation, clr);
         }
     }
 

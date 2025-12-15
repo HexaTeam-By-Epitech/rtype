@@ -23,9 +23,22 @@ namespace server {
         GameStateManager() = default;
         ~GameStateManager() override = default;
 
-        // Prototypes
+        // IGameStateManager interface
         void changeState(int stateID) override;
         int getCurrentState() const override;
+
+        /**
+         * @brief Register a game state
+         * @param stateID State identifier
+         * @param state Shared pointer to GameState
+         */
+        void registerState(int stateID, std::shared_ptr<GameState> state);
+
+        /**
+         * @brief Update current state
+         * @param dt Delta time
+         */
+        void update(float dt);
 
        private:
         std::vector<std::shared_ptr<GameState>> _states;

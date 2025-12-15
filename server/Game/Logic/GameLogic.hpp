@@ -14,6 +14,7 @@
 #include <vector>
 #include "common/ECS/Registry.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
+#include "server/Game/StateManager/GameStateManager.hpp"
 #include "server/Game/World/World.hpp"
 
 namespace ecs {
@@ -74,6 +75,12 @@ namespace server {
          */
         std::shared_ptr<World> getWorld() { return _world; }
 
+        /**
+         * @brief Get the game state manager
+         * @return Shared pointer to GameStateManager
+         */
+        std::shared_ptr<GameStateManager> getStateManager() { return _stateManager; }
+
        private:
         /**
          * @brief Execute all systems in order
@@ -114,6 +121,7 @@ namespace server {
 
         // Game state
         uint32_t _currentTick{0};
+        std::shared_ptr<GameStateManager> _stateManager;
         std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
         bool _gameActive{false};
         std::atomic<bool> _initialized{false};

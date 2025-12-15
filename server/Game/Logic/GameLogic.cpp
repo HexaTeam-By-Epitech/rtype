@@ -31,7 +31,10 @@
 namespace server {
 
     GameLogic::GameLogic(std::shared_ptr<World> world, std::shared_ptr<ThreadPool> threadPool)
-        : _currentTick(0), _threadPool(threadPool), _gameActive(false) {
+        : _currentTick(0),
+          _stateManager(std::make_shared<GameStateManager>()),
+          _threadPool(threadPool),
+          _gameActive(false) {
         // Create World with Registry if not provided
         if (!world) {
             auto registry = std::make_shared<ecs::Registry>();
@@ -48,6 +51,8 @@ namespace server {
         } else {
             LOG_DEBUG("GameLogic: Running in single-threaded mode");
         }
+
+        LOG_DEBUG("GameLogic: GameStateManager initialized");
     }
 
     GameLogic::~GameLogic() = default;

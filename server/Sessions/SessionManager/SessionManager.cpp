@@ -10,6 +10,25 @@
 
 namespace server {
 
+    SessionManager::SessionManager() : _authService(std::make_shared<AuthService>()) {}
+
+    SessionManager::SessionManager(std::shared_ptr<AuthService> authService) : _authService(authService) {}
+
+    std::string SessionManager::authenticateAndCreateSession(const std::string &username,
+                                                             const std::string &password) {
+        if (!_authService->authenticate(username, password)) {
+            LOG_WARNING("Authentication failed for user: ", username);
+            return "";
+        }
+
+        // Generate token and create session
+        std::string token = _authService->generateToken(username);
+        auto session = createSession(token);
+
+        LOG_INFO("✓ User authenticated and session created: ", username);
+        return token;
+    }
+
     std::shared_ptr<Session> SessionManager::createSession(const std::string &id) {
         if (_sessions.find(id) != _sessions.end()) {
             LOG_WARNING("Session ", id, " already exists");

@@ -12,9 +12,17 @@
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Capnp/NetworkMessages.hpp"
 #include "NetworkFactory.hpp"
+#include "common/ECS/Components/Enemy.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/IComponent.hpp"
+#include "common/ECS/Components/Player.hpp"
+#include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Transform.hpp"
+#include "common/ECS/Registry.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ServerLoop/ServerLoop.hpp"
+#include "server/Core/ThreadPool/ThreadPool.hpp"
 #include "server/Events/GameEvent/GameEndedEvent.hpp"
 #include "server/Events/GameEvent/GameEvent.hpp"
 #include "server/Events/GameEvent/GameStartedEvent.hpp"
@@ -82,14 +90,11 @@ bool Server::initialize() {
     auto world = std::make_shared<server::World>(registry);
     LOG_INFO("✓ World created with Registry");
 
-    // Optional: Create ThreadPool for parallel system execution
-    // std::shared_ptr<server::ThreadPool> threadPool = std::make_shared<server::ThreadPool>(4);
-    // threadPool->start();
-    // auto gameLogic = std::make_unique<server::GameLogic>(world, threadPool);
-    // LOG_INFO("✓ ThreadPool enabled with 4 workers");
-
-    // Create GameLogic with World (single-threaded by default)
-    auto gameLogic = std::make_unique<server::GameLogic>(world);
+    // Create ThreadPool for parallel system execution (4 workers)
+    std::shared_ptr<server::ThreadPool> threadPool = std::make_shared<server::ThreadPool>(4);
+    threadPool->start();
+    auto gameLogic = std::make_unique<server::GameLogic>(world, threadPool);
+    LOG_INFO("✓ ThreadPool enabled with 4 workers");
 
     // Create ServerLoop with GameLogic, EventBus, and World
     _gameLoop = std::make_unique<server::ServerLoop>(std::move(gameLogic), _eventBus, world);
@@ -334,12 +339,63 @@ void Server::stop() {
 }
 
 void Server::_broadcastGameState() {
-    // TODO: Use GameStateSerializer to get real ECS state
-    // For now, broadcast a placeholder message
     using namespace RType::Messages;
+
+    // Get registry from game loop's world
+    auto world = dynamic_cast<server::World *>(_gameLoop->getWorld());
+    if (!world) {
+        LOG_ERROR("Failed to cast IWorld to World");
+        return;
+    }
+    auto registry = world->getRegistry();
 
     S2C::GameState state;
     state.serverTick = _gameLoop->getCurrentTick();
+
+    // Get all entities with Transform component (everything that has a position)
+    auto transformMask = (1ULL << ecs::getComponentType<ecs::Transform>());
+    auto entities = registry->getEntitiesWithMask(transformMask);
+
+    // Serialize each entity's state
+    for (auto entityId : entities) {
+        S2C::EntityState entityState;
+        entityState.entityId = entityId;
+
+        // Get Transform (required)
+        auto &transform = registry->getComponent<ecs::Transform>(entityId);
+        entityState.position.x = transform.getPosition().x;
+        entityState.position.y = transform.getPosition().y;
+
+        // Determine entity type and get health
+        if (registry->hasComponent<ecs::Player>(entityId)) {
+            entityState.type = Shared::EntityType::Player;
+            if (registry->hasComponent<ecs::Health>(entityId)) {
+                entityState.health = registry->getComponent<ecs::Health>(entityId).getCurrentHealth();
+            } else {
+                entityState.health = -1;
+            }
+        } else if (registry->hasComponent<ecs::Enemy>(entityId)) {
+            auto &enemy = registry->getComponent<ecs::Enemy>(entityId);
+            // Map enemy type to EntityType enum
+            entityState.type =
+                (enemy.getEnemyType() == 0) ? Shared::EntityType::EnemyType1 : Shared::EntityType::EnemyType1;
+            if (registry->hasComponent<ecs::Health>(entityId)) {
+                entityState.health = registry->getComponent<ecs::Health>(entityId).getCurrentHealth();
+            } else {
+                entityState.health = -1;
+            }
+        } else if (registry->hasComponent<ecs::Projectile>(entityId)) {
+            auto &projectile = registry->getComponent<ecs::Projectile>(entityId);
+            entityState.type =
+                projectile.isFriendly() ? Shared::EntityType::PlayerBullet : Shared::EntityType::EnemyBullet;
+            entityState.health = -1;  // Projectiles don't have health
+        } else {
+            // Unknown entity type, skip
+            continue;
+        }
+
+        state.entities.push_back(entityState);
+    }
 
     // Serialize and create packet
     auto payload = state.serialize();

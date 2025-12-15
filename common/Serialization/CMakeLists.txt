@@ -41,7 +41,7 @@ target_include_directories(rtype_serialization
 )
 
 target_link_libraries(rtype_serialization
-        PRIVATE
+        PUBLIC
         CapnProto::capnp
         CapnProto::capnp-rpc
         CapnProto::kj

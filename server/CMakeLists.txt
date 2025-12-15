@@ -10,7 +10,12 @@ file(GLOB_RECURSE SERVER_SOURCES
 )
 
 # Librairie serveur
-add_library(rtype_server_lib ${SERVER_SOURCES})
+# Use SHARED on Windows to avoid symbol duplication with static capnproto on MinGW
+if(WIN32)
+    add_library(rtype_server_lib SHARED ${SERVER_SOURCES})
+else()
+    add_library(rtype_server_lib ${SERVER_SOURCES})
+endif()
 
 # Include paths pour la lib
 target_include_directories(rtype_server_lib

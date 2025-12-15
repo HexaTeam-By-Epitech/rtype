@@ -5,7 +5,12 @@ file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS
 
 list(FILTER CLIENT_SOURCES EXCLUDE REGEX ".*/main.cpp$")
 
-add_library(rtype_client_lib ${CLIENT_SOURCES})
+# Use SHARED on Windows to avoid symbol duplication with static capnproto on MinGW
+if(WIN32)
+    add_library(rtype_client_lib SHARED ${CLIENT_SOURCES})
+else()
+    add_library(rtype_client_lib ${CLIENT_SOURCES})
+endif()
 
 target_include_directories(rtype_client_lib PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}

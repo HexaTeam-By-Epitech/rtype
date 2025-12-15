@@ -33,6 +33,15 @@ target_link_libraries(rtype_networking
         unofficial::enet::enet
 )
 
+# Add Windows-specific libraries for ENet
+if(WIN32)
+    target_link_libraries(rtype_networking
+        PUBLIC
+            ws2_32
+            winmm
+    )
+endif()
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

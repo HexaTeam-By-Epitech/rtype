@@ -15,7 +15,9 @@ This project compiles and runs on:
 ## 🪟 Quick Start - Windows Build
 
 ### Prerequisites
-- [Visual Studio 2019+](https://visualstudio.microsoft.com/) with C++ Desktop Development workload
+- **C++ Compiler** (choose one):
+  - [Visual Studio 2019+](https://visualstudio.microsoft.com/) with "Desktop development with C++" workload
+  - [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) (lighter, ~7GB vs 30GB)
 - [CMake 3.20+](https://cmake.org/download/)
 - [Ninja](https://github.com/ninja-build/ninja/releases) (optional, for faster builds)
 
@@ -27,10 +29,15 @@ git clone --recursive https://github.com/HexaTeam-By-Epitech/rtype.git
 cd rtype
 ```
 
+> ⚠️ **Already cloned without `--recursive`?** Initialize the vcpkg submodule:
+> ```cmd
+> git submodule update --init --recursive
+> ```
+
 2. **Bootstrap vcpkg** (first time only)
 ```cmd
 cd vcpkg
-bootstrap-vcpkg.bat
+./bootstrap-vcpkg.bat
 cd ..
 ```
 

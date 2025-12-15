@@ -1,45 +1,56 @@
-UNAME_S := $(shell uname -s)
-BUILD_DIR = build
-VCPKG_DIR = vcpkg
-VCPKG_EXE = $(VCPKG_DIR)/vcpkg
-HOOKS_DIR = hooks
-GIT_HOOKS_DIR = .git/hooks
-
-ifeq ($(UNAME_S),Linux)
-    PRESET_DEBUG = linux-debug
-    PRESET_RELEASE = linux-release
-    NPROCS = $(shell nproc)
-endif
-ifeq ($(UNAME_S),Darwin)
-    PRESET_DEBUG = osx-debug
-    PRESET_RELEASE = osx-release
-    NPROCS = $(shell sysctl -n hw.ncpu)
-endif
+# Detect OS
 ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
     PRESET_DEBUG = windows-debug
     PRESET_RELEASE = windows-release
-    NPROCS = $(NUMBER_OF_PROCESSORS)
-    UNAME_S = Windows_NT
+    NPROCS := $(NUMBER_OF_PROCESSORS)
+    SHELL := cmd.exe
+    .SHELLFLAGS := /c
+else
+    DETECTED_OS := $(shell uname -s)
+    ifeq ($(DETECTED_OS),Linux)
+        PRESET_DEBUG = linux-debug
+        PRESET_RELEASE = linux-release
+        NPROCS := $(shell nproc)
+    endif
+    ifeq ($(DETECTED_OS),Darwin)
+        PRESET_DEBUG = osx-debug
+        PRESET_RELEASE = osx-release
+        NPROCS := $(shell sysctl -n hw.ncpu)
+    endif
 endif
+
+BUILD_DIR = build
+VCPKG_DIR = vcpkg
+HOOKS_DIR = hooks
+GIT_HOOKS_DIR = .git/hooks
 
 .PHONY: all clean fclean re debug release tests coverage server client run-server run-client setup_hooks
 
 all: debug
 
 setup_hooks:
+ifeq ($(DETECTED_OS),Windows)
+	@if not exist "$(GIT_HOOKS_DIR)" mkdir "$(GIT_HOOKS_DIR)"
+	@xcopy /E /I /Y "$(HOOKS_DIR)" "$(GIT_HOOKS_DIR)" >nul 2>&1 || echo Hooks setup skipped
+else
 	@mkdir -p $(GIT_HOOKS_DIR)
 	@cp -r $(HOOKS_DIR)/* $(GIT_HOOKS_DIR)/
 	@chmod +x $(GIT_HOOKS_DIR)/*
+endif
 
-$(VCPKG_EXE):
-	git submodule update --init --recursive
-ifeq ($(OS),Windows_NT)
-	cd $(VCPKG_DIR) && bootstrap-vcpkg.bat
+vcpkg-bootstrap:
+	@git submodule update --init --recursive
+ifeq ($(DETECTED_OS),Windows)
+	@cd $(VCPKG_DIR) && bootstrap-vcpkg.bat
 else
-	cd $(VCPKG_DIR) && ./bootstrap-vcpkg.sh
+	@cd $(VCPKG_DIR) && ./bootstrap-vcpkg.sh
 endif
     
 format:
+ifeq ($(DETECTED_OS),Windows)
+	@echo "Format not supported on Windows yet (requires Unix find/xargs)"
+else
 	find . -type f \
 		-not -path "*/build/*" \
 		-not -path "*/vcpkg/*" \
@@ -48,34 +59,52 @@ format:
 		-not -path "*/.git/*" \
 		\( -name "*.cpp" -o -name "*.hpp" -o -name "*.c" -o -name "*.h" -o -name "*.cc" \) \
 		-exec clang-format -i -verbose -style=file {} +
+endif
 
-debug: setup_hooks $(VCPKG_EXE)
+debug: setup_hooks vcpkg-bootstrap
 	cmake --preset $(PRESET_DEBUG)
 	cmake --build --preset $(PRESET_DEBUG) -j $(NPROCS)
+ifeq ($(DETECTED_OS),Windows)
+	@if not exist "compile_commands.json" mklink "compile_commands.json" "$(BUILD_DIR)\$(PRESET_DEBUG)\compile_commands.json"
+else
 	@ln -sf $(BUILD_DIR)/$(PRESET_DEBUG)/compile_commands.json .
+endif
 
-release: setup_hooks $(VCPKG_EXE)
+release: setup_hooks vcpkg-bootstrap
 	cmake --preset $(PRESET_RELEASE)
 	cmake --build --preset $(PRESET_RELEASE) -j $(NPROCS)
 
-server: setup_hooks $(VCPKG_EXE)
+server: setup_hooks vcpkg-bootstrap
 	cmake --preset $(PRESET_DEBUG)
 	cmake --build --preset $(PRESET_DEBUG) --target r-type_server -j $(NPROCS)
 
-client: setup_hooks $(VCPKG_EXE)
+client: setup_hooks vcpkg-bootstrap
 	cmake --preset $(PRESET_DEBUG)
 	cmake --build --preset $(PRESET_DEBUG) --target r-type_client -j $(NPROCS)
 
 run-server: server
-	./$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server
+ifeq ($(DETECTED_OS),Windows)
+	@$(BUILD_DIR)\$(PRESET_DEBUG)\server\r-type_server.exe
+else
+	@./$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server
+endif
 
 run-client: client
-	./$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client
+ifeq ($(DETECTED_OS),Windows)
+	@$(BUILD_DIR)\$(PRESET_DEBUG)\client\r-type_client.exe
+else
+	@./$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client
+endif
 
 tests: debug
 	ctest --preset $(PRESET_DEBUG)
 
-coverage: setup_hooks $(VCPKG_EXE)
+coverage: setup_hooks vcpkg-bootstrap
+ifeq ($(DETECTED_OS),Windows)
+	@echo "ERROR: Coverage is not supported on Windows"
+	@echo "Please use Linux or macOS for coverage reports"
+	@exit 1
+else
 	@if ! command -v lcov > /dev/null; then \
 		echo "ERROR: lcov is not installed"; \
 		echo "Please install it with:"; \
@@ -110,15 +139,26 @@ coverage: setup_hooks $(VCPKG_EXE)
 	@echo "========================================"
 	@lcov --list coverage/coverage.info \
 		--ignore-errors inconsistent,inconsistent
+endif
 
 clean:
-	rm -rf $(BUILD_DIR)
-	rm -rf coverage
+ifeq ($(DETECTED_OS),Windows)
+	@if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)" 2>nul
+	@if exist "coverage" rmdir /S /Q "coverage" 2>nul
+	@del /S /Q *.gcda *.gcno *.gcov 2>nul || echo.
+else
+	@rm -rf $(BUILD_DIR)
+	@rm -rf coverage
 	@find . -name "*.gcda" -delete 2>/dev/null || true
 	@find . -name "*.gcno" -delete 2>/dev/null || true
 	@find . -name "*.gcov" -delete 2>/dev/null || true
+endif
 
 fclean: clean
-	rm -rf vcpkg_installed
+ifeq ($(DETECTED_OS),Windows)
+	@if exist "vcpkg_installed" rmdir /S /Q "vcpkg_installed" 2>nul
+else
+	@rm -rf vcpkg_installed
+endif
 
 re: fclean all

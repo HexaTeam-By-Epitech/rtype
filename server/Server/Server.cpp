@@ -30,7 +30,6 @@ Server::~Server() {
     LOG_INFO("Server shutting down...");
     stop();
     deinitializeNetworking();
-    deinitializeNetworking();
 }
 
 bool Server::initialize() {

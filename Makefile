@@ -84,14 +84,14 @@ client: setup_hooks vcpkg-bootstrap
 
 run-server: server
 ifeq ($(DETECTED_OS),Windows)
-	@$(BUILD_DIR)\$(PRESET_DEBUG)\server\r-type_server.exe
+	@$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe
 else
 	@./$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server
 endif
 
 run-client: client
 ifeq ($(DETECTED_OS),Windows)
-	@$(BUILD_DIR)\$(PRESET_DEBUG)\client\r-type_client.exe
+	@$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe
 else
 	@./$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client
 endif

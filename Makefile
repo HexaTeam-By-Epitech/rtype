@@ -62,8 +62,13 @@ else
 endif
 
 debug: setup_hooks vcpkg-bootstrap
+ifeq ($(DETECTED_OS),Windows)
+	set "VSINSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\" && cmake --preset $(PRESET_DEBUG)
+	cmake --build --preset $(PRESET_DEBUG) -j $(NPROCS)
+else
 	cmake --preset $(PRESET_DEBUG)
 	cmake --build --preset $(PRESET_DEBUG) -j $(NPROCS)
+endif
 ifeq ($(DETECTED_OS),Windows)
 	@if not exist "compile_commands.json" mklink "compile_commands.json" "$(BUILD_DIR)\$(PRESET_DEBUG)\compile_commands.json"
 else

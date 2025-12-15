@@ -10,15 +10,14 @@ file(GLOB_RECURSE SERVER_SOURCES
 )
 
 # Librairie serveur
-# Use SHARED on MSVC (MSVC can export symbols properly)
-# Use STATIC on MinGW (avoids symbol duplication with static capnproto)
-if(WIN32 AND MSVC)
+if(WIN32)
+    # On Windows (MSVC), use SHARED to properly export symbols
     add_library(rtype_server_lib SHARED ${SERVER_SOURCES})
-    # Enable automatic DLL export on Windows
     set_target_properties(rtype_server_lib PROPERTIES
         WINDOWS_EXPORT_ALL_SYMBOLS TRUE
     )
 else()
+    # On Linux/macOS, default to STATIC
     add_library(rtype_server_lib ${SERVER_SOURCES})
 endif()
 

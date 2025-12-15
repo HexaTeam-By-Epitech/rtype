@@ -134,92 +134,20 @@ jobs:
             build/${{ matrix.preset }}/Testing/
           retention-days: 7
 
-  build-windows-mingw:
-    name: Build on Windows (MinGW)
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-make
-            git
-
-      - name: Setup vcpkg cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/vcpkg/installed
-            ${{ github.workspace }}/vcpkg/packages
-            ${{ github.workspace }}/build/windows-mingw-debug/vcpkg_installed
-          key: ${{ runner.os }}-mingw-vcpkg-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            ${{ runner.os }}-mingw-vcpkg-
-
-      - name: Bootstrap vcpkg
-        shell: msys2 {0}
-        run: |
-          cd vcpkg
-          ./bootstrap-vcpkg.sh -disableMetrics
-          cd ..
-
-      - name: Configure CMake
-        shell: msys2 {0}
-        run: |
-          cmake --preset windows-mingw-debug
-
-      - name: Build
-        shell: msys2 {0}
-        run: |
-          cmake --build build/windows-mingw-debug --parallel
-
-      - name: Run tests
-        shell: msys2 {0}
-        working-directory: build/windows-mingw-debug
-        run: |
-          ctest --output-on-failure --timeout 300
-
-      - name: Upload binaries
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-mingw-binaries
-          path: |
-            build/windows-mingw-debug/server/*.exe
-            build/windows-mingw-debug/client/*.exe
-          retention-days: 7
-
   status-check:
     name: Windows Build Status
     runs-on: ubuntu-latest
-    needs: [build-windows, build-windows-mingw]
+    needs: [build-windows]
     if: always()
 
     steps:
       - name: Check build status
         run: |
-          if [ "${{ needs.build-windows.result }}" != "success" ] && [ "${{ needs.build-windows-mingw.result }}" != "success" ]; then
-            echo "❌ All Windows builds failed"
+          if [ "${{ needs.build-windows.result }}" != "success" ]; then
+            echo "❌ Windows build failed"
             exit 1
-          elif [ "${{ needs.build-windows.result }}" != "success" ]; then
-            echo "⚠️ MSVC build failed, but MinGW succeeded"
-            exit 0
-          elif [ "${{ needs.build-windows-mingw.result }}" != "success" ]; then
-            echo "⚠️ MinGW build failed, but MSVC succeeded"
-            exit 0
           else
-            echo "✅ All Windows builds succeeded"
+            echo "✅ Windows build succeeded"
             exit 0
           fi
 

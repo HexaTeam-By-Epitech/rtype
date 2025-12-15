@@ -5,11 +5,9 @@ file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS
 
 list(FILTER CLIENT_SOURCES EXCLUDE REGEX ".*/main.cpp$")
 
-# Use SHARED on MSVC (MSVC can export symbols properly)
-# Use STATIC on MinGW (avoids symbol duplication with static capnproto)
-if(WIN32 AND MSVC)
+# Use SHARED on Windows (MSVC), STATIC on Linux/macOS
+if(WIN32)
     add_library(rtype_client_lib SHARED ${CLIENT_SOURCES})
-    # Enable automatic DLL export on Windows
     set_target_properties(rtype_client_lib PROPERTIES
         WINDOWS_EXPORT_ALL_SYMBOLS TRUE
     )

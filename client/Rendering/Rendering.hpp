@@ -75,7 +75,7 @@ class Rendering {
     void Shutdown();
 
     /**
-    * @brief Clears the windows before rendering its content.
+    * @brief Clears the window before rendering its content.
     *
     * @note Must be called at the beginning of each frame before drawing.
     */

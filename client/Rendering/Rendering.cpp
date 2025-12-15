@@ -7,14 +7,11 @@
 
 #include "Rendering.hpp"
 
-Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {
-    _graphics = Graphics::RaylibGraphics();
-}
+Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {}
 
 Rendering::~Rendering() {
     Shutdown();
     _graphics.CloseWindow();
-    _graphics.~RaylibGraphics();
 }
 
 bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &title) {
@@ -29,6 +26,7 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
 
 void Rendering::Shutdown() {
     _initialized = false;
+    _graphics.CloseWindow();
 }
 
 void Rendering::ClearWindow() {
@@ -45,15 +43,16 @@ void Rendering::Render() {
     }
 
     _graphics.StartDrawing();
+    _graphics.DisplayWindow();
 }
 
 bool Rendering::IsWindowOpen() const {
-    return _initialized;
+    return _initialized && _graphics.IsWindowOpen();
 }
 
 bool Rendering::LoadTexture(const std::string &textureName, const std::string &path) {
-    _graphics.LoadTexture(textureName.c_str(), path.c_str());
-    return true;
+    int result = _graphics.LoadTexture(textureName.c_str(), path.c_str());
+    return result != -1;
 }
 
 void Rendering::DrawSprite(const std::string &textureId, float xPosition, float yPosition, float rotation,

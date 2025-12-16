@@ -7,11 +7,15 @@
 
 #pragma once
 
+#include <chrono>
+#include <iostream>
 #include <memory>
 #include <string>
-#include "../Core/EventBus/EventBus.hpp"
-#include "../Core/GameLoop/GameLoop.hpp"
-#include "../Network/Replicator.hpp"
+#include <thread>
+#include "Core/EventBus/EventBus.hpp"
+#include "Core/GameLoop/GameLoop.hpp"
+#include "Network/Replicator.hpp"
+#include "NetworkFactory.hpp"
 
 /**
  * @class Client

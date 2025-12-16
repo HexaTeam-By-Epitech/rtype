@@ -6,7 +6,6 @@
 */
 
 #include "RaylibGraphics.hpp"
-#include <limits>
 
 namespace Graphics {
     // Constructor / Destructor

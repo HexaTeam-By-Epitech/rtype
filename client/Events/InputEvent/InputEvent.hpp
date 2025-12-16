@@ -8,7 +8,7 @@
 #ifndef INPUTEVENT_HPP
 #define INPUTEVENT_HPP
 
-#include "../IEvent.hpp"
+#include "Events/IEvent.hpp"
 
 /**
  * @enum InputAction

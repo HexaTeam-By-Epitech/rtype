@@ -8,6 +8,7 @@
 #pragma once
 
 #include <raylib.h>
+#include <limits>
 #include <string>
 #include <unordered_map>
 #include <vector>

@@ -6,8 +6,6 @@
 */
 
 #include "GameLoop.hpp"
-#include <chrono>
-#include <iostream>
 
 GameLoop::GameLoop() = default;
 

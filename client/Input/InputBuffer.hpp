@@ -12,7 +12,7 @@
 #include <deque>
 #include <optional>
 #include <vector>
-#include "../Events/InputEvent/InputEvent.hpp"
+#include "Events/InputEvent/InputEvent.hpp"
 
 /**
  * @class InputBuffer

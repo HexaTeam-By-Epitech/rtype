@@ -6,10 +6,6 @@
 */
 
 #include "Client.hpp"
-#include <chrono>
-#include <iostream>
-#include <thread>
-#include "NetworkFactory.hpp"
 
 Client::Client(const std::string &playerName, const std::string &host, uint16_t port)
     : _playerName(playerName), _serverHost(host), _serverPort(port) {}

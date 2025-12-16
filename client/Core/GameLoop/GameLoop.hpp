@@ -8,11 +8,13 @@
 #ifndef GAMELOOP_HPP
 #define GAMELOOP_HPP
 
+#include <chrono>
+#include <iostream>
 #include <memory>
-#include "../../Input/InputBuffer.hpp"
-#include "../../Network/Replicator.hpp"
-#include "../../Rendering/Rendering.hpp"
-#include "../EventBus/EventBus.hpp"
+#include "Core/EventBus/EventBus.hpp"
+#include "Input/InputBuffer.hpp"
+#include "Network/Replicator.hpp"
+#include "Rendering/Rendering.hpp"
 
 /**
  * @class GameLoop

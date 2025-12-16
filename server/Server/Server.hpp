@@ -9,20 +9,44 @@
 
 #include <cstdint>
 #include <memory>
-#include "../Network/ServerNetworkManager.hpp"
+#include <unordered_map>
+#include "server/Network/ServerNetworkManager.hpp"
+#include "server/Rooms/RoomManager/RoomManager.hpp"
+#include "server/Sessions/SessionManager/SessionManager.hpp"
+
+// Forward declarations
+namespace server {
+    class ServerLoop;
+    class EventBus;
+}  // namespace server
+
+namespace RType::Messages::Shared {
+    enum class Action;
+}
 
 /**
  * @class Server
  * @brief R-Type server application
  * 
- * Encapsulates the entire server:
+ * Encapsulates the entire server with proper architecture:
+ * - Session management (player authentication and tracking)
+ * - Room management (game lobbies and instances)
  * - Network communication (ServerNetworkManager)
- * - Game logic (ECS)
+ * - Game logic per room (ECS + ServerLoop)
  * - World synchronization
  * 
  * Architecture:
- * - THREAD 1: Network (ServerNetworkManager)
- * - THREAD 2: Game loop (ECS + broadcast)
+ * Server
+ *   ├── SessionManager (track connected players)
+ *   ├── RoomManager (manage game instances)
+ *   │   └── Room (contains players + game loop)
+ *   │       └── ServerLoop (60 Hz)
+ *   │           └── World (wraps ECS Registry)
+ *   │               └── GameLogic (8 systems)
+ *   └── EventBus (global events)
+ * 
+ * THREAD 1: Network (ServerNetworkManager)
+ * THREAD 2: Game loop per room (ECS + broadcast)
  * 
  * Usage:
  * @code
@@ -69,10 +93,38 @@ class Server {
      */
     void handlePacket(HostNetworkEvent &event);
 
+    /**
+     * @brief Broadcast game state to all connected clients
+     */
+    void _broadcastGameState();
+
+    /**
+     * @brief Convert Action enum to directional input (dx, dy)
+     * @param action The action to convert
+     * @param dx Output: X direction (-1, 0, 1)
+     * @param dy Output: Y direction (-1, 0, 1)
+     * @param shoot Output: true if shooting
+     */
+    void _actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot);
+
     uint16_t _port;
     size_t _maxClients;
 
     std::unique_ptr<ServerNetworkManager> _networkManager;
+    std::shared_ptr<server::EventBus> _eventBus;
+
+    // Architecture components
+    std::shared_ptr<server::SessionManager> _sessionManager;
+    std::shared_ptr<server::RoomManager> _roomManager;
+
+    // Default room (TODO: Multiple rooms with matchmaking)
+    std::shared_ptr<server::Room> _defaultRoom;
+    std::unique_ptr<server::ServerLoop> _gameLoop;
+
+    // Track session ID to peer mapping for network communication
+    std::unordered_map<std::string, IPeer *> _sessionPeers;
+    // Reverse lookup: peer -> session ID for fast disconnect handling
+    std::unordered_map<IPeer *, std::string> _peerToSession;
 
     bool _initialized = false;
     bool _running = false;

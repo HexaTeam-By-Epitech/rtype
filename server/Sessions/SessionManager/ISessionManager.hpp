@@ -9,7 +9,7 @@
 
 #include <memory>
 #include <string>
-#include "Session.hpp"
+#include "server/Sessions/Session/Session.hpp"
 
 namespace server {
 

@@ -6,7 +6,7 @@
 */
 
 #include <iostream>
-#include "Server/Server.hpp"
+#include "server/Server/Server.hpp"
 
 int main(int argc, char **argv) {
     uint16_t port = 4242;

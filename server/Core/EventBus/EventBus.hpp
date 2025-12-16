@@ -12,7 +12,7 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
-#include "IEventBus.hpp"
+#include "server/Core/EventBus/IEventBus.hpp"
 
 namespace server {
 

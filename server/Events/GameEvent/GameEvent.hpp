@@ -9,7 +9,7 @@
 
 #include <chrono>
 #include <string>
-#include "IEvent.hpp"
+#include "server/Events/IEvent.hpp"
 
 namespace server {
 

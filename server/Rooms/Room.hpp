@@ -8,7 +8,7 @@
 #pragma once
 
 #include <vector>
-#include "IRoom.hpp"
+#include "server/Rooms/IRoom.hpp"
 
 namespace server {
 

@@ -5,8 +5,8 @@
 ** ServerNetworkManager.cpp
 */
 
-#include "ServerNetworkManager.hpp"
-#include <iostream>
+#include "server/Network/ServerNetworkManager.hpp"
+#include "common/Logger/Logger.hpp"
 
 ServerNetworkManager::ServerNetworkManager(uint16_t port, size_t maxClients)
     : _port(port), _maxClients(maxClients), _packetHandler(nullptr) {}
@@ -20,16 +20,16 @@ bool ServerNetworkManager::start() {
     // This prevents multiple threads from starting the server simultaneously
     bool expected = false;
     if (!_running.compare_exchange_strong(expected, true)) {
-        std::cerr << "[ServerNetworkManager] Server is already running" << std::endl;
+        LOG_ERROR("Server is already running");
         return false;
     }
 
     try {
         // Create server host
-        auto address = createAddress("0.0.0.0", _port);
+        std::unique_ptr<IAddress> address = createAddress("0.0.0.0", _port);
         _host = createServerHost(*address, _maxClients, 2);
 
-        std::cout << "[ServerNetworkManager] Server listening on port " << _port << std::endl;
+        LOG_INFO("Server listening on port ", _port);
 
         // Start network thread
         _networkThread = std::thread(&ServerNetworkManager::networkThreadLoop, this);
@@ -37,7 +37,7 @@ bool ServerNetworkManager::start() {
         return true;
 
     } catch (const std::exception &e) {
-        std::cerr << "[ServerNetworkManager] Failed to start: " << e.what() << std::endl;
+        LOG_ERROR("Failed to start: ", e.what());
         // Reset _running to false since we failed to start
         _running.store(false);
         return false;
@@ -49,7 +49,7 @@ void ServerNetworkManager::stop() {
         return;
     }
 
-    std::cout << "[ServerNetworkManager] Stopping network thread..." << std::endl;
+    LOG_INFO("Stopping network thread...");
 
     _running.store(false);
 
@@ -59,11 +59,11 @@ void ServerNetworkManager::stop() {
 
     _host.reset();
 
-    std::cout << "[ServerNetworkManager] Stopped." << std::endl;
+    LOG_INFO("Stopped.");
 }
 
 void ServerNetworkManager::networkThreadLoop() {
-    std::cout << "[ServerNetworkManager] Network thread started" << std::endl;
+    LOG_INFO("Network thread started");
 
     while (_running.load()) {
         if (!_host) {
@@ -71,8 +71,8 @@ void ServerNetworkManager::networkThreadLoop() {
             continue;
         }
 
-        // Poll for network events (10ms timeout)
-        auto eventOpt = _host->service(10);
+        // Poll for network events (1ms timeout for faster disconnect detection)
+        auto eventOpt = _host->service(1);
         if (!eventOpt) {
             continue;
         }
@@ -81,7 +81,7 @@ void ServerNetworkManager::networkThreadLoop() {
         _eventQueue.push(std::move(*eventOpt));
     }
 
-    std::cout << "[ServerNetworkManager] Network thread stopped" << std::endl;
+    LOG_INFO("Network thread stopped");
 }
 
 void ServerNetworkManager::processMessages() {
@@ -91,7 +91,7 @@ void ServerNetworkManager::processMessages() {
 
         switch (event.type) {
             case NetworkEventType::CONNECT:
-                std::cout << "[ServerNetworkManager] New client connected!" << std::endl;
+                LOG_INFO("New client connected!");
                 break;
 
             case NetworkEventType::RECEIVE:
@@ -101,7 +101,11 @@ void ServerNetworkManager::processMessages() {
                 break;
 
             case NetworkEventType::DISCONNECT:
-                std::cout << "[ServerNetworkManager] Client disconnected" << std::endl;
+                LOG_INFO("Client disconnected");
+                // Forward disconnect event to handler so Server can clean up
+                if (_packetHandler) {
+                    _packetHandler(event);
+                }
                 break;
 
             default:

@@ -22,7 +22,15 @@ else()
     endforeach()
 endif()
 
-add_compile_options(-Wall -Wextra -Wpedantic)
+# Compiler-specific warning flags
+if(MSVC)
+    # MSVC warning flags
+    add_compile_options(/W4)  # Warning level 4 (similar to -Wall -Wextra)
+    add_compile_options(/permissive-)  # Standards conformance
+else()
+    # GCC/Clang warning flags
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 enable_testing()
 
@@ -33,8 +41,13 @@ option(ENABLE_COVERAGE "Enable code coverage reporting" OFF)
 # Coverage configuration
 if(ENABLE_COVERAGE)
     message(STATUS "Code coverage enabled")
-    add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
-    add_link_options(--coverage)
+    if(NOT MSVC)
+        # Coverage is only supported with GCC/Clang
+        add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "Code coverage is not supported with MSVC. Use OpenCppCoverage instead.")
+    endif()
 endif()
 
 if (BUILD_SERVER)

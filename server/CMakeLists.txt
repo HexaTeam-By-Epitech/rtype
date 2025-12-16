@@ -17,7 +17,16 @@ file(GLOB_RECURSE ECS_SOURCES
 )
 
 # Librairie serveur
-add_library(rtype_server_lib ${SERVER_SOURCES} ${ECS_SOURCES})
+if(WIN32)
+    # On Windows (MSVC), use SHARED to properly export symbols
+    add_library(rtype_server_lib SHARED ${SERVER_SOURCES} ${ECS_SOURCES})
+    set_target_properties(rtype_server_lib PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    )
+else()
+    # On Linux/macOS, default to STATIC
+    add_library(rtype_server_lib ${SERVER_SOURCES} ${ECS_SOURCES})
+endif()
 
 # Include paths pour la lib
 target_include_directories(rtype_server_lib

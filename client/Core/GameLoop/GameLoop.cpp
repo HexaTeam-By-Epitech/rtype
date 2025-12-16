@@ -18,40 +18,40 @@ bool GameLoop::initialize() {
         return true;
     }
 
-    std::cout << "[GameLoop] Initializing subsystems..." << std::endl;
+    LOG_INFO("Initializing subsystems...");
 
     // 1. EventBus
     _eventBus = std::make_unique<EventBus>();
-    std::cout << "[GameLoop] ✓ EventBus initialized" << std::endl;
+    LOG_INFO("✓ EventBus initialized");
 
     // 2. InputBuffer
     _inputBuffer = std::make_unique<InputBuffer>();
-    std::cout << "[GameLoop] ✓ InputBuffer initialized" << std::endl;
+    LOG_INFO("✓ InputBuffer initialized");
 
     // 3. Replicator (will start network thread on connect)
     _replicator = std::make_unique<Replicator>(*_eventBus);
-    std::cout << "[GameLoop] ✓ Replicator initialized" << std::endl;
+    LOG_INFO("✓ Replicator initialized");
 
     // 4. Rendering
     _rendering = std::make_unique<Rendering>(*_eventBus);
-    std::cout << "[GameLoop] ✓ Rendering initialized" << std::endl;
+    LOG_INFO("✓ Rendering initialized");
 
     _initialized = true;
-    std::cout << "[GameLoop] All subsystems initialized successfully!" << std::endl;
+    LOG_INFO("All subsystems initialized successfully!");
 
     return true;
 }
 
 void GameLoop::run() {
     if (!_initialized) {
-        std::cerr << "[GameLoop] ERROR: Cannot run, not initialized!" << std::endl;
+        LOG_ERROR("Cannot run, not initialized!");
         return;
     }
 
-    std::cout << "[GameLoop] Starting main loop..." << std::endl;
-    std::cout << "[GameLoop] Architecture:" << std::endl;
-    std::cout << "[GameLoop]   - THREAD 1 (Network): Replicator receiving packets" << std::endl;
-    std::cout << "[GameLoop]   - THREAD 2 (Main):    Game logic + Rendering" << std::endl;
+    LOG_INFO("Starting main loop...");
+    LOG_INFO("Architecture:");
+    LOG_INFO("  - THREAD 1 (Network): Replicator receiving packets");
+    LOG_INFO("  - THREAD 2 (Main):    Game logic + Rendering");
 
     _running = true;
 
@@ -82,7 +82,7 @@ void GameLoop::run() {
         render();
     }
 
-    std::cout << "[GameLoop] Main loop stopped." << std::endl;
+    LOG_INFO("Main loop stopped.");
 }
 
 void GameLoop::shutdown() {
@@ -90,27 +90,27 @@ void GameLoop::shutdown() {
         return;
     }
 
-    std::cout << "[GameLoop] Shutting down subsystems..." << std::endl;
+    LOG_INFO("Shutting down subsystems...");
 
     // Stop in reverse order
     _rendering.reset();
-    std::cout << "[GameLoop] ✓ Rendering stopped" << std::endl;
+    LOG_INFO("✓ Rendering stopped");
 
     _replicator.reset();  // Stops network thread automatically
-    std::cout << "[GameLoop] ✓ Replicator stopped (network thread terminated)" << std::endl;
+    LOG_INFO("✓ Replicator stopped (network thread terminated)");
 
     _inputBuffer.reset();
-    std::cout << "[GameLoop] ✓ InputBuffer stopped" << std::endl;
+    LOG_INFO("✓ InputBuffer stopped");
 
     _eventBus.reset();
-    std::cout << "[GameLoop] ✓ EventBus stopped" << std::endl;
+    LOG_INFO("✓ EventBus stopped");
 
     _initialized = false;
-    std::cout << "[GameLoop] Shutdown complete." << std::endl;
+    LOG_INFO("Shutdown complete.");
 }
 
 void GameLoop::stop() {
-    std::cout << "[GameLoop] Stop requested..." << std::endl;
+    LOG_INFO("Stop requested...");
     _running = false;
 }
 

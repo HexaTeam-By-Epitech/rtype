@@ -1,0 +1,51 @@
+/*
+** EPITECH PROJECT, 2025
+** rtype
+** File description:
+** CMakeLists.txt - Test configuration for game logic tests
+*/
+
+# This file should be integrated into the main tests/CMakeLists.txt
+
+# Game Logic Tests
+add_executable(GameLoopTest
+    GameLoopTest.cpp
+)
+
+target_link_libraries(GameLoopTest
+    gtest
+    gtest_main
+    ecs
+    rtype_common
+)
+
+# Game Loop Integration Tests
+add_executable(GameLoopIntegrationTest
+    GameLoopIntegrationTest.cpp
+)
+
+target_link_libraries(GameLoopIntegrationTest
+    gtest
+    gtest_main
+    ecs
+    rtype_common
+    server_lib
+)
+
+# Network Synchronization Tests
+add_executable(NetworkSyncTest
+    NetworkSyncTest.cpp
+)
+
+target_link_libraries(NetworkSyncTest
+    gtest
+    gtest_main
+    ecs
+    rtype_common
+    server_lib
+)
+
+# Register tests with CTest
+gtest_discover_tests(GameLoopTest)
+gtest_discover_tests(GameLoopIntegrationTest)
+gtest_discover_tests(NetworkSyncTest)

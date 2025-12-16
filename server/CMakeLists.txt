@@ -3,34 +3,35 @@ file(GLOB_RECURSE SERVER_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Events/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Game/**/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Rooms/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Rooms/**/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Sessions/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Sessions/**/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Network/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Server/*.cpp"
 )
 
+# Add ECS sources from common (needed by GameLogic)
+file(GLOB_RECURSE ECS_SOURCES
+    "${CMAKE_SOURCE_DIR}/common/ECS/*.cpp"
+)
+
 # Librairie serveur
-add_library(rtype_server_lib ${SERVER_SOURCES})
+if(WIN32)
+    # On Windows (MSVC), use SHARED to properly export symbols
+    add_library(rtype_server_lib SHARED ${SERVER_SOURCES} ${ECS_SOURCES})
+    set_target_properties(rtype_server_lib PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    )
+else()
+    # On Linux/macOS, default to STATIC
+    add_library(rtype_server_lib ${SERVER_SOURCES} ${ECS_SOURCES})
+endif()
 
 # Include paths pour la lib
 target_include_directories(rtype_server_lib
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/Core
-        ${CMAKE_CURRENT_SOURCE_DIR}/Events
-        ${CMAKE_CURRENT_SOURCE_DIR}/Events/Core
-        ${CMAKE_CURRENT_SOURCE_DIR}/Events/GameEvent
-        ${CMAKE_CURRENT_SOURCE_DIR}/Events/NetworkEvent
-        ${CMAKE_CURRENT_SOURCE_DIR}/Game
-        ${CMAKE_CURRENT_SOURCE_DIR}/Game/Prefabs
-        ${CMAKE_CURRENT_SOURCE_DIR}/Game/StateManager
-        ${CMAKE_CURRENT_SOURCE_DIR}/Game/World
-        ${CMAKE_CURRENT_SOURCE_DIR}/Rooms
-        ${CMAKE_CURRENT_SOURCE_DIR}/Rooms/RoomManager
-        ${CMAKE_CURRENT_SOURCE_DIR}/Rooms/Matchmaking
-        ${CMAKE_CURRENT_SOURCE_DIR}/Sessions
-        ${CMAKE_CURRENT_SOURCE_DIR}/Sessions/Session
-        ${CMAKE_CURRENT_SOURCE_DIR}/Sessions/SessionManager
+        ${CMAKE_SOURCE_DIR}
 )
 
 target_compile_features(rtype_server_lib PUBLIC cxx_std_23)

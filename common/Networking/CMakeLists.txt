@@ -16,6 +16,13 @@ file(GLOB NETWORKING_HEADERS
 
 add_library(rtype_networking SHARED ${NETWORKING_SRC} ${NETWORKING_HEADERS})
 
+# Enable automatic symbol export on Windows
+if(WIN32)
+    set_target_properties(rtype_networking PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    )
+endif()
+
 # Find ENet library
 find_package(unofficial-enet CONFIG REQUIRED)
 
@@ -32,6 +39,15 @@ target_link_libraries(rtype_networking
     PUBLIC
         unofficial::enet::enet
 )
+
+# Add Windows-specific libraries for ENet
+if(WIN32)
+    target_link_libraries(rtype_networking
+        PUBLIC
+            ws2_32
+            winmm
+    )
+endif()
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 23)

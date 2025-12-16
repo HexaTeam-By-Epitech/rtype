@@ -153,11 +153,10 @@ void Replicator::processMessages() {
             try {
                 auto gameStart = S2C::GameStart::deserialize(payload);
 
-                std::cout << "[Client] ✓ GameStart received!" << std::endl;
-                std::cout << "[Client]   - Your entity ID: " << gameStart.yourEntityId << std::endl;
-                std::cout << "[Client]   - Server tick: " << gameStart.initialState.serverTick << std::endl;
-                std::cout << "[Client]   - Total entities: " << gameStart.initialState.entities.size()
-                          << std::endl;
+                LOG_INFO("✓ GameStart received!");
+                LOG_INFO("  - Your entity ID: ", gameStart.yourEntityId);
+                LOG_INFO("  - Server tick: ", gameStart.initialState.serverTick);
+                LOG_INFO("  - Total entities: ", gameStart.initialState.entities.size());
 
                 // Count entities by type
                 int players = 0, enemies = 0, bullets = 0;
@@ -171,14 +170,14 @@ void Replicator::processMessages() {
                         bullets++;
                 }
 
-                std::cout << "[Client]   - Players: " << players << std::endl;
-                std::cout << "[Client]   - Enemies: " << enemies << std::endl;
-                std::cout << "[Client]   - Bullets: " << bullets << std::endl;
+                LOG_INFO("  - Players: ", players);
+                LOG_INFO("  - Enemies: ", enemies);
+                LOG_INFO("  - Bullets: ", bullets);
             } catch (const std::exception &e) {
-                std::cerr << "[Client] Error decoding GameStart: " << e.what() << std::endl;
+                LOG_ERROR("Error decoding GameStart: ", e.what());
             }
         } else if (!netEvent.getMessageContent().empty()) {
-            std::cout << "[Client] Received from server: " << netEvent.getMessageContent() << std::endl;
+            LOG_DEBUG("Received from server: ", netEvent.getMessageContent());
         }
 
         // Publish on EventBus for game systems to process

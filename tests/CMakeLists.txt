@@ -102,3 +102,24 @@ target_link_libraries(threading_tests PRIVATE
 )
 
 add_test(NAME threading_tests COMMAND threading_tests)
+
+# On Windows, copy required DLLs next to test executables
+if(WIN32)
+    # Function to copy vcpkg DLLs for a test target
+    function(copy_test_dlls target_name)
+        # Copy vcpkg DLLs (enet, capnproto, etc.)
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for ${target_name}..."
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_RUNTIME_DLLS:${target_name}>"
+                "$<TARGET_FILE_DIR:${target_name}>"
+            COMMAND_EXPAND_LISTS
+        )
+    endfunction()
+
+    # Copy DLLs for each test that needs them
+    copy_test_dlls(server_tests)
+    copy_test_dlls(networking_tests)
+    copy_test_dlls(serialization_tests)
+endif()
+

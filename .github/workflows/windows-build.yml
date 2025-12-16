@@ -105,12 +105,24 @@ jobs:
           Write-Host "`n=== Client artifacts ==="
           Get-ChildItem -Path "build/${{ matrix.preset }}/client" -Recurse -Include *.exe,*.dll
 
+      - name: List test artifacts and DLLs (Debug only)
+        if: matrix.build_type == 'Debug'
+        shell: powershell
+        run: |
+          Write-Host "=== Test executables and DLLs ==="
+          Get-ChildItem -Path "build/${{ matrix.preset }}/tests" -Recurse -Include *.exe,*.dll | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "`n=== VCPKG Debug DLLs ==="
+          if (Test-Path "build/${{ matrix.preset }}/vcpkg_installed/x64-windows/debug/bin") {
+            Get-ChildItem -Path "build/${{ matrix.preset }}/vcpkg_installed/x64-windows/debug/bin" -Include *.dll | ForEach-Object { Write-Host $_.Name }
+          }
+
       - name: Run tests (Debug only)
         if: matrix.build_type == 'Debug'
         shell: cmd
         working-directory: build/${{ matrix.preset }}
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set PATH=%PATH%;%CD%\vcpkg_installed\x64-windows\bin;%CD%\vcpkg_installed\x64-windows\debug\bin
           ctest --output-on-failure --timeout 300 -C Debug
 
       - name: Upload binaries

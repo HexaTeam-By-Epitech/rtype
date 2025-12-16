@@ -16,6 +16,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "../common/Logger/Logger.hpp"
 #include "Capnp/Messages/Messages.hpp"
 #include "Capnp/NetworkMessages.hpp"
 #include "Core/EventBus/EventBus.hpp"

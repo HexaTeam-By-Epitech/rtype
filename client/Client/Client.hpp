@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include "../common/Logger/Logger.hpp"
 #include "Core/EventBus/EventBus.hpp"
 #include "Core/GameLoop/GameLoop.hpp"
 #include "Network/Replicator.hpp"

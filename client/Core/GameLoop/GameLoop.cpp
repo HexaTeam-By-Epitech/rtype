@@ -53,6 +53,8 @@ void GameLoop::run() {
     LOG_INFO("  - THREAD 1 (Network): Replicator receiving packets");
     LOG_INFO("  - THREAD 2 (Main):    Game logic + Rendering");
 
+    _rendering->Initialize(800, 600, "R-Type Client");
+
     _running = true;
 
     while (_running) {
@@ -132,8 +134,12 @@ void GameLoop::fixedUpdate(float fixedDeltaTime) {
 }
 
 void GameLoop::render() {
-    // TODO: Delegate to rendering system
-    // _rendering->render();
+    if (!_rendering) {
+        return;
+    }
+
+    _rendering->ClearWindow();
+    _rendering->Render();
 }
 
 void GameLoop::processInput() {

@@ -118,6 +118,7 @@ void Client::run() {
     LOG_INFO("========================================");
 
     // Run game loop (blocking)
+    _gameLoop->initialize();
     _gameLoop->run();
 
     LOG_INFO("Game loop stopped.");

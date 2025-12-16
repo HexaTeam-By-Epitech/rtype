@@ -11,6 +11,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include "../common/Logger/Logger.hpp"
 #include "Core/EventBus/EventBus.hpp"
 #include "Input/InputBuffer.hpp"
 #include "Network/Replicator.hpp"

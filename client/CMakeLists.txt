@@ -21,8 +21,12 @@ target_include_directories(rtype_client_lib PUBLIC
 )
 
 target_compile_features(rtype_client_lib PUBLIC cxx_std_23)
+
+find_package(glfw3 CONFIG REQUIRED)
+
 target_link_libraries(rtype_client_lib PUBLIC
         raylib
+        glfw
         rtype_serialization
         rtype_networking
         rtype_threading

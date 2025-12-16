@@ -4,16 +4,7 @@ on:
   workflow_dispatch:
 
   push:
-    branches: [ feat/common/build-support-windows ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
-      - '.github/workflows/mirror.yml'
-
-  pull_request:
-    branches: [ dev ]
+    branches: [ main, dev ]
     paths-ignore:
       - '**.md'
       - '.gitignore'

@@ -61,6 +61,8 @@ namespace server {
         const std::unordered_map<int, std::vector<int>> &getActiveMatches() const;
 
        private:
+        static constexpr size_t PLAYERS_PER_MATCH = 4;  ///< Number of players required for a match
+
         std::vector<int> _waitingPlayers;                          ///< Queue of players waiting for a match
         std::unordered_map<int, std::vector<int>> _activeMatches;  ///< Active matches (matchId -> playerIds)
         int _nextMatchId = 0;                                      ///< Next available match ID

@@ -38,7 +38,7 @@ namespace server {
             return;
         }
 
-        auto room = std::make_shared<Room>(id);
+        std::shared_ptr<Room> room = std::make_shared<Room>(id);
         _rooms[id] = room;
 
         LOG_INFO("✓ Room created: ", id);

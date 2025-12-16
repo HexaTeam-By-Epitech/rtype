@@ -26,7 +26,7 @@ namespace server {
 
         // Get all entities with Transform component (all visible entities)
         ecs::Signature transformMask = (1ULL << ecs::getComponentType<ecs::Transform>());
-        auto entities = registry.getEntitiesWithMask(transformMask);
+        std::vector<ecs::Address> entities = registry.getEntitiesWithMask(transformMask);
 
         // Serialize each entity
         for (auto entityId : entities) {
@@ -65,15 +65,15 @@ namespace server {
         try {
             // Try to get Transform
             if (registry.hasComponent<ecs::Transform>(entityId)) {
-                const auto &transform = registry.getComponent<ecs::Transform>(entityId);
+                const ecs::Transform &transform = registry.getComponent<ecs::Transform>(entityId);
                 snapshot.posX = transform.getPosition().x;
                 snapshot.posY = transform.getPosition().y;
             }
 
             // Try to get Velocity
             if (registry.hasComponent<ecs::Velocity>(entityId)) {
-                const auto &velocity = registry.getComponent<ecs::Velocity>(entityId);
-                auto dir = velocity.getDirection();
+                const ecs::Velocity &velocity = registry.getComponent<ecs::Velocity>(entityId);
+                ecs::Velocity::Vector2 dir = velocity.getDirection();
                 float speed = velocity.getSpeed();
                 snapshot.velX = dir.x * speed;
                 snapshot.velY = dir.y * speed;
@@ -81,7 +81,7 @@ namespace server {
 
             // Try to get Health
             if (registry.hasComponent<ecs::Health>(entityId)) {
-                const auto &health = registry.getComponent<ecs::Health>(entityId);
+                const ecs::Health &health = registry.getComponent<ecs::Health>(entityId);
                 snapshot.currentHealth = health.getCurrentHealth();
                 snapshot.maxHealth = health.getMaxHealth();
                 snapshot.isAlive = (health.getCurrentHealth() > 0);
@@ -89,7 +89,7 @@ namespace server {
 
             // Try to get Player
             if (registry.hasComponent<ecs::Player>(entityId)) {
-                const auto &player = registry.getComponent<ecs::Player>(entityId);
+                const ecs::Player &player = registry.getComponent<ecs::Player>(entityId);
                 snapshot.playerId = player.getPlayerId();
             }
         } catch (const std::exception &e) {

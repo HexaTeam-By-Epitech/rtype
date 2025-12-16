@@ -23,8 +23,8 @@ namespace server {
         LOG_INFO("Player ", playerId, " added to matchmaking queue (", _waitingPlayers.size(),
                  " players waiting)");
 
-        // Auto-start match if we have enough players (e.g., 4 players for R-Type)
-        if (_waitingPlayers.size() >= 4) {
+        // Auto-start match if we have enough players
+        if (_waitingPlayers.size() >= PLAYERS_PER_MATCH) {
             startMatch();
         }
     }
@@ -46,8 +46,8 @@ namespace server {
             return;
         }
 
-        // Take up to 4 players for a match
-        size_t matchSize = std::min(_waitingPlayers.size(), static_cast<size_t>(4));
+        // Take up to PLAYERS_PER_MATCH players for a match
+        size_t matchSize = std::min(_waitingPlayers.size(), PLAYERS_PER_MATCH);
         std::vector<int> matchPlayers(_waitingPlayers.begin(), _waitingPlayers.begin() + matchSize);
 
         // Remove matched players from queue

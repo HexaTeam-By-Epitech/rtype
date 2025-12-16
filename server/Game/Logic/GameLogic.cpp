@@ -37,7 +37,7 @@ namespace server {
           _gameActive(false) {
         // Create World with Registry if not provided
         if (!world) {
-            auto registry = std::make_shared<ecs::Registry>();
+            std::shared_ptr<ecs::Registry> registry = std::make_shared<ecs::Registry>();
             _world = std::make_shared<World>(registry);
             LOG_DEBUG("GameLogic: Created new World with Registry");
         } else {

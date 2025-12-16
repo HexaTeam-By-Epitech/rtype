@@ -23,7 +23,7 @@ namespace server {
 
         // Generate token and create session
         std::string token = _authService->generateToken(username);
-        auto session = createSession(token);
+        std::shared_ptr<Session> session = createSession(token);
 
         LOG_INFO("✓ User authenticated and session created: ", username);
         return token;
@@ -35,7 +35,7 @@ namespace server {
             return _sessions[id];
         }
 
-        auto session = std::make_shared<Session>(id);
+        std::shared_ptr<Session> session = std::make_shared<Session>(id);
         _sessions[id] = session;
 
         LOG_INFO("✓ Session created: ", id);

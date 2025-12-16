@@ -53,7 +53,7 @@ namespace server {
 
     ecs::Address PrefabFactory::createEnemy(ecs::Registry &registry, int enemyType, float posX, float posY) {
         try {
-            auto spawnData = _getEnemySpawnData(enemyType);
+            EnemySpawnData spawnData = _getEnemySpawnData(enemyType);
 
             ecs::Address enemy = registry.newEntity();
 

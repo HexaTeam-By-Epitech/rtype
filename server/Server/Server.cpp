@@ -31,6 +31,7 @@
 #include "server/Game/Logic/GameLogic.hpp"
 #include "server/Game/Logic/GameStateSerializer.hpp"
 #include "server/Game/World/World.hpp"
+#include "server/Sessions/Session/Session.hpp"
 
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 
@@ -86,14 +87,14 @@ bool Server::initialize() {
     LOG_INFO("✓ Default room created");
 
     // Create World with Registry
-    auto registry = std::make_shared<ecs::Registry>();
-    auto world = std::make_shared<server::World>(registry);
+    std::shared_ptr<ecs::Registry> registry = std::make_shared<ecs::Registry>();
+    std::shared_ptr<server::World> world = std::make_shared<server::World>(registry);
     LOG_INFO("✓ World created with Registry");
 
     // Create ThreadPool for parallel system execution (4 workers)
     std::shared_ptr<server::ThreadPool> threadPool = std::make_shared<server::ThreadPool>(4);
     threadPool->start();
-    auto gameLogic = std::make_unique<server::GameLogic>(world, threadPool);
+    std::unique_ptr<server::GameLogic> gameLogic = std::make_unique<server::GameLogic>(world, threadPool);
     LOG_INFO("✓ ThreadPool enabled with 4 workers");
 
     // Create ServerLoop with GameLogic, EventBus, and World
@@ -138,14 +139,14 @@ void Server::handlePacket(HostNetworkEvent &event) {
         auto it = _peerToSession.find(event.peer);
         if (it != _peerToSession.end()) {
             std::string sessionId = it->second;
-            auto session = _sessionManager->getSession(sessionId);
+            std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionId);
             uint32_t playerId = session ? session->getPlayerId() : 0;
 
             if (playerId != 0) {
                 LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
 
                 // Despawn player from game
-                auto &gameLogic = _gameLoop->getGameLogic();
+                server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
                 gameLogic.despawnPlayer(playerId);
 
                 // Remove from room
@@ -173,7 +174,7 @@ void Server::handlePacket(HostNetworkEvent &event) {
         using namespace RType::Messages;
 
         // Get message type
-        auto messageType = NetworkMessages::getMessageType(event.packet->getData());
+        NetworkMessages::MessageType messageType = NetworkMessages::getMessageType(event.packet->getData());
 
         switch (messageType) {
             case NetworkMessages::MessageType::HANDSHAKE_REQUEST: {
@@ -187,7 +188,7 @@ void Server::handlePacket(HostNetworkEvent &event) {
 
                 // Create session for player
                 std::string sessionId = "session_" + std::to_string(newPlayerId);
-                auto session = _sessionManager->createSession(sessionId);
+                std::shared_ptr<server::Session> session = _sessionManager->createSession(sessionId);
                 session->setPlayerId(newPlayerId);  // Associate player ID with session
 
                 // Track session to peer mapping for network communication
@@ -203,7 +204,7 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 LOG_DEBUG("Event published: PLAYER_JOINED for player ", newPlayerId, " (", playerName, ")");
 
                 // Spawn player in game logic
-                auto &gameLogic = _gameLoop->getGameLogic();
+                server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
                 uint32_t entityId = gameLogic.spawnPlayer(newPlayerId, playerName);
 
                 if (entityId == 0) {
@@ -217,10 +218,11 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
 
                 // Serialize and send
-                auto gameStartPayload = gameStart.serialize();
-                auto gameStartPacket = NetworkMessages::createMessage(
+                std::vector<uint8_t> gameStartPayload = gameStart.serialize();
+                std::vector<uint8_t> gameStartPacket = NetworkMessages::createMessage(
                     NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
-                auto packet = createPacket(gameStartPacket, static_cast<uint32_t>(PacketFlag::RELIABLE));
+                std::unique_ptr<IPacket> packet =
+                    createPacket(gameStartPacket, static_cast<uint32_t>(PacketFlag::RELIABLE));
                 event.peer->send(std::move(packet), 0);
 
                 LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId,
@@ -229,8 +231,8 @@ void Server::handlePacket(HostNetworkEvent &event) {
             }
 
             case NetworkMessages::MessageType::C2S_PLAYER_INPUT: {
-                auto payload = NetworkMessages::getPayload(event.packet->getData());
-                auto input = C2S::PlayerInput::deserialize(payload);
+                std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+                C2S::PlayerInput input = C2S::PlayerInput::deserialize(payload);
 
                 // Process each action in the input
                 int dx = 0, dy = 0;
@@ -249,14 +251,14 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 uint32_t playerId = 0;
                 auto it = _peerToSession.find(event.peer);
                 if (it != _peerToSession.end()) {
-                    auto session = _sessionManager->getSession(it->second);
+                    std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
                     if (session) {
                         playerId = session->getPlayerId();
                     }
                 }
 
                 if (playerId != 0) {
-                    auto &gameLogic = _gameLoop->getGameLogic();
+                    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
                     gameLogic.processPlayerInput(playerId, dx, dy, shoot);
                 }
 
@@ -342,19 +344,19 @@ void Server::_broadcastGameState() {
     using namespace RType::Messages;
 
     // Get registry from game loop's world
-    auto world = dynamic_cast<server::World *>(_gameLoop->getWorld());
+    server::World *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
     if (!world) {
         LOG_ERROR("Failed to cast IWorld to World");
         return;
     }
-    auto registry = world->getRegistry();
+    std::shared_ptr<ecs::Registry> registry = world->getRegistry();
 
     S2C::GameState state;
     state.serverTick = _gameLoop->getCurrentTick();
 
     // Get all entities with Transform component (everything that has a position)
-    auto transformMask = (1ULL << ecs::getComponentType<ecs::Transform>());
-    auto entities = registry->getEntitiesWithMask(transformMask);
+    ecs::Signature transformMask = (1ULL << ecs::getComponentType<ecs::Transform>());
+    std::vector<ecs::Address> entities = registry->getEntitiesWithMask(transformMask);
 
     // Serialize each entity's state
     for (auto entityId : entities) {
@@ -362,7 +364,7 @@ void Server::_broadcastGameState() {
         entityState.entityId = entityId;
 
         // Get Transform (required)
-        auto &transform = registry->getComponent<ecs::Transform>(entityId);
+        ecs::Transform &transform = registry->getComponent<ecs::Transform>(entityId);
         entityState.position.x = transform.getPosition().x;
         entityState.position.y = transform.getPosition().y;
 
@@ -375,7 +377,7 @@ void Server::_broadcastGameState() {
                 entityState.health = -1;
             }
         } else if (registry->hasComponent<ecs::Enemy>(entityId)) {
-            auto &enemy = registry->getComponent<ecs::Enemy>(entityId);
+            ecs::Enemy &enemy = registry->getComponent<ecs::Enemy>(entityId);
             // Map enemy type to EntityType enum
             entityState.type =
                 (enemy.getEnemyType() == 0) ? Shared::EntityType::EnemyType1 : Shared::EntityType::EnemyType1;
@@ -385,7 +387,7 @@ void Server::_broadcastGameState() {
                 entityState.health = -1;
             }
         } else if (registry->hasComponent<ecs::Projectile>(entityId)) {
-            auto &projectile = registry->getComponent<ecs::Projectile>(entityId);
+            ecs::Projectile &projectile = registry->getComponent<ecs::Projectile>(entityId);
             entityState.type =
                 projectile.isFriendly() ? Shared::EntityType::PlayerBullet : Shared::EntityType::EnemyBullet;
             entityState.health = -1;  // Projectiles don't have health
@@ -398,14 +400,16 @@ void Server::_broadcastGameState() {
     }
 
     // Serialize and create packet
-    auto payload = state.serialize();
-    auto packet = NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
+    std::vector<uint8_t> payload = state.serialize();
+    std::vector<uint8_t> packet =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
 
     // Broadcast to all connected players (unreliable, unsequenced for game state updates)
     for (const auto &[sessionId, peer] : _sessionPeers) {
         if (peer) {
             // Create packet copy for each peer (unsequenced = unreliable fast updates)
-            auto peerPacket = createPacket(packet, static_cast<uint32_t>(PacketFlag::UNSEQUENCED));
+            std::unique_ptr<IPacket> peerPacket =
+                createPacket(packet, static_cast<uint32_t>(PacketFlag::UNSEQUENCED));
             peer->send(std::move(peerPacket), 0);
         }
     }

@@ -26,7 +26,7 @@ bool ServerNetworkManager::start() {
 
     try {
         // Create server host
-        auto address = createAddress("0.0.0.0", _port);
+        std::unique_ptr<IAddress> address = createAddress("0.0.0.0", _port);
         _host = createServerHost(*address, _maxClients, 2);
 
         LOG_INFO("Server listening on port ", _port);

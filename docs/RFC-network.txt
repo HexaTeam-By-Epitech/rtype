@@ -1,0 +1,220 @@
+RFC - R-TYPE Network Protocol Specification
+==========================================
+
+Date: December 15, 2025
+Category: Game Network Protocol
+
+Abstract
+--------
+
+This document specifies the R-TYPE network protocol, a hybrid TCP/UDP communication protocol designed for real-time multiplayer gaming. The protocol establishes secure sessions via TCP handshake and authentication, then transitions to UDP for low-latency game data transmission. Key features include dual-mode authentication (anonymous and user-based), replay attack prevention, and session binding security.
+
+1. Introduction
+---------------
+
+The R-TYPE network protocol addresses the common challenge in online gaming: establishing secure, authenticated connections while maintaining low-latency communication for real-time gameplay. The protocol uses TCP for the initial handshake and authentication phases (reliability and security), then transitions to UDP for game data (performance and low latency).
+
+The protocol consists of three distinct phases:
+1. TCP Handshake - Protocol negotiation and connection establishment
+2. Authentication - Identity verification and session creation
+3. UDP Linking - Secure transition to game transport layer
+
+2. Protocol Overview
+--------------------
+
+2.1 Transport Layer Strategy
+The protocol employs a dual-transport approach:
+- TCP: Used for handshake, authentication, and control messages where reliability and ordering are critical
+- UDP: Used for real-time game data where low latency is prioritized over guaranteed delivery
+
+2.2 Security Model
+The protocol implements multiple security layers:
+- Magic number validation to prevent unauthorized clients
+- Protocol version checking for compatibility
+- Session tokens for authenticated communication
+- HMAC-based message authentication to prevent replay attacks
+- Server-generated nonces for additional security
+
+3. Phase 1: TCP Handshake
+-------------------------
+
+3.1 Purpose
+Establishes a reliable TCP connection and negotiates protocol compatibility between client and server.
+
+3.2 Message Flow
+
+3.2.1 HANDSHAKE_INIT
+Client -> Server: HANDSHAKE_INIT
+Fields:
+- MagicNumber (4 bytes): Protocol identifier (prevents ghost packets)
+- ProtocolVersion (2 bytes): Client protocol version
+
+3.2.2 Version Validation
+The server validates the protocol version:
+
+Success Case:
+Server -> Client: HANDSHAKE_ACK
+- Confirms protocol compatibility
+- Establishes TCP session for next phase
+
+Failure Case:
+Server -> Client: ERROR_VERSION_MISMATCH
+- Client must disconnect
+- Prevents incompatible protocol communication
+
+3.3 Security Considerations
+- MagicNumber provides first-level protection against foreign clients
+- Version checking prevents protocol incompatibilities that could cause security vulnerabilities
+
+4. Phase 2: Authentication
+--------------------------
+
+4.1 Purpose
+Authenticates the client identity and establishes a secure session context. Supports both anonymous and user-based authentication modes.
+
+4.2 Message Flow
+
+4.2.1 AUTH_REQUEST
+Client -> Server: AUTH_REQUEST
+Fields:
+- ClientInfo: Client identification data
+- OS: Operating system information
+- AuthType: ANONYMOUS or USER
+- Credentials: Authentication data (varies by AuthType)
+
+4.2.2 Anonymous Mode Authentication
+
+Server Decision Point 1 - Anonymous Allowed:
+If server accepts anonymous connections:
+- Server generates temporary UserID
+- Server -> Client: AUTH_SUCCESS
+  Fields:
+  - TempUserID: Temporary session identifier
+  - SessionToken: Cryptographic session key
+  - NonceServer: Server-generated nonce for replay protection
+
+Server Decision Point 2 - Anonymous Forbidden:
+Server -> Client: AUTH_ERROR (Anonymous Forbidden)
+- Prevents unauthorized guest access
+- Client must disconnect or retry with user credentials
+
+4.2.3 User Mode Authentication
+
+Database Verification:
+Server -> Database: Check Credentials (Username, PasswordHash)
+Note: Password hash is sent, never plaintext
+
+Existing User - Valid Credentials:
+Database -> Server: OK (UserID)
+Server -> Client: AUTH_SUCCESS
+Fields:
+- UserID: Authenticated user identifier
+- SessionToken: Cryptographic session key
+- NonceServer: Server-generated nonce
+
+Existing User - Invalid Credentials:
+Database -> Server: FAIL
+Server -> Client: AUTH_ERROR (Invalid Credentials)
+
+New User Registration:
+If user does not exist:
+Server -> Database: CreateUser(Username, PasswordHash)
+Database -> Server: Created(NewUserID)
+Server -> Client: AUTH_SUCCESS (with NewUserID)
+
+4.3 Security Considerations
+- Password hashing prevents plaintext credential transmission
+- Temporary UserIDs prevent database pollution from anonymous sessions
+- NonceServer provides replay attack protection for UDP phase
+- SessionToken creates secure session context
+
+5. Phase 3: UDP Linking
+-----------------------
+
+5.1 Purpose
+Securely associates the client's UDP endpoint (IP:Port) with the authenticated TCP session, enabling transition to low-latency game communication.
+
+5.2 Message Flow
+
+5.2.1 UDP_PING
+Client -> Server (UDP): UDP_PING
+Fields:
+- SessionToken: Session identifier from authentication
+- HMAC(SessionToken + NonceServer): Message authentication code
+
+5.2.2 Security Validation
+The server validates the UDP binding request:
+
+Validation Success:
+- HMAC verification passes
+- SessionToken is valid and active
+- Server records client UDP endpoint
+Server -> Client (UDP): UDP_PONG (Ready)
+
+Validation Failure:
+- Invalid HMAC or session token
+Server -> Client (UDP): UDP_BIND_ERROR
+- Client must disconnect and restart authentication
+
+5.3 Security Considerations
+- HMAC prevents UDP session hijacking and spoofing
+- NonceServer prevents replay attacks
+- Session binding ensures UDP packets are associated with authenticated sessions
+
+6. Game Loop Initiation
+------------------------
+
+After successful UDP linking, the client enters the game loop phase where:
+- Client sends INPUT messages via UDP
+- Server sends SNAPSHOT messages via UDP
+- All game data uses the established UDP channel
+- Session remains bound to the authenticated identity
+
+7. Error Handling
+-----------------
+
+7.1 Connection Errors
+- Version mismatches result in immediate disconnection
+- Authentication failures require restart from Phase 1
+- UDP binding failures require TCP session restart
+
+7.2 Security Violations
+- Invalid magic numbers are silently dropped
+- HMAC failures trigger immediate session termination
+- Replay attempts are logged and blocked
+
+8. Security Analysis
+--------------------
+
+8.1 Threat Mitigation
+- Ghost Packets: Magic number validation
+- Version Attacks: Protocol version checking
+- Credential Theft: Password hashing and secure tokens
+- Session Hijacking: HMAC-based UDP authentication
+- Replay Attacks: Server nonces and session tokens
+- Spoofing: UDP endpoint binding with cryptographic proof
+
+8.2 Attack Vectors
+- DoS via connection flooding (mitigated by TCP connection limits)
+- Brute force authentication (mitigated by rate limiting - implementation dependent)
+- Man-in-the-middle (requires additional TLS implementation)
+
+9. Implementation Considerations
+-------------------------------
+
+9.1 Performance
+- TCP used minimally (handshake + auth only)
+- UDP provides low-latency game communication
+- Session state must be maintained server-side
+
+9.2 Scalability
+- Stateless UDP game packets after binding
+- Database queries only during authentication
+- Session tokens enable distributed server architectures
+
+10. Conclusion
+--------------
+
+The R-TYPE network protocol provides a robust foundation for secure, real-time multiplayer gaming. By combining TCP reliability for critical operations with UDP performance for game data, it addresses both security and performance requirements. The dual-mode authentication and comprehensive security measures make it suitable for both casual and competitive gaming environments.
+
+The protocol's three-phase design ensures that security is established before performance-critical operations begin, while the transition to UDP maintains the low-latency requirements essential for real-time gaming.

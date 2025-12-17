@@ -45,9 +45,10 @@ namespace RType::Messages::S2C {
             auto stateBuilder = builder.initInitialState();
             stateBuilder.setServerTick(initialState.serverTick);
 
-            auto entitiesBuilder = stateBuilder.initEntities(initialState.entities.size());
+            auto entitiesBuilder =
+                stateBuilder.initEntities(static_cast<unsigned int>(initialState.entities.size()));
             for (size_t i = 0; i < initialState.entities.size(); ++i) {
-                initialState.entities[i].toCapnp(entitiesBuilder[i]);
+                initialState.entities[i].toCapnp(entitiesBuilder[static_cast<unsigned int>(i)]);
             }
 
             auto bytes = capnp::messageToFlatArray(message);

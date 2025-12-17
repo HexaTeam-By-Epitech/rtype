@@ -46,9 +46,9 @@ namespace RType::Messages::C2S {
 
             builder.setSequenceId(_sequenceId);
 
-            auto actionsBuilder = builder.initActions(actions.size());
+            auto actionsBuilder = builder.initActions(static_cast<unsigned int>(actions.size()));
             for (size_t i = 0; i < actions.size(); ++i) {
-                actionsBuilder.set(i, Shared::toCapnpAction(actions[i]));
+                actionsBuilder.set(static_cast<unsigned int>(i), Shared::toCapnpAction(actions[i]));
             }
 
             auto bytes = capnp::messageToFlatArray(message);

@@ -110,10 +110,13 @@ if(WIN32)
         # Copy vcpkg DLLs (enet, capnproto, etc.)
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for ${target_name}..."
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$<TARGET_RUNTIME_DLLS:${target_name}>"
-                "$<TARGET_FILE_DIR:${target_name}>"
+            COMMAND ${CMAKE_COMMAND} -E true
             COMMAND_EXPAND_LISTS
+        )
+        
+        # Copy runtime DLLs if available
+        set_target_properties(${target_name} PROPERTIES
+            VS_DEBUGGER_ENVIRONMENT "PATH=$<TARGET_FILE_DIR:${target_name}>;%PATH%"
         )
     endfunction()
 

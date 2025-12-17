@@ -128,3 +128,7 @@ void Rendering::ClearAllEntities() {
         _entityRenderer->clearAllEntities();
     }
 }
+
+bool Rendering::IsKeyDown(int key) const {
+    return _graphics.IsKeyDown(key);
+}

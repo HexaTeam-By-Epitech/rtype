@@ -42,8 +42,8 @@ bool Client::initialize() {
     _replicator = std::make_unique<Replicator>(*_eventBus);
     LOG_INFO("✓ Replicator created");
 
-    // Create GameLoop
-    _gameLoop = std::make_unique<GameLoop>();
+    // Create GameLoop (pass shared EventBus and Replicator)
+    _gameLoop = std::make_unique<GameLoop>(*_eventBus, *_replicator);
 
     if (!_gameLoop->initialize()) {
         LOG_ERROR("Failed to initialize GameLoop");
@@ -112,14 +112,14 @@ void Client::run() {
     LOG_INFO("Server: ", _serverHost, ":", _serverPort);
     LOG_INFO("========================================");
 
-    // Run game loop (blocking)
-    _gameLoop->run();
-
-    // Connect to server
+    // Connect to server BEFORE starting game loop
     if (!connectToServer()) {
         LOG_ERROR("Failed to connect to server");
         return;
     }
+
+    // Run game loop (blocking)
+    _gameLoop->run();
 
     LOG_INFO("Game loop stopped.");
 }

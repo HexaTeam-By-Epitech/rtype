@@ -8,11 +8,15 @@
 #ifndef GAMELOOP_HPP
 #define GAMELOOP_HPP
 
+#include <raylib.h>
 #include <chrono>
 #include <iostream>
 #include <memory>
 #include "../common/Logger/Logger.hpp"
+#include "Capnp/Messages/Messages.hpp"
+#include "Capnp/NetworkMessages.hpp"
 #include "Core/EventBus/EventBus.hpp"
+#include "Events/NetworkEvent/NetworkEvent.hpp"
 #include "Input/InputBuffer.hpp"
 #include "Network/Replicator.hpp"
 #include "Rendering/Rendering.hpp"
@@ -49,12 +53,15 @@ enum class GameScene { LOBBY, IN_GAME, PAUSED, GAME_OVER };
 class GameLoop {
    public:
     /**
-     * @brief Default constructor
+     * @brief Constructor with shared EventBus and Replicator
      * 
-     * Creates all subsystems but does not initialize them.
-     * Call initialize() to start.
+     * Uses the provided EventBus and Replicator from Client.
+     * Call initialize() to start other subsystems.
+     * 
+     * @param eventBus Shared EventBus instance
+     * @param replicator Shared Replicator instance
      */
-    GameLoop();
+    GameLoop(EventBus &eventBus, Replicator &replicator);
 
     /**
      * @brief Destructor
@@ -179,9 +186,18 @@ class GameLoop {
      */
     float calculateDeltaTime();
 
-    std::unique_ptr<EventBus> _eventBus;
+    /**
+     * @brief Handle incoming network messages
+     * 
+     * Processes GameStart and GameState messages to update entity rendering.
+     * 
+     * @param event Network event containing message data
+     */
+    void handleNetworkMessage(const NetworkEvent &event);
+
+    EventBus *_eventBus;  // Non-owning pointer (owned by Client)
     std::unique_ptr<InputBuffer> _inputBuffer;
-    std::unique_ptr<Replicator> _replicator;
+    Replicator *_replicator;  // Non-owning pointer (owned by Client)
     std::unique_ptr<Rendering> _rendering;
 
     bool _running = false;
@@ -190,6 +206,9 @@ class GameLoop {
     float _fixedTimestep = 1.0f / 60.0f;
     float _accumulator = 0.0f;
     uint32_t _currentFrame = 0;
+
+    // Input tracking
+    uint32_t _inputSequenceId = 0;
 
     GameScene _currentScene = GameScene::LOBBY;
 };

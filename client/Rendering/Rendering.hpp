@@ -210,6 +210,13 @@ class Rendering {
      */
     void ClearAllEntities();
 
+    /**
+     * @brief Check if a key is currently being held down
+     * @param key Raylib key code
+     * @return true if key is down
+     */
+    bool IsKeyDown(int key) const;
+
    private:
     EventBus _eventBus;
     bool _initialized = false;

@@ -290,5 +290,11 @@ namespace Graphics {
      * @param y Reference to store the Y coordinate
      */
         virtual void GetMousePosition(float &x, float &y) const = 0;
+
+        /**
+     * @brief Check if the window should close
+     * @return true if the window should close, false otherwise
+     */
+        virtual bool WindowShouldClose() const = 0;
     };
 }  // namespace Graphics

@@ -22,19 +22,19 @@ bool GameLoop::initialize() {
 
     // 1. EventBus
     _eventBus = std::make_unique<EventBus>();
-    LOG_INFO("✓ EventBus initialized");
+    LOG_INFO("EventBus initialized");
 
     // 2. InputBuffer
     _inputBuffer = std::make_unique<InputBuffer>();
-    LOG_INFO("✓ InputBuffer initialized");
+    LOG_INFO("InputBuffer initialized");
 
     // 3. Replicator (will start network thread on connect)
     _replicator = std::make_unique<Replicator>(*_eventBus);
-    LOG_INFO("✓ Replicator initialized");
+    LOG_INFO("Replicator initialized");
 
     // 4. Rendering
     _rendering = std::make_unique<Rendering>(*_eventBus);
-    LOG_INFO("✓ Rendering initialized");
+    LOG_INFO("Rendering initialized");
 
     _initialized = true;
     LOG_INFO("All subsystems initialized successfully!");
@@ -94,20 +94,20 @@ void GameLoop::shutdown() {
 
     LOG_INFO("Shutting down subsystems...");
 
-    // Stop in reverse order
     _rendering.reset();
-    LOG_INFO("✓ Rendering stopped");
+    LOG_INFO("Rendering stopped");
 
-    _replicator.reset();  // Stops network thread automatically
-    LOG_INFO("✓ Replicator stopped (network thread terminated)");
+    _replicator.reset();
+    LOG_INFO("Replicator stopped (network thread terminated)");
 
     _inputBuffer.reset();
-    LOG_INFO("✓ InputBuffer stopped");
+    LOG_INFO("InputBuffer stopped");
 
     _eventBus.reset();
-    LOG_INFO("✓ EventBus stopped");
+    LOG_INFO("EventBus stopped");
 
     _initialized = false;
+    _running = false;
     LOG_INFO("Shutdown complete.");
 }
 
@@ -122,6 +122,9 @@ void GameLoop::update(float deltaTime) {
     // - Camera updates
     // - Animations
     (void)deltaTime;
+    if (_rendering && _rendering->WindowShouldClose()) {
+        shutdown();
+    }
 }
 
 void GameLoop::fixedUpdate(float fixedDeltaTime) {

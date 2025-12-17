@@ -78,10 +78,12 @@ namespace Graphics {
         bool IsMouseButtonPressed(int button) const override;
         bool IsMouseButtonDown(int button) const override;
         void GetMousePosition(float &x, float &y) const override;
+        bool WindowShouldClose() const override;
 
        private:
         std::vector<Font> _fonts;
         std::unordered_map<std::string, Texture2D> _textures;
         Color _clearColor{255, 255, 255, 255};
+        bool _windowInitialized = false;
     };
 }  // namespace Graphics

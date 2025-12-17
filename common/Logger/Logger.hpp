@@ -107,13 +107,13 @@ namespace logger {
                 case Level::DEBUG:
                     return "DEBUG";
                 case Level::INFO:
-                    return "INFO ";
+                    return "INFO";
                 case Level::WARNING:
-                    return "WARN ";
+                    return "WARN";
                 case Level::ERROR:
                     return "ERROR";
                 case Level::CRITICAL:
-                    return "CRIT ";
+                    return "CRIT";
                 default:
                     return "UNKNOWN";
             }

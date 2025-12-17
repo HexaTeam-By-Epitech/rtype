@@ -44,6 +44,7 @@ bool Client::initialize() {
 
     // Create GameLoop
     _gameLoop = std::make_unique<GameLoop>();
+
     if (!_gameLoop->initialize()) {
         LOG_ERROR("Failed to initialize GameLoop");
         return false;
@@ -104,12 +105,6 @@ void Client::run() {
         return;
     }
 
-    // Connect to server
-    if (!connectToServer()) {
-        LOG_ERROR("Failed to connect to server");
-        return;
-    }
-
     LOG_INFO("Starting game loop...");
     LOG_INFO("========================================");
     LOG_INFO("R-Type client running!");
@@ -118,8 +113,13 @@ void Client::run() {
     LOG_INFO("========================================");
 
     // Run game loop (blocking)
-    _gameLoop->initialize();
     _gameLoop->run();
+
+    // Connect to server
+    if (!connectToServer()) {
+        LOG_ERROR("Failed to connect to server");
+        return;
+    }
 
     LOG_INFO("Game loop stopped.");
 }

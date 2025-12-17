@@ -17,6 +17,8 @@
 #include "Network/Replicator.hpp"
 #include "Rendering/Rendering.hpp"
 
+enum class GameScene { LOBBY, IN_GAME, PAUSED, GAME_OVER };
+
 /**
  * @class GameLoop
  * @brief Main game loop orchestrating all subsystems
@@ -188,6 +190,8 @@ class GameLoop {
     float _fixedTimestep = 1.0f / 60.0f;
     float _accumulator = 0.0f;
     uint32_t _currentFrame = 0;
+
+    GameScene _currentScene = GameScene::LOBBY;
 };
 
 #endif

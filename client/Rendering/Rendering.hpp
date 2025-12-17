@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include "../common/Logger/Logger.hpp"
 #include "Core/EventBus/EventBus.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
@@ -164,6 +165,8 @@ class Rendering {
      * @return Height in pixels
      */
     [[nodiscard]] uint32_t GetHeight() const;
+
+    [[nodiscard]] bool WindowShouldClose() const;
 
    private:
     EventBus _eventBus;

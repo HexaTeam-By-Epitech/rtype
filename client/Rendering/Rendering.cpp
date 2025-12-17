@@ -22,8 +22,12 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
     _graphics.InitWindow(static_cast<int>(width), static_cast<int>(height), title.c_str());
     _width = width;
     _height = height;
-    _initialized = true;
 
+    // Initialize EntityRenderer subsystem
+    _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+    LOG_DEBUG("EntityRenderer subsystem initialized");
+
+    _initialized = true;
     LOG_INFO("Rendering initialized: ", width, "x", height, " (", title, ")");
     return true;
 }
@@ -50,6 +54,12 @@ void Rendering::Render() {
     }
 
     _graphics.StartDrawing();
+
+    // Render entities (if EntityRenderer is initialized)
+    if (_entityRenderer) {
+        _entityRenderer->render();
+    }
+
     _graphics.DisplayWindow();
 }
 
@@ -88,4 +98,33 @@ bool Rendering::WindowShouldClose() const {
         return false;
     }
     return _graphics.WindowShouldClose();
+}
+
+// ═══════════════════════════════════════════════════════════
+// Entity Rendering API (delegation to EntityRenderer)
+// ═══════════════════════════════════════════════════════════
+
+void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
+                             int health) {
+    if (_entityRenderer) {
+        _entityRenderer->updateEntity(id, type, x, y, health);
+    }
+}
+
+void Rendering::RemoveEntity(uint32_t id) {
+    if (_entityRenderer) {
+        _entityRenderer->removeEntity(id);
+    }
+}
+
+void Rendering::SetMyEntityId(uint32_t id) {
+    if (_entityRenderer) {
+        _entityRenderer->setMyEntityId(id);
+    }
+}
+
+void Rendering::ClearAllEntities() {
+    if (_entityRenderer) {
+        _entityRenderer->clearAllEntities();
+    }
 }

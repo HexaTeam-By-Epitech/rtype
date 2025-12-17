@@ -9,10 +9,13 @@
 #define RENDERING_HPP
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include "../common/Logger/Logger.hpp"
+#include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Core/EventBus/EventBus.hpp"
+#include "EntityRenderer.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
 /**
@@ -168,12 +171,53 @@ class Rendering {
 
     [[nodiscard]] bool WindowShouldClose() const;
 
+    // ═══════════════════════════════════════════════════════════
+    // Entity Rendering API (delegated to EntityRenderer)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * @brief Update or create an entity for rendering
+     * @param id Entity unique identifier
+     * @param type Entity type (Player, Enemy, Bullet)
+     * @param x World position X
+     * @param y World position Y
+     * @param health Current health (-1 if not applicable)
+     * 
+     * Delegates to EntityRenderer. Call when receiving GameState updates.
+     */
+    void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health);
+
+    /**
+     * @brief Remove an entity from rendering
+     * @param id Entity unique identifier
+     * 
+     * Delegates to EntityRenderer. Call when entity is destroyed.
+     */
+    void RemoveEntity(uint32_t id);
+
+    /**
+     * @brief Set the local player's entity ID
+     * @param id Entity ID representing the local player
+     * 
+     * Allows visual differentiation of the player's own entity.
+     */
+    void SetMyEntityId(uint32_t id);
+
+    /**
+     * @brief Clear all entities from the rendering cache
+     * 
+     * Useful for scene transitions or disconnection.
+     */
+    void ClearAllEntities();
+
    private:
     EventBus _eventBus;
     bool _initialized = false;
     uint32_t _width = 0;
     uint32_t _height = 0;
     Graphics::RaylibGraphics _graphics;
-};
 
+    // Entity rendering subsystem
+    std::unique_ptr<EntityRenderer> _entityRenderer;
+};
 #endif

@@ -1,0 +1,285 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Simple changelog from recent commits
+          if [ "${{ github.event_name }}" == "push" ]; then
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s" --no-merges)
+            else
+              CHANGELOG=$(git log --pretty=format:"- %s" --no-merges -10)
+            fi
+          else
+            CHANGELOG="Manual release triggered for ${{ github.event.inputs.tag }}"
+          fi
+          
+          # Save changelog to file for multiline
+          cat << EOF > changelog.md
+          ## R-Type Release ${{ steps.get_version.outputs.version }}
+          
+          ### Changes
+          $CHANGELOG
+          
+          ### Downloads
+          - **Linux**: Download \`rtype-linux-x64.tar.gz\`
+          - **Windows**: Download \`rtype-windows-x64.zip\`
+          
+          Each archive contains both the server and client executables.
+          
+          ### Installation
+          1. Extract the archive
+          2. Run \`r-type_server\` to start the server
+          3. Run \`r-type_client\` to start the client
+          EOF
+          
+          cat changelog.md
+      
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          body_path: changelog.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    name: Build Linux Release
+    needs: create-release
+    runs-on: [self-hosted, gcp-spot]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential git cmake ninja-build pkg-config \
+            gcc-14 g++-14 \
+            libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libudev-dev libgl1-mesa-dev libopenal-dev \
+            libflac-dev libvorbis-dev \
+            libxinerama-dev xorg-dev libglu1-mesa-dev
+      
+      - name: Prepare persistent cache
+        run: mkdir -p /home/ubuntu/.vcpkg_binary_cache
+      
+      - name: Bootstrap vcpkg
+        run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+        env:
+          VCPKG_BINARY_SOURCES: 'clear;files,/home/ubuntu/.vcpkg_binary_cache,readwrite'
+      
+      - name: Configure CMake (Release)
+        run: |
+          cmake --preset linux-release \
+            -DCMAKE_C_COMPILER=gcc-14 \
+            -DCMAKE_CXX_COMPILER=g++-14
+        env:
+          VCPKG_BINARY_SOURCES: 'clear;files,/home/ubuntu/.vcpkg_binary_cache,readwrite'
+      
+      - name: Build Release
+        run: cmake --build --preset linux-release -j$(nproc)
+      
+      - name: Prepare Linux package
+        run: |
+          mkdir -p rtype-linux
+          cp build/linux-release/server/r-type_server rtype-linux/
+          cp build/linux-release/client/r-type_client rtype-linux/
+          
+          # Copy any necessary shared libraries if needed
+          # ldd build/linux-release/server/r-type_server | grep "=> /" | awk '{print $3}' | xargs -I '{}' cp -v '{}' rtype-linux/ || true
+          
+          # Create README
+          cat << 'EOF' > rtype-linux/README.txt
+          R-Type Release - Linux x64
+          
+          Server: ./r-type_server
+          Client: ./r-type_client
+          
+          Make sure to make the binaries executable:
+          chmod +x r-type_server r-type_client
+          
+          For more information, visit: https://github.com/${{ github.repository }}
+          EOF
+          
+          # Create tarball
+          tar -czf rtype-linux-x64.tar.gz rtype-linux/
+          ls -lh rtype-linux-x64.tar.gz
+      
+      - name: Upload Linux binaries to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: rtype-linux-x64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    name: Build Windows Release
+    needs: create-release
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+      
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.27.x'
+      
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      
+      - name: Setup vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+            ${{ github.workspace }}/build/windows-release/vcpkg_installed
+          key: ${{ runner.os }}-vcpkg-release-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-release-
+            ${{ runner.os }}-vcpkg-
+      
+      - name: Bootstrap vcpkg
+        shell: cmd
+        run: |
+          cd vcpkg
+          call bootstrap-vcpkg.bat -disableMetrics
+          cd ..
+      
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cmake --preset windows-release
+      
+      - name: Build
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cmake --build build/windows-release --config Release --parallel
+      
+      - name: Prepare Windows package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path rtype-windows
+          
+          # Copy executables
+          Copy-Item "build/windows-release/server/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/client/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          
+          # Copy DLL dependencies from vcpkg
+          $vcpkgBinPath = "build/windows-release/vcpkg_installed/x64-windows/bin"
+          if (Test-Path $vcpkgBinPath) {
+            Copy-Item "$vcpkgBinPath/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          }
+          
+          # Copy any DLLs from build directories
+          Copy-Item "build/windows-release/server/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/client/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          
+          # Create README
+          @"
+          R-Type Release - Windows x64
+          
+          Server: r-type_server.exe
+          Client: r-type_client.exe
+          
+          All necessary DLL files are included in this archive.
+          
+          For more information, visit: https://github.com/${{ github.repository }}
+          "@ | Out-File -FilePath "rtype-windows/README.txt" -Encoding UTF8
+          
+          # List contents
+          Write-Host "=== Package contents ==="
+          Get-ChildItem -Path "rtype-windows" -Recurse | ForEach-Object { Write-Host $_.FullName }
+          
+          # Create ZIP archive
+          Compress-Archive -Path "rtype-windows/*" -DestinationPath "rtype-windows-x64.zip"
+          Get-Item "rtype-windows-x64.zip" | Format-List
+      
+      - name: Upload Windows binaries to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: rtype-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  finalize-release:
+    name: Finalize Release
+    needs: [create-release, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Check build status
+        run: |
+          echo "Linux build: ${{ needs.build-linux.result }}"
+          echo "Windows build: ${{ needs.build-windows.result }}"
+          
+          if [ "${{ needs.build-linux.result }}" != "success" ] || [ "${{ needs.build-windows.result }}" != "success" ]; then
+            echo "⚠️ Some builds failed, but release has been created with available artifacts"
+            exit 0
+          else
+            echo "✅ All builds succeeded!"
+            exit 0
+          fi
+

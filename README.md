@@ -12,6 +12,42 @@ This project compiles and runs on:
 - 🍎 **macOS** (Apple Clang / ARM64 & x86_64)
 - 🪟 **Windows** (MSVC 2019+)
 
+## 🐧 Linux (Debian/Ubuntu) Build
+
+### Install Prerequisites
+
+```bash
+# Update package list
+sudo apt update
+
+# Install build tools and dependencies
+sudo apt install -y build-essential cmake git curl zip unzip tar pkg-config \
+                    libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+                    libxi-dev libgl1-mesa-dev
+```
+
+### Build & Run
+
+```bash
+# Clone
+git clone --recursive https://github.com/HexaTeam-By-Epitech/rtype.git
+cd rtype
+
+# Build Debug
+make debug
+
+# Run server
+./build/linux-debug/server/r-type_server
+
+# Run client (in another terminal)
+./build/linux-debug/client/r-type_client
+
+# Run tests
+make tests
+```
+
+> 💡 **First build takes 5-10 minutes** (vcpkg downloads all dependencies automatically)
+
 ## 🪟 Windows Build
 
 ### Step 1: Install Prerequisites

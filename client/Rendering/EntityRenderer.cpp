@@ -86,8 +86,8 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
 
     // Draw a 32x32 rectangle centered on entity position
     float halfSize = 16.0f;
-    // Uncomment when graphics methods are available:
-    // _graphics.DrawRectangle(entity.x - halfSize, entity.y - halfSize, 32, 32, color);
+    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 32,
+                             32, color);
 
     // Render health bar if entity has health
     if (entity.health > 0) {
@@ -96,7 +96,8 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
 
     // Optional: Draw player name or ID
     if (isLocalPlayer) {
-        // Example: _graphics.DrawText(-1, "YOU", entity.x - 15, entity.y - 50, 12, 0xFFFFFFFF);
+        _graphics.DrawText(-1, "YOU", static_cast<int>(entity.x - 15), static_cast<int>(entity.y - 50), 12,
+                           0xFFFFFFFF);
     }
 }
 
@@ -108,8 +109,8 @@ void EntityRenderer::renderEnemy(const RenderableEntity &entity) {
     uint32_t color = 0xFF0000FF;  // Red
     float halfSize = 12.0f;
 
-    // Uncomment when graphics methods are available:
-    // _graphics.DrawRectangle(entity.x - halfSize, entity.y - halfSize, 24, 24, color);
+    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 24,
+                             24, color);
 
     // Render health bar for enemies
     if (entity.health > 0) {
@@ -128,8 +129,8 @@ void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
     }  // Placeholder: Small 8x8 rectangle
     float halfSize = 4.0f;
 
-    // Uncomment when graphics methods are available:
-    // _graphics.DrawRectangle(entity.x - halfSize, entity.y - halfSize, 8, 8, color);
+    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 8,
+                             8, color);
 
     // Projectiles typically don't have health bars
 }
@@ -155,12 +156,13 @@ void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth
     float barX = x - barWidth / 2.0f;
 
     // Background bar (damage indicator - red)
-    // Uncomment when graphics methods are available:
-    // _graphics.DrawRectangle(barX, y, barWidth, barHeight, 0xFF0000FF);
+    _graphics.DrawRectFilled(static_cast<int>(barX), static_cast<int>(y), static_cast<int>(barWidth),
+                             static_cast<int>(barHeight), 0xFF0000FF);
 
     // Foreground bar (remaining health - green)
-    // Uncomment when graphics methods are available:
-    // _graphics.DrawRectangle(barX, y, barWidth * healthRatio, barHeight, 0x00FF00FF);
+    _graphics.DrawRectFilled(static_cast<int>(barX), static_cast<int>(y),
+                             static_cast<int>(barWidth * healthRatio), static_cast<int>(barHeight),
+                             0x00FF00FF);
 
     // Optional: Border around health bar for visibility
     // _graphics.DrawRectangleBorder(barX, y, barWidth, barHeight, 1.0f, 0xFFFFFFFF);
@@ -172,21 +174,17 @@ void EntityRenderer::renderDebugInfo(const RenderableEntity &entity) {
     float textX = entity.x - 15.0f;
     float textY = entity.y - 45.0f;
 
-    // Uncomment when graphics methods are available:
-    // _graphics.DrawText(-1, idText.c_str(), static_cast<int>(textX),
-    //                    static_cast<int>(textY), 10, 0xFFFFFFFF);
+    _graphics.DrawText(-1, idText.c_str(), static_cast<int>(textX), static_cast<int>(textY), 10, 0xFFFFFFFF);
 
     // Display health if applicable
     if (entity.health > 0) {
         std::string hpText = "HP:" + std::to_string(entity.health);
-        // Uncomment when graphics methods are available:
-        // _graphics.DrawText(-1, hpText.c_str(), static_cast<int>(textX),
-        //                    static_cast<int>(textY - 12), 10, 0xFFFFFFFF);
+        _graphics.DrawText(-1, hpText.c_str(), static_cast<int>(textX), static_cast<int>(textY - 12), 10,
+                           0xFFFFFFFF);
     }
 
     // Display entity type (for debugging)
     std::string typeText = "Type:" + std::to_string(static_cast<int>(entity.type));
-    // Uncomment when graphics methods are available:
-    // _graphics.DrawText(-1, typeText.c_str(), static_cast<int>(textX),
-    //                    static_cast<int>(textY - 24), 10, 0xAAAAAAAA);
+    _graphics.DrawText(-1, typeText.c_str(), static_cast<int>(textX), static_cast<int>(textY - 24), 10,
+                       0xAAAAAAAA);
 }

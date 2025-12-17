@@ -1,7 +1,6 @@
 RFC - R-TYPE Network Protocol Specification
 ==========================================
 
-Status: Draft
 Date: December 15, 2025
 Category: Game Network Protocol
 
@@ -45,7 +44,7 @@ Establishes a reliable TCP connection and negotiates protocol compatibility betw
 3.2 Message Flow
 
 3.2.1 HANDSHAKE_INIT
-Client → Server: HANDSHAKE_INIT
+Client -> Server: HANDSHAKE_INIT
 Fields:
 - MagicNumber (4 bytes): Protocol identifier (prevents ghost packets)
 - ProtocolVersion (2 bytes): Client protocol version
@@ -54,12 +53,12 @@ Fields:
 The server validates the protocol version:
 
 Success Case:
-Server → Client: HANDSHAKE_ACK
+Server -> Client: HANDSHAKE_ACK
 - Confirms protocol compatibility
 - Establishes TCP session for next phase
 
 Failure Case:
-Server → Client: ERROR_VERSION_MISMATCH
+Server -> Client: ERROR_VERSION_MISMATCH
 - Client must disconnect
 - Prevents incompatible protocol communication
 
@@ -76,7 +75,7 @@ Authenticates the client identity and establishes a secure session context. Supp
 4.2 Message Flow
 
 4.2.1 AUTH_REQUEST
-Client → Server: AUTH_REQUEST
+Client -> Server: AUTH_REQUEST
 Fields:
 - ClientInfo: Client identification data
 - OS: Operating system information
@@ -88,40 +87,40 @@ Fields:
 Server Decision Point 1 - Anonymous Allowed:
 If server accepts anonymous connections:
 - Server generates temporary UserID
-- Server → Client: AUTH_SUCCESS
+- Server -> Client: AUTH_SUCCESS
   Fields:
   - TempUserID: Temporary session identifier
   - SessionToken: Cryptographic session key
   - NonceServer: Server-generated nonce for replay protection
 
 Server Decision Point 2 - Anonymous Forbidden:
-Server → Client: AUTH_ERROR (Anonymous Forbidden)
+Server -> Client: AUTH_ERROR (Anonymous Forbidden)
 - Prevents unauthorized guest access
 - Client must disconnect or retry with user credentials
 
 4.2.3 User Mode Authentication
 
 Database Verification:
-Server → Database: Check Credentials (Username, PasswordHash)
+Server -> Database: Check Credentials (Username, PasswordHash)
 Note: Password hash is sent, never plaintext
 
 Existing User - Valid Credentials:
-Database → Server: OK (UserID)
-Server → Client: AUTH_SUCCESS
+Database -> Server: OK (UserID)
+Server -> Client: AUTH_SUCCESS
 Fields:
 - UserID: Authenticated user identifier
 - SessionToken: Cryptographic session key
 - NonceServer: Server-generated nonce
 
 Existing User - Invalid Credentials:
-Database → Server: FAIL
-Server → Client: AUTH_ERROR (Invalid Credentials)
+Database -> Server: FAIL
+Server -> Client: AUTH_ERROR (Invalid Credentials)
 
 New User Registration:
 If user does not exist:
-Server → Database: CreateUser(Username, PasswordHash)
-Database → Server: Created(NewUserID)
-Server → Client: AUTH_SUCCESS (with NewUserID)
+Server -> Database: CreateUser(Username, PasswordHash)
+Database -> Server: Created(NewUserID)
+Server -> Client: AUTH_SUCCESS (with NewUserID)
 
 4.3 Security Considerations
 - Password hashing prevents plaintext credential transmission
@@ -138,7 +137,7 @@ Securely associates the client's UDP endpoint (IP:Port) with the authenticated T
 5.2 Message Flow
 
 5.2.1 UDP_PING
-Client → Server (UDP): UDP_PING
+Client -> Server (UDP): UDP_PING
 Fields:
 - SessionToken: Session identifier from authentication
 - HMAC(SessionToken + NonceServer): Message authentication code
@@ -150,11 +149,11 @@ Validation Success:
 - HMAC verification passes
 - SessionToken is valid and active
 - Server records client UDP endpoint
-Server → Client (UDP): UDP_PONG (Ready)
+Server -> Client (UDP): UDP_PONG (Ready)
 
 Validation Failure:
 - Invalid HMAC or session token
-Server → Client (UDP): UDP_BIND_ERROR
+Server -> Client (UDP): UDP_BIND_ERROR
 - Client must disconnect and restart authentication
 
 5.3 Security Considerations

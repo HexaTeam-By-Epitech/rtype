@@ -9,7 +9,7 @@
 
 #include <memory>
 #include <string>
-#include "Room.hpp"
+#include "server/Rooms/Room.hpp"
 
 namespace server {
 

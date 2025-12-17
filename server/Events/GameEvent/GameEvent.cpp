@@ -5,7 +5,7 @@
 ** GameEvent.cpp
 */
 
-#include "GameEvent.hpp"
+#include "server/Events/GameEvent/GameEvent.hpp"
 
 namespace server {
 

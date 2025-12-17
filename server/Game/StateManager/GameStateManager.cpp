@@ -5,10 +5,57 @@
 ** GameStateManager.cpp
 */
 
-#include "GameStateManager.hpp"
+#include "server/Game/StateManager/GameStateManager.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 
-    // Implementation will be added later
+    void GameStateManager::changeState(int stateID) {
+        if (_currentStateID == stateID) {
+            LOG_DEBUG("Already in state ", stateID);
+            return;
+        }
+
+        // Exit current state
+        if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size())) {
+            if (_states[_currentStateID]) {
+                _states[_currentStateID]->exit();
+                LOG_DEBUG("Exited state ", _currentStateID);
+            }
+        }
+
+        _currentStateID = stateID;
+
+        // Enter new state
+        if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size())) {
+            if (_states[_currentStateID]) {
+                _states[_currentStateID]->enter();
+                LOG_INFO("✓ Changed to state ", _currentStateID);
+            }
+        } else {
+            LOG_ERROR("Invalid state ID: ", stateID);
+        }
+    }
+
+    int GameStateManager::getCurrentState() const {
+        return _currentStateID;
+    }
+
+    void GameStateManager::registerState(int stateID, std::shared_ptr<GameState> state) {
+        // Ensure vector is large enough
+        if (stateID >= static_cast<int>(_states.size())) {
+            _states.resize(stateID + 1);
+        }
+        _states[stateID] = state;
+        LOG_DEBUG("Registered state ", stateID);
+    }
+
+    void GameStateManager::update(float dt) {
+        if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size())) {
+            if (_states[_currentStateID]) {
+                _states[_currentStateID]->update(dt);
+            }
+        }
+    }
 
 }  // namespace server

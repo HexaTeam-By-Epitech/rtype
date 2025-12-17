@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "IEvent.hpp"
+#include "server/Events/IEvent.hpp"
 
 namespace server {
 
@@ -17,23 +17,16 @@ namespace server {
      */
     class EntityDestroyedEvent : public IEvent {
        public:
-        EntityDestroyedEvent() = default;
+        /**
+         * @brief Construct a new EntityDestroyedEvent
+         * @param entityId The ID of the destroyed entity
+         */
+        explicit EntityDestroyedEvent(int entityId) : _entityId(entityId) {}
         ~EntityDestroyedEvent() override = default;
 
         /**
          * @brief Get the ID of the destroyed entity
          */
-        int getEntityId() const;
-
-        /**
-		 * @brief Construct a new EntityDestroyedEvent
-		 * @param entityId The ID of the destroyed entity
-		 */
-        explicit EntityDestroyedEvent(int entityId) : _entityId(entityId) {}
-        ~EntityDestroyedEvent() override = default;
-        /**
-		 * @brief Get the ID of the destroyed entity
-		 */
         int getEntityId() const { return _entityId; }
 
        private:

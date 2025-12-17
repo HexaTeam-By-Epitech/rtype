@@ -1,0 +1,141 @@
+/*
+** EPITECH PROJECT, 2025
+** rtype
+** File description:
+** GameLogic.hpp - Server-side game logic implementation
+*/
+
+#pragma once
+
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+#include <vector>
+#include "common/ECS/Registry.hpp"
+#include "server/Game/Logic/IGameLogic.hpp"
+#include "server/Game/StateManager/GameStateManager.hpp"
+#include "server/Game/World/World.hpp"
+
+namespace ecs {
+    class ISystem;
+}
+
+namespace server {
+    class ThreadPool;
+
+    /**
+     * @class GameLogic
+     * @brief Deterministic, authoritative server game logic
+     *
+     * Coordinates all ECS systems in a strict order:
+     * 1. Input processing
+     * 2. Movement system
+     * 3. Collision detection
+     * 4. Health/damage system
+     * 5. Spawning system
+     * 6. AI system
+     * 7. Projectile system
+     * 8. Boundary system
+     * 9. State serialization
+     *
+     * Features:
+     * - Fixed timestep (60 Hz / 1/60s per frame)
+     * - Deterministic updates (same input = same output)
+     * - Multi-threaded safe (internal synchronization)
+     * - Player entity management
+     * - Game state snapshots
+     * - Uses World abstraction layer for entity management
+     */
+    class GameLogic : public IGameLogic {
+       public:
+        /**
+         * @brief Constructor
+         * @param world Optional World instance (creates one if not provided)
+         * @param threadPool Optional ThreadPool for parallel system execution
+         */
+        explicit GameLogic(std::shared_ptr<World> world = nullptr,
+                           std::shared_ptr<ThreadPool> threadPool = nullptr);
+        ~GameLogic() override;
+
+        bool initialize() override;
+        void update(float deltaTime) override;
+        uint32_t spawnPlayer(uint32_t playerId, const std::string &playerName) override;
+        void despawnPlayer(uint32_t playerId) override;
+        void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) override;
+
+        ecs::Registry &getRegistry() override { return *_world->getRegistry(); }
+        uint32_t getCurrentTick() const override { return _currentTick; }
+        bool isGameActive() const override { return _gameActive; }
+        void resetGame() override;
+
+        /**
+         * @brief Get the World instance
+         * @return Shared pointer to World
+         */
+        std::shared_ptr<World> getWorld() { return _world; }
+
+        /**
+         * @brief Get the game state manager
+         * @return Shared pointer to GameStateManager
+         */
+        std::shared_ptr<GameStateManager> getStateManager() { return _stateManager; }
+
+       private:
+        /**
+         * @brief Execute all systems in order
+         * @param deltaTime Frame delta time
+         */
+        void _executeSystems(float deltaTime);
+
+        /**
+         * @brief Process accumulated player input
+         */
+        void _processInput();
+
+        /**
+         * @brief Clean up dead entities
+         */
+        void _cleanupDeadEntities();
+
+        /**
+         * @brief Create a game state snapshot
+         */
+        void _createSnapshot();
+
+        // ECS and World
+        std::shared_ptr<World> _world;
+        std::vector<std::unique_ptr<ecs::ISystem>> _systems;
+
+        // Player management
+        std::unordered_map<uint32_t, ecs::Address> _playerMap;  // playerId -> entityAddress
+
+        // Input queue
+        struct PlayerInput {
+            uint32_t playerId;
+            int inputX;
+            int inputY;
+            bool isShooting;
+        };
+        std::vector<PlayerInput> _pendingInput;
+
+        // Game state
+        uint32_t _currentTick{0};
+        std::shared_ptr<GameStateManager> _stateManager;
+        std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
+        bool _gameActive{false};
+        std::atomic<bool> _initialized{false};
+
+        // Thread synchronization
+        std::mutex _inputMutex;   // Protects _pendingInput
+        std::mutex _playerMutex;  // Protects _playerMap
+
+        // Constants
+        static constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;  // 60 Hz
+        static constexpr uint32_t PLAYER_SPAWN_X = 50;
+        static constexpr uint32_t PLAYER_SPAWN_Y = 300;
+        static constexpr uint32_t PLAYER_HEALTH = 100;
+        static constexpr uint32_t PLAYER_SPEED = 200;
+    };
+
+}  // namespace server

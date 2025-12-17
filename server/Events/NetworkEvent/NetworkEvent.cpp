@@ -5,7 +5,7 @@
 ** NetworkEvent.cpp
 */
 
-#include "NetworkEvent.hpp"
+#include "server/Events/NetworkEvent/NetworkEvent.hpp"
 
 namespace server {
 

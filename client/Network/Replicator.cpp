@@ -44,7 +44,12 @@ void Replicator::disconnect() {
     stopNetworkThread();
 
     if (_serverPeer) {
-        _serverPeer->disconnect();
+        // Only disconnect if peer is still valid and connected
+        auto state = _serverPeer->getState();
+        if (state == PeerState::CONNECTED || state == PeerState::CONNECTION_SUCCEEDED ||
+            state == PeerState::CONNECTING) {
+            _serverPeer->disconnect();
+        }
         _serverPeer = nullptr;
     }
     _connected.store(false);

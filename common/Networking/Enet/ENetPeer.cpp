@@ -50,7 +50,8 @@ void ENetPeerWrapper::disconnectNow(uint32_t data) {
 }
 
 void ENetPeerWrapper::disconnectLater(uint32_t data) {
-    if (_peer) {
+    if (_peer && _peer->state != ENET_PEER_STATE_DISCONNECTED &&
+        _peer->state != ENET_PEER_STATE_DISCONNECTING && _peer->state != ENET_PEER_STATE_ZOMBIE) {
         enet_peer_disconnect_later(_peer, data);
     }
 }

@@ -7,6 +7,7 @@
 
 #include "ENetHost.hpp"
 #include <stdexcept>
+#include <string>
 #include "ENetAddress.hpp"
 #include "ENetPacket.hpp"
 #include "ENetPeer.hpp"
@@ -31,7 +32,13 @@ ENetHostWrapper::ENetHostWrapper(const IAddress &address, size_t maxConnections,
     const ENetAddress &nativeAddr = enetAddr->getNativeAddress();
     _host = enet_host_create(&nativeAddr, maxConnections, maxChannels, incomingBandwidth, outgoingBandwidth);
     if (!_host) {
-        throw std::runtime_error("Failed to create ENet server host");
+        // ENet doesn't provide specific error codes, but provide helpful context
+        uint16_t port = ENET_NET_TO_HOST_16(nativeAddr.port);
+        std::string errorMsg =
+            "Failed to create ENet server host on port " + std::to_string(port) + ". Possible causes:\n" +
+            "  - Port already in use (another server instance running?)\n" +
+            "  - Insufficient permissions (try a port > 1024)\n" + "  - Invalid network configuration";
+        throw std::runtime_error(errorMsg);
     }
 }
 

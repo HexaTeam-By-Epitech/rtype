@@ -70,6 +70,8 @@ void EntityRenderer::render() {
                 break;
         }
         if (_showDebugInfo) {
+            // Draw collider box overlay and debug info when enabled
+            renderColliderBox(entity);
             renderDebugInfo(entity);
         }
     }
@@ -133,6 +135,42 @@ void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
                              8, color);
 
     // Projectiles typically don't have health bars
+}
+
+void EntityRenderer::renderColliderBox(const RenderableEntity &entity) {
+    // Approximate collider sizes (match server defaults where possible)
+    int width = 0;
+    int height = 0;
+    unsigned int color = 0xFFFFFFFF;  // white as default
+
+    switch (entity.type) {
+        case RType::Messages::Shared::EntityType::Player:
+            width = 50;
+            height = 50;
+            color = 0x00FF00FF;  // green outline
+            break;
+        case RType::Messages::Shared::EntityType::EnemyType1:
+            width = 50;
+            height = 50;
+            color = 0xFF0000FF;  // red outline
+            break;
+        case RType::Messages::Shared::EntityType::PlayerBullet:
+        case RType::Messages::Shared::EntityType::EnemyBullet:
+            width = 8;
+            height = 8;
+            color = 0xFFFF00FF;  // yellow outline
+            break;
+        default:
+            width = 32;
+            height = 32;
+            color = 0xFFFFFFFF;
+            break;
+    }
+
+    // Draw centered around the entity position
+    int x = static_cast<int>(entity.x - width / 2.0f);
+    int y = static_cast<int>(entity.y - height / 2.0f);
+    _graphics.DrawRect(x, y, width, height, color);
 }
 
 void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth) {

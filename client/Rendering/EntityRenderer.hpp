@@ -155,6 +155,17 @@ class EntityRenderer {
     void renderProjectile(const RenderableEntity &entity);
 
     /**
+         * @brief Render an approximate collider box for the entity (debug overlay)
+         * @param entity Entity to outline
+         *
+         * Uses approximate sizes matching server-side colliders:
+         * - Player: 50x50
+         * - Enemy:  50x50
+         * - Bullet: 8x8
+         */
+    void renderColliderBox(const RenderableEntity &entity);
+
+    /**
          * @brief Render a health bar above an entity
          * @param x World position X (centered)
          * @param y World position Y (above entity)

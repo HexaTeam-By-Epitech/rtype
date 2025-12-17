@@ -14,6 +14,7 @@ enum Action {
   moveLeft @2;
   moveRight @3;
   shoot @4;
+  disconnect @5;
 }
 
 enum EntityType {

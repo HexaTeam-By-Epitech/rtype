@@ -7,6 +7,7 @@
 
 #include "HealthSystem.hpp"
 #include "../../Components/IComponent.hpp"
+#include "../../Components/Player.hpp"
 
 namespace ecs {
     /**
@@ -31,11 +32,12 @@ namespace ecs {
 
             if (health.getCurrentHealth() <= 0) {
                 toDestroy.push_back(entityId);
+                if (registry.hasComponent<Player>(entityId)) {}
             }
-        }
 
-        for (auto entityId : toDestroy) {
-            registry.destroyEntity(entityId);
+            for (auto entityId : toDestroy) {
+                registry.destroyEntity(entityId);
+            }
         }
     }
 

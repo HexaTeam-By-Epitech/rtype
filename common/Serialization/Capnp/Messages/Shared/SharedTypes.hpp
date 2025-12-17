@@ -45,7 +45,7 @@ namespace RType::Messages::Shared {
     /**
      * @brief Player action enum - matches Cap'n Proto enum
      */
-    enum class Action { MoveUp = 0, MoveDown = 1, MoveLeft = 2, MoveRight = 3, Shoot = 4 };
+    enum class Action { MoveUp = 0, MoveDown = 1, MoveLeft = 2, MoveRight = 3, Shoot = 4, Disconnect = 5 };
 
     /**
      * @brief Entity type enum - matches Cap'n Proto enum
@@ -70,6 +70,8 @@ namespace RType::Messages::Shared {
                 return ::Action::MOVE_RIGHT;
             case Action::Shoot:
                 return ::Action::SHOOT;
+            case Action::Disconnect:
+                return ::Action::DISCONNECT;
         }
         UNREACHABLE();
     }
@@ -86,6 +88,8 @@ namespace RType::Messages::Shared {
                 return Action::MoveRight;
             case ::Action::SHOOT:
                 return Action::Shoot;
+            case ::Action::DISCONNECT:
+                return Action::Disconnect;
         }
         UNREACHABLE();
     }

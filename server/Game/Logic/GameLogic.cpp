@@ -134,8 +134,8 @@ namespace server {
             _world->getRegistry()->setComponent(playerEntity, ecs::Health(PLAYER_HEALTH, PLAYER_HEALTH));
             _world->getRegistry()->setComponent(playerEntity,
                                                 ecs::Player(0, 3, playerId));  // score=0, lives=3
-            _world->getRegistry()->setComponent(
-                playerEntity, ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false));
+            _world->getRegistry()->setComponent(playerEntity,
+                                                ecs::Collider(50.0f, 50.0f, 0.0f, 0.0, 1, 0xFFFFFFFF, false));
             _world->getRegistry()->setComponent(
                 playerEntity, ecs::Weapon(10.0f, 0.0f, 0, 25));  // fireRate, cooldown, type, damage
 

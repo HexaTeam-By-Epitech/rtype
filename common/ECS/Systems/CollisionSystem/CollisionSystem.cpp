@@ -6,7 +6,11 @@
 */
 
 #include "CollisionSystem.hpp"
+#include "../../../Logger/Logger.hpp"
+#include "../../Components/Enemy.hpp"
+#include "../../Components/Health.hpp"
 #include "../../Components/IComponent.hpp"
+#include "../../Components/Player.hpp"
 
 namespace ecs {
     /**
@@ -33,7 +37,27 @@ namespace ecs {
 
                 if (checkAABB(transform1.getPosition(), collider1.getSize(), collider1.getOffset(),
                               transform2.getPosition(), collider2.getSize(), collider2.getOffset())) {
-                    // TODO: Handle collision response (events, physics, etc.)
+                    // Apply contact damage when player touches enemy
+                    constexpr int CONTACT_DAMAGE = 10;
+
+                    if (registry.hasComponent<Player>(entity1) && registry.hasComponent<Enemy>(entity2)) {
+                        if (registry.hasComponent<Health>(entity1)) {
+                            auto &health = registry.getComponent<Health>(entity1);
+                            if (!health.isInvincible()) {
+                                int newHealth = health.getCurrentHealth() - CONTACT_DAMAGE;
+                                health = Health(std::max(newHealth, 0), health.getMaxHealth());
+                            }
+                        }
+                    } else if (registry.hasComponent<Player>(entity2) &&
+                               registry.hasComponent<Enemy>(entity1)) {
+                        if (registry.hasComponent<Health>(entity2)) {
+                            auto &health = registry.getComponent<Health>(entity2);
+                            if (!health.isInvincible()) {
+                                int newHealth = health.getCurrentHealth() - CONTACT_DAMAGE;
+                                health = Health(std::max(newHealth, 0), health.getMaxHealth());
+                            }
+                        }
+                    }
                 }
             }
         }

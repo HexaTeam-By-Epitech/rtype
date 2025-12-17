@@ -164,22 +164,20 @@ void GameLoop::processInput() {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
     }
 
-    // Only send input if there are actions to report
+    RType::Messages::C2S::PlayerInput input;
+    input._sequenceId = _inputSequenceId++;
+    input.actions = actions;
+
+    // Serialize and wrap in network message
+    std::vector<uint8_t> payload = input.serialize();
+    std::vector<uint8_t> packet =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_PLAYER_INPUT, payload);
+
+    // Send to server (packet already contains type, so pass empty type)
+    _replicator->sendPacket(static_cast<NetworkMessageType>(0), packet);
+
+    // Log occasionally for debugging (only when there are actions)
     if (!actions.empty()) {
-        // Create PlayerInput message
-        RType::Messages::C2S::PlayerInput input;
-        input._sequenceId = _inputSequenceId++;
-        input.actions = actions;
-
-        // Serialize and wrap in network message
-        std::vector<uint8_t> payload = input.serialize();
-        std::vector<uint8_t> packet =
-            NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_PLAYER_INPUT, payload);
-
-        // Send to server (packet already contains type, so pass empty type)
-        _replicator->sendPacket(static_cast<NetworkMessageType>(0), packet);
-
-        // Log occasionally for debugging
         static uint32_t logCounter = 0;
         if (++logCounter % 60 == 0) {
             LOG_DEBUG("Sent input seq=", input._sequenceId, " actions=", actions.size());

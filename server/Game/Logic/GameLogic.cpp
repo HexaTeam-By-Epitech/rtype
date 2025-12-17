@@ -207,22 +207,29 @@ namespace server {
                 // Update player velocity based on input
                 ecs::Velocity &vel = _world->getRegistry()->getComponent<ecs::Velocity>(playerEntity);
 
-                // Normalize diagonal movement
-                float dirX = static_cast<float>(input.inputX);
-                float dirY = static_cast<float>(input.inputY);
+                // If no input (0, 0), stop the player completely
+                if (input.inputX == 0 && input.inputY == 0) {
+                    vel.setDirection(0.0f, 0.0f);
+                } else {
+                    // Normalize diagonal movement
+                    float dirX = static_cast<float>(input.inputX);
+                    float dirY = static_cast<float>(input.inputY);
 
-                // Normalize if diagonal
-                if (dirX != 0.0f && dirY != 0.0f) {
-                    float length = std::sqrt(dirX * dirX + dirY * dirY);
-                    dirX /= length;
-                    dirY /= length;
+                    // Normalize if diagonal
+                    if (dirX != 0.0f && dirY != 0.0f) {
+                        float length = std::sqrt(dirX * dirX + dirY * dirY);
+                        dirX /= length;
+                        dirY /= length;
+                    }
+
+                    vel.setDirection(dirX, dirY);
                 }
 
-                vel.setDirection(dirX, dirY);
-
-                // Debug: log processed input once per message
-                LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", dirX, ", ", dirY, ")",
-                          " shooting=", (input.isShooting ? "true" : "false"));
+                // Debug: log processed input once per message (only when there's movement)
+                if (input.inputX != 0 || input.inputY != 0) {
+                    LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
+                              input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
+                }
 
                 // Handle shooting
                 if (input.isShooting) {

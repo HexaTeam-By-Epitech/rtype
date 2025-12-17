@@ -64,20 +64,20 @@ void GameLoop::run() {
             _replicator->processMessages();  // ← Reads from network thread queue
         }
 
-        // 2. Process inputs
-        processInput();
-
-        // 3. Fixed timestep updates (physics, ECS, etc.)
+        // 2. Fixed timestep updates (physics, ECS, input sending)
         while (_accumulator >= _fixedTimestep) {
+            // Process and send inputs at fixed rate (60 Hz)
+            processInput();
+
             fixedUpdate(_fixedTimestep);
             _accumulator -= _fixedTimestep;
             _currentFrame++;
         }
 
-        // 4. Variable timestep update (interpolation, etc.)
+        // 3. Variable timestep update (interpolation, etc.)
         update(deltaTime);
 
-        // 5. Render
+        // 4. Render
         render();
     }
 

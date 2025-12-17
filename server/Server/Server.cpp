@@ -445,10 +445,6 @@ void Server::_broadcastGameState() {
 }
 
 void Server::_actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot) {
-    // Initialize outputs
-    dx = 0;
-    dy = 0;
-    shoot = false;
 
     switch (action) {
         case RType::Messages::Shared::Action::MoveUp:

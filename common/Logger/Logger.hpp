@@ -70,8 +70,15 @@ namespace logger {
             auto nowTime = std::chrono::system_clock::to_time_t(now);
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
 
+            std::tm timeInfo;
+#ifdef _WIN32
+            localtime_s(&timeInfo, &nowTime);
+#else
+            timeInfo = *std::localtime(&nowTime);
+#endif
+
             std::ostringstream oss;
-            oss << std::put_time(std::localtime(&nowTime), "%H:%M:%S");
+            oss << std::put_time(&timeInfo, "%H:%M:%S");
             oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
             return oss.str();
         }

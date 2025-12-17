@@ -5,7 +5,6 @@
 ** main.cpp
 */
 
-#include <iostream>
 #include "Client/Client.hpp"
 
 int main(int argc, char **argv) {

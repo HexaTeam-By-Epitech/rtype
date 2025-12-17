@@ -9,8 +9,9 @@
 #define NETWORKEVENT_HPP
 
 #include <cstdint>
+#include <string>
 #include <vector>
-#include "../IEvent.hpp"
+#include "Events/IEvent.hpp"
 
 /**
  * @enum NetworkMessageType

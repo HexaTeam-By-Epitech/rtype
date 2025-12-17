@@ -6,10 +6,6 @@
 */
 
 #include "Client.hpp"
-#include <chrono>
-#include <thread>
-#include "../../common/Logger/Logger.hpp"
-#include "NetworkFactory.hpp"
 
 Client::Client(const std::string &playerName, const std::string &host, uint16_t port)
     : _playerName(playerName), _serverHost(host), _serverPort(port) {}
@@ -46,8 +42,9 @@ bool Client::initialize() {
     _replicator = std::make_unique<Replicator>(*_eventBus);
     LOG_INFO("✓ Replicator created");
 
-    // Create GameLoop
-    _gameLoop = std::make_unique<GameLoop>();
+    // Create GameLoop (pass shared EventBus and Replicator)
+    _gameLoop = std::make_unique<GameLoop>(*_eventBus, *_replicator);
+
     if (!_gameLoop->initialize()) {
         LOG_ERROR("Failed to initialize GameLoop");
         return false;
@@ -108,18 +105,18 @@ void Client::run() {
         return;
     }
 
-    // Connect to server
-    if (!connectToServer()) {
-        LOG_ERROR("Failed to connect to server");
-        return;
-    }
-
     LOG_INFO("Starting game loop...");
     LOG_INFO("========================================");
     LOG_INFO("R-Type client running!");
     LOG_INFO("Player: ", _playerName);
     LOG_INFO("Server: ", _serverHost, ":", _serverPort);
     LOG_INFO("========================================");
+
+    // Connect to server BEFORE starting game loop
+    if (!connectToServer()) {
+        LOG_ERROR("Failed to connect to server");
+        return;
+    }
 
     // Run game loop (blocking)
     _gameLoop->run();

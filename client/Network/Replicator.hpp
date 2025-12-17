@@ -11,16 +11,20 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
-#include "../Core/EventBus/EventBus.hpp"
-#include "../Events/InputEvent/InputEvent.hpp"
-#include "../Events/NetworkEvent/NetworkEvent.hpp"
+#include "../common/Logger/Logger.hpp"
+#include "Capnp/Messages/Messages.hpp"
 #include "Capnp/NetworkMessages.hpp"
+#include "Core/EventBus/EventBus.hpp"
+#include "Events/InputEvent/InputEvent.hpp"
+#include "Events/NetworkEvent/NetworkEvent.hpp"
 #include "IHost.hpp"
 #include "IPeer.hpp"
+#include "NetworkFactory.hpp"
 #include "ThreadSafeQueue.hpp"
 
 /**

@@ -217,6 +217,35 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 gameStart.yourEntityId = newPlayerId;
                 gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
 
+                // Get registry to read spawned player entity
+                server::World *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
+                if (world) {
+                    std::shared_ptr<ecs::Registry> registry = world->getRegistry();
+
+                    // Serialize the spawned player entity
+                    if (registry->hasComponent<ecs::Transform>(entityId)) {
+                        S2C::EntityState entityState;
+                        entityState.entityId = entityId;
+
+                        ecs::Transform &transform = registry->getComponent<ecs::Transform>(entityId);
+                        entityState.position.x = transform.getPosition().x;
+                        entityState.position.y = transform.getPosition().y;
+
+                        entityState.type = Shared::EntityType::Player;
+
+                        if (registry->hasComponent<ecs::Health>(entityId)) {
+                            entityState.health =
+                                registry->getComponent<ecs::Health>(entityId).getCurrentHealth();
+                        } else {
+                            entityState.health = -1;
+                        }
+
+                        gameStart.initialState.entities.push_back(entityState);
+                        LOG_DEBUG("Added player entity ", entityId, " to GameStart at pos (",
+                                  entityState.position.x, ", ", entityState.position.y, ")");
+                    }
+                }
+
                 // Serialize and send
                 std::vector<uint8_t> gameStartPayload = gameStart.serialize();
                 std::vector<uint8_t> gameStartPacket = NetworkMessages::createMessage(
@@ -416,10 +445,6 @@ void Server::_broadcastGameState() {
 }
 
 void Server::_actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot) {
-    // Initialize outputs
-    dx = 0;
-    dy = 0;
-    shoot = false;
 
     switch (action) {
         case RType::Messages::Shared::Action::MoveUp:

@@ -6,9 +6,6 @@
 */
 
 #include "Replicator.hpp"
-#include "../../common/Logger/Logger.hpp"
-#include "Capnp/Messages/Messages.hpp"
-#include "NetworkFactory.hpp"
 
 Replicator::Replicator(EventBus &eventBus) : _eventBus(eventBus), _host(createClientHost()) {}
 
@@ -47,7 +44,12 @@ void Replicator::disconnect() {
     stopNetworkThread();
 
     if (_serverPeer) {
-        _serverPeer->disconnect();
+        // Only disconnect if peer is still valid and connected
+        auto state = _serverPeer->getState();
+        if (state == PeerState::CONNECTED || state == PeerState::CONNECTION_SUCCEEDED ||
+            state == PeerState::CONNECTING) {
+            _serverPeer->disconnect();
+        }
         _serverPeer = nullptr;
     }
     _connected.store(false);

@@ -6,7 +6,6 @@
 */
 
 #include "RaylibGraphics.hpp"
-#include <limits>
 
 namespace Graphics {
     // Constructor / Destructor
@@ -19,12 +18,15 @@ namespace Graphics {
         for (const auto &[name, texture] : _textures) {
             ::UnloadTexture(texture);
         }
-        ::CloseWindow();
+        if (_windowInitialized) {
+            ::CloseWindow();
+        }
     }
 
     // Window management
     void RaylibGraphics::InitWindow(int width, int height, const char *title) {
         ::InitWindow(width, height, title);
+        _windowInitialized = true;
     }
 
     void RaylibGraphics::ClearWindow() {
@@ -40,11 +42,14 @@ namespace Graphics {
     }
 
     bool RaylibGraphics::IsWindowOpen() const {
-        return !::WindowShouldClose();
+        return _windowInitialized && !::WindowShouldClose();
     }
 
     void RaylibGraphics::CloseWindow() {
-        ::CloseWindow();
+        if (_windowInitialized && !::WindowShouldClose()) {
+            ::CloseWindow();
+            _windowInitialized = false;
+        }
     }
 
     void RaylibGraphics::SetWindowTitle(const char *title) {
@@ -251,5 +256,12 @@ namespace Graphics {
         Vector2 pos = ::GetMousePosition();
         x = pos.x;
         y = pos.y;
+    }
+
+    bool RaylibGraphics::WindowShouldClose() const {
+        if (!_windowInitialized) {
+            return false;
+        }
+        return ::WindowShouldClose();
     }
 }  // namespace Graphics

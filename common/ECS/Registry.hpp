@@ -73,9 +73,9 @@ namespace ecs {
 
         Signature _registerComponent(ComponentType componentType);
 
-        std::priority_queue<Address, std::vector<Address>, std::greater<Address>> _freeAddresses;
-        std::unordered_map<ComponentType, Signature> _componentMap;
-        std::unordered_map<ComponentType, std::unordered_map<Address, std::any>> _componentStorage;
+        std::priority_queue<Address, std::vector<Address>, std::greater<Address>> _freeAddresses = {};
+        std::unordered_map<ComponentType, Signature> _componentMap = {};
+        std::unordered_map<ComponentType, std::unordered_map<Address, std::any>> _componentStorage = {};
 
        public:
         /**

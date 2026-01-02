@@ -218,8 +218,8 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
 
                 // Get registry to read spawned player entity
-                server::World *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
-                if (world) {
+                auto *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
+                if (world != nullptr) {
                     std::shared_ptr<ecs::Registry> registry = world->getRegistry();
 
                     // Serialize the spawned player entity
@@ -373,7 +373,7 @@ void Server::_broadcastGameState() {
     using namespace RType::Messages;
 
     // Get registry from game loop's world
-    server::World *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
+    auto *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
     if (!world) {
         LOG_ERROR("Failed to cast IWorld to World");
         return;

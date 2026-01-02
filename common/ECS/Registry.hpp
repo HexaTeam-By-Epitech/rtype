@@ -65,64 +65,16 @@ namespace ecs {
     class Registry {
 
        private:
-        /**
-     * @brief Generate a unique Address for a new entity.
-     *
-     * Reuses freed addresses if available, otherwise generates
-     * a new sequential address.
-     *
-     * @return Address a unique non-zero entity address.
-     */
-        Address _generateAddress();
-
-        /**
-     * @brief Register a component type and allocate a bit in the Signature.
-     *
-     * If the maximum number of components is reached, an empty (zero)
-     * Signature is returned to indicate failure. On success, the returned
-     * Signature contains a single bit set for the allocated component slot.
-     *
-     * @param componentType The ComponentType identifying the component type.
-     * @return Signature a Signature with a single bit for the component or
-     *         a zero signature on failure.
-     */
-        Signature _registerComponent(ComponentType componentType);
-
-        /**
-     * @brief Map of entity addresses to their component Signatures.
-     *
-     * Key: Address (entity id), Value: Signature (bitset of attached components).
-     */
         std::unordered_map<Address, Signature> _signatures;
 
-        /**
-     * @brief Next available sequential address.
-     */
         Address _nextAddress;
 
-        /**
-     * @brief Pool of freed addresses available for reuse.
-     *
-     * Uses a priority queue (min-heap) to reuse the smallest freed addresses first,
-     * improving cache locality.
-     */
+        Address _generateAddress();
+
+        Signature _registerComponent(ComponentType componentType);
+
         std::priority_queue<Address, std::vector<Address>, std::greater<Address>> _freeAddresses;
-
-        /**
-     * @brief Mapping of component type to the Signature bit representing that component.
-     *
-     * Key: ComponentType identifying the component type.
-     * Value: Signature with a single bit set representing the component's position.
-     */
         std::unordered_map<ComponentType, Signature> _componentMap;
-
-        /**
-     * @brief Storage for component data.
-     *
-     * First key: ComponentType identifying the component type.
-     * Second key: Address (entity id).
-     * Value: std::any containing the component data.
-     */
         std::unordered_map<ComponentType, std::unordered_map<Address, std::any>> _componentStorage;
 
        public:

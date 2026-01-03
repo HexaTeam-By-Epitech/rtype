@@ -73,7 +73,7 @@ class ServerNetworkManager {
      * @brief Set packet handler callback
      * @param handler Function to call when a packet is received
      */
-    void setPacketHandler(PacketHandler &handler) { _packetHandler = handler; }
+    void setPacketHandler(PacketHandler handler) { _packetHandler = handler; }
 
     /**
      * @brief Check if server is running

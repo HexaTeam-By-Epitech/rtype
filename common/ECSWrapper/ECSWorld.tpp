@@ -8,7 +8,7 @@
 #pragma once
 
 #include "ECSWorld.hpp"
-#include <iostream>
+#include "../Logger/Logger.hpp"
 
 namespace ecs::wrapper {
 
@@ -25,7 +25,8 @@ namespace ecs::wrapper {
     template <typename T>
     T& Entity::get() {
         if (!_registry || _address == 0) {
-            throw std::runtime_error("Entity::get() - Invalid entity");
+            LOG_ERROR("Entity::get() - Invalid entity (address: ", _address, ")");
+            throw std::runtime_error("Invalid entity");
         }
         return _registry->getComponent<T>(_address);
     }
@@ -33,7 +34,8 @@ namespace ecs::wrapper {
     template <typename T>
     const T& Entity::get() const {
         if (!_registry || _address == 0) {
-            throw std::runtime_error("Entity::get() - Invalid entity");
+            LOG_ERROR("Entity::get() const - Invalid entity (address: ", _address, ")");
+            throw std::runtime_error("Invalid entity");
         }
         return _registry->getComponent<T>(_address);
     }
@@ -77,8 +79,8 @@ namespace ecs::wrapper {
             try {
                 callback(entity, entity.get<Components>()...);
             } catch (const std::exception& e) {
-                std::cerr << "[ECSWorld::forEach] Error processing entity " 
-                          << entity.getAddress() << ": " << e.what() << std::endl;
+                LOG_ERROR("ECSWorld::forEach - Error processing entity ", 
+                          entity.getAddress(), ": ", e.what());
             }
         }
     }
@@ -89,8 +91,8 @@ namespace ecs::wrapper {
                       "System must inherit from ISystem");
         
         if (_systems.find(name) != _systems.end()) {
-            std::cerr << "[ECSWorld::registerSystem] Warning: System '" << name 
-                      << "' already exists. Replacing." << std::endl;
+            LOG_WARNING("ECSWorld::registerSystem - System '", name, 
+                        "' already exists. Replacing.");
             
             // Remove from order list
             auto it = std::find(_systemsOrder.begin(), _systemsOrder.end(), name);

@@ -7,7 +7,7 @@
 
 #include "ECSWorld.hpp"
 #include <algorithm>
-#include <iostream>
+#include "../Logger/Logger.hpp"
 
 namespace ecs::wrapper {
 
@@ -93,8 +93,7 @@ namespace ecs::wrapper {
                 try {
                     it->second->update(*_registry, deltaTime);
                 } catch (const std::exception &e) {
-                    std::cerr << "[ECSWorld::update] Error in system '" << systemName << "': " << e.what()
-                              << std::endl;
+                    LOG_ERROR("ECSWorld::update - Error in system '", systemName, "': ", e.what());
                 }
             }
         }
@@ -110,8 +109,7 @@ namespace ecs::wrapper {
             it->second->update(*_registry, deltaTime);
             return true;
         } catch (const std::exception &e) {
-            std::cerr << "[ECSWorld::updateSystem] Error in system '" << name << "': " << e.what()
-                      << std::endl;
+            LOG_ERROR("ECSWorld::updateSystem - Error in system '", name, "': ", e.what());
             return false;
         }
     }

@@ -7,15 +7,15 @@
 
 #pragma once
 
-#include "ECSWorld.hpp"
 #include "../Logger/Logger.hpp"
+#include "ECSWorld.hpp"
 
 namespace ecs::wrapper {
 
     // Entity template methods
 
     template <typename T>
-    Entity& Entity::with(const T& component) {
+    Entity &Entity::with(const T &component) {
         if (_registry && _address != 0) {
             _registry->setComponent(_address, component);
         }
@@ -23,7 +23,7 @@ namespace ecs::wrapper {
     }
 
     template <typename T>
-    T& Entity::get() {
+    T &Entity::get() {
         if (!_registry || _address == 0) {
             LOG_ERROR("Entity::get() - Invalid entity (address: ", _address, ")");
             throw std::runtime_error("Invalid entity");
@@ -32,7 +32,7 @@ namespace ecs::wrapper {
     }
 
     template <typename T>
-    const T& Entity::get() const {
+    const T &Entity::get() const {
         if (!_registry || _address == 0) {
             LOG_ERROR("Entity::get() const - Invalid entity (address: ", _address, ")");
             throw std::runtime_error("Invalid entity");
@@ -49,7 +49,7 @@ namespace ecs::wrapper {
     }
 
     template <typename T>
-    Entity& Entity::remove() {
+    Entity &Entity::remove() {
         if (_registry && _address != 0) {
             _registry->removeComponent<T>(_address);
         }
@@ -62,69 +62,65 @@ namespace ecs::wrapper {
     std::vector<Entity> ECSWorld::query() {
         std::vector<Entity> result;
         auto addresses = _registry->view<Components...>();
-        
+
         result.reserve(addresses.size());
         for (auto address : addresses) {
             result.emplace_back(address, _registry.get());
         }
-        
+
         return result;
     }
 
     template <typename... Components>
-    void ECSWorld::forEach(std::function<void(Entity, Components&...)> callback) {
+    void ECSWorld::forEach(std::function<void(Entity, Components &...)> callback) {
         auto entities = query<Components...>();
-        
-        for (auto& entity : entities) {
+
+        for (auto &entity : entities) {
             try {
-                callback(entity, entity.get<Components>()...);
-            } catch (const std::exception& e) {
-                LOG_ERROR("ECSWorld::forEach - Error processing entity ", 
-                          entity.getAddress(), ": ", e.what());
+                callback(entity, entity.template get<Components>()...);
+            } catch (const std::exception &e) {
+                LOG_ERROR("ECSWorld::forEach - Error processing entity ", entity.getAddress(), ": ",
+                          e.what());
             }
         }
     }
 
     template <typename T>
-    void ECSWorld::registerSystem(const std::string& name, std::unique_ptr<T> system) {
-        static_assert(std::is_base_of<ISystem, T>::value, 
-                      "System must inherit from ISystem");
-        
+    void ECSWorld::registerSystem(const std::string &name, std::unique_ptr<T> system) {
+        static_assert(std::is_base_of<ISystem, T>::value, "System must inherit from ISystem");
+
         if (_systems.find(name) != _systems.end()) {
-            LOG_WARNING("ECSWorld::registerSystem - System '", name, 
-                        "' already exists. Replacing.");
-            
+            LOG_WARNING("ECSWorld::registerSystem - System '", name, "' already exists. Replacing.");
+
             // Remove from order list
             auto it = std::find(_systemsOrder.begin(), _systemsOrder.end(), name);
             if (it != _systemsOrder.end()) {
                 _systemsOrder.erase(it);
             }
         }
-        
+
         _systems[name] = std::move(system);
         _systemsOrder.push_back(name);
     }
 
     template <typename T, typename... Args>
-    void ECSWorld::createSystem(const std::string& name, Args&&... args) {
-        static_assert(std::is_base_of<ISystem, T>::value, 
-                      "System must inherit from ISystem");
-        
+    void ECSWorld::createSystem(const std::string &name, Args &&...args) {
+        static_assert(std::is_base_of<ISystem, T>::value, "System must inherit from ISystem");
+
         auto system = std::make_unique<T>(std::forward<Args>(args)...);
         registerSystem(name, std::move(system));
     }
 
     template <typename T>
-    T* ECSWorld::getSystem(const std::string& name) {
-        static_assert(std::is_base_of<ISystem, T>::value, 
-                      "System must inherit from ISystem");
-        
+    T *ECSWorld::getSystem(const std::string &name) {
+        static_assert(std::is_base_of<ISystem, T>::value, "System must inherit from ISystem");
+
         auto it = _systems.find(name);
         if (it == _systems.end()) {
             return nullptr;
         }
-        
-        return dynamic_cast<T*>(it->second.get());
+
+        return dynamic_cast<T *>(it->second.get());
     }
 
 }  // namespace ecs::wrapper

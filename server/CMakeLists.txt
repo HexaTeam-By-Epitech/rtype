@@ -14,6 +14,7 @@ file(GLOB_RECURSE SERVER_SOURCES
 # Add ECS sources from common (needed by GameLogic)
 file(GLOB_RECURSE ECS_SOURCES
     "${CMAKE_SOURCE_DIR}/common/ECS/*.cpp"
+    "${CMAKE_SOURCE_DIR}/common/ECSWrapper/*.cpp"
 )
 
 # Librairie serveur

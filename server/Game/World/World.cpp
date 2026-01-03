@@ -11,11 +11,11 @@
 
 namespace server {
 
-    World::World(std::shared_ptr<ecs::Registry> registry) : _registry(registry) {
-        if (!_registry) {
-            throw std::invalid_argument("World: registry cannot be null");
+    World::World(std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld) : _ecsWorld(ecsWorld) {
+        if (!_ecsWorld) {
+            throw std::invalid_argument("World: ECSWorld cannot be null");
         }
-        LOG_DEBUG("World created with registry");
+        LOG_DEBUG("World created with ECSWorld");
     }
 
     void World::addEntity(int entityID) {
@@ -28,9 +28,9 @@ namespace server {
         if (it != _entities.end()) {
             _entities.erase(it);
 
-            // Also remove from registry
-            if (_registry) {
-                _registry->destroyEntity(entityID);
+            // Also remove from ECSWorld
+            if (_ecsWorld) {
+                _ecsWorld->destroyEntity(entityID);
             }
 
             LOG_DEBUG("World: Entity ", entityID, " removed from world (remaining: ", _entities.size(), ")");

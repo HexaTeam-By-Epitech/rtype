@@ -30,19 +30,19 @@
 
 namespace server {
 
-    GameLogic::GameLogic(std::shared_ptr<World> world, std::shared_ptr<ThreadPool> threadPool)
+    GameLogic::GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world,
+                         std::shared_ptr<ThreadPool> threadPool)
         : _currentTick(0),
           _stateManager(std::make_shared<GameStateManager>()),
           _threadPool(threadPool),
           _gameActive(false) {
-        // Create World with Registry if not provided
+        // Create ECSWorld if not provided
         if (!world) {
-            std::shared_ptr<ecs::Registry> registry = std::make_shared<ecs::Registry>();
-            _world = std::make_shared<World>(registry);
-            LOG_DEBUG("GameLogic: Created new World with Registry");
+            _world = std::make_shared<ecs::wrapper::ECSWorld>();
+            LOG_DEBUG("GameLogic: Created new ECSWorld");
         } else {
             _world = world;
-            LOG_DEBUG("GameLogic: Using provided World");
+            LOG_DEBUG("GameLogic: Using provided ECSWorld");
         }
 
         if (_threadPool) {
@@ -65,17 +65,17 @@ namespace server {
         try {
             LOG_INFO("Initializing game logic...");
 
-            // Create and register all systems in execution order
-            _systems.push_back(std::make_unique<ecs::MovementSystem>());
-            _systems.push_back(std::make_unique<ecs::CollisionSystem>());
-            _systems.push_back(std::make_unique<ecs::HealthSystem>());
-            _systems.push_back(std::make_unique<ecs::SpawnSystem>());
-            _systems.push_back(std::make_unique<ecs::AISystem>());
-            _systems.push_back(std::make_unique<ecs::ProjectileSystem>());
-            _systems.push_back(std::make_unique<ecs::BoundarySystem>());
-            _systems.push_back(std::make_unique<ecs::WeaponSystem>());
+            // Create and register all systems with ECSWorld in execution order
+            _world->createSystem<ecs::MovementSystem>("MovementSystem");
+            _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
+            _world->createSystem<ecs::HealthSystem>("HealthSystem");
+            _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
+            _world->createSystem<ecs::AISystem>("AISystem");
+            _world->createSystem<ecs::ProjectileSystem>("ProjectileSystem");
+            _world->createSystem<ecs::BoundarySystem>("BoundarySystem");
+            _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
 
-            LOG_INFO("✓ All systems registered (", _systems.size(), " systems)");
+            LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
 
             _gameActive = true;
             _currentTick = 0;
@@ -125,31 +125,28 @@ namespace server {
                 return 0;
             }
 
-            // Create new player entity
-            ecs::Address playerEntity = _world->getRegistry()->newEntity();
+            // Create new player entity using the wrapper API
+            ecs::wrapper::Entity playerEntity =
+                _world->createEntity()
+                    .with(ecs::Transform(PLAYER_SPAWN_X, PLAYER_SPAWN_Y))
+                    .with(ecs::Velocity(0.0f, 0.0f, PLAYER_SPEED))
+                    .with(ecs::Health(PLAYER_HEALTH, PLAYER_HEALTH))
+                    .with(ecs::Player(0, 3, playerId))  // score=0, lives=3
+                    .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
+                    .with(ecs::Weapon(10.0f, 0.0f, 0, 25));  // fireRate, cooldown, type, damage
 
-            // Assign components
-            _world->getRegistry()->setComponent(playerEntity, ecs::Transform(PLAYER_SPAWN_X, PLAYER_SPAWN_Y));
-            _world->getRegistry()->setComponent(playerEntity, ecs::Velocity(0.0f, 0.0f, PLAYER_SPEED));
-            _world->getRegistry()->setComponent(playerEntity, ecs::Health(PLAYER_HEALTH, PLAYER_HEALTH));
-            _world->getRegistry()->setComponent(playerEntity,
-                                                ecs::Player(0, 3, playerId));  // score=0, lives=3
-            _world->getRegistry()->setComponent(
-                playerEntity, ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false));
-            _world->getRegistry()->setComponent(
-                playerEntity, ecs::Weapon(10.0f, 0.0f, 0, 25));  // fireRate, cooldown, type, damage
+            ecs::Address entityAddress = playerEntity.getAddress();
 
             // Register player (protected by mutex for thread safety)
             {
                 std::lock_guard<std::mutex> lock(_playerMutex);
-                _playerMap[playerId] = playerEntity;
+                _playerMap[playerId] = entityAddress;
             }
-            _world->addEntity(playerEntity);  // Track in World
 
             LOG_INFO("✓ Player spawned at (", PLAYER_SPAWN_X, ", ", PLAYER_SPAWN_Y,
-                     ") with entity ID: ", playerEntity);
+                     ") with entity ID: ", entityAddress);
 
-            return playerEntity;
+            return entityAddress;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to spawn player: ", e.what());
             return 0;
@@ -174,8 +171,8 @@ namespace server {
 
             LOG_INFO("Despawning player ", playerId, " (entity: ", playerEntity, ")");
 
-            // Immediately remove entity from registry to prevent resource leak
-            _world->removeEntity(playerEntity);
+            // Remove entity from the world
+            _world->destroyEntity(playerEntity);
             LOG_INFO("✓ Player removed from game and entity destroyed");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to despawn player: ", e.what());
@@ -204,8 +201,9 @@ namespace server {
 
             ecs::Address playerEntity = it->second;
             try {
-                // Update player velocity based on input
-                ecs::Velocity &vel = _world->getRegistry()->getComponent<ecs::Velocity>(playerEntity);
+                // Get entity wrapper and update velocity
+                ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
+                ecs::Velocity &vel = entity.get<ecs::Velocity>();
 
                 // If no input (0, 0), stop the player completely
                 if (input.inputX == 0 && input.inputY == 0) {
@@ -242,32 +240,8 @@ namespace server {
     }
 
     void GameLogic::_executeSystems(float deltaTime) {
-        // If ThreadPool is available, execute systems in parallel when safe
-        if (_threadPool) {
-            // For now, execute sequentially with ThreadPool
-            // TODO: Identify independent systems that can run in parallel
-            // (e.g., systems that don't write to same components)
-            for (auto &system : _systems) {
-                _threadPool->enqueue([system = system.get(), deltaTime, this]() {
-                    try {
-                        system->update(*_world->getRegistry(), deltaTime);
-                    } catch (const std::exception &e) {
-                        LOG_ERROR("System update failed: ", e.what());
-                    }
-                });
-            }
-            // Note: This is still sequential because we enqueue all at once
-            // For true parallelism, we'd need to batch independent systems
-        } else {
-            // Single-threaded execution (default)
-            for (auto &system : _systems) {
-                try {
-                    system->update(*_world->getRegistry(), deltaTime);
-                } catch (const std::exception &e) {
-                    LOG_ERROR("System update failed: ", e.what());
-                }
-            }
-        }
+        // Use the ECSWorld's update method which runs all systems in order
+        _world->update(deltaTime);
     }
 
     void GameLogic::_cleanupDeadEntities() {
@@ -290,7 +264,8 @@ namespace server {
         _playerMap.clear();
         _pendingInput.clear();
 
-        // TODO: Clear all entities from registry
+        // Clear all entities from the world
+        _world->clear();
         LOG_INFO("✓ Game reset");
     }
 

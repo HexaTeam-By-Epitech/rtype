@@ -11,8 +11,8 @@
 #include <memory>
 #include <vector>
 
-namespace ecs {
-    class Registry;
+namespace ecs::wrapper {
+    class ECSWorld;
 }
 
 namespace server {
@@ -62,29 +62,29 @@ namespace server {
        public:
         /**
          * @brief Create a full game state snapshot
-         * @param registry ECS registry
+         * @param world ECS world wrapper
          * @param serverTick Current game tick
          * @return Complete game state snapshot
          */
-        static GameStateSnapshot createFullSnapshot(ecs::Registry &registry, uint32_t serverTick);
+        static GameStateSnapshot createFullSnapshot(ecs::wrapper::ECSWorld &world, uint32_t serverTick);
 
         /**
          * @brief Create a delta update (changed entities only)
-         * @param registry ECS registry
+         * @param world ECS world wrapper
          * @param serverTick Current game tick
          * @param lastSnapshot Previous snapshot for comparison
          * @return Delta snapshot with only changed entities
          */
-        static GameStateSnapshot createDeltaUpdate(ecs::Registry &registry, uint32_t serverTick,
+        static GameStateSnapshot createDeltaUpdate(ecs::wrapper::ECSWorld &world, uint32_t serverTick,
                                                    const GameStateSnapshot &lastSnapshot);
 
         /**
          * @brief Serialize entity to network format
-         * @param registry ECS registry
+         * @param world ECS world wrapper
          * @param entityId Entity address
          * @return Serialized entity snapshot
          */
-        static EntitySnapshot serializeEntity(ecs::Registry &registry, uint32_t entityId);
+        static EntitySnapshot serializeEntity(ecs::wrapper::ECSWorld &world, uint32_t entityId);
     };
 
 }  // namespace server

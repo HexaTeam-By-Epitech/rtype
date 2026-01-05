@@ -11,7 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-#include "server/Core/Clock/Clock.hpp"
+#include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Core/ServerLoop/IServerLoop.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
 #include "server/Game/World/IWorld.hpp"
@@ -113,7 +113,7 @@ namespace server {
         std::unique_ptr<IGameLogic> _gameLogic;
         std::shared_ptr<EventBus> _eventBus;
         std::shared_ptr<IWorld> _world;
-        Clock _clock;
+        FrameTimer _frameTimer;
 
         // Threading
         std::thread _loopThread;

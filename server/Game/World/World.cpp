@@ -27,22 +27,15 @@ namespace server {
         auto it = std::find(_entities.begin(), _entities.end(), entityID);
         if (it != _entities.end()) {
             _entities.erase(it);
-
-            // Also remove from ECSWorld
-            if (_ecsWorld) {
-                _ecsWorld->destroyEntity(entityID);
-            }
-
             LOG_DEBUG("World: Entity ", entityID, " removed from world (remaining: ", _entities.size(), ")");
         }
     }
 
-    void World::update([[maybe_unused]] float dt) {
-        // World-level update logic
-        // Currently systems are called externally, but could add:
-        // - Global world effects (gravity, environment)
-        // - Entity lifecycle management
-        // - Spatial partitioning updates
+    void World::update(float dt) {
+        // Delegate to ECSWorld which runs all registered systems in order
+        if (_ecsWorld) {
+            _ecsWorld->update(dt);
+        }
     }
 
 }  // namespace server

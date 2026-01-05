@@ -20,8 +20,16 @@ namespace server {
     class EventBus;
 }  // namespace server
 
+namespace ecs::wrapper {
+    class Entity;
+}
+
 namespace RType::Messages::Shared {
     enum class Action;
+}
+
+namespace RType::Messages::S2C {
+    struct EntityState;
 }
 
 /**
@@ -94,9 +102,34 @@ class Server {
     void handlePacket(HostNetworkEvent &event);
 
     /**
+     * @brief Handle player handshake/connection request
+     * @param event Network event with packet data
+     */
+    void _handleHandshakeRequest(HostNetworkEvent &event);
+
+    /**
+     * @brief Handle player input packet
+     * @param event Network event with packet data
+     */
+    void _handlePlayerInput(HostNetworkEvent &event);
+
+    /**
+     * @brief Handle player disconnect
+     * @param event Network event with peer info
+     */
+    void _handleDisconnect(HostNetworkEvent &event);
+
+    /**
      * @brief Broadcast game state to all connected clients
      */
     void _broadcastGameState();
+
+    /**
+     * @brief Serialize a single entity to network format
+     * @param entity The entity to serialize
+     * @return EntityState structure ready for network transmission
+     */
+    RType::Messages::S2C::EntityState _serializeEntity(ecs::wrapper::Entity &entity);
 
     /**
      * @brief Convert Action enum to directional input (dx, dy)

@@ -37,6 +37,25 @@ namespace server {
             return duration.count() / 1000000.0;
         }
 
+        /**
+         * @brief Get elapsed time and automatically reset (optimized for game loops)
+         * @return elapsed time in seconds
+         */
+        double tick() {
+            auto now = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now - _start);
+            _start = now;  // Reset immediately
+            return duration.count() / 1000000.0;
+        }
+
+        /**
+         * @brief Sleep for specified milliseconds (centralized time management)
+         * @param milliseconds Duration to sleep
+         */
+        static void sleepMilliseconds(int milliseconds) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+        }
+
        private:
         std::chrono::steady_clock::time_point _start{std::chrono::steady_clock::now()};
     };

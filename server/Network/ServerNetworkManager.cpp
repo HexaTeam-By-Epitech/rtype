@@ -7,6 +7,7 @@
 
 #include "server/Network/ServerNetworkManager.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Core/Clock/FrameTimer.hpp"
 
 ServerNetworkManager::ServerNetworkManager(uint16_t port, size_t maxClients)
     : _port(port), _maxClients(maxClients), _packetHandler(nullptr) {}
@@ -67,7 +68,7 @@ void ServerNetworkManager::networkThreadLoop() {
 
     while (_running.load()) {
         if (!_host) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            server::FrameTimer::sleepMilliseconds(10);
             continue;
         }
 

@@ -27,6 +27,9 @@
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
+#include "server/Game/StateManager/GameOverState.hpp"
+#include "server/Game/StateManager/InGameState.hpp"
+#include "server/Game/StateManager/LobbyState.hpp"
 
 namespace server {
 
@@ -77,6 +80,15 @@ namespace server {
 
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
 
+            // Initialize game state manager with states
+            _stateManager->registerState(0, std::make_shared<LobbyState>());
+            _stateManager->registerState(1, std::make_shared<InGameState>());
+            _stateManager->registerState(2, std::make_shared<GameOverState>());
+
+            // Start in InGame state (skip lobby for dev)
+            _stateManager->changeState(1);
+            LOG_INFO("✓ GameStateManager initialized with 3 states");
+
             _gameActive = true;
             _currentTick = 0;
 
@@ -102,14 +114,16 @@ namespace server {
             LOG_DEBUG("Tick ", _currentTick, " | Players: ", _playerMap.size());
         }
 
-        // 2. Execute all systems in order
+        // 2. Update game state manager (Lobby, InGame, GameOver)
+        if (_stateManager) {
+            _stateManager->update(deltaTime);
+        }
+
+        // 3. Execute all systems in order
         _executeSystems(deltaTime);
 
-        // 3. Clean up dead entities
+        // 4. Clean up dead entities
         _cleanupDeadEntities();
-
-        // 4. Create game state snapshot
-        _createSnapshot();
 
         // Increment tick
         _currentTick++;
@@ -240,20 +254,47 @@ namespace server {
     }
 
     void GameLogic::_executeSystems(float deltaTime) {
-        // Use the ECSWorld's update method which runs all systems in order
+        // World::update() delegates to ECSWorld which runs all registered systems
         _world->update(deltaTime);
     }
 
     void GameLogic::_cleanupDeadEntities() {
-        // TODO: Implement proper entity deletion
-        // This would iterate over all entities with Health component
-        // and remove those with health <= 0
-    }
+        // Query all entities with Health component
+        auto entities = _world->query<ecs::Health>();
 
-    void GameLogic::_createSnapshot() {
-        // TODO: Implement state snapshot creation for network synchronization
-        // This would create a representation of all entity states
-        // for sending to clients
+        std::vector<ecs::Address> toDestroy;
+
+        // Find entities that need to be removed
+        for (auto &entity : entities) {
+            ecs::Health &health = entity.get<ecs::Health>();
+
+            if (health.getCurrentHealth() <= 0) {
+                ecs::Address entityAddress = entity.getAddress();
+                toDestroy.push_back(entityAddress);
+
+                // Remove from player map if it's a player entity
+                if (entity.has<ecs::Player>()) {
+                    std::lock_guard<std::mutex> lock(_playerMutex);
+                    for (auto it = _playerMap.begin(); it != _playerMap.end();) {
+                        if (it->second == entityAddress) {
+                            LOG_DEBUG("Player entity ", entityAddress, " (ID: ", it->first, ") died");
+                            it = _playerMap.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Destroy all dead entities
+        for (ecs::Address address : toDestroy) {
+            _world->destroyEntity(address);
+        }
+
+        if (!toDestroy.empty()) {
+            LOG_DEBUG("Cleaned up ", toDestroy.size(), " dead entities");
+        }
     }
 
     void GameLogic::resetGame() {

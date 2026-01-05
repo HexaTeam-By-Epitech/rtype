@@ -97,11 +97,6 @@ namespace server {
          */
         void _cleanupDeadEntities();
 
-        /**
-         * @brief Create a game state snapshot
-         */
-        void _createSnapshot();
-
         // ECS World
         std::shared_ptr<ecs::wrapper::ECSWorld> _world;
 

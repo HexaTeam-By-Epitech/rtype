@@ -17,9 +17,22 @@ namespace server {
        public:
         virtual ~IWorld() = default;
 
-        // Prototypes
+        /**
+         * @brief Add entity to world tracking
+         * @param entityID Entity identifier
+         */
         virtual void addEntity(int entityID) = 0;
+
+        /**
+         * @brief Remove entity from world tracking
+         * @param entityID Entity identifier
+         */
         virtual void removeEntity(int entityID) = 0;
+
+        /**
+         * @brief Update all systems in the world
+         * @param dt Delta time in seconds
+         */
         virtual void update(float dt) = 0;
     };
 

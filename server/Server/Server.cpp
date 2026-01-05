@@ -6,7 +6,6 @@
 */
 
 #include "server/Server/Server.hpp"
-#include <chrono>
 #include <thread>
 #include "Capnp/Messages/Messages.hpp"
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
@@ -20,6 +19,7 @@
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ServerLoop/ServerLoop.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
@@ -133,36 +133,9 @@ bool Server::initialize() {
 }
 
 void Server::handlePacket(HostNetworkEvent &event) {
-    // Handle disconnect events (no packet data)
-    if (event.type == NetworkEventType::DISCONNECT && event.peer) {
-        // Fast O(1) lookup using reverse map
-        auto it = _peerToSession.find(event.peer);
-        if (it != _peerToSession.end()) {
-            std::string sessionId = it->second;
-            std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionId);
-            uint32_t playerId = session ? session->getPlayerId() : 0;
-
-            if (playerId != 0) {
-                LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
-
-                // Despawn player from game
-                server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-                gameLogic.despawnPlayer(playerId);
-
-                // Remove from room
-                _defaultRoom->leave(playerId);
-
-                // Publish PLAYER_LEFT event
-                _eventBus->publish(server::PlayerLeftEvent(playerId));
-
-                // Clean up session and mappings
-                _sessionManager->removeSession(sessionId);
-                _sessionPeers.erase(sessionId);
-                _peerToSession.erase(it);
-
-                LOG_INFO("✓ Player ", playerId, " fully cleaned up");
-            }
-        }
+    // Dispatch based on event type
+    if (event.type == NetworkEventType::DISCONNECT) {
+        _handleDisconnect(event);
         return;
     }
 
@@ -173,126 +146,17 @@ void Server::handlePacket(HostNetworkEvent &event) {
     try {
         using namespace RType::Messages;
 
-        // Get message type
+        // Get message type and dispatch to appropriate handler
         NetworkMessages::MessageType messageType = NetworkMessages::getMessageType(event.packet->getData());
 
         switch (messageType) {
-            case NetworkMessages::MessageType::HANDSHAKE_REQUEST: {
-                // Parse connect request
-                std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData());
-                LOG_INFO("Player '", playerName, "' requesting to join...");
-
-                // Assign unique player ID
-                static std::atomic<uint32_t> nextPlayerId{1000};
-                uint32_t newPlayerId = nextPlayerId.fetch_add(1);
-
-                // Create session for player
-                std::string sessionId = "session_" + std::to_string(newPlayerId);
-                std::shared_ptr<server::Session> session = _sessionManager->createSession(sessionId);
-                session->setPlayerId(newPlayerId);  // Associate player ID with session
-
-                // Track session to peer mapping for network communication
-                _sessionPeers[sessionId] = event.peer;
-                _peerToSession[event.peer] = sessionId;  // Reverse lookup for fast disconnect
-
-                // Player joins default room
-                _defaultRoom->join(newPlayerId);
-                LOG_INFO("Player ", newPlayerId, " joined room 'default'");
-
-                // Publish PLAYER_JOINED event to EventBus
-                _eventBus->publish(server::PlayerJoinedEvent(newPlayerId, playerName));
-                LOG_DEBUG("Event published: PLAYER_JOINED for player ", newPlayerId, " (", playerName, ")");
-
-                // Spawn player in game logic
-                server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-                uint32_t entityId = gameLogic.spawnPlayer(newPlayerId, playerName);
-
-                if (entityId == 0) {
-                    LOG_ERROR("Failed to spawn player ", newPlayerId);
-                    break;
-                }
-
-                // Create GameStart message with current tick
-                S2C::GameStart gameStart;
-                gameStart.yourEntityId = newPlayerId;
-                gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
-
-                // Get ECS world to read spawned player entity
-                auto *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
-                if (world != nullptr) {
-                    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = world->getECSWorld();
-
-                    // Serialize the spawned player entity
-                    ecs::wrapper::Entity entity = ecsWorld->getEntity(entityId);
-                    if (entity.has<ecs::Transform>()) {
-                        S2C::EntityState entityState;
-                        entityState.entityId = entityId;
-
-                        ecs::Transform &transform = entity.get<ecs::Transform>();
-                        entityState.position.x = transform.getPosition().x;
-                        entityState.position.y = transform.getPosition().y;
-
-                        entityState.type = Shared::EntityType::Player;
-
-                        if (entity.has<ecs::Health>()) {
-                            entityState.health = entity.get<ecs::Health>().getCurrentHealth();
-                        } else {
-                            entityState.health = -1;
-                        }
-
-                        gameStart.initialState.entities.push_back(entityState);
-                        LOG_DEBUG("Added player entity ", entityId, " to GameStart at pos (",
-                                  entityState.position.x, ", ", entityState.position.y, ")");
-                    }
-                }
-
-                // Serialize and send
-                std::vector<uint8_t> gameStartPayload = gameStart.serialize();
-                std::vector<uint8_t> gameStartPacket = NetworkMessages::createMessage(
-                    NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
-                std::unique_ptr<IPacket> packet =
-                    createPacket(gameStartPacket, static_cast<uint32_t>(PacketFlag::RELIABLE));
-                event.peer->send(std::move(packet), 0);
-
-                LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId,
-                         ", Player ID: ", newPlayerId, ", Entity: ", entityId, ")");
+            case NetworkMessages::MessageType::HANDSHAKE_REQUEST:
+                _handleHandshakeRequest(event);
                 break;
-            }
 
-            case NetworkMessages::MessageType::C2S_PLAYER_INPUT: {
-                std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
-                C2S::PlayerInput input = C2S::PlayerInput::deserialize(payload);
-
-                // Process each action in the input
-                int dx = 0, dy = 0;
-                bool shoot = false;
-
-                for (const auto &action : input.actions) {
-                    int actionDx = 0, actionDy = 0;
-                    bool actionShoot = false;
-                    _actionToInput(action, actionDx, actionDy, actionShoot);
-                    dx += actionDx;
-                    dy += actionDy;
-                    shoot = shoot || actionShoot;
-                }
-
-                // Find session from peer using fast reverse lookup
-                uint32_t playerId = 0;
-                auto it = _peerToSession.find(event.peer);
-                if (it != _peerToSession.end()) {
-                    std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
-                    if (session) {
-                        playerId = session->getPlayerId();
-                    }
-                }
-
-                if (playerId != 0) {
-                    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-                    gameLogic.processPlayerInput(playerId, dx, dy, shoot);
-                }
-
+            case NetworkMessages::MessageType::C2S_PLAYER_INPUT:
+                _handlePlayerInput(event);
                 break;
-            }
 
             default:
                 LOG_WARNING("Received unknown message type: ", static_cast<int>(messageType));
@@ -301,6 +165,161 @@ void Server::handlePacket(HostNetworkEvent &event) {
 
     } catch (const std::exception &e) {
         LOG_ERROR("Error handling packet: ", e.what());
+    }
+}
+
+void Server::_handleDisconnect(HostNetworkEvent &event) {
+    if (!event.peer) {
+        return;
+    }
+
+    // Fast O(1) lookup using reverse map
+    auto it = _peerToSession.find(event.peer);
+    if (it == _peerToSession.end()) {
+        return;
+    }
+
+    std::string sessionId = it->second;
+    std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionId);
+    uint32_t playerId = session ? session->getPlayerId() : 0;
+
+    if (playerId == 0) {
+        return;
+    }
+
+    LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
+
+    // Despawn player from game
+    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
+    gameLogic.despawnPlayer(playerId);
+
+    // Remove from room
+    _defaultRoom->leave(playerId);
+
+    // Publish PLAYER_LEFT event
+    _eventBus->publish(server::PlayerLeftEvent(playerId));
+
+    // Clean up session and mappings
+    _sessionManager->removeSession(sessionId);
+    _sessionPeers.erase(sessionId);
+    _peerToSession.erase(it);
+
+    LOG_INFO("✓ Player ", playerId, " fully cleaned up");
+}
+
+void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    // Parse connect request
+    std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData());
+    LOG_INFO("Player '", playerName, "' requesting to join...");
+
+    // TODO: For production, add real authentication here:
+    // if (!_sessionManager->getAuthService()->authenticate(username, password)) {
+    //     sendAuthFailedMessage(event.peer);
+    //     return;
+    // }
+
+    // Assign unique player ID
+    static std::atomic<uint32_t> nextPlayerId{1000};
+    uint32_t newPlayerId = nextPlayerId.fetch_add(1);
+
+    // Create session for player
+    std::string sessionId = "session_" + std::to_string(newPlayerId);
+    std::shared_ptr<server::Session> session = _sessionManager->createSession(sessionId);
+    session->setPlayerId(newPlayerId);
+    session->setActive(true);
+
+    // Track session to peer mapping for network communication
+    _sessionPeers[sessionId] = event.peer;
+    _peerToSession[event.peer] = sessionId;
+
+    // Add player to matchmaking queue instead of joining room directly
+    // This allows for proper match creation when enough players join
+    _roomManager->addPlayerToMatchmaking(newPlayerId);
+    LOG_INFO("Player ", newPlayerId, " added to matchmaking queue");
+
+    // For now, also join default room for immediate play (skip matchmaking for dev)
+    // In production, remove this and only join after match is found
+    _defaultRoom->join(newPlayerId);
+    LOG_INFO("Player ", newPlayerId, " joined room 'default' (dev mode)");
+
+    // Publish PLAYER_JOINED event to EventBus
+    _eventBus->publish(server::PlayerJoinedEvent(newPlayerId, playerName));
+
+    // Spawn player in game logic
+    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
+    uint32_t entityId = gameLogic.spawnPlayer(newPlayerId, playerName);
+
+    if (entityId == 0) {
+        LOG_ERROR("Failed to spawn player ", newPlayerId);
+        return;
+    }
+
+    // Create GameStart message with current tick
+    S2C::GameStart gameStart;
+    gameStart.yourEntityId = newPlayerId;
+    gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
+
+    // Get ECS world to read spawned player entity
+    auto *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
+    if (world != nullptr) {
+        std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = world->getECSWorld();
+
+        // Serialize the spawned player entity
+        ecs::wrapper::Entity entity = ecsWorld->getEntity(entityId);
+        if (entity.has<ecs::Transform>()) {
+            S2C::EntityState entityState = _serializeEntity(entity);
+            gameStart.initialState.entities.push_back(entityState);
+            LOG_DEBUG("Added player entity ", entityId, " to GameStart at pos (", entityState.position.x,
+                      ", ", entityState.position.y, ")");
+        }
+    }
+
+    // Serialize and send
+    std::vector<uint8_t> gameStartPayload = gameStart.serialize();
+    std::vector<uint8_t> gameStartPacket =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
+    std::unique_ptr<IPacket> packet =
+        createPacket(gameStartPacket, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    event.peer->send(std::move(packet), 0);
+
+    LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId, ", Player ID: ", newPlayerId,
+             ", Entity: ", entityId, ")");
+}
+
+void Server::_handlePlayerInput(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+    C2S::PlayerInput input = C2S::PlayerInput::deserialize(payload);
+
+    // Process each action in the input
+    int dx = 0, dy = 0;
+    bool shoot = false;
+
+    for (const auto &action : input.actions) {
+        int actionDx = 0, actionDy = 0;
+        bool actionShoot = false;
+        _actionToInput(action, actionDx, actionDy, actionShoot);
+        dx += actionDx;
+        dy += actionDy;
+        shoot = shoot || actionShoot;
+    }
+
+    // Find session from peer using fast reverse lookup
+    uint32_t playerId = 0;
+    auto it = _peerToSession.find(event.peer);
+    if (it != _peerToSession.end()) {
+        std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
+        if (session) {
+            playerId = session->getPlayerId();
+        }
+    }
+
+    if (playerId != 0) {
+        server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
+        gameLogic.processPlayerInput(playerId, dx, dy, shoot);
     }
 }
 
@@ -350,7 +369,7 @@ void Server::run() {
         }
 
         // Sleep to avoid busy-waiting (network processing is the bottleneck here)
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        server::FrameTimer::sleepMilliseconds(5);
     }
 
     LOG_INFO("Server loop stopped.");
@@ -386,46 +405,15 @@ void Server::_broadcastGameState() {
     // Get all entities with Transform component (everything that has a position)
     auto entities = ecsWorld->query<ecs::Transform>();
 
-    // Serialize each entity's state
+    // Serialize each entity's state using helper method
     for (auto &entity : entities) {
-        uint32_t entityId = entity.getAddress();
-        S2C::EntityState entityState;
-        entityState.entityId = entityId;
-
-        // Get Transform (required)
-        ecs::Transform &transform = entity.get<ecs::Transform>();
-        entityState.position.x = transform.getPosition().x;
-        entityState.position.y = transform.getPosition().y;
-
-        // Determine entity type and get health
-        if (entity.has<ecs::Player>()) {
-            entityState.type = Shared::EntityType::Player;
-            if (entity.has<ecs::Health>()) {
-                entityState.health = entity.get<ecs::Health>().getCurrentHealth();
-            } else {
-                entityState.health = -1;
-            }
-        } else if (entity.has<ecs::Enemy>()) {
-            ecs::Enemy &enemy = entity.get<ecs::Enemy>();
-            // Map enemy type to EntityType enum
-            entityState.type =
-                (enemy.getEnemyType() == 0) ? Shared::EntityType::EnemyType1 : Shared::EntityType::EnemyType1;
-            if (entity.has<ecs::Health>()) {
-                entityState.health = entity.get<ecs::Health>().getCurrentHealth();
-            } else {
-                entityState.health = -1;
-            }
-        } else if (entity.has<ecs::Projectile>()) {
-            ecs::Projectile &projectile = entity.get<ecs::Projectile>();
-            entityState.type =
-                projectile.isFriendly() ? Shared::EntityType::PlayerBullet : Shared::EntityType::EnemyBullet;
-            entityState.health = -1;  // Projectiles don't have health
-        } else {
-            // Unknown entity type, skip
-            continue;
+        try {
+            S2C::EntityState entityState = _serializeEntity(entity);
+            state.entities.push_back(entityState);
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to serialize entity: ", e.what());
+            continue;  // Skip this entity but continue with others
         }
-
-        state.entities.push_back(entityState);
     }
 
     // Serialize and create packet
@@ -442,6 +430,41 @@ void Server::_broadcastGameState() {
             peer->send(std::move(peerPacket), 0);
         }
     }
+}
+
+RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity &entity) {
+    using namespace RType::Messages;
+
+    S2C::EntityState entityState;
+    entityState.entityId = entity.getAddress();
+
+    // Get Transform (required - entity was queried with it)
+    ecs::Transform &transform = entity.get<ecs::Transform>();
+    entityState.position.x = transform.getPosition().x;
+    entityState.position.y = transform.getPosition().y;
+
+    // Determine entity type and get health
+    if (entity.has<ecs::Player>()) {
+        entityState.type = Shared::EntityType::Player;
+        entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
+    } else if (entity.has<ecs::Enemy>()) {
+        ecs::Enemy &enemy = entity.get<ecs::Enemy>();
+        // Map enemy type to EntityType enum (simplified)
+        entityState.type =
+            (enemy.getEnemyType() == 0) ? Shared::EntityType::EnemyType1 : Shared::EntityType::EnemyType1;
+        entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
+    } else if (entity.has<ecs::Projectile>()) {
+        ecs::Projectile &projectile = entity.get<ecs::Projectile>();
+        entityState.type =
+            projectile.isFriendly() ? Shared::EntityType::PlayerBullet : Shared::EntityType::EnemyBullet;
+        entityState.health = -1;  // Projectiles don't have health
+    } else {
+        // Unknown entity type - default to generic
+        entityState.type = Shared::EntityType::Player;
+        entityState.health = -1;
+    }
+
+    return entityState;
 }
 
 void Server::_actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot) {

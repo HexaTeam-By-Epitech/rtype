@@ -6,7 +6,6 @@
 */
 
 #include "server/Core/ServerLoop/ServerLoop.hpp"
-#include <chrono>
 #include "common/Logger/Logger.hpp"
 
 namespace server {
@@ -65,7 +64,7 @@ namespace server {
             _frameCount = 0;
             _skippedFrames = 0;
 
-            _clock.getFrameTimer().reset();
+            _frameTimer.reset();
             _loopThread = std::thread([this] { _gameLoopThread(); });
 
             LOG_INFO("✓ Game loop thread started");
@@ -90,9 +89,8 @@ namespace server {
 
         while (_running) {
             try {
-                // Measure frame time
-                double frameTime = _clock.getFrameTimer().elapsed();
-                _clock.getFrameTimer().reset();
+                // Measure frame time (tick() gets elapsed time and resets in one call)
+                double frameTime = _frameTimer.tick();
 
                 // Cap frame time to prevent spiral of death (lag recovery)
                 if (frameTime > 0.1) {
@@ -121,7 +119,7 @@ namespace server {
                 _synchronizeState();
 
                 // Yield to prevent busy-loop
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                FrameTimer::sleepMilliseconds(1);
 
             } catch (const std::exception &e) {
                 LOG_ERROR("Thread exception: ", e.what());
@@ -146,11 +144,15 @@ namespace server {
         std::lock_guard<std::mutex> lock(_stateMutex);
 
         try {
-            // TODO: Create game state snapshot and queue for network broadcast
-            // This is called after fixed updates to send state to clients
-            // - Generate delta from previous tick (only changed entities)
-            // - Serialize entity states (position, health, animation frame, etc.)
-            // - Queue packets for network manager to send
+            // Network synchronization is handled by Server::run() which periodically
+            // calls Server::_broadcastGameState() at a controlled rate (~20 Hz).
+            // This decouples the game loop (60 Hz) from network broadcast rate.
+            //
+            // This method is kept as a placeholder for future optimization:
+            // - Delta state compression
+            // - Priority-based entity updates
+            // - Client-specific interest management
+            // - Prediction error correction packets
         } catch (const std::exception &e) {
             LOG_ERROR("State synchronization failed: ", e.what());
         }

@@ -26,6 +26,7 @@
 #include "common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
 #include "server/Game/StateManager/GameOverState.hpp"
 #include "server/Game/StateManager/InGameState.hpp"
@@ -34,10 +35,11 @@
 namespace server {
 
     GameLogic::GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world,
-                         std::shared_ptr<ThreadPool> threadPool)
+                         std::shared_ptr<ThreadPool> threadPool, std::shared_ptr<EventBus> eventBus)
         : _currentTick(0),
           _stateManager(std::make_shared<GameStateManager>()),
           _threadPool(threadPool),
+          _eventBus(eventBus),
           _gameActive(false) {
         // Create ECSWorld if not provided
         if (!world) {
@@ -53,6 +55,10 @@ namespace server {
                      " workers)");
         } else {
             LOG_DEBUG("GameLogic: Running in single-threaded mode");
+        }
+
+        if (_eventBus) {
+            LOG_DEBUG("GameLogic: EventBus enabled for event publishing");
         }
 
         LOG_DEBUG("GameLogic: GameStateManager initialized");
@@ -84,6 +90,11 @@ namespace server {
             _stateManager->registerState(0, std::make_shared<LobbyState>());
             _stateManager->registerState(1, std::make_shared<InGameState>());
             _stateManager->registerState(2, std::make_shared<GameOverState>());
+
+            // Connect EventBus to GameStateManager so it can publish events
+            if (_eventBus) {
+                _stateManager->setEventBus(_eventBus);
+            }
 
             // Start in InGame state (skip lobby for dev)
             _stateManager->changeState(1);
@@ -124,6 +135,9 @@ namespace server {
 
         // 4. Clean up dead entities
         _cleanupDeadEntities();
+
+        // 5. Check if all players are dead -> trigger game over
+        _checkGameOverCondition();
 
         // Increment tick
         _currentTick++;
@@ -294,6 +308,40 @@ namespace server {
 
         if (!toDestroy.empty()) {
             LOG_DEBUG("Cleaned up ", toDestroy.size(), " dead entities");
+        }
+    }
+
+    void GameLogic::_checkGameOverCondition() {
+        // Only check in InGame state
+        if (_stateManager->getCurrentState() != 1) {
+            return;
+        }
+
+        bool allPlayersDead = true;
+        {
+            std::lock_guard<std::mutex> lock(_playerMutex);
+            if (_playerMap.empty()) {
+                return;  // No players, no game over
+            }
+
+            for (const auto &[playerId, entityAddress] : _playerMap) {
+                try {
+                    ecs::wrapper::Entity entity = _world->getEntity(entityAddress);
+                    if (entity.has<ecs::Health>()) {
+                        if (entity.get<ecs::Health>().getCurrentHealth() > 0) {
+                            allPlayersDead = false;
+                            break;
+                        }
+                    }
+                } catch (...) {
+                    // Entity doesn't exist, consider dead
+                }
+            }
+        }
+
+        if (allPlayersDead) {
+            LOG_INFO("All players defeated! Changing to GameOver state...");
+            _stateManager->changeState(2);  // GameOverState will publish GameEndedEvent
         }
     }
 

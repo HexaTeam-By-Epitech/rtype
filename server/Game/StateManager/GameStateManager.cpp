@@ -7,6 +7,8 @@
 
 #include "server/Game/StateManager/GameStateManager.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Core/EventBus/EventBus.hpp"
+#include "server/Events/GameEvent/GameEndedEvent.hpp"
 
 namespace server {
 
@@ -31,6 +33,13 @@ namespace server {
             if (_states[_currentStateID]) {
                 _states[_currentStateID]->enter();
                 LOG_INFO("✓ Changed to state ", _currentStateID);
+
+                // Publish GameEndedEvent when entering GameOverState (state 2)
+                if (_currentStateID == 2 && _eventBus) {
+                    // TODO: Pass proper reason (e.g., "All players defeated", "Victory", etc.)
+                    _eventBus->publish(GameEndedEvent("Game Over"));
+                    LOG_INFO("[EVENT] GameEndedEvent published");
+                }
             }
         } else {
             LOG_ERROR("Invalid state ID: ", stateID);
@@ -56,6 +65,11 @@ namespace server {
                 _states[_currentStateID]->update(dt);
             }
         }
+    }
+
+    void GameStateManager::setEventBus(std::shared_ptr<EventBus> eventBus) {
+        _eventBus = eventBus;
+        LOG_DEBUG("GameStateManager: EventBus set");
     }
 
 }  // namespace server

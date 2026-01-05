@@ -54,21 +54,18 @@ namespace server {
          * @brief Subscribe to an event type
          * @tparam T Event type
          * @param callback Function to call when an event of type T is published
-         * @return Subscription ID
          * 
          * Adds the callback to the list of subscribers for type T.
          * Callbacks are stored using type-erasure with std::any.
          * The wrapper converts std::any back to T before invoking user callbacks.
          */
         template <typename T>
-        size_t subscribe(EventCallback<T> callback) {
+        void subscribe(EventCallback<T> callback) {
             auto &vec = _subscribers[std::type_index(typeid(T))];
 
             vec.push_back([callback = std::move(callback)](const std::any &a) {
                 callback(std::any_cast<const T &>(a));
             });
-
-            return vec.size() - 1;
         }
 
         /**

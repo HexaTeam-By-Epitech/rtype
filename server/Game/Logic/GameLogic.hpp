@@ -22,6 +22,7 @@ namespace ecs {
 
 namespace server {
     class ThreadPool;
+    class EventBus;
 
     /**
      * @class GameLogic
@@ -52,9 +53,11 @@ namespace server {
          * @brief Constructor
          * @param world Optional ECSWorld instance (creates one if not provided)
          * @param threadPool Optional ThreadPool for parallel system execution
+         * @param eventBus Optional EventBus for publishing game events
          */
         explicit GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world = nullptr,
-                           std::shared_ptr<ThreadPool> threadPool = nullptr);
+                           std::shared_ptr<ThreadPool> threadPool = nullptr,
+                           std::shared_ptr<EventBus> eventBus = nullptr);
         ~GameLogic() override;
 
         bool initialize() override;
@@ -97,6 +100,11 @@ namespace server {
          */
         void _cleanupDeadEntities();
 
+        /**
+         * @brief Check if all players are dead and trigger game over
+         */
+        void _checkGameOverCondition();
+
         // ECS World
         std::shared_ptr<ecs::wrapper::ECSWorld> _world;
 
@@ -116,6 +124,7 @@ namespace server {
         uint32_t _currentTick{0};
         std::shared_ptr<GameStateManager> _stateManager;
         std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
+        std::shared_ptr<EventBus> _eventBus;      // Optional: for publishing events
         bool _gameActive{false};
         std::atomic<bool> _initialized{false};
 

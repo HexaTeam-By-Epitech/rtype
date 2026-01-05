@@ -94,7 +94,8 @@ bool Server::initialize() {
     // Create ThreadPool for parallel system execution (4 workers)
     std::shared_ptr<server::ThreadPool> threadPool = std::make_shared<server::ThreadPool>(4);
     threadPool->start();
-    std::unique_ptr<server::GameLogic> gameLogic = std::make_unique<server::GameLogic>(ecsWorld, threadPool);
+    std::unique_ptr<server::GameLogic> gameLogic =
+        std::make_unique<server::GameLogic>(ecsWorld, threadPool, _eventBus);
     LOG_INFO("✓ ThreadPool enabled with 4 workers");
 
     // Create ServerLoop with GameLogic, EventBus, and World
@@ -385,6 +386,11 @@ void Server::stop() {
 
     if (_networkManager) {
         _networkManager->stop();
+    }
+
+    if (_eventBus) {
+        _eventBus->clear();
+        LOG_INFO("✓ EventBus cleared");
     }
 }
 

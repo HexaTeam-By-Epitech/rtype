@@ -41,7 +41,7 @@ namespace server {
         /**
          * @brief Constructor
          * @param gameLogic The game logic to run
-         * @param eventBus Event bus for inter-system communication
+         * @param eventBus Event bus for publishing game events
          * @param world Game world wrapping ECS registry
          */
         explicit ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus,

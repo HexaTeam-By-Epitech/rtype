@@ -61,13 +61,12 @@ namespace server {
         ~GameLogic() override;
 
         bool initialize() override;
-        void update(float deltaTime) override;
+        void update(float deltaTime, uint32_t currentTick) override;
         uint32_t spawnPlayer(uint32_t playerId, const std::string &playerName) override;
         void despawnPlayer(uint32_t playerId) override;
         void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) override;
 
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
-        uint32_t getCurrentTick() const override { return _currentTick; }
         bool isGameActive() const override { return _gameActive; }
         void resetGame() override;
 
@@ -121,7 +120,6 @@ namespace server {
         std::vector<PlayerInput> _pendingInput;
 
         // Game state
-        uint32_t _currentTick{0};
         std::shared_ptr<GameStateManager> _stateManager;
         std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
         std::shared_ptr<EventBus> _eventBus;      // Optional: for publishing events

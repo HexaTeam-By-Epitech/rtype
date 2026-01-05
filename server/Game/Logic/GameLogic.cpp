@@ -36,8 +36,7 @@ namespace server {
 
     GameLogic::GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world,
                          std::shared_ptr<ThreadPool> threadPool, std::shared_ptr<EventBus> eventBus)
-        : _currentTick(0),
-          _stateManager(std::make_shared<GameStateManager>()),
+        : _stateManager(std::make_shared<GameStateManager>()),
           _threadPool(threadPool),
           _eventBus(eventBus),
           _gameActive(false) {
@@ -101,7 +100,6 @@ namespace server {
             LOG_INFO("✓ GameStateManager initialized with 3 states");
 
             _gameActive = true;
-            _currentTick = 0;
 
             LOG_INFO("✓ Initialization complete!");
             return true;
@@ -112,7 +110,7 @@ namespace server {
         }
     }
 
-    void GameLogic::update(float deltaTime) {
+    void GameLogic::update(float deltaTime, uint32_t currentTick) {
         if (!_gameActive) {
             return;
         }
@@ -121,8 +119,8 @@ namespace server {
         _processInput();
 
         // Periodic tick summary (once per second at 60 FPS)
-        if (_currentTick % 60 == 0) {
-            LOG_DEBUG("Tick ", _currentTick, " | Players: ", _playerMap.size());
+        if (currentTick % 60 == 0) {
+            LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
         }
 
         // 2. Update game state manager (Lobby, InGame, GameOver)
@@ -138,9 +136,6 @@ namespace server {
 
         // 5. Check if all players are dead -> trigger game over
         _checkGameOverCondition();
-
-        // Increment tick
-        _currentTick++;
     }
 
     uint32_t GameLogic::spawnPlayer(uint32_t playerId, const std::string &playerName) {
@@ -348,7 +343,6 @@ namespace server {
     void GameLogic::resetGame() {
         LOG_INFO("Resetting game...");
 
-        _currentTick = 0;
         _gameActive = true;
         _playerMap.clear();
         _pendingInput.clear();

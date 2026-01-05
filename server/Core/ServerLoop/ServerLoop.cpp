@@ -81,7 +81,7 @@ namespace server {
     }
 
     uint32_t ServerLoop::getCurrentTick() const {
-        return _gameLogic->getCurrentTick();
+        return _frameCount;
     }
 
     void ServerLoop::_gameLoopThread() {
@@ -115,9 +115,6 @@ namespace server {
                     _skippedFrames++;
                 }
 
-                // Synchronize state to network
-                _synchronizeState();
-
                 // Yield to prevent busy-loop
                 FrameTimer::sleepMilliseconds(1);
 
@@ -134,27 +131,9 @@ namespace server {
         std::lock_guard<std::mutex> lock(_stateMutex);
 
         try {
-            _gameLogic->update(FIXED_TIMESTEP);
+            _gameLogic->update(FIXED_TIMESTEP, _frameCount);
         } catch (const std::exception &e) {
             LOG_ERROR("Game logic update failed: ", e.what());
-        }
-    }
-
-    void ServerLoop::_synchronizeState() {
-        std::lock_guard<std::mutex> lock(_stateMutex);
-
-        try {
-            // Network synchronization is handled by Server::run() which periodically
-            // calls Server::_broadcastGameState() at a controlled rate (~20 Hz).
-            // This decouples the game loop (60 Hz) from network broadcast rate.
-            //
-            // This method is kept as a placeholder for future optimization:
-            // - Delta state compression
-            // - Priority-based entity updates
-            // - Client-specific interest management
-            // - Prediction error correction packets
-        } catch (const std::exception &e) {
-            LOG_ERROR("State synchronization failed: ", e.what());
         }
     }
 

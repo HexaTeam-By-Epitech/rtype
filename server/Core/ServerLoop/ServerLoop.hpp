@@ -104,11 +104,6 @@ namespace server {
          */
         void _fixedUpdate();
 
-        /**
-         * @brief Synchronize game state to clients (hooks into network manager)
-         */
-        void _synchronizeState();
-
         // Game logic
         std::unique_ptr<IGameLogic> _gameLogic;
         std::shared_ptr<EventBus> _eventBus;

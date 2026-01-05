@@ -7,7 +7,9 @@
 
 #include "server/Game/Logic/GameLogic.hpp"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <thread>
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
@@ -84,6 +86,11 @@ namespace server {
             _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
 
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
+            if (_threadPool) {
+                LOG_INFO("✓ Systems will execute in parallel mode (4 groups)");
+            } else {
+                LOG_INFO("✓ Systems will execute sequentially");
+            }
 
             // Initialize game state manager with states
             _stateManager->registerState(0, std::make_shared<LobbyState>());
@@ -263,8 +270,50 @@ namespace server {
     }
 
     void GameLogic::_executeSystems(float deltaTime) {
-        // World::update() delegates to ECSWorld which runs all registered systems
-        _world->update(deltaTime);
+        if (!_threadPool) {
+            // Sequential execution (no ThreadPool)
+            _world->update(deltaTime);
+            return;
+        }
+
+        // Parallel execution with ThreadPool
+        // Group systems by dependency - systems in the same group can run in parallel
+
+        // Group 1: Independent systems (can run in parallel)
+        std::vector<std::string> group1 = {"MovementSystem"};
+
+        // Group 2: Depends on positions (after Movement)
+        std::vector<std::string> group2 = {"CollisionSystem", "BoundarySystem"};
+
+        // Group 3: Depends on collision results
+        std::vector<std::string> group3 = {"HealthSystem", "ProjectileSystem"};
+
+        // Group 4: AI and spawning (can run in parallel)
+        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem"};
+
+        // Execute each group in order, but parallelize within groups
+        auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {
+            std::atomic<int> completed{0};
+            const int total = static_cast<int>(group.size());
+
+            for (const auto &systemName : group) {
+                _threadPool->enqueue([this, systemName, deltaTime, &completed]() {
+                    _world->updateSystem(systemName, deltaTime);
+                    completed++;
+                });
+            }
+
+            // Wait for all tasks in this group to complete
+            while (completed < total) {
+                std::this_thread::yield();
+            }
+        };
+
+        // Execute groups sequentially, systems within groups in parallel
+        executeGroup(group1);
+        executeGroup(group2);
+        executeGroup(group3);
+        executeGroup(group4);
     }
 
     void GameLogic::_cleanupDeadEntities() {

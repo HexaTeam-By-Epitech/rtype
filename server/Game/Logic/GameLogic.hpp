@@ -12,10 +12,9 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
-#include "common/ECS/Registry.hpp"
+#include "common/ECSWrapper/ECSWorld.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
 #include "server/Game/StateManager/GameStateManager.hpp"
-#include "server/Game/World/World.hpp"
 
 namespace ecs {
     class ISystem;
@@ -51,10 +50,10 @@ namespace server {
        public:
         /**
          * @brief Constructor
-         * @param world Optional World instance (creates one if not provided)
+         * @param world Optional ECSWorld instance (creates one if not provided)
          * @param threadPool Optional ThreadPool for parallel system execution
          */
-        explicit GameLogic(std::shared_ptr<World> world = nullptr,
+        explicit GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world = nullptr,
                            std::shared_ptr<ThreadPool> threadPool = nullptr);
         ~GameLogic() override;
 
@@ -64,16 +63,16 @@ namespace server {
         void despawnPlayer(uint32_t playerId) override;
         void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) override;
 
-        ecs::Registry &getRegistry() override { return *_world->getRegistry(); }
+        ecs::Registry &getRegistry() override { return _world->getRegistry(); }
         uint32_t getCurrentTick() const override { return _currentTick; }
         bool isGameActive() const override { return _gameActive; }
         void resetGame() override;
 
         /**
-         * @brief Get the World instance
-         * @return Shared pointer to World
+         * @brief Get the ECS world instance
+         * @return Shared pointer to ECSWorld
          */
-        std::shared_ptr<World> getWorld() { return _world; }
+        std::shared_ptr<ecs::wrapper::ECSWorld> getECSWorld() { return _world; }
 
         /**
          * @brief Get the game state manager
@@ -103,9 +102,8 @@ namespace server {
          */
         void _createSnapshot();
 
-        // ECS and World
-        std::shared_ptr<World> _world;
-        std::vector<std::unique_ptr<ecs::ISystem>> _systems;
+        // ECS World
+        std::shared_ptr<ecs::wrapper::ECSWorld> _world;
 
         // Player management
         std::unordered_map<uint32_t, ecs::Address> _playerMap;  // playerId -> entityAddress

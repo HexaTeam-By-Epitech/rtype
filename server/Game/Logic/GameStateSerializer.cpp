@@ -14,27 +14,27 @@
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
-#include "common/ECS/Registry.hpp"
+#include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
 
 namespace server {
 
-    GameStateSnapshot GameStateSerializer::createFullSnapshot(ecs::Registry &registry, uint32_t serverTick) {
+    GameStateSnapshot GameStateSerializer::createFullSnapshot(ecs::wrapper::ECSWorld &world,
+                                                              uint32_t serverTick) {
         GameStateSnapshot snapshot;
         snapshot.serverTick = serverTick;
         snapshot.activePlayerCount = 0;
 
         // Get all entities with Transform component (all visible entities)
-        ecs::Signature transformMask = (1ULL << ecs::getComponentType<ecs::Transform>());
-        std::vector<ecs::Address> entities = registry.getEntitiesWithMask(transformMask);
+        auto entities = world.query<ecs::Transform>();
 
         // Serialize each entity
-        for (auto entityId : entities) {
-            EntitySnapshot entitySnapshot = serializeEntity(registry, entityId);
+        for (auto &entity : entities) {
+            EntitySnapshot entitySnapshot = serializeEntity(world, entity.getAddress());
             snapshot.entities.push_back(entitySnapshot);
 
             // Count players
-            if (registry.hasComponent<ecs::Player>(entityId)) {
+            if (entity.has<ecs::Player>()) {
                 snapshot.activePlayerCount++;
             }
         }
@@ -43,14 +43,14 @@ namespace server {
     }
 
     GameStateSnapshot GameStateSerializer::createDeltaUpdate(
-        ecs::Registry &registry, uint32_t serverTick,
+        ecs::wrapper::ECSWorld &world, uint32_t serverTick,
         [[maybe_unused]] const GameStateSnapshot &lastSnapshot) {
         // For now, just return a full snapshot
         // TODO: Optimize by comparing with lastSnapshot and only including changed entities
-        return createFullSnapshot(registry, serverTick);
+        return createFullSnapshot(world, serverTick);
     }
 
-    EntitySnapshot GameStateSerializer::serializeEntity(ecs::Registry &registry, uint32_t entityId) {
+    EntitySnapshot GameStateSerializer::serializeEntity(ecs::wrapper::ECSWorld &world, uint32_t entityId) {
         EntitySnapshot snapshot;
         snapshot.entityId = entityId;
         snapshot.posX = 0.0f;
@@ -63,16 +63,18 @@ namespace server {
         snapshot.isAlive = true;
 
         try {
+            ecs::wrapper::Entity entity = world.getEntity(entityId);
+
             // Try to get Transform
-            if (registry.hasComponent<ecs::Transform>(entityId)) {
-                const ecs::Transform &transform = registry.getComponent<ecs::Transform>(entityId);
+            if (entity.has<ecs::Transform>()) {
+                const ecs::Transform &transform = entity.get<ecs::Transform>();
                 snapshot.posX = transform.getPosition().x;
                 snapshot.posY = transform.getPosition().y;
             }
 
             // Try to get Velocity
-            if (registry.hasComponent<ecs::Velocity>(entityId)) {
-                const ecs::Velocity &velocity = registry.getComponent<ecs::Velocity>(entityId);
+            if (entity.has<ecs::Velocity>()) {
+                const ecs::Velocity &velocity = entity.get<ecs::Velocity>();
                 ecs::Velocity::Vector2 dir = velocity.getDirection();
                 float speed = velocity.getSpeed();
                 snapshot.velX = dir.x * speed;
@@ -80,16 +82,16 @@ namespace server {
             }
 
             // Try to get Health
-            if (registry.hasComponent<ecs::Health>(entityId)) {
-                const ecs::Health &health = registry.getComponent<ecs::Health>(entityId);
+            if (entity.has<ecs::Health>()) {
+                const ecs::Health &health = entity.get<ecs::Health>();
                 snapshot.currentHealth = health.getCurrentHealth();
                 snapshot.maxHealth = health.getMaxHealth();
                 snapshot.isAlive = (health.getCurrentHealth() > 0);
             }
 
             // Try to get Player
-            if (registry.hasComponent<ecs::Player>(entityId)) {
-                const ecs::Player &player = registry.getComponent<ecs::Player>(entityId);
+            if (entity.has<ecs::Player>()) {
+                const ecs::Player &player = entity.get<ecs::Player>();
                 snapshot.playerId = player.getPlayerId();
             }
         } catch (const std::exception &e) {

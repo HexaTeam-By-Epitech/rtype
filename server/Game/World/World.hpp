@@ -9,25 +9,25 @@
 
 #include <memory>
 #include <vector>
-#include "common/ECS/Registry.hpp"
+#include "common/ECSWrapper/ECSWorld.hpp"
 #include "server/Game/World/IWorld.hpp"
 
 namespace server {
 
     /**
      * @class World
-     * @brief Concrete implementation of IWorld wrapping ECS Registry
+     * @brief Concrete implementation of IWorld wrapping ECS wrapper
      * 
-     * Provides high-level entity management layer above raw Registry.
+     * Provides high-level entity management layer using ECSWorld wrapper.
      * Used by GameLogic to manage entities in a deterministic way.
      */
     class World : public IWorld {
        public:
         /**
          * @brief Constructor
-         * @param registry ECS registry to wrap
+         * @param ecsWorld ECSWorld wrapper instance
          */
-        explicit World(std::shared_ptr<ecs::Registry> registry);
+        explicit World(std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld);
 
         ~World() override = default;
 
@@ -37,10 +37,10 @@ namespace server {
         void update(float dt) override;
 
         /**
-         * @brief Get the underlying ECS registry
-         * @return Shared pointer to Registry
+         * @brief Get the underlying ECS world
+         * @return Shared pointer to ECSWorld
          */
-        std::shared_ptr<ecs::Registry> getRegistry() { return _registry; }
+        std::shared_ptr<ecs::wrapper::ECSWorld> getECSWorld() { return _ecsWorld; }
 
         /**
          * @brief Get number of active entities
@@ -49,7 +49,7 @@ namespace server {
         size_t getEntityCount() const { return _entities.size(); }
 
        private:
-        std::shared_ptr<ecs::Registry> _registry;
+        std::shared_ptr<ecs::wrapper::ECSWorld> _ecsWorld;
         std::vector<int> _entities;
     };
 

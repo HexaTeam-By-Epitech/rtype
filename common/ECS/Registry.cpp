@@ -8,11 +8,7 @@
 #include "Registry.hpp"
 
 namespace ecs {
-    Registry::Registry() : _nextAddress(1) {
-        _signatures = {};
-        _componentMap = {};
-        _componentStorage = {};
-    }
+    Registry::Registry() : _nextAddress(1) {}
 
     Registry::~Registry() {
         _signatures.clear();

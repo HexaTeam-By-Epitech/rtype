@@ -11,8 +11,11 @@
 #include <memory>
 #include <string>
 
+namespace ecs::wrapper {
+    class ECSWorld;
+}
+
 namespace ecs {
-    class Registry;
     typedef uint32_t Address;
 }  // namespace ecs
 
@@ -28,27 +31,27 @@ namespace server {
        public:
         /**
          * @brief Create a player entity
-         * @param registry ECS registry
+         * @param world ECS world wrapper
          * @param playerId Unique player ID
          * @param playerName Display name
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createPlayer(ecs::Registry &registry, uint32_t playerId,
+        static ecs::Address createPlayer(ecs::wrapper::ECSWorld &world, uint32_t playerId,
                                          const std::string &playerName);
 
         /**
          * @brief Create an enemy entity
-         * @param registry ECS registry
+         * @param world ECS world wrapper
          * @param enemyType Type of enemy (0=basic, 1=heavy, 2=fast, etc.)
          * @param posX Starting X position
          * @param posY Starting Y position
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createEnemy(ecs::Registry &registry, int enemyType, float posX, float posY);
+        static ecs::Address createEnemy(ecs::wrapper::ECSWorld &world, int enemyType, float posX, float posY);
 
         /**
          * @brief Create a projectile entity
-         * @param registry ECS registry
+         * @param world ECS world wrapper
          * @param ownerId Owner entity ID (shooter)
          * @param posX Starting X position
          * @param posY Starting Y position
@@ -59,7 +62,7 @@ namespace server {
          * @param friendly True for player projectile, false for enemy
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createProjectile(ecs::Registry &registry, uint32_t ownerId, float posX,
+        static ecs::Address createProjectile(ecs::wrapper::ECSWorld &world, uint32_t ownerId, float posX,
                                              float posY, float dirX, float dirY, float speed, int damage,
                                              bool friendly);
 

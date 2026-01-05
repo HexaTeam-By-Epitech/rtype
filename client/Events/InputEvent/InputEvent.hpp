@@ -8,6 +8,7 @@
 #ifndef INPUTEVENT_HPP
 #define INPUTEVENT_HPP
 
+#include <cstdint>
 #include "Events/IEvent.hpp"
 
 /**
@@ -82,7 +83,7 @@ class InputEvent : public IEvent {
      * @brief Get the frame number
      * @return Frame number when input occurred
      */
-    uint32_t getFrameNumber() const { return _frameNumber; }
+    [[nodiscard]] uint32_t getFrameNumber() const { return _frameNumber; }
 
    private:
     InputAction _action;    ///< The action performed

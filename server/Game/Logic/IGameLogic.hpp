@@ -15,6 +15,10 @@ namespace ecs {
     class ISystem;
 }  // namespace ecs
 
+namespace ecs::wrapper {
+    class ECSWorld;
+}
+
 namespace server {
 
     /**

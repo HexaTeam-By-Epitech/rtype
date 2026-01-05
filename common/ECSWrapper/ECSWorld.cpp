@@ -26,7 +26,7 @@ namespace ecs::wrapper {
 
         // Check if entity exists in registry by checking its signature
         try {
-            auto signature = _registry->getSignature(_address);
+            _registry->getSignature(_address);
             return true;
         } catch (...) {
             return false;

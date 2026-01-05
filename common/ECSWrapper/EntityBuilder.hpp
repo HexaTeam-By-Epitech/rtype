@@ -22,8 +22,8 @@ namespace ecs::wrapper {
      */
     class EntityBuilder {
        private:
-        Entity _entity;
         ECSWorld *_world;
+        Entity _entity;
 
        public:
         /**

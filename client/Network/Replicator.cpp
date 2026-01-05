@@ -48,7 +48,8 @@ void Replicator::disconnect() {
         auto state = _serverPeer->getState();
         if (state == PeerState::CONNECTED || state == PeerState::CONNECTION_SUCCEEDED ||
             state == PeerState::CONNECTING) {
-            _serverPeer->disconnect();
+            // Use disconnectNow() for instant disconnect instead of graceful disconnect()
+            _serverPeer->disconnectNow();
         }
         _serverPeer = nullptr;
     }

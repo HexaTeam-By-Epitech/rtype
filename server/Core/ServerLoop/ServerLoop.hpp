@@ -11,10 +11,10 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include "common/ECSWrapper/ECSWorld.hpp"
 #include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Core/ServerLoop/IServerLoop.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
-#include "server/Game/World/IWorld.hpp"
 
 namespace server {
 
@@ -42,10 +42,8 @@ namespace server {
          * @brief Constructor
          * @param gameLogic The game logic to run
          * @param eventBus Event bus for publishing game events
-         * @param world Game world wrapping ECS registry
          */
-        explicit ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus,
-                            std::shared_ptr<IWorld> world);
+        explicit ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus);
 
         /**
          * @brief Destructor - ensures clean shutdown
@@ -88,10 +86,10 @@ namespace server {
         IGameLogic &getGameLogic() { return *_gameLogic; }
 
         /**
-         * @brief Get reference to game world
-         * @return IWorld pointer (may be null)
+         * @brief Get reference to ECS world from GameLogic
+         * @return ECSWorld shared pointer
          */
-        IWorld *getWorld() { return _world.get(); }
+        std::shared_ptr<ecs::wrapper::ECSWorld> getECSWorld();
 
        private:
         /**
@@ -107,7 +105,6 @@ namespace server {
         // Game logic
         std::unique_ptr<IGameLogic> _gameLogic;
         std::shared_ptr<EventBus> _eventBus;
-        std::shared_ptr<IWorld> _world;
         FrameTimer _frameTimer;
 
         // Threading

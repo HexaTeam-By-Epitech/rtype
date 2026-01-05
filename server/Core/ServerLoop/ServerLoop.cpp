@@ -7,13 +7,13 @@
 
 #include "server/Core/ServerLoop/ServerLoop.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Game/Logic/GameLogic.hpp"
 
 namespace server {
 
-    ServerLoop::ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus,
-                           std::shared_ptr<IWorld> world)
-        : _gameLogic(std::move(gameLogic)), _eventBus(eventBus), _world(world) {
-        LOG_DEBUG("ServerLoop created with EventBus and World");
+    ServerLoop::ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus)
+        : _gameLogic(std::move(gameLogic)), _eventBus(eventBus) {
+        LOG_DEBUG("ServerLoop created with EventBus");
     }
 
     ServerLoop::~ServerLoop() {
@@ -39,9 +39,6 @@ namespace server {
 
             LOG_INFO("✓ Game logic initialized");
             LOG_INFO("✓ Fixed timestep: ", FIXED_TIMESTEP, "s (60 Hz)");
-            if (_world) {
-                LOG_INFO("✓ World attached");
-            }
 
             return true;
         } catch (const std::exception &e) {
@@ -82,6 +79,13 @@ namespace server {
 
     uint32_t ServerLoop::getCurrentTick() const {
         return _frameCount;
+    }
+
+    std::shared_ptr<ecs::wrapper::ECSWorld> ServerLoop::getECSWorld() {
+        if (auto *gameLogic = dynamic_cast<server::GameLogic *>(_gameLogic.get())) {
+            return gameLogic->getECSWorld();
+        }
+        return nullptr;
     }
 
     void ServerLoop::_gameLoopThread() {

@@ -30,7 +30,6 @@
 #include "server/Events/GameEvent/PlayerLeftEvent.hpp"
 #include "server/Game/Logic/GameLogic.hpp"
 #include "server/Game/Logic/GameStateSerializer.hpp"
-#include "server/Game/World/World.hpp"
 #include "server/Sessions/Session/Session.hpp"
 
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
@@ -88,8 +87,7 @@ bool Server::initialize() {
 
     // Create World with ECSWorld
     std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = std::make_shared<ecs::wrapper::ECSWorld>();
-    std::shared_ptr<server::World> world = std::make_shared<server::World>(ecsWorld);
-    LOG_INFO("✓ World created with ECSWorld");
+    LOG_INFO("✓ ECSWorld created");
 
     // Create ThreadPool for parallel system execution (4 workers)
     std::shared_ptr<server::ThreadPool> threadPool = std::make_shared<server::ThreadPool>(4);
@@ -98,8 +96,8 @@ bool Server::initialize() {
         std::make_unique<server::GameLogic>(ecsWorld, threadPool, _eventBus);
     LOG_INFO("✓ ThreadPool enabled with 4 workers");
 
-    // Create ServerLoop with GameLogic, EventBus, and World
-    _gameLoop = std::make_unique<server::ServerLoop>(std::move(gameLogic), _eventBus, world);
+    // Create ServerLoop with GameLogic and EventBus
+    _gameLoop = std::make_unique<server::ServerLoop>(std::move(gameLogic), _eventBus);
     LOG_INFO("✓ Game loop created (implements IServerLoop)");
 
     // Initialize game loop (initializes GameLogic and all systems)
@@ -263,10 +261,8 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
 
     // Get ECS world to read spawned player entity
-    auto *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
-    if (world != nullptr) {
-        std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = world->getECSWorld();
-
+    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = _gameLoop->getECSWorld();
+    if (ecsWorld) {
         // Serialize the spawned player entity
         ecs::wrapper::Entity entity = ecsWorld->getEntity(entityId);
         if (entity.has<ecs::Transform>()) {
@@ -397,13 +393,12 @@ void Server::stop() {
 void Server::_broadcastGameState() {
     using namespace RType::Messages;
 
-    // Get ECS world from game loop's world
-    auto *world = dynamic_cast<server::World *>(_gameLoop->getWorld());
-    if (!world) {
-        LOG_ERROR("Failed to cast IWorld to World");
+    // Get ECS world from game loop
+    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = _gameLoop->getECSWorld();
+    if (!ecsWorld) {
+        LOG_ERROR("ECSWorld not available");
         return;
     }
-    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = world->getECSWorld();
 
     S2C::GameState state;
     state.serverTick = _gameLoop->getCurrentTick();

@@ -228,6 +228,27 @@ class Rendering {
      */
     void UpdateInterpolation(float deltaTime);
 
+    /**
+     * @brief Move an entity locally (client-side prediction)
+     * @param entityId Entity ID to move
+     * @param deltaX Movement in X direction (pixels)
+     * @param deltaY Movement in Y direction (pixels)
+     * 
+     * Used for local player prediction: moves the entity immediately
+     * without waiting for server confirmation.
+     * 
+     * Provides instant (0ms) input response for the local player.
+     */
+    void MoveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
+
+    /**
+     * @brief Enable or disable client-side prediction for local player
+     * @param enabled true to enable prediction (instant movement), false for interpolation
+     * 
+     * Delegates to EntityRenderer. Should be called when toggling prediction mode.
+     */
+    void SetClientSidePredictionEnabled(bool enabled);
+
    private:
     EventBus _eventBus;
     bool _initialized = false;

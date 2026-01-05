@@ -6,6 +6,7 @@
 */
 
 #include "GameLoop.hpp"
+#include <cmath>
 
 GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator)
     : _eventBus(&eventBus), _replicator(&replicator) {}
@@ -51,6 +52,12 @@ void GameLoop::run() {
     LOG_INFO("  - THREAD 2 (Main):    Game logic + Rendering");
 
     _rendering->Initialize(800, 600, "R-Type Client");
+
+    // Apply stored entity ID if GameStart was received before run()
+    if (_myEntityId != 0) {
+        LOG_INFO("Applying stored local player entity ID: ", _myEntityId);
+        _rendering->SetMyEntityId(_myEntityId);
+    }
 
     _running = true;
 
@@ -153,21 +160,47 @@ void GameLoop::processInput() {
     // Collect all currently pressed actions
     std::vector<RType::Messages::Shared::Action> actions;
 
+    // Calculate movement delta (distance per frame at fixed 60Hz)
+    float moveDelta = _playerSpeed * _fixedTimestep;  // e.g., 200 * 0.0167 = 3.33 pixels
+
+    // Collect input directions first
+    int dx = 0, dy = 0;
+
     // ZQSD movement (French keyboard layout)
     if (_rendering->IsKeyDown(KEY_W) || _rendering->IsKeyDown(KEY_Z)) {
         actions.push_back(RType::Messages::Shared::Action::MoveUp);
+        dy = -1;
     }
     if (_rendering->IsKeyDown(KEY_S)) {
         actions.push_back(RType::Messages::Shared::Action::MoveDown);
+        dy = 1;
     }
     if (_rendering->IsKeyDown(KEY_A) || _rendering->IsKeyDown(KEY_Q)) {
         actions.push_back(RType::Messages::Shared::Action::MoveLeft);
+        dx = -1;
     }
     if (_rendering->IsKeyDown(KEY_D)) {
         actions.push_back(RType::Messages::Shared::Action::MoveRight);
+        dx = 1;
     }
     if (_rendering->IsKeyDown(KEY_SPACE)) {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
+    }
+
+    // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
+    if (_myEntityId != 0 && _clientSidePredictionEnabled && (dx != 0 || dy != 0)) {
+        float moveX = static_cast<float>(dx);
+        float moveY = static_cast<float>(dy);
+
+        // Normalize diagonal movement to prevent going faster diagonally
+        if (dx != 0 && dy != 0) {
+            float length = std::sqrt(moveX * moveX + moveY * moveY);  // √2 ≈ 1.414
+            moveX /= length;                                          // 1/√2 ≈ 0.707
+            moveY /= length;                                          // 1/√2 ≈ 0.707
+        }
+
+        // Apply normalized movement
+        _rendering->MoveEntityLocally(_myEntityId, moveX * moveDelta, moveY * moveDelta);
     }
 
     RType::Messages::C2S::PlayerInput input;
@@ -204,21 +237,45 @@ float GameLoop::calculateDeltaTime() {
 void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
     auto messageType = NetworkMessages::getMessageType(event.getData());
 
+    // Debug: Log all received message types
+    static uint32_t msgCounter = 0;
+    if (++msgCounter % 60 == 1) {  // Log occasionally to avoid spam
+        LOG_DEBUG("Received message type: ", static_cast<int>(messageType));
+    }
+
     // Handle GameStart message (sent once when player connects)
     if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
+        LOG_INFO("========================================");
+        LOG_INFO("   GAMESTART MESSAGE RECEIVED!");
+        LOG_INFO("========================================");
         auto payload = NetworkMessages::getPayload(event.getData());
         try {
             auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
 
             LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
 
-            // Set our player ID for visual differentiation
-            _rendering->SetMyEntityId(gameStart.yourEntityId);
-
             // Load all initial entities
+            // The first entity is always the local player - store its ID
+            bool firstEntity = true;
             for (const auto &entity : gameStart.initialState.entities) {
-                _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1));
+                if (firstEntity) {
+                    // Store the actual entity ID (from ECS), not the player ID
+                    _myEntityId = entity.entityId;
+                    LOG_INFO("✓ Stored local player entity ID: ", entity.entityId,
+                             " (playerId was: ", gameStart.yourEntityId, ")");
+                    firstEntity = false;
+
+                    // Try to set it now if rendering is initialized
+                    if (_rendering) {
+                        _rendering->SetMyEntityId(entity.entityId);
+                    }
+                }
+
+                // Update entity in renderer (if initialized)
+                if (_rendering) {
+                    _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x,
+                                             entity.position.y, entity.health.value_or(-1));
+                }
             }
 
             LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");

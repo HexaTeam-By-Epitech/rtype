@@ -210,6 +210,11 @@ class GameLoop {
     // Input tracking
     uint32_t _inputSequenceId = 0;
 
+    // Player entity tracking
+    uint32_t _myEntityId = 0;
+    float _playerSpeed = 200.0f;               // pixels per second (MUST MATCH SERVER!)
+    bool _clientSidePredictionEnabled = true;  // Client-side prediction always enabled
+
     GameScene _currentScene = GameScene::LOBBY;
 };
 

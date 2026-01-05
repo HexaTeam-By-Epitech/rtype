@@ -66,14 +66,14 @@ namespace server {
             LOG_INFO("Initializing game logic...");
 
             // Create and register all systems with ECSWorld in execution order
-            _world->createSystem<ecs::MovementSystem>("MovementSystem");
-            _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
-            _world->createSystem<ecs::HealthSystem>("HealthSystem");
-            _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
-            _world->createSystem<ecs::AISystem>("AISystem");
-            _world->createSystem<ecs::ProjectileSystem>("ProjectileSystem");
-            _world->createSystem<ecs::BoundarySystem>("BoundarySystem");
-            _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
+            _world->createSystem<ecs::MovementSystem>(ecs::wrapper::SystemId::Movement);
+            _world->createSystem<ecs::CollisionSystem>(ecs::wrapper::SystemId::Collision);
+            _world->createSystem<ecs::HealthSystem>(ecs::wrapper::SystemId::Health);
+            _world->createSystem<ecs::SpawnSystem>(ecs::wrapper::SystemId::Spawn);
+            _world->createSystem<ecs::AISystem>(ecs::wrapper::SystemId::AI);
+            _world->createSystem<ecs::ProjectileSystem>(ecs::wrapper::SystemId::Projectile);
+            _world->createSystem<ecs::BoundarySystem>(ecs::wrapper::SystemId::Boundary);
+            _world->createSystem<ecs::WeaponSystem>(ecs::wrapper::SystemId::Weapon);
 
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
 

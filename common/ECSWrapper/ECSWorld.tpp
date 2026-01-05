@@ -111,6 +111,11 @@ namespace ecs::wrapper {
         registerSystem(name, std::move(system));
     }
 
+    template <typename T, typename... Args>
+    void ECSWorld::createSystem(SystemId id, Args &&...args) {
+        createSystem<T>(std::string(systemIdToName(id)), std::forward<Args>(args)...);
+    }
+
     template <typename T>
     T *ECSWorld::getSystem(const std::string &name) {
         static_assert(std::is_base_of<ISystem, T>::value, "System must inherit from ISystem");
@@ -121,6 +126,11 @@ namespace ecs::wrapper {
         }
 
         return dynamic_cast<T *>(it->second.get());
+    }
+
+    template <typename T>
+    T *ECSWorld::getSystem(SystemId id) {
+        return getSystem<T>(std::string(systemIdToName(id)));
     }
 
 }  // namespace ecs::wrapper

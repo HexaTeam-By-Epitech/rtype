@@ -11,6 +11,29 @@
 
 namespace ecs::wrapper {
 
+    std::string_view systemIdToName(SystemId id) {
+        switch (id) {
+            case SystemId::Movement:
+                return "MovementSystem";
+            case SystemId::Collision:
+                return "CollisionSystem";
+            case SystemId::Health:
+                return "HealthSystem";
+            case SystemId::Spawn:
+                return "SpawnSystem";
+            case SystemId::AI:
+                return "AISystem";
+            case SystemId::Projectile:
+                return "ProjectileSystem";
+            case SystemId::Boundary:
+                return "BoundarySystem";
+            case SystemId::Weapon:
+                return "WeaponSystem";
+            default:
+                return "UnknownSystem";
+        }
+    }
+
     // Entity implementation
 
     Entity::Entity(Address address, Registry *registry) : _address(address), _registry(registry) {}
@@ -86,6 +109,10 @@ namespace ecs::wrapper {
         }
     }
 
+    void ECSWorld::removeSystem(SystemId id) {
+        removeSystem(std::string(systemIdToName(id)));
+    }
+
     void ECSWorld::update(float deltaTime) {
         for (const auto &systemName : _systemsOrder) {
             auto it = _systems.find(systemName);
@@ -112,6 +139,10 @@ namespace ecs::wrapper {
             LOG_ERROR("ECSWorld::updateSystem - Error in system '", name, "': ", e.what());
             return false;
         }
+    }
+
+    bool ECSWorld::updateSystem(SystemId id, float deltaTime) {
+        return updateSystem(std::string(systemIdToName(id)), deltaTime);
     }
 
     Registry &ECSWorld::getRegistry() {

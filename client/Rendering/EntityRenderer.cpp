@@ -16,14 +16,37 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                                   int health) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {
-        // Update existing entity
+        if (_interpolationEnabled) {
+            // Save current display position as previous
+            it->second.prevX = it->second.x;
+            it->second.prevY = it->second.y;
+            // Set new target position from server
+            it->second.targetX = x;
+            it->second.targetY = y;
+            // Reset interpolation to start from beginning
+            it->second.interpolationFactor = 0.0f;
+        } else {
+            // No interpolation - snap directly to new position
+            it->second.x = x;
+            it->second.y = y;
+        }
+        // Always update type and health
         it->second.type = type;
-        it->second.x = x;
-        it->second.y = y;
         it->second.health = health;
     } else {
-        // Create new entity
-        _entities[id] = {id, type, x, y, health};
+        // Create new entity - initialize with immediate position (no interpolation for first frame)
+        _entities[id] = {
+            id,      // entityId
+            type,    // type
+            x,       // x (display position)
+            y,       // y (display position)
+            health,  // health
+            x,       // prevX (same as current for first frame)
+            y,       // prevY
+            x,       // targetX
+            y,       // targetY
+            1.0f     // interpolationFactor (fully arrived)
+        };
         LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y, ")");
     }
 }
@@ -50,6 +73,9 @@ void EntityRenderer::render() {
     if (_entities.empty()) {
         return;
     }
+
+    // Note: Interpolation is updated separately via updateInterpolation()
+    // which should be called from GameLoop before render()
 
     for (const auto &[id, entity] : _entities) {
         switch (entity.type) {
@@ -187,4 +213,39 @@ void EntityRenderer::renderDebugInfo(const RenderableEntity &entity) {
     std::string typeText = "Type:" + std::to_string(static_cast<int>(entity.type));
     _graphics.DrawText(-1, typeText.c_str(), static_cast<int>(textX), static_cast<int>(textY - 24), 10,
                        0xAAAAAAAA);
+}
+
+void EntityRenderer::updateInterpolation(float deltaTime) {
+    if (!_interpolationEnabled) {
+        return;
+    }
+
+    for (auto &[id, entity] : _entities) {
+        // Skip if already at target
+        if (entity.interpolationFactor >= 1.0f) {
+            continue;
+        }
+
+        // Advance interpolation factor based on deltaTime and speed
+        entity.interpolationFactor += deltaTime * _interpolationSpeed;
+        entity.interpolationFactor = clamp(entity.interpolationFactor, 0.0f, 1.0f);
+
+        // Calculate interpolated position using linear interpolation
+        entity.x = lerp(entity.prevX, entity.targetX, entity.interpolationFactor);
+        entity.y = lerp(entity.prevY, entity.targetY, entity.interpolationFactor);
+    }
+}
+
+float EntityRenderer::lerp(float start, float end, float t) const {
+    return start + ((end - start) * t);
+}
+
+float EntityRenderer::clamp(float value, float min, float max) const {
+    if (value < min) {
+        return min;
+    }
+    if (value > max) {
+        return max;
+    }
+    return value;
 }

@@ -14,13 +14,24 @@
 
 /**
  * @class EntityRenderer
- * @brief Specialized renderer for game entities (players, enemies, projectiles)
+ * @brief Specialized renderer for game entities with client-side interpolation
+     * 
+     * This is a NETWORK MIDDLEWARE for smooth visual rendering, NOT an ECS system.
      * 
      * The EntityRenderer is responsible for:
      * - Maintaining a local cache of entity states received from the server
+     * - CLIENT-SIDE INTERPOLATION: Smoothing movement between discrete server updates
      * - Rendering entities based on their type with appropriate visuals
      * - Handling visual differentiation (local player vs other players)
      * - Managing entity lifecycle (creation, update, removal)
+     * 
+     * INTERPOLATION FLOW:
+     * 1. Server sends position at 20-30 Hz (every 30-50ms)
+     * 2. updateEntity() saves current pos as "previous", new pos as "target"
+     * 3. updateInterpolation() smoothly moves from previous to target (60 FPS)
+     * 4. render() displays entity at interpolated position
+     * 
+     * This provides smooth 60 FPS visuals from 20 Hz server updates.
      */
 class EntityRenderer {
    public:
@@ -37,11 +48,17 @@ class EntityRenderer {
         RType::Messages::Shared::EntityType type;  ///< Entity type (Player, Enemy, Bullet, etc.)
         float x;                                   ///< World position X coordinate
         float y;                                   ///< World position Y coordinate
-        int health;  ///< Current health (-1 for entities without health)        // Future fields for enhanced rendering:
+        int health;                                ///< Current health (-1 for entities without health)
+        float prevX;                               ///< Previous position X (for interpolation)
+        float prevY;                               ///< Previous position Y (for interpolation)
+        float targetX;                             ///< Target position X (from server)
+        float targetY;                             ///< Target position Y (from server)
+        float interpolationFactor;                 ///< Progress from 0.0 (prev) to 1.0 (target)
+
+        // Future fields for enhanced rendering:
         // float rotation;        ///< Rotation angle in degrees
         // float scale;           ///< Uniform scale factor
         // uint8_t animFrame;     ///< Current animation frame
-        // float prevX, prevY;    ///< Previous position (for interpolation)
     };
 
     /**
@@ -131,6 +148,33 @@ class EntityRenderer {
          */
     void setDebugMode(bool enabled) { _showDebugInfo = enabled; }
 
+    /**
+         * @brief Enable or disable interpolation for smooth movement
+         * @param enabled true to enable interpolation, false for instant updates
+         * 
+         * When enabled, entities smoothly transition between network updates.
+         * When disabled, entities snap directly to new positions.
+         */
+    void setInterpolationEnabled(bool enabled) { _interpolationEnabled = enabled; }
+
+    /**
+         * @brief Set the interpolation speed multiplier
+         * @param speed Speed factor (higher = faster, typical: 5-15)
+         * 
+         * Controls how quickly entities interpolate to target positions.
+         * Lower values = smoother but more lag, higher values = snappier but less smooth.
+         */
+    void setInterpolationSpeed(float speed) { _interpolationSpeed = speed; }
+
+    /**
+         * @brief Update interpolation for all entities
+         * @param deltaTime Time elapsed since last frame (in seconds)
+         * 
+         * Should be called every frame before render() to advance interpolation.
+         * This provides smooth movement between discrete server updates.
+         */
+    void updateInterpolation(float deltaTime);
+
    private:
     /**
          * @brief Render a player entity
@@ -175,6 +219,24 @@ class EntityRenderer {
          */
     void renderDebugInfo(const RenderableEntity &entity);
 
+    /**
+         * @brief Linear interpolation between two values
+         * @param start Starting value
+         * @param end Ending value
+         * @param t Interpolation factor (0.0 to 1.0)
+         * @return Interpolated value
+         */
+    [[nodiscard]] float lerp(float start, float end, float t) const;
+
+    /**
+         * @brief Clamp a value between min and max
+         * @param value Value to clamp
+         * @param min Minimum value
+         * @param max Maximum value
+         * @return Clamped value
+         */
+    [[nodiscard]] float clamp(float value, float min, float max) const;
+
     /// Entity cache: maps entity ID to its renderable state
     std::unordered_map<uint32_t, RenderableEntity> _entities;
 
@@ -186,4 +248,10 @@ class EntityRenderer {
 
     /// Debug mode: show entity IDs and health bars (toggle with F3)
     bool _showDebugInfo = true;
+
+    /// Interpolation enabled flag
+    bool _interpolationEnabled = true;
+
+    /// Interpolation speed multiplier (higher = faster convergence)
+    float _interpolationSpeed = 10.0f;
 };

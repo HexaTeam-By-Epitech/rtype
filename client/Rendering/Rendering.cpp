@@ -132,3 +132,9 @@ void Rendering::ClearAllEntities() {
 bool Rendering::IsKeyDown(int key) const {
     return _graphics.IsKeyDown(key);
 }
+
+void Rendering::UpdateInterpolation(float deltaTime) {
+    if (_entityRenderer) {
+        _entityRenderer->updateInterpolation(deltaTime);
+    }
+}

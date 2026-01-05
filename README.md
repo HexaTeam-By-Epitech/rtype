@@ -142,15 +142,21 @@ Includes:
 
 A huge thanks to the **HexaTeam** developers:
 
-<table align="center">
-<tr>
-<td align="center"><a href="[https://github.com/mael-app](https://github.com/mael-app)"><img src="[https://github.com/mael-app.png](https://github.com/mael-app.png)" width="80px" alt="mael-app"/><br /><sub><b>mael-app</b></sub></a></td>
-<td align="center"><a href="[https://github.com/IamSwan](https://github.com/IamSwan)"><img src="[https://github.com/IamSwan.png](https://github.com/IamSwan.png)" width="80px" alt="IamSwan"/><br /><sub><b>IamSwan</b></sub></a></td>
-<td align="center"><a href="[https://github.com/SamuelBleau](https://github.com/SamuelBleau)"><img src="[https://github.com/SamuelBleau.png](https://github.com/SamuelBleau.png)" width="80px" alt="SamuelBleau"/><br /><sub><b>SamuelBleau</b></sub></a></td>
-<td align="center"><a href="[https://github.com/Watersrc-stack](https://github.com/Watersrc-stack)"><img src="[https://github.com/Watersrc-stack.png](https://github.com/Watersrc-stack.png)" width="80px" alt="Water-s0urce"/><br /><sub><b>Water-s0urce</b></sub></a></td>
-<td align="center"><a href="[https://github.com/Hugo-Fabresse](https://github.com/Hugo-Fabresse)"><img src="[https://github.com/Hugo-Fabresse.png](https://github.com/Hugo-Fabresse.png)" width="80px" alt="Hugo-Fabresse"/><br /><sub><b>Hugo-Fabresse</b></sub></a></td>
-</tr>
-</table>
+<a href="https://github.com/mael-app">
+<img src="https://github.com/mael-app.png" width="60px" alt="mael-app" style="border-radius: 50%;" />
+</a>
+<a href="https://github.com/IamSwan">
+<img src="https://github.com/IamSwan.png" width="60px" alt="IamSwan" style="border-radius: 50%;" />
+</a>
+<a href="https://github.com/SamuelBleau">
+<img src="https://github.com/SamuelBleau.png" width="60px" alt="SamuelBleau" style="border-radius: 50%;" />
+</a>
+<a href="https://github.com/Watersrc-stack">
+<img src="https://github.com/Watersrc-stack.png" width="60px" alt="Water-s0urce" style="border-radius: 50%;" />
+</a>
+<a href="https://github.com/Hugo-Fabresse">
+<img src="https://github.com/Hugo-Fabresse.png" width="60px" alt="Hugo-Fabresse" style="border-radius: 50%;" />
+</a>
 
 ---
 

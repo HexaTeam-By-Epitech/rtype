@@ -6,7 +6,7 @@
 */
 
 #include "LuaSystem.hpp"
-#include "Registry.hpp"
+#include "common/ECS/Registry.hpp"
 
 namespace ecs {
     void LuaSystem::update(Registry &registry, float deltaTime) {

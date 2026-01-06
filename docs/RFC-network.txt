@@ -161,6 +161,34 @@ Server -> Client (UDP): UDP_BIND_ERROR
 - NonceServer prevents replay attacks
 - Session binding ensures UDP packets are associated with authenticated sessions
 
+5.4 Packet format
+
+Packet is serialized before sending
++------------------+
+| Flags (4 bytes)  |  <- Delivery/behavior configuration
++------------------+
+| Vector           |  <- 24 bytes on 64-bit systems
+| declaration (24B)|     12 bytes on 32-bit systems
++------------------+
+| Payload Bytes    |  <- Variable length byte stream
+| (N bytes)        |
++------------------+
+
+Field: Flags
+  Size: 4 octets
+  Description: Bitfield specifying packet transmission properties
+
+Field: Data
+  Size: Variable
+  Description: Application payload as octet stream
+
+Flags can be one of the following:
+ENET_PACKET_FLAG_RELIABLE            = 0x01
+ENET_PACKET_FLAG_UNSEQUENCED         = 0x02
+ENET_PACKET_FLAG_NO_ALLOCATE         = 0x04
+ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT = 0x08
+ENET_PACKET_FLAG_SENT                = 0x100
+
 6. Game Loop Initiation
 ------------------------
 

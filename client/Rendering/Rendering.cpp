@@ -150,3 +150,16 @@ void Rendering::SetClientSidePredictionEnabled(bool enabled) {
         _entityRenderer->setClientSidePredictionEnabled(enabled);
     }
 }
+
+void Rendering::SetReconciliationThreshold(float threshold) {
+    if (_entityRenderer) {
+        _entityRenderer->setReconciliationThreshold(threshold);
+    }
+}
+
+float Rendering::GetReconciliationThreshold() const {
+    if (_entityRenderer) {
+        return _entityRenderer->getReconciliationThreshold();
+    }
+    return 5.0f;  // Default fallback value
+}

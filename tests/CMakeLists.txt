@@ -4,16 +4,27 @@ enable_testing()
 
 find_package(GTest CONFIG REQUIRED)
 
-# Client tests (disabled until Client.hpp is created)
-# add_executable(client_tests
-#     client_tests/ClientTest.cpp
-# )
-# 
-# target_include_directories(client_tests PRIVATE ${CMAKE_SOURCE_DIR}/client/include)
-# 
-# target_link_libraries(client_tests PRIVATE GTest::gtest_main rtype_client_lib)
-# 
-# add_test(NAME client_tests COMMAND client_tests)
+# Client tests - GameLoop diagonal movement normalization and client-side prediction
+add_executable(client_tests
+    client_tests/ClientTest.cpp
+    client_tests/GameLoopTest.cpp
+)
+
+target_include_directories(client_tests PRIVATE 
+    ${CMAKE_SOURCE_DIR}/client
+    ${CMAKE_SOURCE_DIR}/client/Core/GameLoop
+    ${CMAKE_SOURCE_DIR}/client/Rendering
+    ${CMAKE_SOURCE_DIR}/client/Graphics
+    ${CMAKE_SOURCE_DIR}/common
+    ${CMAKE_BINARY_DIR}/common/Serialization
+)
+
+target_link_libraries(client_tests PRIVATE 
+    GTest::gtest_main
+    rtype_client_lib
+)
+
+add_test(NAME client_tests COMMAND client_tests)
 
 # ECS tests
 add_executable(ecs_tests

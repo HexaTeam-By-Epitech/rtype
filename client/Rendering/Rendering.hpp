@@ -249,6 +249,33 @@ class Rendering {
      */
     void SetClientSidePredictionEnabled(bool enabled);
 
+    /**
+     * @brief Set the reconciliation threshold for client-side prediction
+     * @param threshold Distance in pixels before server correction is applied
+     * 
+     * Controls when the client prediction is corrected by the server's authoritative position.
+     * Smaller values = more frequent corrections (tighter sync, more visual jitter)
+     * Larger values = fewer corrections (looser sync, smoother visuals)
+     * 
+     * Recommended ranges based on network latency:
+     * - Low latency (<50ms): 3.0f - 5.0f pixels
+     * - Medium latency (50-150ms): 5.0f - 10.0f pixels (default)
+     * - High latency (>150ms): 10.0f - 20.0f pixels
+     * 
+     * Delegates to EntityRenderer.
+     * 
+     * @note Default is 5.0f pixels
+     */
+    void SetReconciliationThreshold(float threshold);
+
+    /**
+     * @brief Get the current reconciliation threshold
+     * @return Current threshold in pixels
+     * 
+     * Delegates to EntityRenderer.
+     */
+    float GetReconciliationThreshold() const;
+
    private:
     EventBus _eventBus;
     bool _initialized = false;

@@ -176,6 +176,29 @@ class EntityRenderer {
     void setClientSidePredictionEnabled(bool enabled) { _clientSidePredictionEnabled = enabled; }
 
     /**
+     * @brief Set the reconciliation threshold for client-side prediction
+     * @param threshold Distance in pixels before correction is applied
+     * 
+     * Controls when the client prediction is corrected by the server's authoritative position.
+     * Smaller values = more frequent corrections (tighter sync, more visual jitter)
+     * Larger values = fewer corrections (looser sync, smoother visuals)
+     * 
+     * Recommended ranges:
+     * - Low latency (<50ms): 3.0f - 5.0f pixels
+     * - Medium latency (50-150ms): 5.0f - 10.0f pixels
+     * - High latency (>150ms): 10.0f - 20.0f pixels
+     * 
+     * @note Default is 5.0f pixels
+     */
+    void setReconciliationThreshold(float threshold) { _reconciliationThreshold = threshold; }
+
+    /**
+     * @brief Get the current reconciliation threshold
+     * @return Current threshold in pixels
+     */
+    [[nodiscard]] float getReconciliationThreshold() const { return _reconciliationThreshold; }
+
+    /**
          * @brief Update interpolation for all entities
          * @param deltaTime Time elapsed since last frame (in seconds)
          * 

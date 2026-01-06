@@ -54,9 +54,9 @@ void GameLoop::run() {
     _rendering->Initialize(800, 600, "R-Type Client");
 
     // Apply stored entity ID if GameStart was received before run()
-    if (_myEntityId != 0) {
-        LOG_INFO("Applying stored local player entity ID: ", _myEntityId);
-        _rendering->SetMyEntityId(_myEntityId);
+    if (_myEntityId.has_value()) {
+        LOG_INFO("Applying stored local player entity ID: ", _myEntityId.value());
+        _rendering->SetMyEntityId(_myEntityId.value());
     }
 
     _running = true;
@@ -115,6 +115,20 @@ void GameLoop::shutdown() {
 void GameLoop::stop() {
     LOG_INFO("Stop requested...");
     _running = false;
+}
+
+void GameLoop::setReconciliationThreshold(float threshold) {
+    if (_rendering) {
+        _rendering->SetReconciliationThreshold(threshold);
+        LOG_INFO("Reconciliation threshold set to: ", threshold, " pixels");
+    }
+}
+
+float GameLoop::getReconciliationThreshold() const {
+    if (_rendering) {
+        return _rendering->GetReconciliationThreshold();
+    }
+    return 5.0f;  // Default fallback value
 }
 
 void GameLoop::update(float deltaTime) {
@@ -188,7 +202,7 @@ void GameLoop::processInput() {
     }
 
     // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
-    if (_myEntityId != 0 && _clientSidePredictionEnabled && (dx != 0 || dy != 0)) {
+    if (_myEntityId.has_value() && _clientSidePredictionEnabled && (dx != 0 || dy != 0)) {
         float moveX = static_cast<float>(dx);
         float moveY = static_cast<float>(dy);
 
@@ -200,7 +214,7 @@ void GameLoop::processInput() {
         }
 
         // Apply normalized movement
-        _rendering->MoveEntityLocally(_myEntityId, moveX * moveDelta, moveY * moveDelta);
+        _rendering->MoveEntityLocally(_myEntityId.value(), moveX * moveDelta, moveY * moveDelta);
     }
 
     RType::Messages::C2S::PlayerInput input;
@@ -237,35 +251,24 @@ float GameLoop::calculateDeltaTime() {
 void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
     auto messageType = NetworkMessages::getMessageType(event.getData());
 
-    // Debug: Log all received message types
-    static uint32_t msgCounter = 0;
-    if (++msgCounter % 60 == 1) {  // Log occasionally to avoid spam
-        LOG_DEBUG("Received message type: ", static_cast<int>(messageType));
-    }
-
     // Handle GameStart message (sent once when player connects)
     if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
-        LOG_INFO("========================================");
-        LOG_INFO("   GAMESTART MESSAGE RECEIVED!");
-        LOG_INFO("========================================");
+        LOG_INFO("GameStart message received");
         auto payload = NetworkMessages::getPayload(event.getData());
         try {
             auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
 
             LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
 
-            // Load all initial entities
-            // The first entity is always the local player - store its ID
-            bool firstEntity = true;
+            // Load all initial entities and identify the local player
             for (const auto &entity : gameStart.initialState.entities) {
-                if (firstEntity) {
-                    // Store the actual entity ID (from ECS), not the player ID
+                // Check if this entity is the local player by comparing with yourEntityId
+                if (entity.entityId == gameStart.yourEntityId) {
+                    // Store the local player's entity ID
                     _myEntityId = entity.entityId;
-                    LOG_INFO("✓ Stored local player entity ID: ", entity.entityId,
-                             " (playerId was: ", gameStart.yourEntityId, ")");
-                    firstEntity = false;
+                    LOG_INFO("✓ Stored local player entity ID: ", entity.entityId);
 
-                    // Try to set it now if rendering is initialized
+                    // Set it in the renderer if initialized
                     if (_rendering) {
                         _rendering->SetMyEntityId(entity.entityId);
                     }

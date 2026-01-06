@@ -70,5 +70,9 @@ namespace scripting {
         std::string _scriptPath;
         std::unordered_map<std::string, sol::table> _scriptCache;
         ecs::Registry *_registry;
+
+        void initializeBindings();
+        void bindComponents();
+        void bindRegistry();
     };
 }  // namespace scripting

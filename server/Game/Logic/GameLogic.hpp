@@ -14,6 +14,7 @@
 #include <vector>
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
+#include "server/Game/Rules/GameRules.hpp"
 #include "server/Game/StateManager/GameStateManager.hpp"
 
 namespace ecs {
@@ -130,12 +131,11 @@ namespace server {
         std::mutex _inputMutex;   // Protects _pendingInput
         std::mutex _playerMutex;  // Protects _playerMap
 
+        // Game rules
+        GameRules _gameRules;
+
         // Constants
         static constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;  // 60 Hz
-        static constexpr uint32_t PLAYER_SPAWN_X = 50;
-        static constexpr uint32_t PLAYER_SPAWN_Y = 300;
-        static constexpr uint32_t PLAYER_HEALTH = 100;
-        static constexpr uint32_t PLAYER_SPEED = 200;
     };
 
 }  // namespace server

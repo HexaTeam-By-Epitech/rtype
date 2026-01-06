@@ -158,13 +158,14 @@ namespace server {
             // Create new player entity using the wrapper API
             ecs::wrapper::Entity playerEntity =
                 _world->createEntity()
-                    .with(ecs::Transform(PLAYER_SPAWN_X, PLAYER_SPAWN_Y))
-                    .with(ecs::Velocity(0.0f, 0.0f, PLAYER_SPEED))
-                    .with(ecs::Health(PLAYER_HEALTH, PLAYER_HEALTH))
+                    .with(ecs::Transform(_gameRules.getPlayerSpawnX(), _gameRules.getPlayerSpawnY()))
+                    .with(ecs::Velocity(0.0f, 0.0f, _gameRules.getDefaultPlayerSpeed()))
+                    .with(
+                        ecs::Health(_gameRules.getDefaultPlayerHealth(), _gameRules.getDefaultPlayerHealth()))
                     .with(ecs::Player(0, 3, playerId))  // score=0, lives=3
                     .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
-                    .with(ecs::Weapon(10.0f, 0.0f, 0, 25));  // fireRate, cooldown, type, damage
-
+                    .with(ecs::Weapon(_gameRules.getDefaultPlayerFireRate(), 0.0f, 0,
+                                      _gameRules.getDefaultPlayerDamage()));
             ecs::Address entityAddress = playerEntity.getAddress();
 
             // Register player (protected by mutex for thread safety)
@@ -173,8 +174,8 @@ namespace server {
                 _playerMap[playerId] = entityAddress;
             }
 
-            LOG_INFO("✓ Player spawned at (", PLAYER_SPAWN_X, ", ", PLAYER_SPAWN_Y,
-                     ") with entity ID: ", entityAddress);
+            LOG_INFO("✓ Player spawned at (", _gameRules.getPlayerSpawnX(), ", ",
+                     _gameRules.getPlayerSpawnY(), ") with entity ID: ", entityAddress);
 
             return entityAddress;
         } catch (const std::exception &e) {

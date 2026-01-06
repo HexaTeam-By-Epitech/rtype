@@ -150,7 +150,7 @@ namespace server {
             LOG_INFO("Spawning player: ", playerName, " (ID: ", playerId, ")");
 
             // Check if player already exists
-            if (_playerMap.find(playerId) != _playerMap.end()) {
+            if (_playerMap.contains(playerId)) {
                 LOG_ERROR("Player ", playerId, " already exists!");
                 return 0;
             }

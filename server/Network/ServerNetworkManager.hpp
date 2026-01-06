@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <atomic>
 #include <functional>
 #include <memory>
 #include <thread>
@@ -78,23 +77,24 @@ class ServerNetworkManager {
     /**
      * @brief Check if server is running
      */
-    bool isRunning() const { return _running.load(); }
+    bool isRunning() const { return _networkThread.joinable(); }
 
    private:
     /**
      * @brief Network thread main loop
      * 
      * Continuously polls for network events and pushes them to the queue.
+     * 
+     * @param stopToken Token to check for stop requests
      */
-    void networkThreadLoop();
+    void networkThreadLoop(std::stop_token stopToken);
 
     uint16_t _port;
     size_t _maxClients;
     std::unique_ptr<IHost> _host;
 
     // Multi-threading components
-    std::thread _networkThread;
-    std::atomic<bool> _running{false};
+    std::jthread _networkThread;
     ThreadSafeQueue<HostNetworkEvent> _eventQueue;
 
     // Callback

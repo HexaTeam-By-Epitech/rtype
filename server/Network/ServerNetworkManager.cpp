@@ -14,13 +14,11 @@ ServerNetworkManager::ServerNetworkManager(uint16_t port, size_t maxClients)
 
 ServerNetworkManager::~ServerNetworkManager() {
     stop();
+    // jthread automatically requests stop and joins in its destructor
 }
 
 bool ServerNetworkManager::start() {
-    // Atomically check if _running is false and set it to true
-    // This prevents multiple threads from starting the server simultaneously
-    bool expected = false;
-    if (!_running.compare_exchange_strong(expected, true)) {
+    if (_networkThread.joinable()) {
         LOG_ERROR("Server is already running");
         return false;
     }
@@ -32,28 +30,27 @@ bool ServerNetworkManager::start() {
 
         LOG_INFO("Server listening on port ", _port);
 
-        // Start network thread
-        _networkThread = std::thread(&ServerNetworkManager::networkThreadLoop, this);
+        // Start network thread with jthread (automatically passes stop_token)
+        _networkThread = std::jthread([this](std::stop_token stopToken) { networkThreadLoop(stopToken); });
 
         return true;
 
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to start: ", e.what());
-        // Reset _running to false since we failed to start
-        _running.store(false);
         return false;
     }
 }
 
 void ServerNetworkManager::stop() {
-    if (!_running.load()) {
+    if (!_networkThread.joinable()) {
         return;
     }
 
     LOG_INFO("Stopping network thread...");
 
-    _running.store(false);
+    _networkThread.request_stop();
 
+    // jthread joins automatically, but we can join explicitly for synchronous shutdown
     if (_networkThread.joinable()) {
         _networkThread.join();
     }
@@ -63,10 +60,10 @@ void ServerNetworkManager::stop() {
     LOG_INFO("Stopped.");
 }
 
-void ServerNetworkManager::networkThreadLoop() {
+void ServerNetworkManager::networkThreadLoop(std::stop_token stopToken) {
     LOG_INFO("Network thread started");
 
-    while (_running.load()) {
+    while (!stopToken.stop_requested()) {
         if (!_host) {
             server::FrameTimer::sleepMilliseconds(10);
             continue;

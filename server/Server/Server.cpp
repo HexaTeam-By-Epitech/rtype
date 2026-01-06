@@ -277,8 +277,7 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     std::vector<uint8_t> gameStartPayload = gameStart.serialize();
     std::vector<uint8_t> gameStartPacket =
         NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
-    std::unique_ptr<IPacket> packet =
-        createPacket(gameStartPacket, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    std::unique_ptr<IPacket> packet = createPacket(gameStartPacket, std::to_underlying(PacketFlag::RELIABLE));
     event.peer->send(std::move(packet), 0);
 
     LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId, ", Player ID: ", newPlayerId,
@@ -292,11 +291,13 @@ void Server::_handlePlayerInput(HostNetworkEvent &event) {
     C2S::PlayerInput input = C2S::PlayerInput::deserialize(payload);
 
     // Process each action in the input
-    int dx = 0, dy = 0;
+    int dx = 0;
+    int dy = 0;
     bool shoot = false;
 
     for (const auto &action : input.actions) {
-        int actionDx = 0, actionDy = 0;
+        int actionDx = 0;
+        int actionDy = 0;
         bool actionShoot = false;
         _actionToInput(action, actionDx, actionDy, actionShoot);
         dx += actionDx;
@@ -427,7 +428,7 @@ void Server::_broadcastGameState() {
         if (peer) {
             // Create packet copy for each peer (unsequenced = unreliable fast updates)
             std::unique_ptr<IPacket> peerPacket =
-                createPacket(packet, static_cast<uint32_t>(PacketFlag::UNSEQUENCED));
+                createPacket(packet, std::to_underlying(PacketFlag::UNSEQUENCED));
             peer->send(std::move(peerPacket), 0);
         }
     }
@@ -470,20 +471,21 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
 
 void Server::_actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot) {
 
+    using enum RType::Messages::Shared::Action;
     switch (action) {
-        case RType::Messages::Shared::Action::MoveUp:
+        case MoveUp:
             dy = -1;
             break;
-        case RType::Messages::Shared::Action::MoveDown:
+        case MoveDown:
             dy = 1;
             break;
-        case RType::Messages::Shared::Action::MoveLeft:
+        case MoveLeft:
             dx = -1;
             break;
-        case RType::Messages::Shared::Action::MoveRight:
+        case MoveRight:
             dx = 1;
             break;
-        case RType::Messages::Shared::Action::Shoot:
+        case Shoot:
             shoot = true;
             break;
     }

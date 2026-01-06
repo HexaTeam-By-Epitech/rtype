@@ -19,11 +19,10 @@ namespace server {
         }
 
         // Exit current state
-        if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size())) {
-            if (_states[_currentStateID]) {
-                _states[_currentStateID]->exit();
-                LOG_DEBUG("Exited state ", _currentStateID);
-            }
+        if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size()) &&
+            _states[_currentStateID]) {
+            _states[_currentStateID]->exit();
+            LOG_DEBUG("Exited state ", _currentStateID);
         }
 
         _currentStateID = stateID;
@@ -60,10 +59,9 @@ namespace server {
     }
 
     void GameStateManager::update(float dt) {
-        if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size())) {
-            if (_states[_currentStateID]) {
-                _states[_currentStateID]->update(dt);
-            }
+        if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size()) &&
+            _states[_currentStateID]) {
+            _states[_currentStateID]->update(dt);
         }
     }
 

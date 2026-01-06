@@ -49,7 +49,7 @@ namespace server {
     }
 
     bool AuthService::validateToken(const std::string &token) {
-        return _activeTokens.find(token) != _activeTokens.end();
+        return _activeTokens.contains(token);
     }
 
     void AuthService::revokeToken(const std::string &token) {
@@ -60,7 +60,7 @@ namespace server {
     }
 
     bool AuthService::isUserAuthenticated(const std::string &username) const {
-        return _authenticatedUsers.find(username) != _authenticatedUsers.end();
+        return _authenticatedUsers.contains(username);
     }
 
 }  // namespace server

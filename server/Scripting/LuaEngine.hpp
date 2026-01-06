@@ -11,7 +11,7 @@
 #include <sol/sol.hpp>
 #include <string>
 #include <unordered_map>
-#include "common/ECS/Registry.hpp"
+#include "common/ECSWrapper/ECSWorld.hpp"
 
 namespace scripting {
     /**
@@ -30,10 +30,10 @@ namespace scripting {
         explicit LuaEngine(const std::string &scriptPath = "server/Scripting/scripts/");
 
         /**
-         * @brief Set the ECS registry for entity operations.
-         * @param registry Pointer to the game registry
+         * @brief Set the ECS world for entity operations.
+         * @param world Pointer to the ECS world
          */
-        void setRegistry(ecs::Registry *registry);
+        void setWorld(ecs::wrapper::ECSWorld *world);
 
         /**
          * @brief Load and cache a Lua script.
@@ -45,10 +45,10 @@ namespace scripting {
         /**
          * @brief Execute onUpdate function for an entity's script.
          * @param scriptPath Path to the script
-         * @param entityAddress Entity address
+         * @param entity Entity wrapper
          * @param deltaTime Frame delta time
          */
-        void executeUpdate(const std::string &scriptPath, ecs::Address entityAddress, float deltaTime);
+        void executeUpdate(const std::string &scriptPath, ecs::wrapper::Entity entity, float deltaTime);
 
         /**
          * @brief Call a specific Lua function.
@@ -69,10 +69,11 @@ namespace scripting {
         sol::state _lua;
         std::string _scriptPath;
         std::unordered_map<std::string, sol::table> _scriptCache;
-        ecs::Registry *_registry;
+        ecs::wrapper::ECSWorld *_world;
 
         void initializeBindings();
         void bindComponents();
-        void bindRegistry();
+        void bindEntity();
+        void bindWorld();
     };
 }  // namespace scripting

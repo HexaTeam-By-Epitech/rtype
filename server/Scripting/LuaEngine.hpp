@@ -14,6 +14,7 @@
 #include "common/ECSWrapper/ECSWorld.hpp"
 
 namespace scripting {
+
     /**
      * @class LuaEngine
      * @brief Manages Lua state and script execution for the server.
@@ -72,8 +73,7 @@ namespace scripting {
         ecs::wrapper::ECSWorld *_world;
 
         void initializeBindings();
-        void bindComponents();
-        void bindEntity();
-        void bindWorld();
+        //void bindComponents();
     };
+
 }  // namespace scripting

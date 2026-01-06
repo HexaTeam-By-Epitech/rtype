@@ -7,12 +7,11 @@
 
 #include "LuaEngine.hpp"
 #include <filesystem>
+
+#include "LuaBindings/ComponentBindings.hpp"
 #include "LuaBindings/EntityBindings.hpp"
-#include "LuaBindings/RegistryBindings.hpp"
+#include "LuaBindings/WorldBindings.hpp"
 #include "common/ECS/Components/Health.hpp"
-#include "common/ECS/Components/LuaScript.hpp"
-#include "common/ECS/Components/Transform.hpp"
-#include "common/ECS/Components/Velocity.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
 
@@ -30,100 +29,10 @@ namespace scripting {
     }
 
     void LuaEngine::initializeBindings() {
-        bindComponents();
-        bindEntity();
-        bindWorld();
+        bindings::bindComponents(_lua, _world);
+        bindings::bindEntity(_lua, _world);
+        bindings::bindWorld(_lua, _world);
     }
-
-    void LuaEngine::bindComponents() {
-        // Binding Transform
-        auto transform_type = _lua.new_usertype<ecs::Transform>(
-            "Transform", sol::constructors<ecs::Transform(), ecs::Transform(float, float)>());
-        transform_type["x"] = sol::property([](ecs::Transform &t) { return t.getPosition().x; },
-                                            [](ecs::Transform &t, float x) {
-                                                auto pos = t.getPosition();
-                                                t.setPosition(x, pos.y);
-                                            });
-        transform_type["y"] = sol::property([](ecs::Transform &t) { return t.getPosition().y; },
-                                            [](ecs::Transform &t, float y) {
-                                                auto pos = t.getPosition();
-                                                t.setPosition(pos.x, y);
-                                            });
-        transform_type["getRotation"] = &ecs::Transform::getRotation;
-        transform_type["setRotation"] = &ecs::Transform::setRotation;
-
-        // Binding Velocity
-        auto velocity_type = _lua.new_usertype<ecs::Velocity>(
-            "Velocity", sol::constructors<ecs::Velocity(float, float, float)>());
-        velocity_type["dirX"] = sol::property([](ecs::Velocity &v) { return v.getDirection().x; },
-                                              [](ecs::Velocity &v, float x) {
-                                                  auto dir = v.getDirection();
-                                                  v.setDirection(x, dir.y);
-                                              });
-        velocity_type["dirY"] = sol::property([](ecs::Velocity &v) { return v.getDirection().y; },
-                                              [](ecs::Velocity &v, float y) {
-                                                  auto dir = v.getDirection();
-                                                  v.setDirection(dir.x, y);
-                                              });
-        velocity_type["speed"] = sol::property(&ecs::Velocity::getSpeed, &ecs::Velocity::setSpeed);
-
-        // Binding Health
-        auto health_type = _lua.new_usertype<ecs::Health>(
-            "Health", sol::constructors<ecs::Health(int), ecs::Health(int, int)>());
-        health_type["getCurrentHealth"] = &ecs::Health::getCurrentHealth;
-        health_type["getMaxHealth"] = &ecs::Health::getMaxHealth;
-        health_type["setCurrentHealth"] = &ecs::Health::setCurrentHealth;
-        health_type["isInvincible"] = &ecs::Health::isInvincible;
-        health_type["setInvincible"] = &ecs::Health::setInvincible;
-    };
-
-    void LuaEngine::bindEntity() {
-        // Binding Entity wrapper
-        auto entity_type = _lua.new_usertype<ecs::wrapper::Entity>("Entity", sol::no_constructor);
-
-        entity_type["getAddress"] = &ecs::wrapper::Entity::getAddress;
-        entity_type["isValid"] = &ecs::wrapper::Entity::isValid;
-
-        entity_type["getTransform"] = [](ecs::wrapper::Entity &e) -> ecs::Transform & {
-            return e.get<ecs::Transform>();
-        };
-        entity_type["getVelocity"] = [](ecs::wrapper::Entity &e) -> ecs::Velocity & {
-            return e.get<ecs::Velocity>();
-        };
-        entity_type["getHealth"] = [](ecs::wrapper::Entity &e) -> ecs::Health & {
-            return e.get<ecs::Health>();
-        };
-
-        entity_type["hasTransform"] = [](ecs::wrapper::Entity &e) -> bool {
-            return e.has<ecs::Transform>();
-        };
-        entity_type["hasVelocity"] = [](ecs::wrapper::Entity &e) -> bool {
-            return e.has<ecs::Velocity>();
-        };
-        entity_type["hasHealth"] = [](ecs::wrapper::Entity &e) -> bool {
-            return e.has<ecs::Health>();
-        };
-    }
-
-    void LuaEngine::bindWorld() {
-        _lua.set_function("createEntity", [this]() -> ecs::wrapper::Entity {
-            if (!_world) {
-                LOG_ERROR("World not set in LuaEngine");
-                throw std::runtime_error("World not initialized");
-            }
-            return _world->createEntity();
-        });
-
-        _lua.set_function("destroyEntity", [this](ecs::wrapper::Entity entity) {
-            if (!_world) {
-                LOG_ERROR("World not set in LuaEngine");
-                return;
-            }
-            _world->destroyEntity(entity);
-        });
-
-        _lua.set_function("log", [](const std::string &message) { LOG_INFO("[LUA] " + message); });
-    };
 
     bool LuaEngine::loadScript(const std::string &scriptPath) {
         std::string fullPath = _scriptPath + scriptPath;

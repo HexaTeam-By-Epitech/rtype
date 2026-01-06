@@ -175,12 +175,12 @@ Packet is serialized before sending
 +------------------+
 
 Field: Flags
-  Size: 4 octets
+  Size: 4 bytes
   Description: Bitfield specifying packet transmission properties
 
 Field: Data
   Size: Variable
-  Description: Application payload as octet stream
+  Description: Application payload as byte stream
 
 Flags can be one of the following:
 ENET_PACKET_FLAG_RELIABLE            = 0x01

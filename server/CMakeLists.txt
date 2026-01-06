@@ -9,6 +9,7 @@ file(GLOB_RECURSE SERVER_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/Sessions/**/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Network/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Server/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Scripting/*.cpp"
 )
 
 # Add ECS sources from common (needed by GameLogic)
@@ -16,6 +17,10 @@ file(GLOB_RECURSE ECS_SOURCES
     "${CMAKE_SOURCE_DIR}/common/ECS/*.cpp"
     "${CMAKE_SOURCE_DIR}/common/ECSWrapper/*.cpp"
 )
+
+# Find Lua and sol2
+find_package(lua REQUIRED)
+find_package(sol2 REQUIRED)
 
 # Librairie serveur
 if(WIN32)
@@ -41,6 +46,8 @@ target_link_libraries(rtype_server_lib PUBLIC
     rtype_serialization
     rtype_networking
     rtype_threading
+    lua
+    sol2::sol2
 )
 
 # Exécutable serveur

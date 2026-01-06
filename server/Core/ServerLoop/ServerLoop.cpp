@@ -17,10 +17,8 @@ namespace server {
     }
 
     ServerLoop::~ServerLoop() {
-        stop();
-        if (_loopThread.joinable()) {
-            _loopThread.join();
-        }
+        ServerLoop::stop();
+        // jthread joins automatically in its destructor
     }
 
     bool ServerLoop::initialize() {
@@ -49,7 +47,7 @@ namespace server {
     }
 
     void ServerLoop::start() {
-        if (_running.exchange(true)) {
+        if (_loopThread.joinable()) {
             LOG_WARNING("Game loop already running");
             return;  // Already running
         }
@@ -62,19 +60,20 @@ namespace server {
             _skippedFrames = 0;
 
             _frameTimer.reset();
-            _loopThread = std::thread([this] { _gameLoopThread(); });
+            // Create jthread with lambda that captures 'this' and receives stop_token from jthread
+            // The stop_token is automatically passed by jthread when the lambda signature accepts it
+            _loopThread = std::jthread([this](std::stop_token st) { _gameLoopThread(st); });
 
             LOG_INFO("✓ Game loop thread started");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to start game loop: ", e.what());
-            _running.store(false);
             throw;  // Re-throw for proper error handling
         }
     }
 
     void ServerLoop::stop() {
         LOG_INFO("Stopping game loop...");
-        _running.store(false);
+        _loopThread.request_stop();
     }
 
     uint32_t ServerLoop::getCurrentTick() const {
@@ -88,10 +87,10 @@ namespace server {
         return nullptr;
     }
 
-    void ServerLoop::_gameLoopThread() {
+    void ServerLoop::_gameLoopThread(std::stop_token stopToken) {
         LOG_DEBUG("Game loop thread started (TID: ", std::this_thread::get_id(), ")");
 
-        while (_running) {
+        while (!stopToken.stop_requested()) {
             try {
                 // Measure frame time (tick() gets elapsed time and resets in one call)
                 double frameTime = _frameTimer.tick();
@@ -132,7 +131,7 @@ namespace server {
     }
 
     void ServerLoop::_fixedUpdate() {
-        std::lock_guard<std::mutex> lock(_stateMutex);
+        std::scoped_lock lock(_stateMutex);
 
         try {
             _gameLogic->update(FIXED_TIMESTEP, _frameCount);

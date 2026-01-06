@@ -71,7 +71,7 @@ namespace server {
          * @brief Check if game loop is running (IServerLoop implementation)
          * @return true if running
          */
-        bool isRunning() const override { return _running; }
+        bool isRunning() const override { return _loopThread.joinable(); }
 
         /**
          * @brief Get the current server tick
@@ -94,8 +94,9 @@ namespace server {
        private:
         /**
          * @brief Main game loop function (runs in thread)
+         * @param stopToken Token to check for stop requests
          */
-        void _gameLoopThread();
+        void _gameLoopThread(std::stop_token stopToken);
 
         /**
          * @brief Process a single fixed timestep update
@@ -108,8 +109,7 @@ namespace server {
         FrameTimer _frameTimer;
 
         // Threading
-        std::thread _loopThread;
-        std::atomic<bool> _running{false};
+        std::jthread _loopThread;
         std::atomic<bool> _initialized{false};
 
         // Timing

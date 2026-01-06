@@ -170,7 +170,7 @@ namespace server {
 
             // Register player (protected by mutex for thread safety)
             {
-                std::lock_guard<std::mutex> lock(_playerMutex);
+                std::scoped_lock lock(_playerMutex);
                 _playerMap[playerId] = entityAddress;
             }
 
@@ -190,7 +190,7 @@ namespace server {
 
             // Find and remove player from map (protected by mutex)
             {
-                std::lock_guard<std::mutex> lock(_playerMutex);
+                std::scoped_lock lock(_playerMutex);
                 auto it = _playerMap.find(playerId);
                 if (it == _playerMap.end()) {
                     LOG_WARNING("Player ", playerId, " not found");
@@ -211,7 +211,7 @@ namespace server {
     }
 
     void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) {
-        std::lock_guard<std::mutex> lock(_inputMutex);
+        std::scoped_lock lock(_inputMutex);
         _pendingInput.push_back({playerId, inputX, inputY, isShooting});
     }
 
@@ -219,7 +219,7 @@ namespace server {
         // Move pending input to local copy under lock to minimize lock time
         std::vector<PlayerInput> inputCopy;
         {
-            std::lock_guard<std::mutex> lock(_inputMutex);
+            std::scoped_lock lock(_inputMutex);
             inputCopy = std::move(_pendingInput);
             _pendingInput.clear();
         }
@@ -294,18 +294,20 @@ namespace server {
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {
-            std::atomic<int> completed{0};
+            // Use shared_ptr to safely share the atomic counter between threads
+            auto completed = std::make_shared<std::atomic<int>>(0);
             const int total = static_cast<int>(group.size());
 
             for (const auto &systemName : group) {
-                _threadPool->enqueue([this, systemName, deltaTime, &completed]() {
+                // Capture completed by value (shared_ptr copy is thread-safe)
+                _threadPool->enqueue([this, systemName, deltaTime, completed]() {
                     _world->updateSystem(systemName, deltaTime);
-                    completed++;
+                    (*completed)++;
                 });
             }
 
             // Wait for all tasks in this group to complete
-            while (completed < total) {
+            while (*completed < total) {
                 std::this_thread::yield();
             }
         };
@@ -327,21 +329,23 @@ namespace server {
         for (auto &entity : entities) {
             ecs::Health &health = entity.get<ecs::Health>();
 
-            if (health.getCurrentHealth() <= 0) {
-                ecs::Address entityAddress = entity.getAddress();
-                toDestroy.push_back(entityAddress);
+            if (health.getCurrentHealth() > 0) {
+                continue;
+            }
+            ecs::Address entityAddress = entity.getAddress();
+            toDestroy.push_back(entityAddress);
 
-                // Remove from player map if it's a player entity
-                if (entity.has<ecs::Player>()) {
-                    std::lock_guard<std::mutex> lock(_playerMutex);
-                    for (auto it = _playerMap.begin(); it != _playerMap.end();) {
-                        if (it->second == entityAddress) {
-                            LOG_DEBUG("Player entity ", entityAddress, " (ID: ", it->first, ") died");
-                            it = _playerMap.erase(it);
-                        } else {
-                            ++it;
-                        }
-                    }
+            // Remove from player map if it's a player entity
+            if (!entity.has<ecs::Player>()) {
+                continue;
+            }
+            std::scoped_lock lock(_playerMutex);
+            for (auto it = _playerMap.begin(); it != _playerMap.end();) {
+                if (it->second == entityAddress) {
+                    LOG_DEBUG("Player entity ", entityAddress, " (ID: ", it->first, ") died");
+                    it = _playerMap.erase(it);
+                } else {
+                    ++it;
                 }
             }
         }
@@ -364,7 +368,7 @@ namespace server {
 
         bool allPlayersDead = true;
         {
-            std::lock_guard<std::mutex> lock(_playerMutex);
+            std::scoped_lock lock(_playerMutex);
             if (_playerMap.empty()) {
                 return;  // No players, no game over
             }
@@ -372,12 +376,11 @@ namespace server {
             for (const auto &[playerId, entityAddress] : _playerMap) {
                 try {
                     ecs::wrapper::Entity entity = _world->getEntity(entityAddress);
-                    if (entity.has<ecs::Health>()) {
-                        if (entity.get<ecs::Health>().getCurrentHealth() > 0) {
-                            allPlayersDead = false;
-                            break;
-                        }
+                    if (entity.has<ecs::Health>() && entity.get<ecs::Health>().getCurrentHealth() > 0) {
+                        allPlayersDead = false;
+                        break;
                     }
+
                 } catch (...) {
                     // Entity doesn't exist, consider dead
                 }

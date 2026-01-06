@@ -61,29 +61,25 @@ bool Replicator::isConnected() const {
 }
 
 void Replicator::startNetworkThread() {
-    bool expected = false;
-    // Atomically check if _running is false and set it to true
-    // This prevents multiple threads from creating the network thread
-    if (!_running.compare_exchange_strong(expected, true)) {
-        return;  // Thread already running or being started
+    if (_networkThread.joinable()) {
+        return;  // Thread already running
     }
 
-    _networkThread = std::thread(&Replicator::networkThreadLoop, this);
+    // Create jthread with lambda that captures 'this' and receives stop_token from jthread
+    // The stop_token is automatically passed by jthread when the lambda signature accepts it
+    _networkThread = std::jthread([this](std::stop_token st) { networkThreadLoop(st); });
 }
 
 void Replicator::stopNetworkThread() {
-    if (!_running.load()) {
-        return;  // Thread not running
-    }
-
-    _running.store(false);
+    _networkThread.request_stop();
+    // jthread joins automatically in destructor, but we can join explicitly if needed
     if (_networkThread.joinable()) {
         _networkThread.join();
     }
 }
 
-void Replicator::networkThreadLoop() {
-    while (_running.load()) {
+void Replicator::networkThreadLoop(std::stop_token stopToken) {
+    while (!stopToken.stop_requested()) {
         if (!_host) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;

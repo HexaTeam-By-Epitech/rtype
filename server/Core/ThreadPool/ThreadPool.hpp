@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <atomic>
 #include <thread>
 #include "common/Threading/ThreadSafeQueue.hpp"
 #include "server/Core/ThreadPool/IThreadPool.hpp"
@@ -35,13 +34,14 @@ namespace server {
         /**
          * @brief Worker thread main loop
          * Continuously pulls tasks from the queue and executes them
+         * 
+         * @param stopToken Token to check for stop requests
          */
-        void _workerLoop();
+        void _workerLoop(std::stop_token stopToken);
 
         size_t _threadCount;
-        std::vector<std::thread> _workers;
+        std::vector<std::jthread> _workers;
         ThreadSafeQueue<Task> _taskQueue;
-        std::atomic<bool> _running{false};
     };
 
 }  // namespace server

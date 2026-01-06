@@ -66,34 +66,55 @@ debug: setup_hooks vcpkg-bootstrap
 	cmake --build --preset $(PRESET_DEBUG) -j $(NPROCS)
 ifeq ($(DETECTED_OS),Windows)
 	@if not exist "compile_commands.json" mklink "compile_commands.json" "$(BUILD_DIR)\$(PRESET_DEBUG)\compile_commands.json"
+	@if exist "$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe" copy /Y "$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe" "r-type_server.exe" >nul
+	@if exist "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" copy /Y "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" "r-type_client.exe" >nul
 else
 	@ln -sf $(BUILD_DIR)/$(PRESET_DEBUG)/compile_commands.json .
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ./r-type_server; fi
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ./r-type_client; fi
 endif
 
 release: setup_hooks vcpkg-bootstrap
 	cmake --preset $(PRESET_RELEASE)
 	cmake --build --preset $(PRESET_RELEASE) -j $(NPROCS)
+ifeq ($(DETECTED_OS),Windows)
+	@if exist "$(BUILD_DIR)\$(PRESET_RELEASE)\server\Release\r-type_server.exe" copy /Y "$(BUILD_DIR)\$(PRESET_RELEASE)\server\Release\r-type_server.exe" "r-type_server.exe" >nul
+	@if exist "$(BUILD_DIR)\$(PRESET_RELEASE)\client\Release\r-type_client.exe" copy /Y "$(BUILD_DIR)\$(PRESET_RELEASE)\client\Release\r-type_client.exe" "r-type_client.exe" >nul
+else
+	@if [ -f "$(BUILD_DIR)/$(PRESET_RELEASE)/server/r-type_server" ]; then cp "$(BUILD_DIR)/$(PRESET_RELEASE)/server/r-type_server" ./r-type_server; fi
+	@if [ -f "$(BUILD_DIR)/$(PRESET_RELEASE)/client/r-type_client" ]; then cp "$(BUILD_DIR)/$(PRESET_RELEASE)/client/r-type_client" ./r-type_client; fi
+endif
 
 server: setup_hooks vcpkg-bootstrap
 	cmake --preset $(PRESET_DEBUG)
 	cmake --build --preset $(PRESET_DEBUG) --target r-type_server -j $(NPROCS)
+ifeq ($(DETECTED_OS),Windows)
+	@if exist "$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe" copy /Y "$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe" "r-type_server.exe" >nul
+else
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ./r-type_server; fi
+endif
 
 client: setup_hooks vcpkg-bootstrap
 	cmake --preset $(PRESET_DEBUG)
 	cmake --build --preset $(PRESET_DEBUG) --target r-type_client -j $(NPROCS)
+ifeq ($(DETECTED_OS),Windows)
+	@if exist "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" copy /Y "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" "r-type_client.exe" >nul
+else
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ./r-type_client; fi
+endif
 
 run-server: server
 ifeq ($(DETECTED_OS),Windows)
-	@$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe
+	@r-type_server.exe
 else
-	@./$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server
+	@./r-type_server
 endif
 
 run-client: client
 ifeq ($(DETECTED_OS),Windows)
-	@$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe
+	@r-type_client.exe
 else
-	@./$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client
+	@./r-type_client
 endif
 
 tests: debug
@@ -146,12 +167,15 @@ ifeq ($(DETECTED_OS),Windows)
 	@if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)" 2>nul
 	@if exist "coverage" rmdir /S /Q "coverage" 2>nul
 	@del /S /Q *.gcda *.gcno *.gcov 2>nul || echo.
+	@if exist "r-type_server.exe" del /Q "r-type_server.exe" 2>nul
+	@if exist "r-type_client.exe" del /Q "r-type_client.exe" 2>nul
 else
 	@rm -rf $(BUILD_DIR)
 	@rm -rf coverage
 	@find . -name "*.gcda" -delete 2>/dev/null || true
 	@find . -name "*.gcno" -delete 2>/dev/null || true
 	@find . -name "*.gcov" -delete 2>/dev/null || true
+	@rm -f r-type_server r-type_client
 endif
 
 fclean: clean

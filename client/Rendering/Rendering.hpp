@@ -217,6 +217,17 @@ class Rendering {
      */
     bool IsKeyDown(int key) const;
 
+    /**
+     * @brief Update interpolation for all entities
+     * @param deltaTime Time elapsed since last frame (in seconds)
+     * 
+     * Should be called every frame before Render() to smoothly interpolate
+     * entity positions between network updates.
+     * 
+     * Delegates to EntityRenderer.
+     */
+    void UpdateInterpolation(float deltaTime);
+
    private:
     EventBus _eventBus;
     bool _initialized = false;

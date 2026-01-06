@@ -10,6 +10,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -17,6 +18,10 @@
 #include "../ECS/Systems/ISystem.hpp"
 
 namespace ecs::wrapper {
+
+    enum class SystemId { Movement, Collision, Health, Spawn, AI, Projectile, Boundary, Weapon };
+
+    std::string_view systemIdToName(SystemId id);
 
     /**
      * @class Entity
@@ -220,6 +225,17 @@ namespace ecs::wrapper {
         void createSystem(const std::string &name, Args &&...args);
 
         /**
+         * @brief Create and register a system using an enum identifier.
+         *
+         * @tparam T System type (must inherit from ISystem)
+         * @tparam Args Constructor argument types
+         * @param id Enum identifier for the system
+         * @param args Constructor arguments
+         */
+        template <typename T, typename... Args>
+        void createSystem(SystemId id, Args &&...args);
+
+        /**
          * @brief Get a registered system by name.
          * 
          * @tparam T System type
@@ -230,11 +246,28 @@ namespace ecs::wrapper {
         T *getSystem(const std::string &name);
 
         /**
+         * @brief Get a registered system by enum identifier.
+         *
+         * @tparam T System type
+         * @param id Enum identifier for the system
+         * @return T* Pointer to the system, or nullptr if not found
+         */
+        template <typename T>
+        T *getSystem(SystemId id);
+
+        /**
          * @brief Remove a system from the world.
          * 
          * @param name The system's name
          */
         void removeSystem(const std::string &name);
+
+        /**
+         * @brief Remove a system using its enum identifier.
+         *
+         * @param id Enum identifier for the system
+         */
+        void removeSystem(SystemId id);
 
         /**
          * @brief Update all registered systems.
@@ -253,6 +286,15 @@ namespace ecs::wrapper {
          * @return bool true if system was found and updated, false otherwise
          */
         bool updateSystem(const std::string &name, float deltaTime);
+
+        /**
+         * @brief Update a specific system by enum identifier.
+         *
+         * @param id Enum identifier for the system
+         * @param deltaTime Time elapsed since last update (in seconds)
+         * @return bool true if system was found and updated, false otherwise
+         */
+        bool updateSystem(SystemId id, float deltaTime);
 
         // Direct Registry Access (for advanced usage)
 

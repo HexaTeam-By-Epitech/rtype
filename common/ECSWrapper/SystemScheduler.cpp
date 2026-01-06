@@ -7,8 +7,7 @@
 
 #include "SystemScheduler.hpp"
 #include <algorithm>
-#include <iostream>
-#include <stdexcept>
+#include "../Logger/Logger.hpp"
 
 namespace ecs::wrapper {
 
@@ -29,8 +28,8 @@ namespace ecs::wrapper {
     SystemScheduler &SystemScheduler::runBefore(const std::string &systemName,
                                                 const std::string &afterSystemName) {
         if (_systemInfos.find(systemName) == _systemInfos.end()) {
-            throw std::runtime_error("SystemScheduler::runBefore - System '" + systemName +
-                                     "' not registered");
+            LOG_ERROR("SystemScheduler::runBefore - System '", systemName, "' not registered");
+            return *this;
         }
 
         _systemInfos[systemName].runBefore.push_back(afterSystemName);
@@ -42,8 +41,8 @@ namespace ecs::wrapper {
     SystemScheduler &SystemScheduler::runAfter(const std::string &systemName,
                                                const std::string &beforeSystemName) {
         if (_systemInfos.find(systemName) == _systemInfos.end()) {
-            throw std::runtime_error("SystemScheduler::runAfter - System '" + systemName +
-                                     "' not registered");
+            LOG_ERROR("SystemScheduler::runAfter - System '", systemName, "' not registered");
+            return *this;
         }
 
         _systemInfos[systemName].runAfter.push_back(beforeSystemName);
@@ -165,8 +164,7 @@ namespace ecs::wrapper {
 
         // Check for cycles
         if (sorted.size() != _executionOrder.size()) {
-            std::cerr << "[SystemScheduler] Warning: Circular dependencies detected. "
-                      << "Some systems may not execute in optimal order." << std::endl;
+            LOG_WARNING("Circular dependencies detected. Some systems may not execute in optimal order.");
         } else {
             _executionOrder = sorted;
         }

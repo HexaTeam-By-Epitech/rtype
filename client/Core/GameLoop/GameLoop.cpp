@@ -111,11 +111,17 @@ void GameLoop::stop() {
 }
 
 void GameLoop::update(float deltaTime) {
-    // TODO: Variable timestep logic
+    // Variable timestep logic
     // - Interpolation between fixed steps
     // - Camera updates
     // - Animations
-    (void)deltaTime;
+
+    // Update entity interpolation for smooth rendering
+    // Only update if rendering system is fully initialized
+    if (_rendering && _rendering->IsWindowOpen()) {
+        _rendering->UpdateInterpolation(deltaTime);
+    }
+
     if (_rendering && _rendering->WindowShouldClose()) {
         shutdown();
     }

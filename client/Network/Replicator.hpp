@@ -203,9 +203,11 @@ class Replicator {
      * @brief Network thread main loop
      * 
      * Continuously polls the network for incoming packets.
-     * Runs in a dedicated thread until _running is set to false.
+     * Runs in a dedicated thread until stop is requested.
+     * 
+     * @param stopToken Token to check for stop requests
      */
-    void networkThreadLoop();
+    void networkThreadLoop(std::stop_token stopToken);
 
     /**
      * @brief Handle an incoming packet from the network
@@ -228,8 +230,7 @@ class Replicator {
     IPeer *_serverPeer = nullptr;
 
     // Multi-threading components
-    std::thread _networkThread;                       ///< Dedicated network thread
-    std::atomic<bool> _running{false};                ///< Network thread running flag
+    std::jthread _networkThread;                      ///< Dedicated network thread
     ThreadSafeQueue<NetworkEvent> _incomingMessages;  ///< Queue for messages from network thread
 };
 

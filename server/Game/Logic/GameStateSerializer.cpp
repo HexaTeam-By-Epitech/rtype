@@ -45,8 +45,12 @@ namespace server {
     GameStateSnapshot GameStateSerializer::createDeltaUpdate(
         ecs::wrapper::ECSWorld &world, uint32_t serverTick,
         [[maybe_unused]] const GameStateSnapshot &lastSnapshot) {
-        // For now, just return a full snapshot
-        // TODO: Optimize by comparing with lastSnapshot and only including changed entities
+        // Currently returns full snapshot for simplicity and reliability
+        // Delta compression would compare with lastSnapshot and only include:
+        // - New entities (not in lastSnapshot)
+        // - Entities with changed position/health/state
+        // - Destroyed entities (in lastSnapshot but not in current world)
+        // This optimization can be implemented when network bandwidth becomes a bottleneck
         return createFullSnapshot(world, serverTick);
     }
 

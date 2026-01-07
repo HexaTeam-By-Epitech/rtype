@@ -11,10 +11,10 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-#include "server/Core/Clock/Clock.hpp"
+#include "common/ECSWrapper/ECSWorld.hpp"
+#include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Core/ServerLoop/IServerLoop.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
-#include "server/Game/World/IWorld.hpp"
 
 namespace server {
 
@@ -41,11 +41,9 @@ namespace server {
         /**
          * @brief Constructor
          * @param gameLogic The game logic to run
-         * @param eventBus Event bus for inter-system communication
-         * @param world Game world wrapping ECS registry
+         * @param eventBus Event bus for publishing game events
          */
-        explicit ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus,
-                            std::shared_ptr<IWorld> world);
+        explicit ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus);
 
         /**
          * @brief Destructor - ensures clean shutdown
@@ -73,7 +71,7 @@ namespace server {
          * @brief Check if game loop is running (IServerLoop implementation)
          * @return true if running
          */
-        bool isRunning() const override { return _running; }
+        bool isRunning() const override { return _loopThread.joinable(); }
 
         /**
          * @brief Get the current server tick
@@ -88,36 +86,30 @@ namespace server {
         IGameLogic &getGameLogic() { return *_gameLogic; }
 
         /**
-         * @brief Get reference to game world
-         * @return IWorld pointer (may be null)
+         * @brief Get reference to ECS world from GameLogic
+         * @return ECSWorld shared pointer
          */
-        IWorld *getWorld() { return _world.get(); }
+        std::shared_ptr<ecs::wrapper::ECSWorld> getECSWorld();
 
        private:
         /**
          * @brief Main game loop function (runs in thread)
+         * @param stopToken Token to check for stop requests
          */
-        void _gameLoopThread();
+        void _gameLoopThread(std::stop_token stopToken);
 
         /**
          * @brief Process a single fixed timestep update
          */
         void _fixedUpdate();
 
-        /**
-         * @brief Synchronize game state to clients (hooks into network manager)
-         */
-        void _synchronizeState();
-
         // Game logic
         std::unique_ptr<IGameLogic> _gameLogic;
         std::shared_ptr<EventBus> _eventBus;
-        std::shared_ptr<IWorld> _world;
-        Clock _clock;
+        FrameTimer _frameTimer;
 
         // Threading
-        std::thread _loopThread;
-        std::atomic<bool> _running{false};
+        std::jthread _loopThread;
         std::atomic<bool> _initialized{false};
 
         // Timing

@@ -6,22 +6,19 @@
 */
 
 #include "server/Core/ServerLoop/ServerLoop.hpp"
-#include <chrono>
 #include "common/Logger/Logger.hpp"
+#include "server/Game/Logic/GameLogic.hpp"
 
 namespace server {
 
-    ServerLoop::ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus,
-                           std::shared_ptr<IWorld> world)
-        : _gameLogic(std::move(gameLogic)), _eventBus(eventBus), _world(world) {
-        LOG_DEBUG("ServerLoop created with EventBus and World");
+    ServerLoop::ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus)
+        : _gameLogic(std::move(gameLogic)), _eventBus(eventBus) {
+        LOG_DEBUG("ServerLoop created with EventBus");
     }
 
     ServerLoop::~ServerLoop() {
-        stop();
-        if (_loopThread.joinable()) {
-            _loopThread.join();
-        }
+        ServerLoop::stop();
+        // jthread joins automatically in its destructor
     }
 
     bool ServerLoop::initialize() {
@@ -40,9 +37,6 @@ namespace server {
 
             LOG_INFO("✓ Game logic initialized");
             LOG_INFO("✓ Fixed timestep: ", FIXED_TIMESTEP, "s (60 Hz)");
-            if (_world) {
-                LOG_INFO("✓ World attached");
-            }
 
             return true;
         } catch (const std::exception &e) {
@@ -53,7 +47,7 @@ namespace server {
     }
 
     void ServerLoop::start() {
-        if (_running.exchange(true)) {
+        if (_loopThread.joinable()) {
             LOG_WARNING("Game loop already running");
             return;  // Already running
         }
@@ -65,34 +59,41 @@ namespace server {
             _frameCount = 0;
             _skippedFrames = 0;
 
-            _clock.getFrameTimer().reset();
-            _loopThread = std::thread([this] { _gameLoopThread(); });
+            _frameTimer.reset();
+            // Create jthread with lambda that captures 'this' and receives stop_token from jthread
+            // The stop_token is automatically passed by jthread when the lambda signature accepts it
+            _loopThread = std::jthread([this](std::stop_token st) { _gameLoopThread(st); });
 
             LOG_INFO("✓ Game loop thread started");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to start game loop: ", e.what());
-            _running.store(false);
             throw;  // Re-throw for proper error handling
         }
     }
 
     void ServerLoop::stop() {
         LOG_INFO("Stopping game loop...");
-        _running.store(false);
+        _loopThread.request_stop();
     }
 
     uint32_t ServerLoop::getCurrentTick() const {
-        return _gameLogic->getCurrentTick();
+        return _frameCount;
     }
 
-    void ServerLoop::_gameLoopThread() {
+    std::shared_ptr<ecs::wrapper::ECSWorld> ServerLoop::getECSWorld() {
+        if (auto *gameLogic = dynamic_cast<server::GameLogic *>(_gameLogic.get())) {
+            return gameLogic->getECSWorld();
+        }
+        return nullptr;
+    }
+
+    void ServerLoop::_gameLoopThread(std::stop_token stopToken) {
         LOG_DEBUG("Game loop thread started (TID: ", std::this_thread::get_id(), ")");
 
-        while (_running) {
+        while (!stopToken.stop_requested()) {
             try {
-                // Measure frame time
-                double frameTime = _clock.getFrameTimer().elapsed();
-                _clock.getFrameTimer().reset();
+                // Measure frame time (tick() gets elapsed time and resets in one call)
+                double frameTime = _frameTimer.tick();
 
                 // Cap frame time to prevent spiral of death (lag recovery)
                 if (frameTime > 0.1) {
@@ -117,11 +118,8 @@ namespace server {
                     _skippedFrames++;
                 }
 
-                // Synchronize state to network
-                _synchronizeState();
-
                 // Yield to prevent busy-loop
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                FrameTimer::sleepMilliseconds(1);
 
             } catch (const std::exception &e) {
                 LOG_ERROR("Thread exception: ", e.what());
@@ -133,26 +131,12 @@ namespace server {
     }
 
     void ServerLoop::_fixedUpdate() {
-        std::lock_guard<std::mutex> lock(_stateMutex);
+        std::scoped_lock lock(_stateMutex);
 
         try {
-            _gameLogic->update(FIXED_TIMESTEP);
+            _gameLogic->update(FIXED_TIMESTEP, _frameCount);
         } catch (const std::exception &e) {
             LOG_ERROR("Game logic update failed: ", e.what());
-        }
-    }
-
-    void ServerLoop::_synchronizeState() {
-        std::lock_guard<std::mutex> lock(_stateMutex);
-
-        try {
-            // TODO: Create game state snapshot and queue for network broadcast
-            // This is called after fixed updates to send state to clients
-            // - Generate delta from previous tick (only changed entities)
-            // - Serialize entity states (position, health, animation frame, etc.)
-            // - Queue packets for network manager to send
-        } catch (const std::exception &e) {
-            LOG_ERROR("State synchronization failed: ", e.what());
         }
     }
 

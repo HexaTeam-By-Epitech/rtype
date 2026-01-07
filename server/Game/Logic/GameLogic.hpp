@@ -14,6 +14,7 @@
 #include <vector>
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
+#include "server/Game/Rules/GameRules.hpp"
 #include "server/Game/StateManager/GameStateManager.hpp"
 
 namespace ecs {
@@ -22,6 +23,7 @@ namespace ecs {
 
 namespace server {
     class ThreadPool;
+    class EventBus;
 
     /**
      * @class GameLogic
@@ -52,19 +54,20 @@ namespace server {
          * @brief Constructor
          * @param world Optional ECSWorld instance (creates one if not provided)
          * @param threadPool Optional ThreadPool for parallel system execution
+         * @param eventBus Optional EventBus for publishing game events
          */
         explicit GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world = nullptr,
-                           std::shared_ptr<ThreadPool> threadPool = nullptr);
+                           std::shared_ptr<ThreadPool> threadPool = nullptr,
+                           std::shared_ptr<EventBus> eventBus = nullptr);
         ~GameLogic() override;
 
         bool initialize() override;
-        void update(float deltaTime) override;
+        void update(float deltaTime, uint32_t currentTick) override;
         uint32_t spawnPlayer(uint32_t playerId, const std::string &playerName) override;
         void despawnPlayer(uint32_t playerId) override;
         void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) override;
 
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
-        uint32_t getCurrentTick() const override { return _currentTick; }
         bool isGameActive() const override { return _gameActive; }
         void resetGame() override;
 
@@ -98,9 +101,9 @@ namespace server {
         void _cleanupDeadEntities();
 
         /**
-         * @brief Create a game state snapshot
+         * @brief Check if all players are dead and trigger game over
          */
-        void _createSnapshot();
+        void _checkGameOverCondition();
 
         // ECS World
         std::shared_ptr<ecs::wrapper::ECSWorld> _world;
@@ -118,9 +121,9 @@ namespace server {
         std::vector<PlayerInput> _pendingInput;
 
         // Game state
-        uint32_t _currentTick{0};
         std::shared_ptr<GameStateManager> _stateManager;
         std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
+        std::shared_ptr<EventBus> _eventBus;      // Optional: for publishing events
         bool _gameActive{false};
         std::atomic<bool> _initialized{false};
 
@@ -128,12 +131,11 @@ namespace server {
         std::mutex _inputMutex;   // Protects _pendingInput
         std::mutex _playerMutex;  // Protects _playerMap
 
+        // Game rules
+        GameRules _gameRules;
+
         // Constants
         static constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;  // 60 Hz
-        static constexpr uint32_t PLAYER_SPAWN_X = 50;
-        static constexpr uint32_t PLAYER_SPAWN_Y = 300;
-        static constexpr uint32_t PLAYER_HEALTH = 100;
-        static constexpr uint32_t PLAYER_SPEED = 200;
     };
 
 }  // namespace server

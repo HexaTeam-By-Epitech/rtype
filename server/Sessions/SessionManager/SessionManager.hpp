@@ -14,6 +14,10 @@
 
 namespace server {
 
+    /**
+     * @class SessionManager
+     * @brief Manages active player sessions with authentication support
+     */
     class SessionManager : public ISessionManager {
        public:
         SessionManager();

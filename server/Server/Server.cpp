@@ -257,7 +257,7 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
 
     // Create GameStart message with current tick
     S2C::GameStart gameStart;
-    gameStart.yourEntityId = newPlayerId;
+    gameStart.yourEntityId = entityId;  // Send entity ID, not player ID!
     gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
 
     // Get ECS world to read spawned player entity

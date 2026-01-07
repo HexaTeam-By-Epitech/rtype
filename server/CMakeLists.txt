@@ -53,11 +53,16 @@ target_link_libraries(rtype_server_lib PUBLIC
 # Exécutable serveur
 add_executable(r-type_server
         main.cpp
-        Scripting/LuaBindings/EntityBindings.cpp
-        Scripting/LuaBindings/WorldBindings.cpp
-        Scripting/LuaBindings/WorldBindings.hpp
+        Scripting/LuaBindings/ComponentBindingHelper.cpp
+        Scripting/LuaBindings/ComponentBindingHelper.hpp
         Scripting/LuaBindings/ComponentBindings.cpp
         Scripting/LuaBindings/ComponentBindings.hpp
+        Scripting/LuaBindings/EntityBindings.cpp
+        Scripting/LuaBindings/EntityBindings.hpp
+        Scripting/LuaBindings/WorldBindings.cpp
+        Scripting/LuaBindings/WorldBindings.hpp
+        Scripting/LuaBindings/ServerGameBindings.cpp
+        Scripting/LuaBindings/ServerGameBindings.hpp
 )
 
 # Link avec la lib

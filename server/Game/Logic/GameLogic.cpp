@@ -27,6 +27,8 @@
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
+#include "server/Scripting/LuaEngine.hpp"
+#include "server/Scripting/LuaSystemAdapter.hpp"
 
 namespace server {
 
@@ -52,6 +54,11 @@ namespace server {
             LOG_DEBUG("GameLogic: Running in single-threaded mode");
         }
 
+        // Initialize Lua scripting engine
+        _luaEngine = std::make_unique<scripting::LuaEngine>("server/Scripting/scripts/");
+        _luaEngine->setWorld(_world.get());
+        LOG_INFO("GameLogic: Lua scripting engine initialized");
+
         LOG_DEBUG("GameLogic: GameStateManager initialized");
     }
 
@@ -74,6 +81,11 @@ namespace server {
             _world->createSystem<ecs::ProjectileSystem>(ecs::wrapper::SystemId::Projectile);
             _world->createSystem<ecs::BoundarySystem>(ecs::wrapper::SystemId::Boundary);
             _world->createSystem<ecs::WeaponSystem>(ecs::wrapper::SystemId::Weapon);
+
+            // Create and register Lua system (executes after other systems)
+            auto luaSystem = std::make_unique<scripting::LuaSystemAdapter>(_luaEngine.get(), _world.get());
+            _world->registerSystem("Lua", std::move(luaSystem));
+            LOG_INFO("✓ Lua system registered");
 
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
 

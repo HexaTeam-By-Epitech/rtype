@@ -277,7 +277,7 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     std::vector<uint8_t> gameStartPayload = gameStart.serialize();
     std::vector<uint8_t> gameStartPacket =
         NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
-    std::unique_ptr<IPacket> packet = createPacket(gameStartPacket, std::to_underlying(PacketFlag::RELIABLE));
+    std::unique_ptr<IPacket> packet = createPacket(gameStartPacket, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(packet), 0);
 
     LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId, ", Player ID: ", newPlayerId,
@@ -428,7 +428,7 @@ void Server::_broadcastGameState() {
         if (peer) {
             // Create packet copy for each peer (unsequenced = unreliable fast updates)
             std::unique_ptr<IPacket> peerPacket =
-                createPacket(packet, std::to_underlying(PacketFlag::UNSEQUENCED));
+                createPacket(packet, static_cast<int>(PacketFlag::UNSEQUENCED));
             peer->send(std::move(peerPacket), 0);
         }
     }

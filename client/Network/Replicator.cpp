@@ -97,6 +97,24 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
         switch (event.type) {
             case NetworkEventType::RECEIVE:
                 if (event.packet) {
+                    // Update latency from ENet's built-in RTT calculation
+                    if (_serverPeer) {
+                        uint32_t enetRtt = _serverPeer->getRoundTripTime();
+
+                        // Apply exponential moving average for smoother ping display
+                        float smoothed = _smoothedLatency.load();
+                        if (smoothed == 0.0f) {
+                            // First measurement
+                            smoothed = static_cast<float>(enetRtt);
+                        } else {
+                            // Smooth with previous values (30% new, 70% old)
+                            smoothed = smoothed * (1.0f - PING_SMOOTHING_FACTOR) +
+                                       static_cast<float>(enetRtt) * PING_SMOOTHING_FACTOR;
+                        }
+                        _smoothedLatency.store(smoothed);
+                        _latency.store(static_cast<uint32_t>(smoothed));
+                    }
+
                     // Decode message type and push to queue
                     auto messageType = NetworkMessages::getMessageType(event.packet->getData());
                     std::string messageContent;
@@ -211,7 +229,7 @@ bool Replicator::sendConnectRequest(const std::string &playerName) {
 }
 
 uint32_t Replicator::getLatency() const {
-    return _latency;
+    return _latency.load();
 }
 
 uint32_t Replicator::getPacketLoss() const {

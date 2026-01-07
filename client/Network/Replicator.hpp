@@ -223,7 +223,7 @@ class Replicator {
     std::string _serverHost;
     uint16_t _serverPort = 0;
 
-    uint32_t _latency = 0;
+    std::atomic<uint32_t> _latency{0};
     uint32_t _packetLoss = 0;
 
     std::unique_ptr<IHost> _host;
@@ -232,6 +232,10 @@ class Replicator {
     // Multi-threading components
     std::jthread _networkThread;                      ///< Dedicated network thread
     ThreadSafeQueue<NetworkEvent> _incomingMessages;  ///< Queue for messages from network thread
+
+    // Smoothed ping calculation (exponential moving average)
+    static constexpr float PING_SMOOTHING_FACTOR = 0.3f;  // 30% new, 70% old
+    std::atomic<float> _smoothedLatency{0.0f};
 };
 
 #endif

@@ -36,6 +36,18 @@ namespace server {
         void setPlayerId(uint32_t playerId);
 
         /**
+         * @brief Check if this session is a spectator
+         * @return bool true if spectator, false if player
+         */
+        [[nodiscard]] bool isSpectator() const;
+
+        /**
+         * @brief Set spectator mode for this session
+         * @param spectator true for spectator, false for player
+         */
+        void setSpectator(bool spectator);
+
+        /**
          * @brief Set session active state
          * @param active true to activate, false to deactivate
          */
@@ -45,6 +57,7 @@ namespace server {
         std::string _id;
         uint32_t _playerId;
         bool _active{false};
+        bool _isSpectator{false};
     };
 
 }  // namespace server

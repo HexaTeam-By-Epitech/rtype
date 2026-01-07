@@ -226,6 +226,11 @@ void GameLoop::processInput() {
         _rendering->MoveEntityLocally(_myEntityId.value(), moveX * moveDelta, moveY * moveDelta);
     }
 
+    // Don't send inputs if in spectator mode (avoid unnecessary network traffic)
+    if (_replicator->isSpectator()) {
+        return;
+    }
+
     RType::Messages::C2S::PlayerInput input;
     input._sequenceId = _inputSequenceId++;
     input.actions = actions;

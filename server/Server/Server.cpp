@@ -186,32 +186,48 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
         return;
     }
 
-    LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
+    const bool isSpectator = session->isSpectator();
 
-    // Despawn player from game
-    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-    gameLogic.despawnPlayer(playerId);
+    if (isSpectator) {
+        LOG_INFO("Spectator ", playerId, " disconnected");
+    } else {
+        LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
 
-    // Remove from room
-    _defaultRoom->leave(playerId);
+        // Despawn player from game
+        server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
+        gameLogic.despawnPlayer(playerId);
 
-    // Publish PLAYER_LEFT event
-    _eventBus->publish(server::PlayerLeftEvent(playerId));
+        // Remove from room
+        _defaultRoom->leave(playerId);
 
-    // Clean up session and mappings
+        // Publish PLAYER_LEFT event
+        _eventBus->publish(server::PlayerLeftEvent(playerId));
+    }
+
+    // Clean up session and mappings (for both players and spectators)
     _sessionManager->removeSession(sessionId);
     _sessionPeers.erase(sessionId);
     _peerToSession.erase(it);
 
-    LOG_INFO("✓ Player ", playerId, " fully cleaned up");
+    if (isSpectator) {
+        LOG_INFO("✓ Spectator ", playerId, " fully cleaned up");
+    } else {
+        LOG_INFO("✓ Player ", playerId, " fully cleaned up");
+    }
 }
 
 void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
-    // Parse connect request
-    std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData());
-    LOG_INFO("Player '", playerName, "' requesting to join...");
+    // Parse connect request with spectator flag
+    bool isSpectator = false;
+    std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData(), isSpectator);
+
+    if (isSpectator) {
+        LOG_INFO("Spectator '", playerName, "' requesting to join...");
+    } else {
+        LOG_INFO("Player '", playerName, "' requesting to join...");
+    }
 
     // TODO: For production, add real authentication here:
     // if (!_sessionManager->getAuthService()->authenticate(username, password)) {
@@ -219,58 +235,70 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     //     return;
     // }
 
-    // Assign unique player ID
+    // Assign unique player ID (even for spectators, for tracking purposes)
     static std::atomic<uint32_t> nextPlayerId{1000};
     uint32_t newPlayerId = nextPlayerId.fetch_add(1);
 
-    // Create session for player
+    // Create session
     std::string sessionId = "session_" + std::to_string(newPlayerId);
     std::shared_ptr<server::Session> session = _sessionManager->createSession(sessionId);
     session->setPlayerId(newPlayerId);
+    session->setSpectator(isSpectator);
     session->setActive(true);
 
     // Track session to peer mapping for network communication
     _sessionPeers[sessionId] = event.peer;
     _peerToSession[event.peer] = sessionId;
 
-    // Add player to matchmaking queue instead of joining room directly
-    // This allows for proper match creation when enough players join
-    _roomManager->addPlayerToMatchmaking(newPlayerId);
-    LOG_INFO("Player ", newPlayerId, " added to matchmaking queue");
+    uint32_t entityId = 0;
 
-    // For now, also join default room for immediate play (skip matchmaking for dev)
-    // In production, remove this and only join after match is found
-    _defaultRoom->join(newPlayerId);
-    LOG_INFO("Player ", newPlayerId, " joined room 'default' (dev mode)");
+    if (!isSpectator) {
+        // Only add real players to matchmaking and spawn entities
+        // Add player to matchmaking queue instead of joining room directly
+        // This allows for proper match creation when enough players join
+        _roomManager->addPlayerToMatchmaking(newPlayerId);
+        LOG_INFO("Player ", newPlayerId, " added to matchmaking queue");
 
-    // Publish PLAYER_JOINED event to EventBus
-    _eventBus->publish(server::PlayerJoinedEvent(newPlayerId, playerName));
+        // For now, also join default room for immediate play (skip matchmaking for dev)
+        // In production, remove this and only join after match is found
+        _defaultRoom->join(newPlayerId);
+        LOG_INFO("Player ", newPlayerId, " joined room 'default' (dev mode)");
 
-    // Spawn player in game logic
-    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-    uint32_t entityId = gameLogic.spawnPlayer(newPlayerId, playerName);
+        // Publish PLAYER_JOINED event to EventBus
+        _eventBus->publish(server::PlayerJoinedEvent(newPlayerId, playerName));
 
-    if (entityId == 0) {
-        LOG_ERROR("Failed to spawn player ", newPlayerId);
-        return;
+        // Spawn player in game logic
+        server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
+        entityId = gameLogic.spawnPlayer(newPlayerId, playerName);
+
+        if (entityId == 0) {
+            LOG_ERROR("Failed to spawn player ", newPlayerId);
+            return;
+        }
+    } else {
+        LOG_INFO("Spectator ", newPlayerId, " connected (no entity spawned)");
     }
 
     // Create GameStart message with current tick
     S2C::GameStart gameStart;
-    gameStart.yourEntityId = entityId;  // Send entity ID, not player ID!
+    gameStart.yourEntityId = entityId;  // 0 for spectators
     gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
 
-    // Get ECS world to read spawned player entity
+    // Get ECS world to read entities
     std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = _gameLoop->getECSWorld();
     if (ecsWorld) {
-        // Serialize the spawned player entity
-        ecs::wrapper::Entity entity = ecsWorld->getEntity(entityId);
-        if (entity.has<ecs::Transform>()) {
-            S2C::EntityState entityState = _serializeEntity(entity);
-            gameStart.initialState.entities.push_back(entityState);
-            LOG_DEBUG("Added player entity ", entityId, " to GameStart at pos (", entityState.position.x,
-                      ", ", entityState.position.y, ")");
+        if (!isSpectator && entityId != 0) {
+            // For players, serialize their spawned entity
+            ecs::wrapper::Entity entity = ecsWorld->getEntity(entityId);
+            if (entity.has<ecs::Transform>()) {
+                S2C::EntityState entityState = _serializeEntity(entity);
+                gameStart.initialState.entities.push_back(entityState);
+                LOG_DEBUG("Added player entity ", entityId, " to GameStart at pos (", entityState.position.x,
+                          ", ", entityState.position.y, ")");
+            }
         }
+        // TODO: For spectators, you may want to send all existing entities in the game
+        // This can be added later when needed
     }
 
     // Serialize and send
@@ -280,12 +308,35 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     std::unique_ptr<IPacket> packet = createPacket(gameStartPacket, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(packet), 0);
 
-    LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId, ", Player ID: ", newPlayerId,
-             ", Entity: ", entityId, ")");
+    if (isSpectator) {
+        LOG_INFO("✓ Spectator '", playerName, "' joined (Session: ", sessionId, ", ID: ", newPlayerId, ")");
+    } else {
+        LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId, ", Player ID: ", newPlayerId,
+                 ", Entity: ", entityId, ")");
+    }
 }
 
 void Server::_handlePlayerInput(HostNetworkEvent &event) {
     using namespace RType::Messages;
+
+    // Find session from peer using fast reverse lookup
+    auto it = _peerToSession.find(event.peer);
+    if (it == _peerToSession.end()) {
+        return;
+    }
+
+    std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
+    if (!session) {
+        return;
+    }
+
+    // Ignore inputs from spectators
+    if (session->isSpectator()) {
+        LOG_DEBUG("Ignoring input from spectator ", session->getPlayerId());
+        return;
+    }
+
+    uint32_t playerId = session->getPlayerId();
 
     std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
     C2S::PlayerInput input = C2S::PlayerInput::deserialize(payload);
@@ -303,16 +354,6 @@ void Server::_handlePlayerInput(HostNetworkEvent &event) {
         dx += actionDx;
         dy += actionDy;
         shoot = shoot || actionShoot;
-    }
-
-    // Find session from peer using fast reverse lookup
-    uint32_t playerId = 0;
-    auto it = _peerToSession.find(event.peer);
-    if (it != _peerToSession.end()) {
-        std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
-        if (session) {
-            playerId = session->getPlayerId();
-        }
     }
 
     if (playerId != 0) {

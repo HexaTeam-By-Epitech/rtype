@@ -75,10 +75,11 @@ class Replicator {
      * Initializes the Replicator and subscribes to necessary events.
      * 
      * @param eventBus Event bus for inter-component communication
+     * @param isSpectator Whether this client is in spectator mode (read-only)
      * 
-     * @note The Replicator automatically subscribes to InputEvent
+     * @note The Replicator automatically subscribes to InputEvent (unless spectator)
      */
-    explicit Replicator(EventBus &eventBus);
+    explicit Replicator(EventBus &eventBus, bool isSpectator = false);
 
     /**
      * @brief Destructor
@@ -191,6 +192,13 @@ class Replicator {
     uint32_t getPacketLoss() const;
 
     /**
+     * @brief Check if in spectator mode
+     * 
+     * @return true if this client is a spectator (read-only)
+     */
+    bool isSpectator() const;
+
+    /**
      * @brief Send connect request to server with player name.
      * 
      * @param playerName The player's name/pseudo
@@ -220,6 +228,7 @@ class Replicator {
 
     EventBus &_eventBus;
     std::atomic<bool> _connected{false};
+    bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;
 

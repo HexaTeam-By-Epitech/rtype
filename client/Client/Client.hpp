@@ -42,8 +42,9 @@ class Client {
      * @param playerName Player's name
      * @param host Server hostname/IP
      * @param port Server port
+     * @param isSpectator Whether this client is in spectator mode
      */
-    Client(const std::string &playerName, const std::string &host, uint16_t port);
+    Client(const std::string &playerName, const std::string &host, uint16_t port, bool isSpectator = false);
 
     /**
      * @brief Destructor - clean shutdown
@@ -76,6 +77,7 @@ class Client {
     std::string _playerName;
     std::string _serverHost;
     uint16_t _serverPort;
+    bool _isSpectator;
 
     std::unique_ptr<EventBus> _eventBus;
     std::unique_ptr<Replicator> _replicator;

@@ -12,6 +12,7 @@
 #include "GameOver.hpp"
 #include "GameStart.hpp"
 #include "GameState.hpp"
+#include "GamerulePacket.hpp"
 
 /**
  * @namespace RType::Messages::S2C

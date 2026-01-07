@@ -24,12 +24,12 @@ namespace server {
         ~GameRules() = default;
 
         // Player Configuration
-        constexpr uint32_t getDefaultPlayerHealth() { return 100; }
-        constexpr uint32_t getDefaultPlayerSpeed() { return 200; }
-        constexpr uint32_t getPlayerSpawnX() { return 50; }
-        constexpr uint32_t getPlayerSpawnY() { return 300; }
-        constexpr float getDefaultPlayerFireRate() { return 10.0f; }
-        constexpr uint32_t getDefaultPlayerDamage() { return 25; }
+        constexpr uint32_t getDefaultPlayerHealth() const { return 100; }
+        constexpr uint32_t getDefaultPlayerSpeed() const { return 500; }
+        constexpr uint32_t getPlayerSpawnX() const { return 50; }
+        constexpr uint32_t getPlayerSpawnY() const { return 300; }
+        constexpr float getDefaultPlayerFireRate() const { return 10.0f; }
+        constexpr uint32_t getDefaultPlayerDamage() const { return 25; }
     };
 
 }  // namespace server

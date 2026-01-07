@@ -47,6 +47,7 @@ namespace NetworkMessages {
      * - S2C_GAME_START -> RType::Messages::S2C::GameStart
      * - S2C_ENTITY_DESTROYED -> RType::Messages::S2C::EntityDestroyed
      * - S2C_GAME_OVER -> RType::Messages::S2C::GameOver
+     * - S2C_GAMERULE_UPDATE -> RType::Messages::S2C::GamerulePacket
      */
     enum class MessageType : uint16_t {
         // Connection messages (0x00xx)
@@ -66,6 +67,7 @@ namespace NetworkMessages {
         S2C_GAME_START = 0x0201,
         S2C_ENTITY_DESTROYED = 0x0202,
         S2C_GAME_OVER = 0x0203,
+        S2C_GAMERULE_UPDATE = 0x0204,
 
         UNKNOWN = 0xFFFF
     };

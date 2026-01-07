@@ -83,6 +83,12 @@ namespace server {
          */
         std::shared_ptr<GameStateManager> getStateManager() { return _stateManager; }
 
+        /**
+         * @brief Get the game rules
+         * @return Reference to game rules
+         */
+        const GameRules &getGameRules() const override { return _gameRules; }
+
        private:
         /**
          * @brief Execute all systems in order

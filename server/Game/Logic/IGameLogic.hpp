@@ -95,6 +95,12 @@ namespace server {
          * @brief Reset game state (new game)
          */
         virtual void resetGame() = 0;
+
+        /**
+         * @brief Get the game rules
+         * @return Reference to game rules
+         */
+        virtual const class GameRules &getGameRules() const = 0;
     };
 
 }  // namespace server

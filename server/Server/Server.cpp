@@ -30,6 +30,7 @@
 #include "server/Events/GameEvent/PlayerLeftEvent.hpp"
 #include "server/Game/Logic/GameLogic.hpp"
 #include "server/Game/Logic/GameStateSerializer.hpp"
+#include "server/Game/Rules/GameruleBroadcaster.hpp"
 #include "server/Sessions/Session/Session.hpp"
 
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
@@ -307,6 +308,11 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
         NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
     std::unique_ptr<IPacket> packet = createPacket(gameStartPacket, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(packet), 0);
+
+    // Send gamerules to client for synchronization
+    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
+    const server::GameRules &gameRules = gameLogic.getGameRules();
+    server::GameruleBroadcaster::sendAllGamerules(event.peer, gameRules);
 
     if (isSpectator) {
         LOG_INFO("✓ Spectator '", playerName, "' joined (Session: ", sessionId, ", ID: ", newPlayerId, ")");

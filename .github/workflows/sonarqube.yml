@@ -47,12 +47,50 @@ jobs:
           cd vcpkg
           ./bootstrap-vcpkg.sh
       
-      - name: Configure CMake
-        run: cmake --preset linux-debug
+      - name: Install lcov and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov python3 python3-pip
+          pip3 install lcov_cobertura
+      
+      - name: Configure CMake with Coverage
+        run: cmake --preset linux-debug -DENABLE_COVERAGE=ON
       
       - name: Run Build Wrapper
         run: |
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build --preset linux-debug
+      
+      - name: Run Tests with Coverage
+        run: |
+          ctest --preset linux-debug --output-on-failure
+        continue-on-error: true
+      
+      - name: Generate Coverage Reports
+        run: |
+          mkdir -p coverage
+          lcov --capture --directory build/linux-debug --output-file coverage/coverage.info \
+            --ignore-errors inconsistent,mismatch,unused \
+            --rc lcov_branch_coverage=1
+          lcov --remove coverage/coverage.info \
+            '/usr/*' \
+            '*/vcpkg_installed/*' \
+            '*/vcpkg/*' \
+            '*/tests/*' \
+            '*/build/*' \
+            '*/.cache/*' \
+            -o coverage/coverage.info \
+            --ignore-errors inconsistent,unused \
+            --rc lcov_branch_coverage=1
+          python3 -m lcov_cobertura coverage/coverage.info -o coverage/coverage.xml
+          echo "Coverage report generated"
+          lcov --list coverage/coverage.info --ignore-errors inconsistent
+      
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: coverage/
+          retention-days: 7
       
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6

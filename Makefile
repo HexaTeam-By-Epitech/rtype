@@ -154,6 +154,25 @@ else
 	@lcov --remove coverage/coverage.info '/usr/*' '*/vcpkg_installed/*' '*/vcpkg/*' '*/tests/*' '*/build/*' '*/.cache/*' '*/IHost.hpp' -o coverage/coverage.info \
 		--ignore-errors inconsistent,inconsistent \
 		--ignore-errors unused,unused
+	@echo "Generating XML coverage report for SonarQube..."
+	@if command -v genhtml > /dev/null; then \
+		genhtml coverage/coverage.info --output-directory coverage/html; \
+		echo "HTML coverage report generated in coverage/html"; \
+	fi
+	@if command -v python3 > /dev/null; then \
+		if python3 -c "import lcov_cobertura" 2>/dev/null; then \
+			python3 -m lcov_cobertura coverage/coverage.info -o coverage/coverage.xml; \
+			echo "XML coverage report generated: coverage/coverage.xml"; \
+		else \
+			echo "WARNING: lcov_cobertura not installed. Install with: pip3 install lcov_cobertura"; \
+			echo "Generating gcov files for SonarQube..."; \
+			find $(BUILD_DIR)/$(PRESET_DEBUG) -name "*.gcda" -exec gcov -pb {} + > /dev/null 2>&1; \
+			mkdir -p coverage/gcov; \
+			find . -name "*.gcov" -exec mv {} coverage/gcov/ \; 2>/dev/null || true; \
+		fi \
+	else \
+		echo "WARNING: Python3 not found. Cannot generate XML coverage report."; \
+	fi
 	@echo ""
 	@echo "========================================"
 	@echo "Coverage Report"

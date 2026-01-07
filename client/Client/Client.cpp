@@ -7,8 +7,8 @@
 
 #include "Client.hpp"
 
-Client::Client(const std::string &playerName, const std::string &host, uint16_t port)
-    : _playerName(playerName), _serverHost(host), _serverPort(port) {}
+Client::Client(const std::string &playerName, const std::string &host, uint16_t port, bool isSpectator)
+    : _playerName(playerName), _serverHost(host), _serverPort(port), _isSpectator(isSpectator) {}
 
 Client::~Client() {
     LOG_INFO("Client shutting down...");
@@ -39,8 +39,8 @@ bool Client::initialize() {
     LOG_INFO("✓ EventBus created");
 
     // Create Replicator
-    _replicator = std::make_unique<Replicator>(*_eventBus);
-    LOG_INFO("✓ Replicator created");
+    _replicator = std::make_unique<Replicator>(*_eventBus, _isSpectator);
+    LOG_INFO("✓ Replicator created", _isSpectator ? " (Spectator mode)" : "");
 
     // Create GameLoop (pass shared EventBus and Replicator)
     _gameLoop = std::make_unique<GameLoop>(*_eventBus, *_replicator);
@@ -108,8 +108,11 @@ void Client::run() {
     LOG_INFO("Starting game loop...");
     LOG_INFO("========================================");
     LOG_INFO("R-Type client running!");
-    LOG_INFO("Player: ", _playerName);
+    LOG_INFO(_isSpectator ? "Spectator: " : "Player: ", _playerName);
     LOG_INFO("Server: ", _serverHost, ":", _serverPort);
+    if (_isSpectator) {
+        LOG_INFO("Mode: SPECTATOR (read-only)");
+    }
     LOG_INFO("========================================");
 
     // Connect to server BEFORE starting game loop

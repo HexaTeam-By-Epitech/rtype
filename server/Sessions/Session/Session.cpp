@@ -27,6 +27,14 @@ namespace server {
         _playerId = playerId;
     }
 
+    bool Session::isSpectator() const {
+        return _isSpectator;
+    }
+
+    void Session::setSpectator(bool spectator) {
+        _isSpectator = spectator;
+    }
+
     void Session::setActive(bool active) {
         _active = active;
     }

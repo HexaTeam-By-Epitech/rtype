@@ -141,6 +141,15 @@ void GameLoop::update(float deltaTime) {
     // Only update if rendering system is fully initialized
     if (_rendering && _rendering->IsWindowOpen()) {
         _rendering->UpdateInterpolation(deltaTime);
+
+        // Update ping display from Replicator (throttled to once per second internally)
+        if (_replicator != nullptr) {
+            const uint32_t currentPing = _replicator->getLatency();
+            _rendering->SetPing(currentPing);
+        }
+
+        // Update ping display timer (throttles updates to 1 second)
+        _rendering->UpdatePingTimer(deltaTime);
     }
 
     if (_rendering && _rendering->WindowShouldClose()) {

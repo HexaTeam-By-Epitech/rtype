@@ -9,7 +9,7 @@
 
 Replicator::Replicator(EventBus &eventBus, bool isSpectator)
     : _eventBus(eventBus), _isSpectator(isSpectator), _host(createClientHost()) {}
-w Replicator::~Replicator() {
+Replicator::~Replicator() {
     disconnect();
 }
 

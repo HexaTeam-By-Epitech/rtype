@@ -51,7 +51,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lcov python3 python3-pip
-          pip3 install lcov_cobertura
+          pip3 install --break-system-packages lcov_cobertura
       
       - name: Configure CMake with Coverage
         run: cmake --preset linux-debug -DENABLE_COVERAGE=ON

@@ -228,6 +228,54 @@ class Rendering {
      */
     void UpdateInterpolation(float deltaTime);
 
+    /**
+     * @brief Move an entity locally (client-side prediction)
+     * @param entityId Entity ID to move
+     * @param deltaX Movement in X direction (pixels)
+     * @param deltaY Movement in Y direction (pixels)
+     * 
+     * Used for local player prediction: moves the entity immediately
+     * without waiting for server confirmation.
+     * 
+     * Provides instant (0ms) input response for the local player.
+     */
+    void MoveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
+
+    /**
+     * @brief Enable or disable client-side prediction for local player
+     * @param enabled true to enable prediction (instant movement), false for interpolation
+     * 
+     * Delegates to EntityRenderer. Should be called when toggling prediction mode.
+     */
+    void SetClientSidePredictionEnabled(bool enabled);
+
+    /**
+     * @brief Set the reconciliation threshold for client-side prediction
+     * @param threshold Distance in pixels before server correction is applied
+     * 
+     * Controls when the client prediction is corrected by the server's authoritative position.
+     * Smaller values = more frequent corrections (tighter sync, more visual jitter)
+     * Larger values = fewer corrections (looser sync, smoother visuals)
+     * 
+     * Recommended ranges based on network latency:
+     * - Low latency (<50ms): 3.0f - 5.0f pixels
+     * - Medium latency (50-150ms): 5.0f - 10.0f pixels (default)
+     * - High latency (>150ms): 10.0f - 20.0f pixels
+     * 
+     * Delegates to EntityRenderer.
+     * 
+     * @note Default is 5.0f pixels
+     */
+    void SetReconciliationThreshold(float threshold);
+
+    /**
+     * @brief Get the current reconciliation threshold
+     * @return Current threshold in pixels
+     * 
+     * Delegates to EntityRenderer.
+     */
+    float GetReconciliationThreshold() const;
+
    private:
     EventBus _eventBus;
     bool _initialized = false;

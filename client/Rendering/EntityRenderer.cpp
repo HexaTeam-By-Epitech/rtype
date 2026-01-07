@@ -6,6 +6,7 @@
 */
 
 #include "EntityRenderer.hpp"
+#include <cmath>
 #include "../common/Logger/Logger.hpp"
 
 EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(graphics) {
@@ -16,17 +17,32 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                                   int health) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {
-        if (_interpolationEnabled) {
-            // Save current display position as previous
+        bool isLocalPlayer = (id == _myEntityId);
+
+        if (isLocalPlayer && _clientSidePredictionEnabled) {
+            // CLIENT-SIDE PREDICTION for local player
+            float errorX = x - it->second.x;
+            float errorY = y - it->second.y;
+            float errorDistance = std::sqrt(errorX * errorX + errorY * errorY);
+
+            // If server correction is significant, reconcile smoothly
+            if (errorDistance > _reconciliationThreshold) {
+                it->second.prevX = it->second.x;
+                it->second.prevY = it->second.y;
+                it->second.targetX = x;
+                it->second.targetY = y;
+                it->second.interpolationFactor = 0.0f;
+            }
+            // Otherwise keep predicted position (no snap)
+        } else if (_interpolationEnabled) {
+            // INTERPOLATION for other entities
             it->second.prevX = it->second.x;
             it->second.prevY = it->second.y;
-            // Set new target position from server
             it->second.targetX = x;
             it->second.targetY = y;
-            // Reset interpolation to start from beginning
             it->second.interpolationFactor = 0.0f;
         } else {
-            // No interpolation - snap directly to new position
+            // No interpolation - snap directly
             it->second.x = x;
             it->second.y = y;
         }
@@ -67,6 +83,7 @@ void EntityRenderer::clearAllEntities() {
 void EntityRenderer::setMyEntityId(uint32_t id) {
     _myEntityId = id;
     LOG_INFO("Local player entity ID set to: ", id);
+    LOG_DEBUG("_myEntityId is now: ", _myEntityId);
 }
 
 void EntityRenderer::render() {
@@ -120,10 +137,10 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
         renderHealthBar(entity.x, entity.y - 30.0f, entity.health, 100);
     }
 
-    // Optional: Draw player name or ID
     if (isLocalPlayer) {
-        _graphics.DrawText(-1, "YOU", static_cast<int>(entity.x - 15), static_cast<int>(entity.y - 50), 12,
-                           0xFFFFFFFF);
+        // Show local player indicator
+        _graphics.DrawText(-1, "YOU", static_cast<int>(entity.x - 15), static_cast<int>(entity.y - 50), 14,
+                           0x9DFF73AA);
     }
 }
 
@@ -234,6 +251,22 @@ void EntityRenderer::updateInterpolation(float deltaTime) {
         entity.x = lerp(entity.prevX, entity.targetX, entity.interpolationFactor);
         entity.y = lerp(entity.prevY, entity.targetY, entity.interpolationFactor);
     }
+}
+
+void EntityRenderer::moveEntityLocally(uint32_t entityId, float deltaX, float deltaY) {
+    auto it = _entities.find(entityId);
+    if (it == _entities.end()) {
+        return;  // Entity doesn't exist
+    }
+
+    // Apply movement immediately
+    it->second.x += deltaX;
+    it->second.y += deltaY;
+
+    // Update target to match (no interpolation for predicted movement)
+    it->second.targetX = it->second.x;
+    it->second.targetY = it->second.y;
+    it->second.interpolationFactor = 1.0f;  // Already at target
 }
 
 float EntityRenderer::lerp(float start, float end, float t) const {

@@ -84,6 +84,7 @@ jobs:
             --inconclusive \
             --std=c++23 \
             --xml --xml-version=2 \
+            --suppressions-list=.cppcheck-suppressions \
             --suppress=missingIncludeSystem \
             --suppress=checkersReport \
             --suppress=unmatchedSuppression \
@@ -94,6 +95,7 @@ jobs:
             --enable=warning,style,performance,portability \
             --inconclusive \
             --std=c++23 \
+            --suppressions-list=.cppcheck-suppressions \
             --suppress=missingIncludeSystem \
             --suppress=checkersReport \
             --suppress=unmatchedSuppression \
@@ -105,6 +107,8 @@ jobs:
           WARNING_COUNT=$(grep -c 'severity="warning"' cppcheck.xml || true)
           
           if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "::error::Found $ERROR_COUNT cppcheck errors in project code (excluding third-party libraries)"
+            grep 'severity="error"' cppcheck.xml | grep -v 'vcpkg_installed' || true
             head -20 cppcheck.txt
             exit 1
           fi

@@ -138,3 +138,28 @@ void Rendering::UpdateInterpolation(float deltaTime) {
         _entityRenderer->updateInterpolation(deltaTime);
     }
 }
+
+void Rendering::MoveEntityLocally(uint32_t entityId, float deltaX, float deltaY) {
+    if (_entityRenderer) {
+        _entityRenderer->moveEntityLocally(entityId, deltaX, deltaY);
+    }
+}
+
+void Rendering::SetClientSidePredictionEnabled(bool enabled) {
+    if (_entityRenderer) {
+        _entityRenderer->setClientSidePredictionEnabled(enabled);
+    }
+}
+
+void Rendering::SetReconciliationThreshold(float threshold) {
+    if (_entityRenderer) {
+        _entityRenderer->setReconciliationThreshold(threshold);
+    }
+}
+
+float Rendering::GetReconciliationThreshold() const {
+    if (_entityRenderer) {
+        return _entityRenderer->getReconciliationThreshold();
+    }
+    return 5.0f;  // Default fallback value
+}

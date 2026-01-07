@@ -221,7 +221,8 @@ namespace server {
         {
             std::scoped_lock lock(_inputMutex);
             inputCopy = std::move(_pendingInput);
-            _pendingInput.clear();
+            // _pendingInput is now in a valid but unspecified state (typically empty)
+            // No need to explicitly clear after move
         }
 
         for (const auto &input : inputCopy) {

@@ -11,6 +11,10 @@
 #include "common/ECS/Registry.hpp"
 #include "common/ECS/Systems/ISystem.hpp"
 
+namespace scripting {
+    class LuaEngine;  // Forward declaration
+}
+
 namespace ecs {
     /**
      * @class LuaSystem
@@ -25,9 +29,11 @@ namespace ecs {
     class LuaSystem : public ISystem {
        public:
         /**
-         * @brief Default constructor.
+         * @brief Constructor with LuaEngine.
+         * 
+         * @param luaEngine Pointer to the Lua engine (must not be nullptr)
          */
-        LuaSystem() = default;
+        explicit LuaSystem(scripting::LuaEngine *luaEngine);
 
         /**
          * @brief Default destructor.
@@ -51,5 +57,8 @@ namespace ecs {
          * @return ComponentMask requiring LuaScript component
          */
         ComponentMask getComponentMask() const override;
+
+       private:
+        scripting::LuaEngine *_luaEngine;  ///< Pointer to the Lua engine
     };
 }  // namespace ecs

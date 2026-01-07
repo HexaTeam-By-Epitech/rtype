@@ -10,6 +10,7 @@
 
 #include "LuaBindings/ComponentBindings.hpp"
 #include "LuaBindings/EntityBindings.hpp"
+#include "LuaBindings/ServerGameBindings.hpp"
 #include "LuaBindings/WorldBindings.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
@@ -43,9 +44,16 @@ namespace scripting {
     }
 
     void LuaEngine::initializeBindings() {
-        bindings::bindComponents(_lua, _world);
-        bindings::bindEntity(_lua, _world);
+        // Enregistrer tous les composants et obtenir le helper
+        auto &helper = bindings::bindComponents(_lua, _world);
+
+        // Utiliser le helper pour g\u00e9nérer automatiquement les bindings Entity
+        bindings::bindEntity(_lua, _world, helper);
+
+        // Bindings globaux (world, createEntity, etc.)
         bindings::bindWorld(_lua, _world);
+        // Bindings spécifiques au serveur (spawn, random, etc.)
+        bindings::bindServerGame(_lua, _world);
     }
 
     bool LuaEngine::loadScript(const std::string &scriptPath) {

@@ -88,20 +88,15 @@ namespace scripting {
 
         if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
             if (!loadScript(scriptPath)) {
-                LOG_ERROR("Failed to load script: " + scriptPath);
                 return;
             }
         }
 
         try {
-            // onUpdate is in globals, not in the script table
             sol::optional<sol::function> onUpdate = _lua["onUpdate"];
 
             if (onUpdate) {
-                LOG_DEBUG("Calling onUpdate for script: " + scriptPath +
-                          " with deltaTime: " + std::to_string(deltaTime));
                 onUpdate.value()(entity, deltaTime);
-                LOG_DEBUG("onUpdate completed successfully");
             } else {
                 LOG_WARNING("Script " + scriptPath + " has no onUpdate function");
             }

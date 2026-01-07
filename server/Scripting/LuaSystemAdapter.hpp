@@ -8,22 +8,20 @@
 #pragma once
 
 #include "LuaEngine.hpp"
-#include "common/ECS/Systems/LuaSystem/LuaSystem.hpp"
+#include "common/ECS/Components/LuaScript.hpp"
+#include "common/ECS/Systems/ISystem.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 
 namespace scripting {
     /**
      * @class LuaSystemAdapter
-     * @brief Adapter that bridges the ECS system and the Lua engine.
+     * @brief ECS system that executes Lua scripts for entities.
      * 
-     * This adapter provides a clean integration between:
-     * - common/ECS/Systems/LuaSystem (generic ECS system)
-     * - server/Scripting/LuaEngine (server-side Lua execution)
-     * 
-     * It wraps a LuaEngine and exposes it in a way that LuaSystem can use,
-     * converting between Registry-based addresses and ECSWorld-based entities.
+     * Integrates the Lua scripting engine with the ECS system,
+     * executing scripts attached to entities via LuaScript components.
+     * Requires LuaScript component.
      */
-    class LuaSystemAdapter : public ecs::LuaSystem {
+    class LuaSystemAdapter : public ecs::ISystem {
        public:
         /**
          * @brief Constructor with LuaEngine and ECSWorld.
@@ -36,12 +34,19 @@ namespace scripting {
         /**
          * @brief Updates all Lua scripts for entities.
          * 
-         * Overrides the base LuaSystem to properly integrate with LuaEngine.
+         * Overrides the base ISystem to properly integrate with LuaEngine.
          * 
          * @param registry Reference to the ECS registry
          * @param deltaTime Time elapsed since last frame
          */
         void update(ecs::Registry &registry, float deltaTime) override;
+
+        /**
+         * @brief Get component mask for this system.
+         * 
+         * @return ComponentMask requiring LuaScript component
+         */
+        ecs::ComponentMask getComponentMask() const override;
 
        private:
         LuaEngine *_luaEngine;

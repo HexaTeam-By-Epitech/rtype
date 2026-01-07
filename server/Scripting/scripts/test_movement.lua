@@ -12,31 +12,11 @@ local radius = 150
 local speed = 2.0  -- Vitesse de rotation (radians/sec)
 
 function onUpdate(entity, deltaTime)
-    log("LUA: onUpdate called with deltaTime = " .. deltaTime)
-    
-    -- Check if entity is valid
-    log("LUA: Checking if entity is valid...")
-    local isValid = entity:isValid()
-    log("LUA: entity:isValid() = " .. tostring(isValid))
-    
-    if not isValid then
-        log("Entity is invalid!")
+    if not entity:isValid() or not entity:hasTransform() then
         return
     end
     
-    -- Get Transform component
-    log("LUA: Checking if entity has Transform...")
-    local hasTransform = entity:hasTransform()
-    log("LUA: entity:hasTransform() = " .. tostring(hasTransform))
-    
-    if not hasTransform then
-        log("Entity has no Transform component")
-        return
-    end
-    
-    log("LUA: Getting Transform component...")
     local transform = entity:getTransform()
-    log("LUA: Got transform at (" .. transform.x .. ", " .. transform.y .. ")")
     
     -- Increment time
     time = time + deltaTime

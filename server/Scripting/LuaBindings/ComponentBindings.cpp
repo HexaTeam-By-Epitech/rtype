@@ -17,7 +17,7 @@ namespace scripting::bindings {
     static ComponentBindingHelper g_componentHelper;
 
     ComponentBindingHelper &bindComponents(sol::state &lua, ecs::wrapper::ECSWorld *world) {
-        (void)world;  // Parameter reserved for future use
+        (void)world;  // Parameter may be reserved for future use
 
         // Bind Transform to Lua
         auto transform_type = lua.new_usertype<ecs::Transform>(

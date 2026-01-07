@@ -12,7 +12,7 @@
 namespace scripting {
 
     LuaSystemAdapter::LuaSystemAdapter(LuaEngine *luaEngine, ecs::wrapper::ECSWorld *world)
-        : ecs::LuaSystem(luaEngine), _luaEngine(luaEngine), _world(world) {
+        : _luaEngine(luaEngine), _world(world) {
         if (!luaEngine) {
             LOG_ERROR("LuaSystemAdapter: LuaEngine is null");
         }
@@ -40,10 +40,7 @@ namespace scripting {
                 auto &luaScript = registry.getComponent<ecs::LuaScript>(entityAddr);
                 const std::string &scriptPath = luaScript.getScriptPath();
 
-                LOG_DEBUG("Processing entity " + std::to_string(entityAddr) + " with script: " + scriptPath);
-
                 if (scriptPath.empty()) {
-                    LOG_WARNING("Entity " + std::to_string(entityAddr) + " has empty script path");
                     continue;
                 }
 
@@ -56,8 +53,6 @@ namespace scripting {
                     continue;
                 }
 
-                LOG_DEBUG("Entity " + std::to_string(entityAddr) + " is valid, executing script");
-
                 // Execute the script via LuaEngine
                 _luaEngine->executeUpdate(scriptPath, entity, deltaTime);
 
@@ -66,6 +61,10 @@ namespace scripting {
                           std::string(e.what()));
             }
         }
+    }
+
+    ecs::ComponentMask LuaSystemAdapter::getComponentMask() const {
+        return (1ULL << ecs::getComponentType<ecs::LuaScript>());
     }
 
 }  // namespace scripting

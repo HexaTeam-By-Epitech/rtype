@@ -80,7 +80,7 @@ namespace server {
 
         std::unordered_map<std::string, std::shared_ptr<Room>> _rooms;
         std::shared_ptr<MatchmakingService> _matchmaking;
-        mutable std::mutex _mutex;  // Thread safety for room management
+        mutable std::mutex _mutex;
     };
 
 }  // namespace server

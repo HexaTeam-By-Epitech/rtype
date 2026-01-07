@@ -38,13 +38,13 @@ namespace server {
 
         bool join(uint32_t playerId) override;
         bool leave(uint32_t playerId) override;
-        std::string getId() const override;
-        std::string getName() const override;
-        RoomState getState() const override;
+        std::string getId() const override { return _id; };
+        std::string getName() const override { return _name; };
+        RoomState getState() const override { return _state; };
         void setState(RoomState state) override;
         size_t getPlayerCount() const override;
-        size_t getMaxPlayers() const override;
-        bool isFull() const override;
+        size_t getMaxPlayers() const override { return _maxPlayers; };
+        bool isFull() const override { return _players.size() >= _maxPlayers; };
         std::vector<uint32_t> getPlayers() const override;
         bool hasPlayer(uint32_t playerId) const override;
         RoomInfo getInfo() const override;
@@ -59,25 +59,33 @@ namespace server {
          * @brief Get the game logic instance
          * @return Shared pointer to game logic (may be nullptr)
          */
-        std::shared_ptr<IGameLogic> getGameLogic() const;
+        std::shared_ptr<IGameLogic> getGameLogic() const { return _gameLogic; };
 
         /**
          * @brief Get the server loop instance for this room
          * @return Pointer to ServerLoop (may be nullptr)
          */
-        ServerLoop *getServerLoop() const;
+        ServerLoop *getServerLoop() const { return _gameLoop.get(); };
 
         /**
          * @brief Get the event bus for this room
          * @return Shared pointer to EventBus
          */
-        std::shared_ptr<EventBus> getEventBus() const;
+        std::shared_ptr<EventBus> getEventBus() const { return _eventBus; };
 
         /**
          * @brief Start the game for this room
          * @return true if game started successfully
          */
         bool startGame();
+
+        /**
+         * @brief Request to start the game (initiates countdown)
+         * 
+         * This is called when the host requests to start the game.
+         * It transitions the room to STARTING state and begins the countdown.
+         */
+        void requestStartGame();
 
         /**
          * @brief Update the room state (called by server loop)
@@ -95,7 +103,7 @@ namespace server {
          * @brief Get the host player ID
          * @return Host player ID (0 if no host)
          */
-        uint32_t getHost() const;
+        uint32_t getHost() const { return _hostPlayerId; };
 
         /**
          * @brief Check if GameStart has been sent

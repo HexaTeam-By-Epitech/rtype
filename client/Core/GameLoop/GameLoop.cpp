@@ -83,6 +83,13 @@ void GameLoop::run() {
         }
     });
 
+    _menuUI->setOnStartGame([this]() {
+        LOG_INFO("User wants to start the game");
+        if (_replicator) {
+            _replicator->sendStartGame();
+        }
+    });
+
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {
         LOG_INFO("Applying stored local player entity ID: ", _myEntityId.value());
@@ -222,6 +229,11 @@ void GameLoop::render() {
 
 void GameLoop::processInput() {
     if (!_rendering || !_replicator) {
+        return;
+    }
+
+    // Only process game inputs when in-game, not in lobby
+    if (_currentScene != GameScene::IN_GAME) {
         return;
     }
 

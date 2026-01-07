@@ -118,7 +118,6 @@ namespace server {
     }
 
     void RoomManager::update(float deltaTime) {
-        // Process matchmaking queue
         if (_matchmaking) {
             _matchmaking->tick();
         }
@@ -175,8 +174,6 @@ namespace server {
 
         _rooms[roomId] = room;
         LOG_INFO("✓ Match room registered: ", roomId, " (", room->getPlayerCount(), " players)");
-
-        // Start game countdown
         room->setState(RoomState::STARTING);
     }
 

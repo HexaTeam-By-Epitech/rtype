@@ -67,6 +67,7 @@ namespace NetworkMessages {
         C2S_JOIN_ROOM = 0x0302,
         C2S_START_MATCHMAKING = 0x0303,
         C2S_CANCEL_MATCHMAKING = 0x0304,
+        C2S_START_GAME = 0x0305,
 
         // Server to Client gameplay messages (0x02xx)
         S2C_GAME_STATE = 0x0200,

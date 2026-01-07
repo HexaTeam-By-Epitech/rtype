@@ -27,20 +27,12 @@ namespace server {
           _startCountdown(0.0f),
           _gameStartSent(false) {
 
-        // Create dedicated EventBus for this room
+        // Create EventBus and GameLogic for this room
         _eventBus = std::make_shared<EventBus>();
-
-        // Create dedicated ECSWorld for this room
         std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = std::make_shared<ecs::wrapper::ECSWorld>();
-
-        // Create ThreadPool for parallel system execution
         std::shared_ptr<ThreadPool> threadPool = std::make_shared<ThreadPool>(4);
         threadPool->start();
-
-        // Create GameLogic for this room (as unique_ptr since ServerLoop requires it)
         std::unique_ptr<IGameLogic> gameLogic = std::make_unique<GameLogic>(ecsWorld, threadPool, _eventBus);
-
-        // Create ServerLoop with dedicated GameLogic
         _gameLoop = std::make_unique<ServerLoop>(std::move(gameLogic), _eventBus);
 
         // Initialize game loop
@@ -49,10 +41,8 @@ namespace server {
             return;
         }
 
-        // Start the game loop thread
         _gameLoop->start();
 
-        // Get the GameLogic back from ServerLoop for external access
         _gameLogic = std::shared_ptr<IGameLogic>(&_gameLoop->getGameLogic(), [](IGameLogic *) {
             // Empty deleter - ServerLoop owns the IGameLogic
         });
@@ -64,24 +54,19 @@ namespace server {
     bool Room::join(uint32_t playerId) {
         std::lock_guard<std::mutex> lock(_mutex);
 
-        // Check if room is full
         if (isFull()) {
             LOG_WARNING("Player ", playerId, " cannot join room ", _id, " - room is full");
             return false;
         }
 
-        // Check if room is in valid state for joining
         if (_state != RoomState::WAITING && _state != RoomState::STARTING) {
             LOG_WARNING("Player ", playerId, " cannot join room ", _id, " - game already in progress");
             return false;
         }
-
-        // Check if player already in room
         if (hasPlayer(playerId)) {
             LOG_WARNING("Player ", playerId, " already in room ", _id);
             return false;
         }
-
         _players.push_back(playerId);
 
         // Set first player as host
@@ -115,18 +100,6 @@ namespace server {
         return true;
     }
 
-    std::string Room::getId() const {
-        return _id;
-    }
-
-    std::string Room::getName() const {
-        return _name;
-    }
-
-    RoomState Room::getState() const {
-        return _state;
-    }
-
     void Room::setState(RoomState state) {
         if (_state != state) {
             const char *stateNames[] = {"WAITING", "STARTING", "IN_PROGRESS", "FINISHED"};
@@ -136,25 +109,19 @@ namespace server {
 
             // Start countdown when entering STARTING state
             if (state == RoomState::STARTING) {
-                _startCountdown = 3.0f;  // 3 seconds countdown
+                _startCountdown = 3.0f;
             }
         }
     }
 
     size_t Room::getPlayerCount() const {
+        // Avoid race conditions
         std::lock_guard<std::mutex> lock(_mutex);
         return _players.size();
     }
 
-    size_t Room::getMaxPlayers() const {
-        return _maxPlayers;
-    }
-
-    bool Room::isFull() const {
-        return _players.size() >= _maxPlayers;
-    }
-
     std::vector<uint32_t> Room::getPlayers() const {
+        // Avoid race conditions
         std::lock_guard<std::mutex> lock(_mutex);
         return _players;
     }
@@ -172,18 +139,6 @@ namespace server {
     void Room::setGameLogic(std::shared_ptr<IGameLogic> gameLogic) {
         _gameLogic = gameLogic;
         LOG_INFO("GameLogic instance attached to room ", _id);
-    }
-
-    std::shared_ptr<IGameLogic> Room::getGameLogic() const {
-        return _gameLogic;
-    }
-
-    ServerLoop *Room::getServerLoop() const {
-        return _gameLoop.get();
-    }
-
-    std::shared_ptr<EventBus> Room::getEventBus() const {
-        return _eventBus;
     }
 
     bool Room::startGame() {
@@ -215,28 +170,10 @@ namespace server {
 
         setState(RoomState::IN_PROGRESS);
         LOG_INFO("✓ Game started in room ", _id, " with ", _players.size(), " players");
-
-        // Note: Server will detect state change and send GameStart messages to players
-
         return true;
     }
 
     void Room::update(float deltaTime) {
-        // Auto-start countdown when room has players and is waiting
-        if (_state == RoomState::WAITING && _players.size() >= 1) {
-            // Start countdown if we have at least 1 player (for testing)
-            setState(RoomState::STARTING);
-            LOG_INFO("Room ", _id, " starting countdown (", _players.size(), " players)");
-        }
-
-        // Handle STARTING state countdown
-        if (_state == RoomState::STARTING) {
-            _startCountdown -= deltaTime;
-            if (_startCountdown <= 0.0f) {
-                startGame();
-            }
-        }
-
         // Update game logic if game is running
         if (_state == RoomState::IN_PROGRESS && _gameLogic) {
             static uint32_t tick = 0;
@@ -257,8 +194,11 @@ namespace server {
         }
     }
 
-    uint32_t Room::getHost() const {
-        return _hostPlayerId;
+    void Room::requestStartGame() {
+        if (_state == RoomState::WAITING) {
+            LOG_INFO("Room ", _id, " starting game immediately (", _players.size(), " players)");
+            startGame();
+        }
     }
 
 }  // namespace server

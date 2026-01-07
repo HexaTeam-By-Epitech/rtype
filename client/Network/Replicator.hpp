@@ -223,6 +223,14 @@ class Replicator {
      */
     bool sendJoinRoom(const std::string &roomId);
 
+    /**
+     * @brief Send start game request to server.
+     * 
+     * Only the host of the room can start the game.
+     * @return true if the packet was sent successfully
+     */
+    bool sendStartGame();
+
    private:
     /**
      * @brief Network thread main loop

@@ -42,7 +42,6 @@ namespace server {
             return false;
         }
 
-        // Remove from matchmaking if in queue
         if (it->second.inMatchmaking && _roomManager) {
             _roomManager->removePlayerFromMatchmaking(playerId);
         }

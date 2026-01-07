@@ -139,6 +139,12 @@ class Server {
     void _handleJoinRoom(HostNetworkEvent &event);
 
     /**
+     * @brief Handle start game request (from room host)
+     * @param event Network event with packet data
+     */
+    void _handleStartGame(HostNetworkEvent &event);
+
+    /**
      * @brief Broadcast game state to all connected clients
      */
     void _broadcastGameState();

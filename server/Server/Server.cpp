@@ -155,6 +155,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 _handleJoinRoom(event);
                 break;
 
+            case NetworkMessages::MessageType::C2S_START_GAME:
+                _handleStartGame(event);
+                break;
+
             default:
                 LOG_WARNING("Received unknown message type: ", static_cast<int>(messageType));
                 break;
@@ -480,6 +484,46 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_JOINED_ROOM, respPayload);
     std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(netPacket), 0);
+}
+
+void Server::_handleStartGame(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    LOG_INFO("Player requesting to start game...");
+
+    // Get player ID from session
+    uint32_t playerId = 0;
+    auto it = _peerToSession.find(event.peer);
+    if (it != _peerToSession.end()) {
+        std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
+        if (session) {
+            playerId = session->getPlayerId();
+        }
+    }
+
+    if (playerId == 0) {
+        LOG_WARNING("❌ Start game request from unknown session");
+        return;
+    }
+
+    // Find which room this player is in
+    std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
+
+    if (!playerRoom) {
+        LOG_WARNING("❌ Player ", playerId, " is not in any room");
+        return;
+    }
+    if (playerRoom->getHost() != playerId) {
+        LOG_WARNING("❌ Player ", playerId, " is not the host of room '", playerRoom->getId(), "'");
+        return;
+    }
+    if (playerRoom->getState() != server::RoomState::WAITING) {
+        LOG_WARNING("❌ Room '", playerRoom->getId(), "' is not in WAITING state");
+        return;
+    }
+
+    playerRoom->requestStartGame();
+    LOG_INFO("✓ Room '", playerRoom->getId(), "' countdown started by host ", playerId);
 }
 
 void Server::run() {

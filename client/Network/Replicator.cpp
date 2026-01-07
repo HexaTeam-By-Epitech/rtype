@@ -285,6 +285,25 @@ bool Replicator::sendJoinRoom(const std::string &roomId) {
     return _serverPeer->send(std::move(packet), 0);
 }
 
+bool Replicator::sendStartGame() {
+    if (!_serverPeer || !_connected.load()) {
+        return false;
+    }
+
+    using namespace RType::Messages;
+
+    // Create StartGame message
+    C2S::StartGame request;
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData = NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_START_GAME, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
 uint32_t Replicator::getLatency() const {
     return _latency.load();
 }

@@ -23,7 +23,6 @@ namespace server {
     struct PlayerQueueInfo {
         uint32_t playerId;
         std::chrono::steady_clock::time_point joinTime;
-        int skillRating;  // For future skill-based matchmaking
     };
 
     /**
@@ -92,13 +91,13 @@ namespace server {
          */
         std::string _generateRoomId();
 
-        size_t _minPlayers;  ///< Minimum players to start a match
-        size_t _maxPlayers;  ///< Maximum players per match
+        size_t _minPlayers;
+        size_t _maxPlayers;
 
-        std::vector<PlayerQueueInfo> _waitingPlayers;  ///< Queue of players
-        mutable std::mutex _mutex;                     ///< Thread safety
+        std::vector<PlayerQueueInfo> _waitingPlayers;
+        mutable std::mutex _mutex;
 
-        MatchCreatedCallback _matchCreatedCallback;  ///< Callback when match created
+        MatchCreatedCallback _matchCreatedCallback;
 
         // Statistics
         uint32_t _totalMatchesCreated{0};

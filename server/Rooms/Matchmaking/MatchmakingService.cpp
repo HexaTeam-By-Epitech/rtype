@@ -39,7 +39,6 @@ namespace server {
         PlayerQueueInfo info;
         info.playerId = playerId;
         info.joinTime = std::chrono::steady_clock::now();
-        info.skillRating = 1000;  // Default skill rating for future skill-based matchmaking
 
         _waitingPlayers.push_back(info);
         LOG_INFO("✓ Player ", playerId, " added to matchmaking queue (", _waitingPlayers.size(),

@@ -164,8 +164,29 @@ void MenuUI::_drawInRoom() {
     _graphics.DrawText(-1, roomText.c_str(), 300, 200, 20, COLOR_TEXT);
 
     // Draw waiting message
-    _graphics.DrawText(-1, "Waiting for other players...", 280, 300, 20, COLOR_TEXT);
-    _graphics.DrawText(-1, "(Game will start automatically)", 270, 340, 18, COLOR_TEXT);
+    _graphics.DrawText(-1, "Waiting for other players...", 280, 280, 20, COLOR_TEXT);
+
+    // Draw "START GAME" button
+    int centerX = 400;
+    int buttonY = 350;
+    float mouseX, mouseY;
+    _graphics.GetMousePosition(mouseX, mouseY);
+
+    bool isOverStart = _isMouseOverButton(centerX - BUTTON_WIDTH / 2, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT);
+    unsigned int startButtonColor = isOverStart ? COLOR_BUTTON_HOVER : COLOR_BUTTON;
+    unsigned int startTextColor = isOverStart ? COLOR_TEXT_HOVER : COLOR_TEXT;
+
+    _graphics.DrawRectFilled(centerX - BUTTON_WIDTH / 2, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT,
+                             startButtonColor);
+    _graphics.DrawRect(centerX - BUTTON_WIDTH / 2, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_TEXT);
+    _graphics.DrawText(-1, "START GAME", centerX - 70, buttonY + 15, 20, startTextColor);
+
+    // Handle click
+    if (isOverStart && _graphics.IsMouseButtonPressed(0)) {
+        if (_onStartGame) {
+            _onStartGame();
+        }
+    }
 }
 
 bool MenuUI::_isMouseOverButton(int x, int y, int width, int height) {

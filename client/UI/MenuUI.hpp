@@ -60,6 +60,11 @@ class MenuUI {
     void setOnJoinRoom(std::function<void(const std::string &roomId)> callback) { _onJoinRoom = callback; }
 
     /**
+     * @brief Set the callback for when user wants to start the game
+     */
+    void setOnStartGame(std::function<void()> callback) { _onStartGame = callback; }
+
+    /**
      * @brief Update the room list
      */
     void setRoomList(const std::vector<RType::Messages::S2C::RoomInfoData> &rooms) { _rooms = rooms; }
@@ -97,6 +102,7 @@ class MenuUI {
     std::function<void()> _onCreateRoom;
     std::function<void()> _onListRooms;
     std::function<void(const std::string &roomId)> _onJoinRoom;
+    std::function<void()> _onStartGame;
 
     // UI Constants
     static constexpr int BUTTON_WIDTH = 300;

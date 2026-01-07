@@ -114,7 +114,7 @@ namespace scripting::bindings {
         _getters[name] = [](ecs::wrapper::Entity &e, sol::this_state L) -> sol::object {
             sol::state_view lua(L);
             if (!e.has<T>()) {
-                return sol::nil;
+                return sol::lua_nil;
             }
             return sol::make_object(lua, &e.get<T>());
         };
@@ -142,7 +142,7 @@ namespace scripting::bindings {
         _getters[name] = [](ecs::wrapper::Entity &e, sol::this_state L) -> sol::object {
             sol::state_view lua(L);
             if (!e.has<T>()) {
-                return sol::nil;
+                return sol::lua_nil;
             }
             return sol::make_object(lua, &e.get<T>());
         };

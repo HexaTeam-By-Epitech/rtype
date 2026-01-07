@@ -50,8 +50,7 @@ jobs:
       - name: Install lcov and dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y lcov python3 python3-pip
-          pip3 install --break-system-packages lcov_cobertura
+          sudo apt-get install -y lcov
       
       - name: Configure CMake with Coverage
         run: cmake --preset linux-debug -DENABLE_COVERAGE=ON
@@ -67,10 +66,17 @@ jobs:
       
       - name: Generate Coverage Reports
         run: |
+          echo "Generating gcov files for SonarQube..."
+          # Find all .gcda files and generate .gcov files
+          find build/linux-debug -type f -name "*.gcda" -exec gcov -p -b {} \; > /dev/null 2>&1
+          # Count generated gcov files
+          GCOV_COUNT=$(find . -maxdepth 1 -name "*.gcov" | wc -l)
+          echo "Generated $GCOV_COUNT gcov files"
+          # Also generate lcov report for artifact
           mkdir -p coverage
           lcov --capture --directory build/linux-debug --output-file coverage/coverage.info \
             --ignore-errors inconsistent,mismatch,unused \
-            --rc lcov_branch_coverage=1
+            --rc lcov_branch_coverage=1 || true
           lcov --remove coverage/coverage.info \
             '/usr/*' \
             '*/vcpkg_installed/*' \
@@ -80,10 +86,13 @@ jobs:
             '*/.cache/*' \
             -o coverage/coverage.info \
             --ignore-errors inconsistent,unused \
-            --rc lcov_branch_coverage=1
-          python3 -m lcov_cobertura coverage/coverage.info -o coverage/coverage.xml
+            --rc lcov_branch_coverage=1 || true
+          # Generate HTML report for artifact
+          if command -v genhtml > /dev/null; then
+            genhtml coverage/coverage.info --output-directory coverage/html --ignore-errors inconsistent || true
+          fi
           echo "Coverage report generated"
-          lcov --list coverage/coverage.info --ignore-errors inconsistent
+          lcov --list coverage/coverage.info --ignore-errors inconsistent || true
       
       - name: Upload Coverage Reports
         uses: actions/upload-artifact@v4

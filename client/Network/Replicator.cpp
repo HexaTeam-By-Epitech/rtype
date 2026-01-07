@@ -228,6 +228,63 @@ bool Replicator::sendConnectRequest(const std::string &playerName) {
     return _serverPeer->send(std::move(packet), 0);
 }
 
+bool Replicator::sendListRooms() {
+    if (!_serverPeer || !_connected.load()) {
+        return false;
+    }
+
+    using namespace RType::Messages;
+
+    // Create ListRooms message
+    C2S::ListRooms request;
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData = NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_LIST_ROOMS, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
+bool Replicator::sendCreateRoom(const std::string &roomName, uint32_t maxPlayers, bool isPrivate) {
+    if (!_serverPeer || !_connected.load()) {
+        return false;
+    }
+
+    using namespace RType::Messages;
+
+    // Create CreateRoom message
+    C2S::CreateRoom request(roomName, maxPlayers, isPrivate);
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData = NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_CREATE_ROOM, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
+bool Replicator::sendJoinRoom(const std::string &roomId) {
+    if (!_serverPeer || !_connected.load()) {
+        return false;
+    }
+
+    using namespace RType::Messages;
+
+    // Create JoinRoom message
+    C2S::JoinRoom request(roomId);
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData = NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_JOIN_ROOM, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
 uint32_t Replicator::getLatency() const {
     return _latency.load();
 }

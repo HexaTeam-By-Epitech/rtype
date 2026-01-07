@@ -10,56 +10,174 @@
 
 namespace server {
 
-    RoomManager::RoomManager() : _matchmaking(std::make_shared<MatchmakingService>()) {}
+    RoomManager::RoomManager() : _matchmaking(std::make_shared<MatchmakingService>(2, 4)) {
+        // Set callback for when matchmaking creates a match
+        _matchmaking->setMatchCreatedCallback([this](std::shared_ptr<Room> room) { _onMatchCreated(room); });
+        LOG_INFO("RoomManager created with matchmaking service");
+    }
 
-    RoomManager::RoomManager(std::shared_ptr<MatchmakingService> matchmaking) : _matchmaking(matchmaking) {}
-
-    void RoomManager::addPlayerToMatchmaking(int playerId) {
-        _matchmaking->addPlayer(playerId);
-
-        // Check if a match was created (4 players queued)
-        const auto &matches = _matchmaking->getActiveMatches();
-        for (const auto &[matchId, players] : matches) {
-            std::string roomId = "match_" + std::to_string(matchId);
-            if (_rooms.find(roomId) == _rooms.end()) {
-                createRoom(roomId);
-                LOG_INFO("✓ Match room created: ", roomId, " with ", players.size(), " players");
-            }
+    RoomManager::RoomManager(std::shared_ptr<MatchmakingService> matchmaking) : _matchmaking(matchmaking) {
+        if (_matchmaking) {
+            _matchmaking->setMatchCreatedCallback(
+                [this](std::shared_ptr<Room> room) { _onMatchCreated(room); });
         }
+        LOG_INFO("RoomManager created with provided matchmaking service");
     }
 
-    void RoomManager::removePlayerFromMatchmaking(int playerId) {
-        _matchmaking->removePlayer(playerId);
-    }
-
-    void RoomManager::createRoom(const std::string &id) {
-        if (_rooms.find(id) != _rooms.end()) {
-            LOG_WARNING("Room ", id, " already exists");
+    void RoomManager::addPlayerToMatchmaking(uint32_t playerId) {
+        if (!_matchmaking) {
+            LOG_ERROR("Cannot add player to matchmaking - service not initialized");
             return;
         }
 
-        std::shared_ptr<Room> room = std::make_shared<Room>(id);
+        _matchmaking->addPlayer(playerId);
+        LOG_INFO("Player ", playerId, " added to matchmaking (queue size: ", _matchmaking->getQueueSize(),
+                 ")");
+    }
+
+    void RoomManager::removePlayerFromMatchmaking(uint32_t playerId) {
+        if (!_matchmaking) {
+            return;
+        }
+
+        _matchmaking->removePlayer(playerId);
+        LOG_INFO("Player ", playerId, " removed from matchmaking");
+    }
+
+    std::shared_ptr<Room> RoomManager::createRoom(const std::string &id, const std::string &name,
+                                                  size_t maxPlayers, bool isPrivate) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        if (_rooms.find(id) != _rooms.end()) {
+            LOG_WARNING("Room ", id, " already exists");
+            return _rooms[id];
+        }
+
+        auto room = std::make_shared<Room>(id, name, maxPlayers, isPrivate);
         _rooms[id] = room;
 
-        LOG_INFO("✓ Room created: ", id);
+        LOG_INFO("✓ Room created: '", room->getName(), "' (", id, ")");
+        return room;
     }
 
     std::shared_ptr<Room> RoomManager::getRoom(const std::string &id) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         auto it = _rooms.find(id);
         if (it != _rooms.end()) {
             return it->second;
         }
 
-        LOG_WARNING("Room ", id, " not found");
         return nullptr;
     }
 
-    void RoomManager::removeRoom(const std::string &id) {
+    bool RoomManager::removeRoom(const std::string &id) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         auto it = _rooms.find(id);
         if (it != _rooms.end()) {
-            _rooms.erase(it);
             LOG_INFO("✓ Room removed: ", id);
+            _rooms.erase(it);
+            return true;
         }
+
+        return false;
+    }
+
+    std::vector<std::shared_ptr<Room>> RoomManager::getAllRooms() {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        std::vector<std::shared_ptr<Room>> rooms;
+        rooms.reserve(_rooms.size());
+
+        for (const auto &[id, room] : _rooms) {
+            rooms.push_back(room);
+        }
+
+        return rooms;
+    }
+
+    std::vector<std::shared_ptr<Room>> RoomManager::getPublicRooms() {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        std::vector<std::shared_ptr<Room>> publicRooms;
+
+        for (const auto &[id, room] : _rooms) {
+            auto info = room->getInfo();
+            if (!info.isPrivate && info.state != RoomState::FINISHED) {
+                publicRooms.push_back(room);
+            }
+        }
+
+        return publicRooms;
+    }
+
+    size_t RoomManager::getRoomCount() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _rooms.size();
+    }
+
+    void RoomManager::update(float deltaTime) {
+        // Process matchmaking queue
+        if (_matchmaking) {
+            _matchmaking->tick();
+        }
+
+        // Update all rooms
+        std::lock_guard<std::mutex> lock(_mutex);
+        for (auto &[id, room] : _rooms) {
+            room->update(deltaTime);
+        }
+    }
+
+    std::shared_ptr<Room> RoomManager::getRoomByPlayer(uint32_t playerId) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        for (const auto &[id, room] : _rooms) {
+            if (room->hasPlayer(playerId)) {
+                return room;
+            }
+        }
+
+        return nullptr;
+    }
+
+    void RoomManager::cleanupFinishedRooms() {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        std::vector<std::string> roomsToRemove;
+
+        for (const auto &[id, room] : _rooms) {
+            if (room->getState() == RoomState::FINISHED && room->getPlayerCount() == 0) {
+                roomsToRemove.push_back(id);
+            }
+        }
+
+        for (const auto &id : roomsToRemove) {
+            _rooms.erase(id);
+            LOG_INFO("Cleaned up finished room: ", id);
+        }
+
+        if (!roomsToRemove.empty()) {
+            LOG_INFO("Cleaned up ", roomsToRemove.size(), " finished room(s)");
+        }
+    }
+
+    void RoomManager::_onMatchCreated(std::shared_ptr<Room> room) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        std::string roomId = room->getId();
+
+        if (_rooms.find(roomId) != _rooms.end()) {
+            LOG_WARNING("Match room ", roomId, " already exists");
+            return;
+        }
+
+        _rooms[roomId] = room;
+        LOG_INFO("✓ Match room registered: ", roomId, " (", room->getPlayerCount(), " players)");
+
+        // Start game countdown
+        room->setState(RoomState::STARTING);
     }
 
 }  // namespace server

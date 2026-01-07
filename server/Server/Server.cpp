@@ -30,7 +30,11 @@
 #include "server/Events/GameEvent/PlayerLeftEvent.hpp"
 #include "server/Game/Logic/GameLogic.hpp"
 #include "server/Game/Logic/GameStateSerializer.hpp"
+#include "server/Game/Logic/IGameLogic.hpp"
 #include "server/Sessions/Session/Session.hpp"
+
+// CONFIGURATION: Set to true to bypass matchmaking and use default room
+constexpr bool DEV_MODE_SKIP_MATCHMAKING = true;
 
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 
@@ -80,34 +84,16 @@ bool Server::initialize() {
     _roomManager = std::make_shared<server::RoomManager>();
     LOG_INFO("✓ RoomManager created");
 
-    // Create default room
+    // Create Lobby (player entry point for matchmaking)
+    _lobby = std::make_shared<server::Lobby>(_roomManager);
+    LOG_INFO("✓ Lobby created with matchmaking enabled");
+
+    // Create default room (automatically creates its own GameLoop)
     _roomManager->createRoom("default");
     _defaultRoom = _roomManager->getRoom("default");
-    LOG_INFO("✓ Default room created");
+    LOG_INFO("✓ Default room created with dedicated GameLoop");
 
-    // Create World with ECSWorld
-    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = std::make_shared<ecs::wrapper::ECSWorld>();
-    LOG_INFO("✓ ECSWorld created");
-
-    // Create ThreadPool for parallel system execution (4 workers)
-    std::shared_ptr<server::ThreadPool> threadPool = std::make_shared<server::ThreadPool>(4);
-    threadPool->start();
-    std::unique_ptr<server::GameLogic> gameLogic =
-        std::make_unique<server::GameLogic>(ecsWorld, threadPool, _eventBus);
-    LOG_INFO("✓ ThreadPool enabled with 4 workers");
-
-    // Create ServerLoop with GameLogic and EventBus
-    _gameLoop = std::make_unique<server::ServerLoop>(std::move(gameLogic), _eventBus);
-    LOG_INFO("✓ Game loop created (implements IServerLoop)");
-
-    // Initialize game loop (initializes GameLogic and all systems)
-    if (!_gameLoop->initialize()) {
-        LOG_ERROR("Failed to initialize game loop");
-        return false;
-    }
-    LOG_INFO("✓ Game loop initialized");
-
-    // Subscribe to game events
+    // Subscribe to game events on global EventBus
     _eventBus->subscribe<server::PlayerJoinedEvent>([](const server::PlayerJoinedEvent &event) {
         LOG_INFO("[EVENT] Player joined: ", event.getPlayerName(), " (ID: ", event.getPlayerId(), ")");
     });
@@ -157,6 +143,18 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 _handlePlayerInput(event);
                 break;
 
+            case NetworkMessages::MessageType::C2S_LIST_ROOMS:
+                _handleListRooms(event);
+                break;
+
+            case NetworkMessages::MessageType::C2S_CREATE_ROOM:
+                _handleCreateRoom(event);
+                break;
+
+            case NetworkMessages::MessageType::C2S_JOIN_ROOM:
+                _handleJoinRoom(event);
+                break;
+
             default:
                 LOG_WARNING("Received unknown message type: ", static_cast<int>(messageType));
                 break;
@@ -188,12 +186,19 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
 
     LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
 
-    // Despawn player from game
-    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-    gameLogic.despawnPlayer(playerId);
+    // Find which room the player is in
+    std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
+    if (playerRoom) {
+        // Despawn player from the room's game logic
+        std::shared_ptr<server::IGameLogic> gameLogic = playerRoom->getGameLogic();
+        if (gameLogic) {
+            gameLogic->despawnPlayer(playerId);
+        }
 
-    // Remove from room
-    _defaultRoom->leave(playerId);
+        // Remove from room
+        playerRoom->leave(playerId);
+        LOG_INFO("✓ Player ", playerId, " removed from room '", playerRoom->getId(), "'");
+    }
 
     // Publish PLAYER_LEFT event
     _eventBus->publish(server::PlayerLeftEvent(playerId));
@@ -233,55 +238,19 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     _sessionPeers[sessionId] = event.peer;
     _peerToSession[event.peer] = sessionId;
 
-    // Add player to matchmaking queue instead of joining room directly
-    // This allows for proper match creation when enough players join
-    _roomManager->addPlayerToMatchmaking(newPlayerId);
-    LOG_INFO("Player ", newPlayerId, " added to matchmaking queue");
+    // Add player to Lobby (entry point for matchmaking system)
+    _lobby->addPlayer(newPlayerId, playerName);
+    LOG_INFO("✓ Player ", newPlayerId, " ('", playerName, "') added to Lobby");
 
-    // For now, also join default room for immediate play (skip matchmaking for dev)
-    // In production, remove this and only join after match is found
-    _defaultRoom->join(newPlayerId);
-    LOG_INFO("Player ", newPlayerId, " joined room 'default' (dev mode)");
+    // Send connect response to confirm connection
+    std::vector<uint8_t> responseData = NetworkMessages::createConnectResponse("Welcome to R-Type!");
+    std::unique_ptr<IPacket> responsePacket =
+        createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
+    event.peer->send(std::move(responsePacket), 0);
 
-    // Publish PLAYER_JOINED event to EventBus
-    _eventBus->publish(server::PlayerJoinedEvent(newPlayerId, playerName));
-
-    // Spawn player in game logic
-    server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-    uint32_t entityId = gameLogic.spawnPlayer(newPlayerId, playerName);
-
-    if (entityId == 0) {
-        LOG_ERROR("Failed to spawn player ", newPlayerId);
-        return;
-    }
-
-    // Create GameStart message with current tick
-    S2C::GameStart gameStart;
-    gameStart.yourEntityId = entityId;  // Send entity ID, not player ID!
-    gameStart.initialState.serverTick = _gameLoop->getCurrentTick();
-
-    // Get ECS world to read spawned player entity
-    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = _gameLoop->getECSWorld();
-    if (ecsWorld) {
-        // Serialize the spawned player entity
-        ecs::wrapper::Entity entity = ecsWorld->getEntity(entityId);
-        if (entity.has<ecs::Transform>()) {
-            S2C::EntityState entityState = _serializeEntity(entity);
-            gameStart.initialState.entities.push_back(entityState);
-            LOG_DEBUG("Added player entity ", entityId, " to GameStart at pos (", entityState.position.x,
-                      ", ", entityState.position.y, ")");
-        }
-    }
-
-    // Serialize and send
-    std::vector<uint8_t> gameStartPayload = gameStart.serialize();
-    std::vector<uint8_t> gameStartPacket =
-        NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, gameStartPayload);
-    std::unique_ptr<IPacket> packet = createPacket(gameStartPacket, static_cast<int>(PacketFlag::RELIABLE));
-    event.peer->send(std::move(packet), 0);
-
-    LOG_INFO("✓ Player '", playerName, "' joined (Session: ", sessionId, ", Player ID: ", newPlayerId,
-             ", Entity: ", entityId, ")");
+    LOG_INFO("✓ Player '", playerName, "' connected (Session: ", sessionId, ", Player ID: ", newPlayerId,
+             ")");
+    LOG_INFO("  Player is now in lobby - waiting for room selection");
 }
 
 void Server::_handlePlayerInput(HostNetworkEvent &event) {
@@ -316,9 +285,201 @@ void Server::_handlePlayerInput(HostNetworkEvent &event) {
     }
 
     if (playerId != 0) {
-        server::IGameLogic &gameLogic = _gameLoop->getGameLogic();
-        gameLogic.processPlayerInput(playerId, dx, dy, shoot);
+        // Find which room the player is in
+        std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
+        if (playerRoom) {
+            std::shared_ptr<server::IGameLogic> gameLogic = playerRoom->getGameLogic();
+            if (gameLogic) {
+                gameLogic->processPlayerInput(playerId, dx, dy, shoot);
+            }
+        }
     }
+}
+
+void Server::_handleListRooms(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    LOG_INFO("Player requesting room list...");
+
+    // Get all public rooms from room manager
+    auto publicRooms = _roomManager->getPublicRooms();
+
+    // Build RoomList message
+    S2C::RoomList roomList;
+    for (const auto &room : publicRooms) {
+        S2C::RoomInfoData info;
+        info.roomId = room->getId();
+        info.roomName = room->getName();
+        info.playerCount = static_cast<uint32_t>(room->getPlayerCount());
+        info.maxPlayers = static_cast<uint32_t>(room->getMaxPlayers());
+        info.isPrivate = room->isPrivate();
+
+        // Map room state to uint8_t
+        auto state = room->getState();
+        if (state == server::RoomState::WAITING)
+            info.state = 0;
+        else if (state == server::RoomState::STARTING)
+            info.state = 1;
+        else if (state == server::RoomState::IN_PROGRESS)
+            info.state = 2;
+        else if (state == server::RoomState::FINISHED)
+            info.state = 3;
+        else
+            info.state = 0;
+
+        roomList.rooms.push_back(info);
+    }
+
+    // Serialize and send
+    std::vector<uint8_t> payload = roomList.serialize();
+    std::vector<uint8_t> packet =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
+    std::unique_ptr<IPacket> netPacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
+    event.peer->send(std::move(netPacket), 0);
+
+    LOG_INFO("✓ Sent room list (", roomList.rooms.size(), " rooms)");
+}
+
+void Server::_handleCreateRoom(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    // Parse create room request
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+    C2S::CreateRoom request = C2S::CreateRoom::deserialize(payload);
+
+    LOG_INFO("Player requesting to create room '", request.roomName, "'...");
+
+    // Find player ID from peer
+    uint32_t playerId = 0;
+    auto it = _peerToSession.find(event.peer);
+    if (it != _peerToSession.end()) {
+        std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
+        if (session) {
+            playerId = session->getPlayerId();
+        }
+    }
+
+    if (playerId == 0) {
+        LOG_ERROR("Failed to find player for room creation");
+        S2C::RoomCreated response("", false, "Session not found");
+        std::vector<uint8_t> respPayload = response.serialize();
+        std::vector<uint8_t> respPacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_CREATED, respPayload);
+        std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(netPacket), 0);
+        return;
+    }
+
+    // Generate unique room ID
+    static std::atomic<uint32_t> nextRoomId{1};
+    std::string roomId = "room_" + std::to_string(nextRoomId.fetch_add(1));
+
+    // Create room
+    auto room = _roomManager->createRoom(roomId, request.roomName, request.maxPlayers, request.isPrivate);
+    if (!room) {
+        LOG_ERROR("Failed to create room");
+        S2C::RoomCreated response("", false, "Failed to create room");
+        std::vector<uint8_t> respPayload = response.serialize();
+        std::vector<uint8_t> respPacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_CREATED, respPayload);
+        std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(netPacket), 0);
+        return;
+    }
+
+    // Remove player from lobby
+    _lobby->removePlayer(playerId);
+
+    // Add player to room
+    if (!room->join(playerId)) {
+        LOG_ERROR("Failed to join created room");
+        S2C::RoomCreated response(roomId, false, "Failed to join room");
+        std::vector<uint8_t> respPayload = response.serialize();
+        std::vector<uint8_t> respPacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_CREATED, respPayload);
+        std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(netPacket), 0);
+        return;
+    }
+
+    LOG_INFO("✓ Player ", playerId, " created and joined room '", request.roomName, "' (", roomId, ")");
+
+    // Send success response
+    S2C::RoomCreated response(roomId, true);
+    std::vector<uint8_t> respPayload = response.serialize();
+    std::vector<uint8_t> respPacket =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_CREATED, respPayload);
+    std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+    event.peer->send(std::move(netPacket), 0);
+}
+
+void Server::_handleJoinRoom(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    // Parse join room request
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+    C2S::JoinRoom request = C2S::JoinRoom::deserialize(payload);
+
+    LOG_INFO("Player requesting to join room '", request.roomId, "'...");
+
+    // Find player ID from peer
+    uint32_t playerId = 0;
+    auto it = _peerToSession.find(event.peer);
+    if (it != _peerToSession.end()) {
+        std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
+        if (session) {
+            playerId = session->getPlayerId();
+        }
+    }
+
+    if (playerId == 0) {
+        LOG_ERROR("Failed to find player for room join");
+        S2C::JoinedRoom response("", false, "Session not found");
+        std::vector<uint8_t> respPayload = response.serialize();
+        std::vector<uint8_t> respPacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_JOINED_ROOM, respPayload);
+        std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(netPacket), 0);
+        return;
+    }
+
+    // Get room
+    auto room = _roomManager->getRoom(request.roomId);
+    if (!room) {
+        LOG_ERROR("Room '", request.roomId, "' not found");
+        S2C::JoinedRoom response("", false, "Room not found");
+        std::vector<uint8_t> respPayload = response.serialize();
+        std::vector<uint8_t> respPacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_JOINED_ROOM, respPayload);
+        std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(netPacket), 0);
+        return;
+    }
+
+    // Remove player from lobby
+    _lobby->removePlayer(playerId);
+
+    // Add player to room
+    if (!room->join(playerId)) {
+        LOG_ERROR("Failed to join room (full or in progress)");
+        S2C::JoinedRoom response("", false, "Room is full or in progress");
+        std::vector<uint8_t> respPayload = response.serialize();
+        std::vector<uint8_t> respPacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_JOINED_ROOM, respPayload);
+        std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(netPacket), 0);
+        return;
+    }
+
+    LOG_INFO("✓ Player ", playerId, " joined room '", request.roomId, "'");
+
+    // Send success response
+    S2C::JoinedRoom response(request.roomId, true);
+    std::vector<uint8_t> respPayload = response.serialize();
+    std::vector<uint8_t> respPacket =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_JOINED_ROOM, respPayload);
+    std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+    event.peer->send(std::move(netPacket), 0);
 }
 
 void Server::run() {
@@ -333,41 +494,45 @@ void Server::run() {
     LOG_INFO("Max clients: ", _maxClients);
     LOG_INFO("Architecture:");
     LOG_INFO("  SessionManager - tracking player sessions");
-    LOG_INFO("  RoomManager - managing game instances");
-    LOG_INFO("  Room '", _defaultRoom->getId(), "' - active game lobby");
-    LOG_INFO("  DeterministicGameLoop (IServerLoop) - 60 Hz game loop");
-    LOG_INFO("  World - entity management layer");
-    LOG_INFO("  GameLogic - 8 ECS systems");
+    LOG_INFO("  RoomManager - managing game instances (each room has its own GameLoop)");
+    LOG_INFO("  Lobby - matchmaking system");
     LOG_INFO("========================================");
     LOG_INFO("THREAD 1: Network (accepting connections)");
-    LOG_INFO("THREAD 2: Game loop (DeterministicGameLoop at 60 Hz)");
+    LOG_INFO("THREAD 2+: Game loops per room (60 Hz each)");
     LOG_INFO("Press Ctrl+C to stop");
     LOG_INFO("========================================");
 
     // Publish GAME_STARTED event
     _eventBus->publish(server::GameStartedEvent());
 
-    // Start the deterministic game loop in its own thread
-    _gameLoop->start();  // Now void, throws on error
-
     _running = true;
-    uint32_t lastBroadcastTick = 0;
-    const uint32_t BROADCAST_INTERVAL = 3;  // Broadcast every 3 ticks (~50ms at 60 Hz)
 
     // Main server loop - handle network and broadcasting
-    while (_running && _networkManager->isRunning() && _gameLoop->isRunning()) {
+    while (_running && _networkManager->isRunning()) {
         // Process network messages from network thread
         _networkManager->processMessages();
 
-        // Broadcast game state periodically
-        uint32_t currentTick = _gameLoop->getCurrentTick();
-        if (currentTick - lastBroadcastTick >= BROADCAST_INTERVAL) {
-            _broadcastGameState();
-            lastBroadcastTick = currentTick;
+        // Update room manager for matchmaking and room lifecycle
+        if (_roomManager) {
+            _roomManager->update(0.016f);  // ~60 Hz
+
+            // Check if any room just started and send GameStart to players
+            auto rooms = _roomManager->getAllRooms();
+            for (const auto &room : rooms) {
+                // Check if room just transitioned to IN_PROGRESS and GameStart not yet sent
+                if (room->getState() == server::RoomState::IN_PROGRESS && !room->isGameStartSent()) {
+                    // Send GameStart to all players in this room
+                    _sendGameStartToRoom(room);
+                    room->setGameStartSent(true);
+                }
+            }
         }
 
+        // Broadcast game state for each room periodically
+        _broadcastGameState();
+
         // Sleep to avoid busy-waiting (network processing is the bottleneck here)
-        server::FrameTimer::sleepMilliseconds(5);
+        server::FrameTimer::sleepMilliseconds(16);  // ~60 Hz
     }
 
     LOG_INFO("Server loop stopped.");
@@ -377,8 +542,10 @@ void Server::stop() {
     LOG_INFO("Stop requested...");
     _running = false;
 
-    if (_gameLoop) {
-        _gameLoop->stop();
+    // Stop all rooms (which will stop their game loops)
+    if (_roomManager) {
+        // Each room's destructor will stop its GameLoop
+        LOG_INFO("✓ Stopping all rooms...");
     }
 
     if (_networkManager) {
@@ -394,42 +561,131 @@ void Server::stop() {
 void Server::_broadcastGameState() {
     using namespace RType::Messages;
 
-    // Get ECS world from game loop
-    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = _gameLoop->getECSWorld();
-    if (!ecsWorld) {
-        LOG_ERROR("ECSWorld not available");
+    // Get all rooms and broadcast each room's game state to its players
+    auto rooms = _roomManager->getAllRooms();
+
+    for (const auto &room : rooms) {
+        server::ServerLoop *roomLoop = room->getServerLoop();
+        if (!roomLoop) {
+            continue;
+        }
+
+        std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = roomLoop->getECSWorld();
+        if (!ecsWorld) {
+            continue;
+        }
+
+        S2C::GameState state;
+        state.serverTick = roomLoop->getCurrentTick();
+
+        // Get all entities with Transform component
+        auto entities = ecsWorld->query<ecs::Transform>();
+
+        // Serialize each entity's state
+        for (auto &entity : entities) {
+            try {
+                S2C::EntityState entityState = _serializeEntity(entity);
+                state.entities.push_back(entityState);
+            } catch (const std::exception &e) {
+                LOG_ERROR("Failed to serialize entity: ", e.what());
+                continue;
+            }
+        }
+
+        // Serialize and create packet
+        std::vector<uint8_t> payload = state.serialize();
+        std::vector<uint8_t> packet =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
+
+        // Broadcast only to players in this room
+        auto players = room->getPlayers();
+        for (uint32_t playerId : players) {
+            // Find session for this player
+            std::string sessionId = "session_" + std::to_string(playerId);
+            auto peerIt = _sessionPeers.find(sessionId);
+            if (peerIt != _sessionPeers.end() && peerIt->second) {
+                std::unique_ptr<IPacket> peerPacket =
+                    createPacket(packet, static_cast<int>(PacketFlag::UNSEQUENCED));
+                peerIt->second->send(std::move(peerPacket), 0);
+            }
+        }
+    }
+}
+
+void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
+    using namespace RType::Messages;
+
+    if (!room || room->getState() != server::RoomState::IN_PROGRESS) {
         return;
     }
 
-    S2C::GameState state;
-    state.serverTick = _gameLoop->getCurrentTick();
-
-    // Get all entities with Transform component (everything that has a position)
-    auto entities = ecsWorld->query<ecs::Transform>();
-
-    // Serialize each entity's state using helper method
-    for (auto &entity : entities) {
-        try {
-            S2C::EntityState entityState = _serializeEntity(entity);
-            state.entities.push_back(entityState);
-        } catch (const std::exception &e) {
-            LOG_ERROR("Failed to serialize entity: ", e.what());
-            continue;  // Skip this entity but continue with others
-        }
+    server::ServerLoop *roomLoop = room->getServerLoop();
+    if (!roomLoop) {
+        LOG_ERROR("ServerLoop not available for room ", room->getId());
+        return;
     }
 
-    // Serialize and create packet
-    std::vector<uint8_t> payload = state.serialize();
-    std::vector<uint8_t> packet =
-        NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
+    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = roomLoop->getECSWorld();
+    if (!ecsWorld) {
+        LOG_ERROR("ECSWorld not available for room ", room->getId());
+        return;
+    }
 
-    // Broadcast to all connected players (unreliable, unsequenced for game state updates)
-    for (const auto &[sessionId, peer] : _sessionPeers) {
-        if (peer) {
-            // Create packet copy for each peer (unsequenced = unreliable fast updates)
-            std::unique_ptr<IPacket> peerPacket =
-                createPacket(packet, static_cast<int>(PacketFlag::UNSEQUENCED));
-            peer->send(std::move(peerPacket), 0);
+    std::shared_ptr<server::IGameLogic> gameLogic = room->getGameLogic();
+    if (!gameLogic) {
+        LOG_ERROR("GameLogic not available for room ", room->getId());
+        return;
+    }
+
+    // Get all players in room
+    auto players = room->getPlayers();
+
+    for (uint32_t playerId : players) {
+        // Find entity ID for this player
+        uint32_t entityId = 0;
+        auto entities = ecsWorld->query<ecs::Transform, ecs::Player>();
+        for (auto &entity : entities) {
+            auto &player = entity.get<ecs::Player>();
+            if (player.getPlayerId() == static_cast<int>(playerId)) {
+                entityId = entity.getAddress();
+                break;
+            }
+        }
+
+        if (entityId == 0) {
+            LOG_ERROR("Failed to find entity for player ", playerId);
+            continue;
+        }
+
+        // Create GameStart message
+        S2C::GameStart gameStart;
+        gameStart.yourEntityId = entityId;
+        gameStart.initialState.serverTick = roomLoop->getCurrentTick();
+
+        // Serialize all entities in the room
+        auto allEntities = ecsWorld->query<ecs::Transform>();
+        for (auto &entity : allEntities) {
+            try {
+                S2C::EntityState entityState = _serializeEntity(entity);
+                gameStart.initialState.entities.push_back(entityState);
+            } catch (const std::exception &e) {
+                LOG_ERROR("Failed to serialize entity: ", e.what());
+                continue;
+            }
+        }
+
+        // Send to player
+        std::string sessionId = "session_" + std::to_string(playerId);
+        auto peerIt = _sessionPeers.find(sessionId);
+        if (peerIt != _sessionPeers.end() && peerIt->second) {
+            std::vector<uint8_t> payload = gameStart.serialize();
+            std::vector<uint8_t> packet =
+                NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, payload);
+            std::unique_ptr<IPacket> netPacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
+            peerIt->second->send(std::move(netPacket), 0);
+
+            LOG_INFO("✓ Sent GameStart to player ", playerId, " (entity: ", entityId,
+                     ", room: ", room->getId(), ")");
         }
     }
 }

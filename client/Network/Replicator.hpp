@@ -198,6 +198,31 @@ class Replicator {
      */
     bool sendConnectRequest(const std::string &playerName);
 
+    /**
+     * @brief Send list rooms request to server.
+     * 
+     * @return true if the packet was sent successfully
+     */
+    bool sendListRooms();
+
+    /**
+     * @brief Send create room request to server.
+     * 
+     * @param roomName Name of the room to create
+     * @param maxPlayers Maximum number of players
+     * @param isPrivate Whether the room is private
+     * @return true if the packet was sent successfully
+     */
+    bool sendCreateRoom(const std::string &roomName, uint32_t maxPlayers, bool isPrivate);
+
+    /**
+     * @brief Send join room request to server.
+     * 
+     * @param roomId ID of the room to join
+     * @return true if the packet was sent successfully
+     */
+    bool sendJoinRoom(const std::string &roomId);
+
    private:
     /**
      * @brief Network thread main loop

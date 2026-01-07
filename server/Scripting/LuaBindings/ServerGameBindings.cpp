@@ -28,21 +28,6 @@ namespace scripting::bindings {
             seeded = true;
         }
 
-        // Random number generator
-        lua.set_function("random", [](float min, float max) -> float {
-            if (min >= max)
-                return min;
-            float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-            return min + random * (max - min);
-        });
-
-        // Random integer
-        lua.set_function("randomInt", [](int min, int max) -> int {
-            if (min >= max)
-                return min;
-            return min + (std::rand() % (max - min + 1));
-        });
-
         // Spawn a basic enemy at position
         lua.set_function("spawnEnemy",
                          [world](float x, float y, const std::string &enemyType) -> ecs::wrapper::Entity {

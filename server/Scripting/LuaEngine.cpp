@@ -16,16 +16,30 @@
 #include "common/Logger/Logger.hpp"
 
 namespace scripting {
-    LuaEngine::LuaEngine(const std::string &scriptPath) : _scriptPath(scriptPath), _world(nullptr) {
+    LuaEngine::LuaEngine(const std::string &scriptPath)
+        : _scriptPath(scriptPath), _world(nullptr), _bindingsInitialized(false) {
         _lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::table,
                             sol::lib::string);
 
-        initializeBindings();
         LOG_INFO("LuaEngine initialized with script path: " + scriptPath);
+        LOG_WARNING("Lua bindings not yet initialized. Call setWorld() before executing scripts.");
     }
 
     void LuaEngine::setWorld(ecs::wrapper::ECSWorld *world) {
+        if (world == nullptr) {
+            LOG_ERROR("Attempted to set null world in LuaEngine");
+            throw std::invalid_argument("World cannot be nullptr");
+        }
+
         _world = world;
+
+        if (!_bindingsInitialized) {
+            initializeBindings();
+            _bindingsInitialized = true;
+            LOG_INFO("Lua bindings initialized successfully");
+        } else {
+            LOG_WARNING("World updated in LuaEngine - bindings already initialized");
+        }
     }
 
     void LuaEngine::initializeBindings() {
@@ -55,8 +69,8 @@ namespace scripting {
 
     void LuaEngine::executeUpdate(const std::string &scriptPath, ecs::wrapper::Entity entity,
                                   float deltaTime) {
-        if (!_world) {
-            LOG_ERROR("World not set in LuaEngine");
+        if (!_world || !_bindingsInitialized) {
+            LOG_ERROR("LuaEngine not properly initialized. Call setWorld() first.");
             return;
         }
 
@@ -83,6 +97,11 @@ namespace scripting {
     template <typename... Args>
     void LuaEngine::callFunction(const std::string &scriptPath, const std::string &functionName,
                                  Args &&...args) {
+        if (!_world || !_bindingsInitialized) {
+            LOG_ERROR("LuaEngine not properly initialized. Call setWorld() first.");
+            return;
+        }
+
         if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
             if (!loadScript(scriptPath)) {
                 return;

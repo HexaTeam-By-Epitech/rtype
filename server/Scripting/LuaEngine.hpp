@@ -32,7 +32,12 @@ namespace scripting {
 
         /**
          * @brief Set the ECS world for entity operations.
-         * @param world Pointer to the ECS world
+         * 
+         * This method must be called before executing any Lua scripts that interact
+         * with entities or components. It initializes the Lua bindings with the world context.
+         * 
+         * @param world Pointer to the ECS world (must not be nullptr)
+         * @throws std::invalid_argument if world is nullptr
          */
         void setWorld(ecs::wrapper::ECSWorld *world);
 
@@ -71,6 +76,7 @@ namespace scripting {
         std::string _scriptPath;
         std::unordered_map<std::string, sol::table> _scriptCache;
         ecs::wrapper::ECSWorld *_world;
+        bool _bindingsInitialized;
 
         void initializeBindings();
         //void bindComponents();

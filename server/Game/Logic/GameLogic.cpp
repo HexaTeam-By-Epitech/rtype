@@ -31,11 +31,11 @@
 #include "common/Logger/Logger.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
-#include "server/Scripting/LuaEngine.hpp"
-#include "server/Scripting/LuaSystemAdapter.hpp"
 #include "server/Game/StateManager/GameOverState.hpp"
 #include "server/Game/StateManager/InGameState.hpp"
 #include "server/Game/StateManager/LobbyState.hpp"
+#include "server/Scripting/LuaEngine.hpp"
+#include "server/Scripting/LuaSystemAdapter.hpp"
 
 namespace server {
 
@@ -312,8 +312,8 @@ namespace server {
         // Group 3: Depends on collision results
         std::vector<std::string> group3 = {"HealthSystem", "ProjectileSystem"};
 
-        // Group 4: AI and spawning (can run in parallel)
-        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem"};
+        // Group 4: AI, spawning, and scripting (can run in parallel)
+        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem", "Lua"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {

@@ -23,12 +23,13 @@
 
 #include "Components/IComponent.hpp"
 
-#define N_MAX_COMPONENTS 32
+#define N_MAX_COMPONENTS 64
 /**
  * @brief Maximum number of distinct component types supported by the Registry.
  *
  * This value determines the size of the Signature bitset. Each registered
  * component type is assigned a unique bit position in the Signature.
+ * Increased to 64 to match ComponentMask size and provide more flexibility.
  */
 
 namespace ecs {

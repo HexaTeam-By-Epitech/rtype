@@ -25,9 +25,6 @@ namespace RType::Messages::C2S {
             return std::vector<uint8_t>();
         }
 
-        static StartGame deserialize(const std::vector<uint8_t> &data) {
-            (void)data;
-            return StartGame();
-        }
+        static StartGame deserialize(const std::vector<uint8_t> & /*data*/) { return StartGame(); }
     };
 }  // namespace RType::Messages::C2S

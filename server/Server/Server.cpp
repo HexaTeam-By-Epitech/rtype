@@ -49,49 +49,29 @@ bool Server::initialize() {
         return true;
     }
 
-    LOG_INFO("Initializing R-Type server with proper architecture...");
+    LOG_INFO("Initializing R-Type server...");
 
-    // Initialize networking
     if (!initializeNetworking()) {
         LOG_ERROR("Failed to initialize networking");
         return false;
     }
 
-    // Create network manager
     _networkManager = std::make_unique<ServerNetworkManager>(_port, _maxClients);
-    LOG_INFO("✓ Network manager created");
-
-    // Set packet handler
     _networkManager->setPacketHandler([this](HostNetworkEvent &event) { this->handlePacket(event); });
-    LOG_INFO("✓ Packet handler set");
 
-    // Start network thread
     if (!_networkManager->start()) {
         LOG_ERROR("Failed to start network manager");
         return false;
     }
-    LOG_INFO("✓ Network thread started");
 
-    // Create EventBus
     _eventBus = std::make_shared<server::EventBus>();
-    LOG_INFO("✓ EventBus created");
-
-    // Create SessionManager (track players)
     _sessionManager = std::make_shared<server::SessionManager>();
-    LOG_INFO("✓ SessionManager created");
-
-    // Create RoomManager (manage game instances)
     _roomManager = std::make_shared<server::RoomManager>();
-    LOG_INFO("✓ RoomManager created");
-
-    // Create Lobby (player entry point for matchmaking)
     _lobby = std::make_shared<server::Lobby>(_roomManager);
-    LOG_INFO("✓ Lobby created with matchmaking enabled");
 
-    // Create default room (automatically creates its own GameLoop)
     _roomManager->createRoom("default");
     _defaultRoom = _roomManager->getRoom("default");
-    LOG_INFO("✓ Default room created with dedicated GameLoop");
+    LOG_INFO("✓ Default room created");
 
     // Subscribe to game events on global EventBus
     _eventBus->subscribe<server::PlayerJoinedEvent>([](const server::PlayerJoinedEvent &event) {
@@ -109,16 +89,13 @@ bool Server::initialize() {
         LOG_INFO("[EVENT] Game ended. Reason: ", event.getReason());
     });
 
-    LOG_INFO("✓ Event subscriptions registered");
-
     _initialized = true;
-    LOG_INFO("✓ Initialization complete!");
+    LOG_INFO("✓ Server initialized successfully");
 
     return true;
 }
 
 void Server::handlePacket(HostNetworkEvent &event) {
-    // Dispatch based on event type
     if (event.type == NetworkEventType::DISCONNECT) {
         _handleDisconnect(event);
         return;
@@ -131,7 +108,6 @@ void Server::handlePacket(HostNetworkEvent &event) {
     try {
         using namespace RType::Messages;
 
-        // Get message type and dispatch to appropriate handler
         NetworkMessages::MessageType messageType = NetworkMessages::getMessageType(event.packet->getData());
 
         switch (messageType) {
@@ -174,7 +150,6 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
         return;
     }
 
-    // Fast O(1) lookup using reverse map
     auto it = _peerToSession.find(event.peer);
     if (it == _peerToSession.end()) {
         return;
@@ -190,63 +165,45 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
 
     LOG_INFO("Player ", playerId, " disconnected, cleaning up...");
 
-    // Find which room the player is in
     std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
     if (playerRoom) {
-        // Despawn player from the room's game logic
         std::shared_ptr<server::IGameLogic> gameLogic = playerRoom->getGameLogic();
         if (gameLogic) {
             gameLogic->despawnPlayer(playerId);
         }
 
-        // Remove from room
         playerRoom->leave(playerId);
         LOG_INFO("✓ Player ", playerId, " removed from room '", playerRoom->getId(), "'");
     }
 
-    // Publish PLAYER_LEFT event
     _eventBus->publish(server::PlayerLeftEvent(playerId));
 
-    // Clean up session and mappings
     _sessionManager->removeSession(sessionId);
     _sessionPeers.erase(sessionId);
     _peerToSession.erase(it);
-
-    LOG_INFO("✓ Player ", playerId, " fully cleaned up");
 }
 
 void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
-    // Parse connect request
     std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData());
-    LOG_INFO("Player '", playerName, "' requesting to join...");
 
-    // TODO: For production, add real authentication here:
-    // if (!_sessionManager->getAuthService()->authenticate(username, password)) {
-    //     sendAuthFailedMessage(event.peer);
-    //     return;
-    // }
+    // TODO: Add authentication for production
 
-    // Assign unique player ID
     static std::atomic<uint32_t> nextPlayerId{1000};
     uint32_t newPlayerId = nextPlayerId.fetch_add(1);
 
-    // Create session for player
     std::string sessionId = "session_" + std::to_string(newPlayerId);
     std::shared_ptr<server::Session> session = _sessionManager->createSession(sessionId);
     session->setPlayerId(newPlayerId);
     session->setActive(true);
 
-    // Track session to peer mapping for network communication
     _sessionPeers[sessionId] = event.peer;
     _peerToSession[event.peer] = sessionId;
 
-    // Add player to Lobby (entry point for matchmaking system)
     _lobby->addPlayer(newPlayerId, playerName);
-    LOG_INFO("✓ Player ", newPlayerId, " ('", playerName, "') added to Lobby");
+    LOG_INFO("Player ", newPlayerId, " ('", playerName, "') connected");
 
-    // Send connect response to confirm connection
     std::vector<uint8_t> responseData = NetworkMessages::createConnectResponse("Welcome to R-Type!");
     std::unique_ptr<IPacket> responsePacket =
         createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
@@ -303,12 +260,10 @@ void Server::_handlePlayerInput(HostNetworkEvent &event) {
 void Server::_handleListRooms(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
-    LOG_INFO("Player requesting room list...");
+    LOG_INFO("Sending room list...");
 
-    // Get all public rooms from room manager
     auto publicRooms = _roomManager->getPublicRooms();
 
-    // Build RoomList message
     S2C::RoomList roomList;
     for (const auto &room : publicRooms) {
         S2C::RoomInfoData info;
@@ -318,7 +273,6 @@ void Server::_handleListRooms(HostNetworkEvent &event) {
         info.maxPlayers = static_cast<uint32_t>(room->getMaxPlayers());
         info.isPrivate = room->isPrivate();
 
-        // Map room state to uint8_t
         auto state = room->getState();
         if (state == server::RoomState::WAITING)
             info.state = 0;
@@ -334,26 +288,19 @@ void Server::_handleListRooms(HostNetworkEvent &event) {
         roomList.rooms.push_back(info);
     }
 
-    // Serialize and send
     std::vector<uint8_t> payload = roomList.serialize();
     std::vector<uint8_t> packet =
         NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
     std::unique_ptr<IPacket> netPacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(netPacket), 0);
-
-    LOG_INFO("✓ Sent room list (", roomList.rooms.size(), " rooms)");
 }
 
 void Server::_handleCreateRoom(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
-    // Parse create room request
     std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
     C2S::CreateRoom request = C2S::CreateRoom::deserialize(payload);
 
-    LOG_INFO("Player requesting to create room '", request.roomName, "'...");
-
-    // Find player ID from peer
     uint32_t playerId = 0;
     auto it = _peerToSession.find(event.peer);
     if (it != _peerToSession.end()) {
@@ -374,11 +321,9 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
         return;
     }
 
-    // Generate unique room ID
     static std::atomic<uint32_t> nextRoomId{1};
     std::string roomId = "room_" + std::to_string(nextRoomId.fetch_add(1));
 
-    // Create room
     auto room = _roomManager->createRoom(roomId, request.roomName, request.maxPlayers, request.isPrivate);
     if (!room) {
         LOG_ERROR("Failed to create room");
@@ -391,10 +336,8 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
         return;
     }
 
-    // Remove player from lobby
     _lobby->removePlayer(playerId);
 
-    // Add player to room
     if (!room->join(playerId)) {
         LOG_ERROR("Failed to join created room");
         S2C::RoomCreated response(roomId, false, "Failed to join room");
@@ -406,9 +349,8 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
         return;
     }
 
-    LOG_INFO("✓ Player ", playerId, " created and joined room '", request.roomName, "' (", roomId, ")");
+    LOG_INFO("Room '", request.roomName, "' created by player ", playerId);
 
-    // Send success response
     S2C::RoomCreated response(roomId, true);
     std::vector<uint8_t> respPayload = response.serialize();
     std::vector<uint8_t> respPacket =
@@ -420,13 +362,9 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
 void Server::_handleJoinRoom(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
-    // Parse join room request
     std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
     C2S::JoinRoom request = C2S::JoinRoom::deserialize(payload);
 
-    LOG_INFO("Player requesting to join room '", request.roomId, "'...");
-
-    // Find player ID from peer
     uint32_t playerId = 0;
     auto it = _peerToSession.find(event.peer);
     if (it != _peerToSession.end()) {
@@ -447,7 +385,6 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         return;
     }
 
-    // Get room
     auto room = _roomManager->getRoom(request.roomId);
     if (!room) {
         LOG_ERROR("Room '", request.roomId, "' not found");
@@ -460,10 +397,8 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         return;
     }
 
-    // Remove player from lobby
     _lobby->removePlayer(playerId);
 
-    // Add player to room
     if (!room->join(playerId)) {
         LOG_ERROR("Failed to join room (full or in progress)");
         S2C::JoinedRoom response("", false, "Room is full or in progress");
@@ -475,9 +410,8 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         return;
     }
 
-    LOG_INFO("✓ Player ", playerId, " joined room '", request.roomId, "'");
+    LOG_INFO("Player ", playerId, " joined room '", request.roomId, "'");
 
-    // Send success response
     S2C::JoinedRoom response(request.roomId, true);
     std::vector<uint8_t> respPayload = response.serialize();
     std::vector<uint8_t> respPacket =
@@ -489,9 +423,6 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
 void Server::_handleStartGame(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
-    LOG_INFO("Player requesting to start game...");
-
-    // Get player ID from session
     uint32_t playerId = 0;
     auto it = _peerToSession.find(event.peer);
     if (it != _peerToSession.end()) {
@@ -506,7 +437,6 @@ void Server::_handleStartGame(HostNetworkEvent &event) {
         return;
     }
 
-    // Find which room this player is in
     std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
 
     if (!playerRoom) {
@@ -523,7 +453,7 @@ void Server::_handleStartGame(HostNetworkEvent &event) {
     }
 
     playerRoom->requestStartGame();
-    LOG_INFO("✓ Room '", playerRoom->getId(), "' countdown started by host ", playerId);
+    LOG_INFO("Room '", playerRoom->getId(), "' starting game");
 }
 
 void Server::run() {
@@ -536,43 +466,28 @@ void Server::run() {
     LOG_INFO("R-Type server running!");
     LOG_INFO("Port: ", _port);
     LOG_INFO("Max clients: ", _maxClients);
-    LOG_INFO("Architecture:");
-    LOG_INFO("  SessionManager - tracking player sessions");
-    LOG_INFO("  RoomManager - managing game instances (each room has its own GameLoop)");
-    LOG_INFO("  Lobby - matchmaking system");
-    LOG_INFO("========================================");
-    LOG_INFO("THREAD 1: Network (accepting connections)");
-    LOG_INFO("THREAD 2+: Game loops per room (60 Hz each)");
     LOG_INFO("Press Ctrl+C to stop");
     LOG_INFO("========================================");
 
-    // Publish GAME_STARTED event
     _eventBus->publish(server::GameStartedEvent());
 
     _running = true;
 
-    // Main server loop - handle network and broadcasting
     while (_running && _networkManager->isRunning()) {
-        // Process network messages from network thread
         _networkManager->processMessages();
 
-        // Update room manager for matchmaking and room lifecycle
         if (_roomManager) {
-            _roomManager->update(0.016f);  // ~60 Hz
+            _roomManager->update(0.016f);
 
-            // Check if any room just started and send GameStart to players
             auto rooms = _roomManager->getAllRooms();
             for (const auto &room : rooms) {
-                // Check if room just transitioned to IN_PROGRESS and GameStart not yet sent
                 if (room->getState() == server::RoomState::IN_PROGRESS && !room->isGameStartSent()) {
-                    // Send GameStart to all players in this room
                     _sendGameStartToRoom(room);
                     room->setGameStartSent(true);
                 }
             }
         }
 
-        // Broadcast game state for each room periodically
         _broadcastGameState();
 
         // Sleep to avoid busy-waiting (network processing is the bottleneck here)

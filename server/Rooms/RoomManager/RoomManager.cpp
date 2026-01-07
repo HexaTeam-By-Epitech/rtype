@@ -11,7 +11,6 @@
 namespace server {
 
     RoomManager::RoomManager() : _matchmaking(std::make_shared<MatchmakingService>(2, 4)) {
-        // Set callback for when matchmaking creates a match
         _matchmaking->setMatchCreatedCallback([this](std::shared_ptr<Room> room) { _onMatchCreated(room); });
         LOG_INFO("RoomManager created with matchmaking service");
     }
@@ -122,10 +121,25 @@ namespace server {
             _matchmaking->tick();
         }
 
-        // Update all rooms
         std::lock_guard<std::mutex> lock(_mutex);
         for (auto &[id, room] : _rooms) {
             room->update(deltaTime);
+        }
+
+        std::vector<std::string> roomsToRemove;
+        for (const auto &[id, room] : _rooms) {
+            if (room->getState() == RoomState::FINISHED && room->getPlayerCount() == 0) {
+                roomsToRemove.push_back(id);
+            }
+        }
+
+        for (const auto &id : roomsToRemove) {
+            _rooms.erase(id);
+            LOG_INFO("Cleaned up finished room: ", id);
+        }
+
+        if (!roomsToRemove.empty()) {
+            LOG_INFO("Cleaned up ", roomsToRemove.size(), " finished room(s)");
         }
     }
 

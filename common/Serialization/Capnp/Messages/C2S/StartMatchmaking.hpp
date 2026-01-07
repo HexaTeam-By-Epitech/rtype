@@ -26,7 +26,9 @@ namespace RType::Messages::C2S {
             return std::vector<uint8_t>(byteArray.begin(), byteArray.end());
         }
 
-        static StartMatchmaking deserialize(const std::vector<uint8_t> &data) { return StartMatchmaking(); }
+        static StartMatchmaking deserialize(const std::vector<uint8_t> & /*data*/) {
+            return StartMatchmaking();
+        }
     };
 
 }  // namespace RType::Messages::C2S

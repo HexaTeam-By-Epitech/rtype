@@ -24,10 +24,8 @@ namespace server {
           _maxPlayers(maxPlayers),
           _isPrivate(isPrivate),
           _hostPlayerId(0),
-          _startCountdown(0.0f),
           _gameStartSent(false) {
 
-        // Create EventBus and GameLogic for this room
         _eventBus = std::make_shared<EventBus>();
         std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = std::make_shared<ecs::wrapper::ECSWorld>();
         std::shared_ptr<ThreadPool> threadPool = std::make_shared<ThreadPool>(4);
@@ -35,7 +33,6 @@ namespace server {
         std::unique_ptr<IGameLogic> gameLogic = std::make_unique<GameLogic>(ecsWorld, threadPool, _eventBus);
         _gameLoop = std::make_unique<ServerLoop>(std::move(gameLogic), _eventBus);
 
-        // Initialize game loop
         if (!_gameLoop->initialize()) {
             LOG_ERROR("Failed to initialize game loop for room ", _id);
             return;
@@ -43,9 +40,7 @@ namespace server {
 
         _gameLoop->start();
 
-        _gameLogic = std::shared_ptr<IGameLogic>(&_gameLoop->getGameLogic(), [](IGameLogic *) {
-            // Empty deleter - ServerLoop owns the IGameLogic
-        });
+        _gameLogic = std::shared_ptr<IGameLogic>(&_gameLoop->getGameLogic(), [](IGameLogic *) {});
 
         LOG_INFO("Room '", _name, "' (", _id, ") created [State: WAITING, Max: ", _maxPlayers,
                  " players, Private: ", (_isPrivate ? "Yes" : "No"), "] with dedicated GameLoop");
@@ -69,14 +64,12 @@ namespace server {
         }
         _players.push_back(playerId);
 
-        // Set first player as host
         if (_players.size() == 1) {
             _hostPlayerId = playerId;
-            LOG_INFO("Player ", playerId, " is now host of room ", _id);
+            LOG_INFO("Player ", playerId, " is host of room ", _id);
         }
 
-        LOG_INFO("✓ Player ", playerId, " joined room ", _id, " (", _players.size(), "/", _maxPlayers,
-                 " players)");
+        LOG_INFO("Player ", playerId, " joined room ", _id, " (", _players.size(), "/", _maxPlayers, ")");
         return true;
     }
 
@@ -89,12 +82,11 @@ namespace server {
         }
 
         _players.erase(it);
-        LOG_INFO("✓ Player ", playerId, " left room ", _id, " (", _players.size(), " players remaining)");
+        LOG_INFO("Player ", playerId, " left room ", _id, " (", _players.size(), " remaining)");
 
-        // If host left, assign new host
         if (playerId == _hostPlayerId && !_players.empty()) {
             _hostPlayerId = _players[0];
-            LOG_INFO("Player ", _hostPlayerId, " is now host of room ", _id);
+            LOG_INFO("Player ", _hostPlayerId, " is new host");
         }
 
         return true;
@@ -106,22 +98,15 @@ namespace server {
             LOG_INFO("Room '", _name, "' state: ", stateNames[static_cast<int>(_state)], " -> ",
                      stateNames[static_cast<int>(state)]);
             _state = state;
-
-            // Start countdown when entering STARTING state
-            if (state == RoomState::STARTING) {
-                _startCountdown = 3.0f;
-            }
         }
     }
 
     size_t Room::getPlayerCount() const {
-        // Avoid race conditions
         std::lock_guard<std::mutex> lock(_mutex);
         return _players.size();
     }
 
     std::vector<uint32_t> Room::getPlayers() const {
-        // Avoid race conditions
         std::lock_guard<std::mutex> lock(_mutex);
         return _players;
     }
@@ -134,11 +119,6 @@ namespace server {
         std::lock_guard<std::mutex> lock(_mutex);
         return RoomInfo{
             _id, _name, _state, _players.size(), _maxPlayers, _isPrivate, std::to_string(_hostPlayerId)};
-    }
-
-    void Room::setGameLogic(std::shared_ptr<IGameLogic> gameLogic) {
-        _gameLogic = gameLogic;
-        LOG_INFO("GameLogic instance attached to room ", _id);
     }
 
     bool Room::startGame() {
@@ -154,32 +134,27 @@ namespace server {
             return false;
         }
 
-        // Initialize game logic if present
         if (_gameLogic) {
             if (!_gameLogic->initialize()) {
                 LOG_ERROR("Failed to initialize game logic for room ", _id);
                 return false;
             }
 
-            // Spawn all players in the game
             for (uint32_t playerId : _players) {
                 uint32_t entityId = _gameLogic->spawnPlayer(playerId, "Player" + std::to_string(playerId));
-                LOG_INFO("✓ Spawned player ", playerId, " as entity ", entityId);
             }
         }
 
         setState(RoomState::IN_PROGRESS);
-        LOG_INFO("✓ Game started in room ", _id, " with ", _players.size(), " players");
+        LOG_INFO("Game started in room ", _id, " with ", _players.size(), " players");
         return true;
     }
 
     void Room::update(float deltaTime) {
-        // Update game logic if game is running
         if (_state == RoomState::IN_PROGRESS && _gameLogic) {
             static uint32_t tick = 0;
             _gameLogic->update(deltaTime, tick++);
 
-            // Check if game ended
             if (!_gameLogic->isGameActive()) {
                 setState(RoomState::FINISHED);
                 LOG_INFO("Game ended in room ", _id);

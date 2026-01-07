@@ -30,7 +30,7 @@ namespace RType::Messages::C2S {
             return std::vector<uint8_t>(byteArray.begin(), byteArray.end());
         }
 
-        static ListRooms deserialize(const std::vector<uint8_t> &data) { return ListRooms(); }
+        static ListRooms deserialize(const std::vector<uint8_t> & /*data*/) { return ListRooms(); }
     };
 
 }  // namespace RType::Messages::C2S

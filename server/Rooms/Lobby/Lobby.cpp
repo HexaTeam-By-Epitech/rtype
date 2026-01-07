@@ -170,7 +170,6 @@ namespace server {
             return "";
         }
 
-        // Generate unique room ID
         std::string roomId = "custom_" + std::to_string(hostPlayerId) + "_" +
                              std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
 
@@ -180,14 +179,12 @@ namespace server {
             return "";
         }
 
-        // Host joins the room
         if (room->join(hostPlayerId)) {
             room->setHost(hostPlayerId);
             LOG_INFO("✓ Player ", hostPlayerId, " created custom room '", roomName, "' (", roomId, ")");
             return roomId;
         }
 
-        // Failed to join, remove the room
         _roomManager->removeRoom(roomId);
         return "";
     }

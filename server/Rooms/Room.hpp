@@ -50,12 +50,6 @@ namespace server {
         RoomInfo getInfo() const override;
 
         /**
-         * @brief Set the game logic instance for this room
-         * @param gameLogic Shared pointer to game logic
-         */
-        void setGameLogic(std::shared_ptr<IGameLogic> gameLogic);
-
-        /**
          * @brief Get the game logic instance
          * @return Shared pointer to game logic (may be nullptr)
          */
@@ -66,12 +60,6 @@ namespace server {
          * @return Pointer to ServerLoop (may be nullptr)
          */
         ServerLoop *getServerLoop() const { return _gameLoop.get(); };
-
-        /**
-         * @brief Get the event bus for this room
-         * @return Shared pointer to EventBus
-         */
-        std::shared_ptr<EventBus> getEventBus() const { return _eventBus; };
 
         /**
          * @brief Start the game for this room
@@ -134,7 +122,6 @@ namespace server {
         std::unique_ptr<ServerLoop> _gameLoop;  // Dedicated game loop for this room
         std::shared_ptr<EventBus> _eventBus;    // Event bus for this room
         mutable std::mutex _mutex;              // Thread safety for player management
-        float _startCountdown;                  // Countdown before game starts (in seconds)
         bool _gameStartSent;                    // Whether GameStart has been sent to players
     };
 

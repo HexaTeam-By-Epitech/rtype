@@ -11,6 +11,7 @@
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Transform.hpp"
@@ -88,6 +89,16 @@ namespace server {
             LOG_INFO("✓ Lua system registered");
 
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
+
+            // 🧪 TEST: Spawn a test enemy with Lua script
+            LOG_INFO("🧪 Spawning test enemy with Lua script...");
+            _world->createEntity()
+                .with(ecs::Transform(600.0f, 300.0f))
+                .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
+                .with(ecs::Health(100, 100))
+                .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
+                .with(ecs::LuaScript("test_movement.lua"));
+            LOG_INFO("✓ Test enemy spawned at (600, 300) with script: test_movement.lua");
 
             _gameActive = true;
             _currentTick = 0;

@@ -100,7 +100,8 @@ namespace scripting::bindings {
 
        private:
         std::vector<ComponentBinding> _bindings;
-        std::unordered_map<std::string, std::function<void(ecs::wrapper::Entity &)>> _getters;
+        std::unordered_map<std::string, std::function<sol::object(ecs::wrapper::Entity &, sol::this_state)>>
+            _getters;
         std::unordered_map<std::string, std::function<bool(ecs::wrapper::Entity &)>> _hasCheckers;
         std::unordered_map<std::string, std::function<void(ecs::wrapper::Entity &)>> _removers;
     };
@@ -110,8 +111,12 @@ namespace scripting::bindings {
     void ComponentBindingHelper::add(const std::string &name, std::function<void(sol::state &)> bindFunc) {
         _bindings.push_back({name, bindFunc});
 
-        _getters[name] = [](ecs::wrapper::Entity &e) -> T & {
-            return e.get<T>();
+        _getters[name] = [](ecs::wrapper::Entity &e, sol::this_state L) -> sol::object {
+            sol::state_view lua(L);
+            if (!e.has<T>()) {
+                return sol::nil;
+            }
+            return sol::make_object(lua, &e.get<T>());
         };
 
         _hasCheckers[name] = [](ecs::wrapper::Entity &e) -> bool {
@@ -134,8 +139,12 @@ namespace scripting::bindings {
      */
     template <typename T>
     void ComponentBindingHelper::registerComponent(const std::string &name) {
-        _getters[name] = [](ecs::wrapper::Entity &e) -> T & {
-            return e.get<T>();
+        _getters[name] = [](ecs::wrapper::Entity &e, sol::this_state L) -> sol::object {
+            sol::state_view lua(L);
+            if (!e.has<T>()) {
+                return sol::nil;
+            }
+            return sol::make_object(lua, &e.get<T>());
         };
 
         _hasCheckers[name] = [](ecs::wrapper::Entity &e) -> bool {

@@ -29,12 +29,21 @@ namespace scripting {
 
         auto entities = registry.getEntitiesWithMask(this->getComponentMask());
 
+        static int logCounter = 0;
+        if (++logCounter % 60 == 0) {
+            LOG_INFO("LuaSystemAdapter: Processing " + std::to_string(entities.size()) +
+                     " entities with LuaScript component");
+        }
+
         for (const auto &entityAddr : entities) {
             try {
                 auto &luaScript = registry.getComponent<ecs::LuaScript>(entityAddr);
                 const std::string &scriptPath = luaScript.getScriptPath();
 
+                LOG_DEBUG("Processing entity " + std::to_string(entityAddr) + " with script: " + scriptPath);
+
                 if (scriptPath.empty()) {
+                    LOG_WARNING("Entity " + std::to_string(entityAddr) + " has empty script path");
                     continue;
                 }
 
@@ -46,6 +55,8 @@ namespace scripting {
                                 " for script: " + scriptPath);
                     continue;
                 }
+
+                LOG_DEBUG("Entity " + std::to_string(entityAddr) + " is valid, executing script");
 
                 // Execute the script via LuaEngine
                 _luaEngine->executeUpdate(scriptPath, entity, deltaTime);

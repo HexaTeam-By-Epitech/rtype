@@ -65,8 +65,12 @@ namespace scripting {
         }
 
         try {
-            sol::table script = _lua.script_file(fullPath);
-            _scriptCache[scriptPath] = script;
+            // Execute the script file (loads functions into global environment)
+            _lua.script_file(fullPath);
+
+            // Cache the global environment as the script's table
+            _scriptCache[scriptPath] = _lua.globals();
+
             LOG_INFO("Loaded Lua script: " + scriptPath);
             return true;
         } catch (const sol::error &e) {
@@ -84,21 +88,27 @@ namespace scripting {
 
         if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
             if (!loadScript(scriptPath)) {
+                LOG_ERROR("Failed to load script: " + scriptPath);
                 return;
             }
         }
 
         try {
-            sol::table script = _scriptCache[scriptPath];
-            sol::optional<sol::function> onUpdate = script["onUpdate"];
+            // onUpdate is in globals, not in the script table
+            sol::optional<sol::function> onUpdate = _lua["onUpdate"];
 
             if (onUpdate) {
+                LOG_DEBUG("Calling onUpdate for script: " + scriptPath +
+                          " with deltaTime: " + std::to_string(deltaTime));
                 onUpdate.value()(entity, deltaTime);
+                LOG_DEBUG("onUpdate completed successfully");
             } else {
                 LOG_WARNING("Script " + scriptPath + " has no onUpdate function");
             }
         } catch (const sol::error &e) {
             LOG_ERROR("Lua runtime error in " + scriptPath + ": " + std::string(e.what()));
+        } catch (const std::exception &e) {
+            LOG_ERROR("C++ exception in executeUpdate: " + std::string(e.what()));
         }
     }
 

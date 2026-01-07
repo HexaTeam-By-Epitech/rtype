@@ -15,11 +15,16 @@ namespace server {
     }
 
     ThreadPool::~ThreadPool() {
-        stop();
+        try {
+            ThreadPool::stop();
+            // jthread automatically requests stop and joins in its destructor
+        } catch (const std::exception &e) {
+            LOG_ERROR("ThreadPool destructor caught exception: ", e.what());
+        }
     }
 
     void ThreadPool::start() {
-        if (_running.exchange(true)) {
+        if (!_workers.empty()) {
             LOG_WARNING("ThreadPool already running");
             return;  // Already started
         }
@@ -28,9 +33,10 @@ namespace server {
 
         _workers.reserve(_threadCount);
         for (size_t i = 0; i < _threadCount; ++i) {
-            _workers.emplace_back([this, i] {
+            // jthread automatically passes stop_token to the lambda
+            _workers.emplace_back([this, i](std::stop_token stopToken) {
                 LOG_DEBUG("Worker thread ", i, " started (TID: ", std::this_thread::get_id(), ")");
-                _workerLoop();
+                _workerLoop(stopToken);
                 LOG_DEBUG("Worker thread ", i, " exiting");
             });
         }
@@ -39,30 +45,30 @@ namespace server {
     }
 
     void ThreadPool::stop() {
-        if (!_running.exchange(false)) {
+        if (_workers.empty()) {
             return;  // Already stopped
         }
 
         LOG_INFO("Stopping ThreadPool...");
 
-        // Enqueue poison pills to wake up all workers
+        // Request stop for all worker threads
+        for (auto &worker : _workers) {
+            worker.request_stop();
+        }
+
+        // Wake up all workers by pushing poison pills (in case they're blocked on pop())
         for (size_t i = 0; i < _threadCount; ++i) {
             _taskQueue.push(nullptr);
         }
 
-        // Wait for all workers to finish
-        for (auto &worker : _workers) {
-            if (worker.joinable()) {
-                worker.join();
-            }
-        }
+        // jthread joins automatically in destructor, but we join explicitly here for clean shutdown
+        _workers.clear();  // This will trigger join on all jthreads
 
-        _workers.clear();
         LOG_INFO("✓ ThreadPool stopped");
     }
 
     void ThreadPool::enqueue(Task task) {
-        if (!_running) {
+        if (_workers.empty()) {
             LOG_WARNING("Enqueuing task to stopped ThreadPool - task will not execute");
             return;
         }
@@ -79,8 +85,8 @@ namespace server {
         return _threadCount;
     }
 
-    void ThreadPool::_workerLoop() {
-        while (_running) {
+    void ThreadPool::_workerLoop(std::stop_token stopToken) {
+        while (!stopToken.stop_requested()) {
             // Block until a task is available
             Task task = _taskQueue.pop();
 

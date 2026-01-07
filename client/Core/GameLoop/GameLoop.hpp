@@ -12,6 +12,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include "../common/Logger/Logger.hpp"
 #include "Capnp/Messages/Messages.hpp"
 #include "Capnp/NetworkMessages.hpp"
@@ -146,6 +147,34 @@ class GameLoop {
      */
     void stop();
 
+    /**
+     * @brief Set the reconciliation threshold for client-side prediction
+     * @param threshold Distance in pixels before server correction is applied
+     * 
+     * Adjusts how tolerant the client-side prediction is before reconciling with
+     * the server's authoritative position. This should be tuned based on observed
+     * network conditions:
+     * 
+     * - Low latency (<50ms): 3.0f - 5.0f pixels (tight sync, minimal drift)
+     * - Medium latency (50-150ms): 5.0f - 10.0f pixels (default, balanced)
+     * - High latency (>150ms): 10.0f - 20.0f pixels (loose sync, smoother visuals)
+     * 
+     * Call this method when you detect network latency changes or based on
+     * user preferences/settings.
+     * 
+     * @note Default is 5.0f pixels (suitable for medium latency)
+     * @note Delegates to Rendering -> EntityRenderer
+     */
+    void setReconciliationThreshold(float threshold);
+
+    /**
+     * @brief Get the current reconciliation threshold
+     * @return Current threshold in pixels
+     * 
+     * @note Delegates to Rendering -> EntityRenderer
+     */
+    float getReconciliationThreshold() const;
+
    private:
     /**
      * @brief Update game logic (variable timestep)
@@ -209,6 +238,11 @@ class GameLoop {
 
     // Input tracking
     uint32_t _inputSequenceId = 0;
+
+    // Player entity tracking
+    std::optional<uint32_t> _myEntityId;       // Local player's entity ID (std::nullopt if not yet assigned)
+    float _playerSpeed = 200.0f;               // pixels per second (MUST MATCH SERVER!)
+    bool _clientSidePredictionEnabled = true;  // Client-side prediction enabled by default (can be toggled)
 
     GameScene _currentScene = GameScene::LOBBY;
 };

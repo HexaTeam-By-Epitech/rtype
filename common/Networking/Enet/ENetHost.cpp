@@ -84,6 +84,12 @@ std::optional<HostNetworkEvent> ENetHostWrapper::service(uint32_t timeout) {
                     auto peerWrapper = std::make_unique<ENetPeerWrapper>(event.peer);
                     netEvent.peer = peerWrapper.get();
                     _peers[event.peer] = std::move(peerWrapper);
+
+                    // Configure peer timeout for faster disconnect detection
+                    // limit: max number of unacknowledged packets before disconnect
+                    // minimum: min timeout in milliseconds (1000ms = 1s)
+                    // maximum: max timeout in milliseconds (3000ms = 3s)
+                    enet_peer_timeout(event.peer, 5, 1000, 3000);
                 } else {
                     netEvent.peer = _peers[event.peer].get();
                 }

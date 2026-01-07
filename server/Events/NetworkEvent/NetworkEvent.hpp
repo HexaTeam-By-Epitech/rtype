@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <chrono>
 #include <string>
 #include "server/Events/IEvent.hpp"
 

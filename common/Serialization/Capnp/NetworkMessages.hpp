@@ -214,29 +214,58 @@ namespace NetworkMessages {
     /**
      * @brief Create HANDSHAKE_REQUEST message
      * @param playerName Player's name
+     * @param isSpectator Whether this is a spectator connection
      * 
      * @deprecated Use RType::Messages::Connection::HandshakeRequest wrapper instead
      */
-    inline std::vector<uint8_t> createConnectRequest(const std::string &playerName) {
-        auto payload = serializeString(playerName);
+    inline std::vector<uint8_t> createConnectRequest(const std::string &playerName,
+                                                     bool isSpectator = false) {
+        std::vector<uint8_t> payload = serializeString(playerName);
+
+        // Add spectator flag (1 byte)
+        payload.push_back(isSpectator ? 1 : 0);
+
         return createMessage(MessageType::HANDSHAKE_REQUEST, payload);
     }
 
     /**
      * @brief Parse HANDSHAKE_REQUEST message
      * @param packet Complete packet
+     * @param[out] isSpectator Set to true if this is a spectator connection
      * @return Player name (empty if invalid or wrong type)
      * 
      * @deprecated Use RType::Messages::Connection::HandshakeRequest wrapper instead
      */
-    inline std::string parseConnectRequest(const std::vector<uint8_t> &packet) {
+    inline std::string parseConnectRequest(const std::vector<uint8_t> &packet, bool &isSpectator) {
         if (getMessageType(packet) != MessageType::HANDSHAKE_REQUEST) {
+            isSpectator = false;
             return "";
         }
 
         auto payload = getPayload(packet);
         size_t offset = 0;
-        return deserializeString(payload, offset);
+        std::string playerName = deserializeString(payload, offset);
+
+        // Read spectator flag if present (backwards compatible)
+        if (offset < payload.size()) {
+            isSpectator = (payload[offset] != 0);
+        } else {
+            isSpectator = false;
+        }
+
+        return playerName;
+    }
+
+    /**
+     * @brief Parse HANDSHAKE_REQUEST message (legacy - without spectator flag)
+     * @param packet Complete packet
+     * @return Player name (empty if invalid or wrong type)
+     * 
+     * @deprecated Use parseConnectRequest with isSpectator parameter instead
+     */
+    inline std::string parseConnectRequest(const std::vector<uint8_t> &packet) {
+        bool isSpectator = false;
+        return parseConnectRequest(packet, isSpectator);
     }
 
     /**

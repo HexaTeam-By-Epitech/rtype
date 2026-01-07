@@ -167,6 +167,38 @@ class EntityRenderer {
     void setInterpolationSpeed(float speed) { _interpolationSpeed = speed; }
 
     /**
+     * @brief Enable or disable client-side prediction for local player
+     * @param enabled true to enable prediction (instant movement), false for interpolation
+     * 
+     * When enabled, local player moves instantly without waiting for server.
+     * When disabled, local player is interpolated like other entities.
+     */
+    void setClientSidePredictionEnabled(bool enabled) { _clientSidePredictionEnabled = enabled; }
+
+    /**
+     * @brief Set the reconciliation threshold for client-side prediction
+     * @param threshold Distance in pixels before correction is applied
+     * 
+     * Controls when the client prediction is corrected by the server's authoritative position.
+     * Smaller values = more frequent corrections (tighter sync, more visual jitter)
+     * Larger values = fewer corrections (looser sync, smoother visuals)
+     * 
+     * Recommended ranges:
+     * - Low latency (<50ms): 3.0f - 5.0f pixels
+     * - Medium latency (50-150ms): 5.0f - 10.0f pixels
+     * - High latency (>150ms): 10.0f - 20.0f pixels
+     * 
+     * @note Default is 5.0f pixels
+     */
+    void setReconciliationThreshold(float threshold) { _reconciliationThreshold = threshold; }
+
+    /**
+     * @brief Get the current reconciliation threshold
+     * @return Current threshold in pixels
+     */
+    [[nodiscard]] float getReconciliationThreshold() const { return _reconciliationThreshold; }
+
+    /**
          * @brief Update interpolation for all entities
          * @param deltaTime Time elapsed since last frame (in seconds)
          * 
@@ -174,6 +206,20 @@ class EntityRenderer {
          * This provides smooth movement between discrete server updates.
          */
     void updateInterpolation(float deltaTime);
+
+    /**
+         * @brief Move an entity locally (client-side prediction)
+         * @param entityId Entity to move
+         * @param deltaX Movement in X direction
+         * @param deltaY Movement in Y direction
+         * 
+         * Used for local player prediction: moves the entity immediately
+         * without waiting for server confirmation. Server will later send
+         * corrections which trigger reconciliation if needed.
+         * 
+         * This provides 0ms input latency for the local player.
+         */
+    void moveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
 
    private:
     /**
@@ -254,4 +300,10 @@ class EntityRenderer {
 
     /// Interpolation speed multiplier (higher = faster convergence)
     float _interpolationSpeed = 10.0f;
+
+    /// Client-side prediction enabled flag (for local player only)
+    bool _clientSidePredictionEnabled = true;
+
+    /// Reconciliation threshold in pixels (corrections smaller than this are ignored)
+    float _reconciliationThreshold = 5.0f;
 };

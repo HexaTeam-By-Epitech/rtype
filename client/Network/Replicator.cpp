@@ -7,8 +7,8 @@
 
 #include "Replicator.hpp"
 
-Replicator::Replicator(EventBus &eventBus) : _eventBus(eventBus), _host(createClientHost()) {}
-
+Replicator::Replicator(EventBus &eventBus, bool isSpectator)
+    : _eventBus(eventBus), _isSpectator(isSpectator), _host(createClientHost()) {}
 Replicator::~Replicator() {
     disconnect();
 }
@@ -48,7 +48,8 @@ void Replicator::disconnect() {
         auto state = _serverPeer->getState();
         if (state == PeerState::CONNECTED || state == PeerState::CONNECTION_SUCCEEDED ||
             state == PeerState::CONNECTING) {
-            _serverPeer->disconnect();
+            // Use disconnectNow() for instant disconnect instead of graceful disconnect()
+            _serverPeer->disconnectNow();
         }
         _serverPeer = nullptr;
     }
@@ -60,29 +61,25 @@ bool Replicator::isConnected() const {
 }
 
 void Replicator::startNetworkThread() {
-    bool expected = false;
-    // Atomically check if _running is false and set it to true
-    // This prevents multiple threads from creating the network thread
-    if (!_running.compare_exchange_strong(expected, true)) {
-        return;  // Thread already running or being started
+    if (_networkThread.joinable()) {
+        return;  // Thread already running
     }
 
-    _networkThread = std::thread(&Replicator::networkThreadLoop, this);
+    // Create jthread with lambda that captures 'this' and receives stop_token from jthread
+    // The stop_token is automatically passed by jthread when the lambda signature accepts it
+    _networkThread = std::jthread([this](std::stop_token st) { networkThreadLoop(st); });
 }
 
 void Replicator::stopNetworkThread() {
-    if (!_running.load()) {
-        return;  // Thread not running
-    }
-
-    _running.store(false);
+    _networkThread.request_stop();
+    // jthread joins automatically in destructor, but we can join explicitly if needed
     if (_networkThread.joinable()) {
         _networkThread.join();
     }
 }
 
-void Replicator::networkThreadLoop() {
-    while (_running.load()) {
+void Replicator::networkThreadLoop(std::stop_token stopToken) {
+    while (!stopToken.stop_requested()) {
         if (!_host) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
@@ -100,6 +97,24 @@ void Replicator::networkThreadLoop() {
         switch (event.type) {
             case NetworkEventType::RECEIVE:
                 if (event.packet) {
+                    // Update latency from ENet's built-in RTT calculation
+                    if (_serverPeer) {
+                        uint32_t enetRtt = _serverPeer->getRoundTripTime();
+
+                        // Apply exponential moving average for smoother ping display
+                        float smoothed = _smoothedLatency.load();
+                        if (smoothed == 0.0f) {
+                            // First measurement
+                            smoothed = static_cast<float>(enetRtt);
+                        } else {
+                            // Smooth with previous values (30% new, 70% old)
+                            smoothed = smoothed * (1.0f - PING_SMOOTHING_FACTOR) +
+                                       static_cast<float>(enetRtt) * PING_SMOOTHING_FACTOR;
+                        }
+                        _smoothedLatency.store(smoothed);
+                        _latency.store(static_cast<uint32_t>(smoothed));
+                    }
+
                     // Decode message type and push to queue
                     auto messageType = NetworkMessages::getMessageType(event.packet->getData());
                     std::string messageContent;
@@ -205,8 +220,8 @@ bool Replicator::sendConnectRequest(const std::string &playerName) {
         return false;
     }
 
-    // Create Cap'n Proto ConnectRequest
-    auto requestData = NetworkMessages::createConnectRequest(playerName);
+    // Create Cap'n Proto ConnectRequest with spectator flag
+    auto requestData = NetworkMessages::createConnectRequest(playerName, _isSpectator);
 
     // Send via ENet
     auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
@@ -214,11 +229,15 @@ bool Replicator::sendConnectRequest(const std::string &playerName) {
 }
 
 uint32_t Replicator::getLatency() const {
-    return _latency;
+    return _latency.load();
 }
 
 uint32_t Replicator::getPacketLoss() const {
     return _packetLoss;
+}
+
+bool Replicator::isSpectator() const {
+    return _isSpectator;
 }
 
 void Replicator::onInputEvent(const InputEvent &event) {

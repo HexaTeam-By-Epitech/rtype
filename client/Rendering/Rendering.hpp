@@ -228,6 +228,76 @@ class Rendering {
      */
     void UpdateInterpolation(float deltaTime);
 
+    /**
+     * @brief Update ping display timer (called every frame)
+     * @param deltaTime Time elapsed since last frame (in seconds)
+     * 
+     * Updates the displayed ping value once per second to avoid flickering
+     * and optimize performance. Should be called from GameLoop's update().
+     */
+    void UpdatePingTimer(float deltaTime);
+
+    /**
+     * @brief Move an entity locally (client-side prediction)
+     * @param entityId Entity ID to move
+     * @param deltaX Movement in X direction (pixels)
+     * @param deltaY Movement in Y direction (pixels)
+     * 
+     * Used for local player prediction: moves the entity immediately
+     * without waiting for server confirmation.
+     * 
+     * Provides instant (0ms) input response for the local player.
+     */
+    void MoveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
+
+    /**
+     * @brief Enable or disable client-side prediction for local player
+     * @param enabled true to enable prediction (instant movement), false for interpolation
+     * 
+     * Delegates to EntityRenderer. Should be called when toggling prediction mode.
+     */
+    void SetClientSidePredictionEnabled(bool enabled);
+
+    /**
+     * @brief Set the reconciliation threshold for client-side prediction
+     * @param threshold Distance in pixels before server correction is applied
+     * 
+     * Controls when the client prediction is corrected by the server's authoritative position.
+     * Smaller values = more frequent corrections (tighter sync, more visual jitter)
+     * Larger values = fewer corrections (looser sync, smoother visuals)
+     * 
+     * Recommended ranges based on network latency:
+     * - Low latency (<50ms): 3.0f - 5.0f pixels
+     * - Medium latency (50-150ms): 5.0f - 10.0f pixels (default)
+     * - High latency (>150ms): 10.0f - 20.0f pixels
+     * 
+     * Delegates to EntityRenderer.
+     * 
+     * @note Default is 5.0f pixels
+     */
+    void SetReconciliationThreshold(float threshold);
+
+    /**
+     * @brief Get the current reconciliation threshold
+     * @return Current threshold in pixels
+     * 
+     * Delegates to EntityRenderer.
+     */
+    float GetReconciliationThreshold() const;
+
+    /**
+     * @brief Set the current ping value for display
+     * @param pingMs Ping in milliseconds
+     * 
+     * Updates the ping value displayed in the top-right corner.
+     * Color changes based on quality:
+     * - Green: 0-50ms (excellent)
+     * - Yellow: 51-100ms (good)
+     * - Orange: 101-150ms (fair)
+     * - Red: 151+ms (poor)
+     */
+    void SetPing(uint32_t pingMs);
+
    private:
     EventBus _eventBus;
     bool _initialized = false;
@@ -237,5 +307,11 @@ class Rendering {
 
     // Entity rendering subsystem
     std::unique_ptr<EntityRenderer> _entityRenderer;
+
+    // Network stats display (updated once per second for optimization)
+    uint32_t _currentPing = 0;
+    uint32_t _displayedPing = 0;                         // The ping value currently displayed
+    float _pingUpdateTimer = 0.0f;                       // Timer for ping update throttling
+    static constexpr float PING_UPDATE_INTERVAL = 1.0f;  // Update every 1 second
 };
 #endif

@@ -48,13 +48,13 @@ namespace server {
 
         // Take up to PLAYERS_PER_MATCH players for a match
         size_t matchSize = std::min(_waitingPlayers.size(), PLAYERS_PER_MATCH);
-        std::vector<int> matchPlayers(_waitingPlayers.begin(), _waitingPlayers.begin() + matchSize);
+        std::vector matchPlayers(_waitingPlayers.begin(), _waitingPlayers.begin() + matchSize);
 
         // Remove matched players from queue
         _waitingPlayers.erase(_waitingPlayers.begin(), _waitingPlayers.begin() + matchSize);
 
         // Create and store the match
-        int matchId = ++_nextMatchId;
+        int matchId = _nextMatchId++;
         _activeMatches[matchId] = matchPlayers;
 
         LOG_INFO("Match ", matchId, " created with ", matchPlayers.size(), " players");

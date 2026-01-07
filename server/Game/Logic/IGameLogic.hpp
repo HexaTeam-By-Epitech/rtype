@@ -52,8 +52,9 @@ namespace server {
         /**
          * @brief Update game state for one frame
          * @param deltaTime Time since last frame in seconds
+         * @param currentTick Current server tick number (from ServerLoop)
          */
-        virtual void update(float deltaTime) = 0;
+        virtual void update(float deltaTime, uint32_t currentTick) = 0;
 
         /**
          * @brief Spawn a player entity
@@ -83,12 +84,6 @@ namespace server {
          * @return Registry reference
          */
         virtual ecs::Registry &getRegistry() = 0;
-
-        /**
-         * @brief Get the current game tick
-         * @return uint32_t Current server tick count
-         */
-        virtual uint32_t getCurrentTick() const = 0;
 
         /**
          * @brief Check if the game is active

@@ -14,6 +14,8 @@
 
 namespace server {
 
+    class EventBus;
+
     /**
      * @class GameStateManager
      * @brief Handles switching between game states
@@ -40,9 +42,16 @@ namespace server {
          */
         void update(float dt);
 
+        /**
+         * @brief Set EventBus for publishing state change events
+         * @param eventBus Shared pointer to EventBus
+         */
+        void setEventBus(std::shared_ptr<EventBus> eventBus);
+
        private:
         std::vector<std::shared_ptr<GameState>> _states;
         int _currentStateID{-1};
+        std::shared_ptr<EventBus> _eventBus;
     };
 
 }  // namespace server

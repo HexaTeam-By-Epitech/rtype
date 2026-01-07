@@ -6,6 +6,7 @@
 */
 
 #include "GameLoop.hpp"
+#include <cmath>
 
 GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator)
     : _eventBus(&eventBus), _replicator(&replicator) {}
@@ -51,6 +52,12 @@ void GameLoop::run() {
     LOG_INFO("  - THREAD 2 (Main):    Game logic + Rendering");
 
     _rendering->Initialize(800, 600, "R-Type Client");
+
+    // Apply stored entity ID if GameStart was received before run()
+    if (_myEntityId.has_value()) {
+        LOG_INFO("Applying stored local player entity ID: ", _myEntityId.value());
+        _rendering->SetMyEntityId(_myEntityId.value());
+    }
 
     _running = true;
 
@@ -110,6 +117,20 @@ void GameLoop::stop() {
     _running = false;
 }
 
+void GameLoop::setReconciliationThreshold(float threshold) {
+    if (_rendering) {
+        _rendering->SetReconciliationThreshold(threshold);
+        LOG_INFO("Reconciliation threshold set to: ", threshold, " pixels");
+    }
+}
+
+float GameLoop::getReconciliationThreshold() const {
+    if (_rendering) {
+        return _rendering->GetReconciliationThreshold();
+    }
+    return 5.0f;  // Default fallback value
+}
+
 void GameLoop::update(float deltaTime) {
     // Variable timestep logic
     // - Interpolation between fixed steps
@@ -120,6 +141,15 @@ void GameLoop::update(float deltaTime) {
     // Only update if rendering system is fully initialized
     if (_rendering && _rendering->IsWindowOpen()) {
         _rendering->UpdateInterpolation(deltaTime);
+
+        // Update ping display from Replicator (throttled to once per second internally)
+        if (_replicator != nullptr) {
+            const uint32_t currentPing = _replicator->getLatency();
+            _rendering->SetPing(currentPing);
+        }
+
+        // Update ping display timer (throttles updates to 1 second)
+        _rendering->UpdatePingTimer(deltaTime);
     }
 
     if (_rendering && _rendering->WindowShouldClose()) {
@@ -153,21 +183,52 @@ void GameLoop::processInput() {
     // Collect all currently pressed actions
     std::vector<RType::Messages::Shared::Action> actions;
 
+    // Calculate movement delta (distance per frame at fixed 60Hz)
+    float moveDelta = _playerSpeed * _fixedTimestep;  // e.g., 200 * 0.0167 = 3.33 pixels
+
+    // Collect input directions first
+    int dx = 0, dy = 0;
+
     // ZQSD movement (French keyboard layout)
     if (_rendering->IsKeyDown(KEY_W) || _rendering->IsKeyDown(KEY_Z)) {
         actions.push_back(RType::Messages::Shared::Action::MoveUp);
+        dy = -1;
     }
     if (_rendering->IsKeyDown(KEY_S)) {
         actions.push_back(RType::Messages::Shared::Action::MoveDown);
+        dy = 1;
     }
     if (_rendering->IsKeyDown(KEY_A) || _rendering->IsKeyDown(KEY_Q)) {
         actions.push_back(RType::Messages::Shared::Action::MoveLeft);
+        dx = -1;
     }
     if (_rendering->IsKeyDown(KEY_D)) {
         actions.push_back(RType::Messages::Shared::Action::MoveRight);
+        dx = 1;
     }
     if (_rendering->IsKeyDown(KEY_SPACE)) {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
+    }
+
+    // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
+    if (_myEntityId.has_value() && _clientSidePredictionEnabled && (dx != 0 || dy != 0)) {
+        float moveX = static_cast<float>(dx);
+        float moveY = static_cast<float>(dy);
+
+        // Normalize diagonal movement to prevent going faster diagonally
+        if (dx != 0 && dy != 0) {
+            float length = std::sqrt(moveX * moveX + moveY * moveY);  // √2 ≈ 1.414
+            moveX /= length;                                          // 1/√2 ≈ 0.707
+            moveY /= length;                                          // 1/√2 ≈ 0.707
+        }
+
+        // Apply normalized movement
+        _rendering->MoveEntityLocally(_myEntityId.value(), moveX * moveDelta, moveY * moveDelta);
+    }
+
+    // Don't send inputs if in spectator mode (avoid unnecessary network traffic)
+    if (_replicator->isSpectator()) {
+        return;
     }
 
     RType::Messages::C2S::PlayerInput input;
@@ -206,19 +267,32 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
 
     // Handle GameStart message (sent once when player connects)
     if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
+        LOG_INFO("GameStart message received");
         auto payload = NetworkMessages::getPayload(event.getData());
         try {
             auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
 
             LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
 
-            // Set our player ID for visual differentiation
-            _rendering->SetMyEntityId(gameStart.yourEntityId);
-
-            // Load all initial entities
+            // Load all initial entities and identify the local player
             for (const auto &entity : gameStart.initialState.entities) {
-                _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1));
+                // Check if this entity is the local player by comparing with yourEntityId
+                if (entity.entityId == gameStart.yourEntityId) {
+                    // Store the local player's entity ID
+                    _myEntityId = entity.entityId;
+                    LOG_INFO("✓ Stored local player entity ID: ", entity.entityId);
+
+                    // Set it in the renderer if initialized
+                    if (_rendering) {
+                        _rendering->SetMyEntityId(entity.entityId);
+                    }
+                }
+
+                // Update entity in renderer (if initialized)
+                if (_rendering) {
+                    _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x,
+                                             entity.position.y, entity.health.value_or(-1));
+                }
             }
 
             LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");

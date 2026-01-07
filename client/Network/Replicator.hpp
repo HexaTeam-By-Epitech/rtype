@@ -75,10 +75,11 @@ class Replicator {
      * Initializes the Replicator and subscribes to necessary events.
      * 
      * @param eventBus Event bus for inter-component communication
+     * @param isSpectator Whether this client is in spectator mode (read-only)
      * 
-     * @note The Replicator automatically subscribes to InputEvent
+     * @note The Replicator automatically subscribes to InputEvent (unless spectator)
      */
-    explicit Replicator(EventBus &eventBus);
+    explicit Replicator(EventBus &eventBus, bool isSpectator = false);
 
     /**
      * @brief Destructor
@@ -191,6 +192,13 @@ class Replicator {
     uint32_t getPacketLoss() const;
 
     /**
+     * @brief Check if in spectator mode
+     * 
+     * @return true if this client is a spectator (read-only)
+     */
+    bool isSpectator() const;
+
+    /**
      * @brief Send connect request to server with player name.
      * 
      * @param playerName The player's name/pseudo
@@ -203,9 +211,11 @@ class Replicator {
      * @brief Network thread main loop
      * 
      * Continuously polls the network for incoming packets.
-     * Runs in a dedicated thread until _running is set to false.
+     * Runs in a dedicated thread until stop is requested.
+     * 
+     * @param stopToken Token to check for stop requests
      */
-    void networkThreadLoop();
+    void networkThreadLoop(std::stop_token stopToken);
 
     /**
      * @brief Handle an incoming packet from the network
@@ -218,19 +228,23 @@ class Replicator {
 
     EventBus &_eventBus;
     std::atomic<bool> _connected{false};
+    bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;
 
-    uint32_t _latency = 0;
+    std::atomic<uint32_t> _latency{0};
     uint32_t _packetLoss = 0;
 
     std::unique_ptr<IHost> _host;
     IPeer *_serverPeer = nullptr;
 
     // Multi-threading components
-    std::thread _networkThread;                       ///< Dedicated network thread
-    std::atomic<bool> _running{false};                ///< Network thread running flag
+    std::jthread _networkThread;                      ///< Dedicated network thread
     ThreadSafeQueue<NetworkEvent> _incomingMessages;  ///< Queue for messages from network thread
+
+    // Smoothed ping calculation (exponential moving average)
+    static constexpr float PING_SMOOTHING_FACTOR = 0.3f;  // 30% new, 70% old
+    std::atomic<float> _smoothedLatency{0.0f};
 };
 
 #endif

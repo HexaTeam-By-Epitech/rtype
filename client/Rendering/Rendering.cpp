@@ -60,6 +60,33 @@ void Rendering::Render() {
         _entityRenderer->render();
     }
 
+    // Render ping display in top-right corner (always visible when initialized)
+    // Determine color based on ping quality
+    uint32_t color;
+    std::string pingText;
+
+    if (_displayedPing == 0) {
+        // No ping data yet or disconnected
+        color = 0xB3B3B3AA;  // Gray
+    } else if (_displayedPing <= 50) {
+        color = 0x9DFF73AA;  // Green (excellent)
+    } else if (_displayedPing <= 100) {
+        color = 0xFDFF75AA;  // Yellow (good)
+    } else if (_displayedPing <= 150) {
+        color = 0xFFB057AA;  // Orange (fair)
+    } else {
+        color = 0xF05454AA;  // Red (poor)
+    }
+    pingText = "Ping: " + std::to_string(_displayedPing) + "ms";
+
+    // Position in top-right corner (with padding)
+    const int textWidth = static_cast<int>(pingText.length() * 10);  // Approximate width
+    const int xPos = static_cast<int>(_width) - textWidth - 20;
+    constexpr int yPos = 10;
+
+    // Draw with colored text
+    _graphics.DrawText(-1, pingText.c_str(), xPos, yPos, 20, color);
+
     _graphics.DisplayWindow();
 }
 
@@ -137,4 +164,43 @@ void Rendering::UpdateInterpolation(float deltaTime) {
     if (_entityRenderer) {
         _entityRenderer->updateInterpolation(deltaTime);
     }
+}
+
+void Rendering::UpdatePingTimer(float deltaTime) {
+    _pingUpdateTimer += deltaTime;
+
+    // Update displayed ping once per second
+    if (_pingUpdateTimer >= PING_UPDATE_INTERVAL) {
+        _displayedPing = _currentPing;
+        _pingUpdateTimer = 0.0f;
+    }
+}
+
+void Rendering::MoveEntityLocally(uint32_t entityId, float deltaX, float deltaY) {
+    if (_entityRenderer) {
+        _entityRenderer->moveEntityLocally(entityId, deltaX, deltaY);
+    }
+}
+
+void Rendering::SetClientSidePredictionEnabled(bool enabled) {
+    if (_entityRenderer) {
+        _entityRenderer->setClientSidePredictionEnabled(enabled);
+    }
+}
+
+void Rendering::SetReconciliationThreshold(float threshold) {
+    if (_entityRenderer) {
+        _entityRenderer->setReconciliationThreshold(threshold);
+    }
+}
+
+float Rendering::GetReconciliationThreshold() const {
+    if (_entityRenderer) {
+        return _entityRenderer->getReconciliationThreshold();
+    }
+    return 5.0f;  // Default value
+}
+
+void Rendering::SetPing(uint32_t pingMs) {
+    _currentPing = pingMs;
 }

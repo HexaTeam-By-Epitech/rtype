@@ -1,0 +1,20 @@
+# Suppress errors from third-party dependencies (vcpkg)
+returnReference:*/vcpkg_installed/*
+mismatchingContainers:*/vcpkg_installed/*
+uninitMemberVar:*/vcpkg_installed/*
+missingMemberCopy:*/vcpkg_installed/*
+functionStatic:*/vcpkg_installed/*
+noExplicitConstructor:*/vcpkg_installed/*
+uselessOverride:*/vcpkg_installed/*
+passedByValue:*/vcpkg_installed/*
+constParameterReference:*/vcpkg_installed/*
+constParameterPointer:*/vcpkg_installed/*
+unreadVariable:*/vcpkg_installed/*
+
+# Suppress errors from build directory
+*:*/build/*/vcpkg_installed/*
+*:*/cmake-build-debug/vcpkg_installed/*
+
+# Suppress system includes
+missingIncludeSystem
+

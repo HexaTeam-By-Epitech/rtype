@@ -54,9 +54,17 @@ add_test(NAME ecs_tests COMMAND ecs_tests)
 add_executable(server_tests
     server_tests/ServerTest.cpp
     server_tests/ServerIntegrationTest.cpp
+    server_tests/RoomTest.cpp
+    server_tests/SessionTest.cpp
+    server_tests/MatchmakingTest.cpp
+    server_tests/CoreComponentsTest.cpp
 )
 
-target_include_directories(server_tests PRIVATE ${CMAKE_SOURCE_DIR}/server/include)
+target_include_directories(server_tests PRIVATE 
+    ${CMAKE_SOURCE_DIR}/server/include
+    ${CMAKE_SOURCE_DIR}/server
+    ${CMAKE_SOURCE_DIR}/common
+)
 
 target_link_libraries(server_tests PRIVATE GTest::gtest_main rtype_server_lib)
 

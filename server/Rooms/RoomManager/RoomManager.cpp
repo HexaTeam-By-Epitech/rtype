@@ -52,11 +52,16 @@ namespace server {
             return _rooms[id];
         }
 
-        auto room = std::make_shared<Room>(id, name, maxPlayers, isPrivate);
-        _rooms[id] = room;
+        try {
+            auto room = std::make_shared<Room>(id, name, maxPlayers, isPrivate);
+            _rooms[id] = room;
 
-        LOG_INFO("✓ Room created: '", room->getName(), "' (", id, ")");
-        return room;
+            LOG_INFO("✓ Room created: '", room->getName(), "' (", id, ")");
+            return room;
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create room '", name, "' (", id, "): ", e.what());
+            return nullptr;
+        }
     }
 
     std::shared_ptr<Room> RoomManager::getRoom(const std::string &id) {

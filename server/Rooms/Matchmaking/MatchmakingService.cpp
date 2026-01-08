@@ -92,8 +92,19 @@ namespace server {
 
         // Create room for the match
         std::string roomId = _generateRoomId();
-        auto room = std::make_shared<Room>(roomId, "Match #" + std::to_string(_totalMatchesCreated + 1),
-                                           _maxPlayers, false);
+        std::shared_ptr<Room> room;
+
+        try {
+            room = std::make_shared<Room>(roomId, "Match #" + std::to_string(_totalMatchesCreated + 1),
+                                          _maxPlayers, false);
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create match room: ", e.what());
+            // Re-add players to waiting queue
+            for (uint32_t playerId : matchedPlayers) {
+                _waitingPlayers.push_back({playerId, std::chrono::steady_clock::now()});
+            }
+            return false;
+        }
 
         // Add all matched players to the room
         for (uint32_t playerId : matchedPlayers) {

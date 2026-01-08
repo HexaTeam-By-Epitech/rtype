@@ -11,6 +11,9 @@
 
 namespace server {
 
+    // Initialize static member
+    std::atomic<uint64_t> Lobby::_nextRoomId{1};
+
     Lobby::Lobby(std::shared_ptr<RoomManager> roomManager) : _roomManager(roomManager) {
         LOG_INFO("Lobby created");
     }
@@ -170,8 +173,9 @@ namespace server {
             return "";
         }
 
-        std::string roomId = "custom_" + std::to_string(hostPlayerId) + "_" +
-                             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+        // Generate unique room ID using atomic counter to prevent collisions
+        uint64_t roomNumber = _nextRoomId.fetch_add(1, std::memory_order_relaxed);
+        std::string roomId = "custom_" + std::to_string(hostPlayerId) + "_" + std::to_string(roomNumber);
 
         auto room = _roomManager->createRoom(roomId, roomName, maxPlayers, isPrivate);
         if (!room) {

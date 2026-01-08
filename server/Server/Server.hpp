@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Network/ServerNetworkManager.hpp"
 #include "server/Rooms/Lobby/Lobby.hpp"
 #include "server/Rooms/RoomManager/RoomManager.hpp"
@@ -193,4 +194,7 @@ class Server {
 
     bool _initialized = false;
     bool _running = false;
+
+    // Frame timing for accurate deltaTime calculation
+    server::FrameTimer _frameTimer;
 };

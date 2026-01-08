@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <memory>
@@ -132,6 +133,9 @@ namespace server {
         std::unordered_map<uint32_t, LobbyPlayer> _players;
         std::shared_ptr<RoomManager> _roomManager;
         mutable std::mutex _mutex;
+
+        // Static counter for unique room ID generation
+        static std::atomic<uint64_t> _nextRoomId;
     };
 
 }  // namespace server

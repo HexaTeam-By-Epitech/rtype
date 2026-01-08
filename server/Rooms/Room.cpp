@@ -7,6 +7,7 @@
 
 #include "server/Rooms/Room.hpp"
 #include <algorithm>
+#include <stdexcept>
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
@@ -35,7 +36,7 @@ namespace server {
 
         if (!_gameLoop->initialize()) {
             LOG_ERROR("Failed to initialize game loop for room ", _id);
-            return;
+            throw std::runtime_error("Failed to initialize game loop for room " + _id);
         }
 
         _gameLoop->start();
@@ -140,8 +141,31 @@ namespace server {
                 return false;
             }
 
+            // Spawn players and validate entity IDs
+            std::vector<uint32_t> failedPlayers;
             for (uint32_t playerId : _players) {
                 uint32_t entityId = _gameLogic->spawnPlayer(playerId, "Player" + std::to_string(playerId));
+                if (entityId == 0) {
+                    LOG_ERROR("Failed to spawn player ", playerId, " in room ", _id);
+                    failedPlayers.push_back(playerId);
+                }
+            }
+
+            // Remove players that failed to spawn
+            if (!failedPlayers.empty()) {
+                for (uint32_t playerId : failedPlayers) {
+                    auto it = std::find(_players.begin(), _players.end(), playerId);
+                    if (it != _players.end()) {
+                        _players.erase(it);
+                        LOG_WARNING("Removed player ", playerId, " from room ", _id, " due to spawn failure");
+                    }
+                }
+
+                // Check if we still have players after removals
+                if (_players.empty()) {
+                    LOG_ERROR("No players left in room ", _id, " after spawn failures");
+                    return false;
+                }
             }
         }
 
@@ -174,6 +198,15 @@ namespace server {
             LOG_INFO("Room ", _id, " starting game immediately (", _players.size(), " players)");
             startGame();
         }
+    }
+
+    bool Room::tryMarkGameStartSent() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_gameStartSent) {
+            return false;  // Already sent
+        }
+        _gameStartSent = true;
+        return true;  // Successfully marked as sent
     }
 
 }  // namespace server

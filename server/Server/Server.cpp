@@ -69,8 +69,11 @@ bool Server::initialize() {
     _roomManager = std::make_shared<server::RoomManager>();
     _lobby = std::make_shared<server::Lobby>(_roomManager);
 
-    _roomManager->createRoom("default");
-    _defaultRoom = _roomManager->getRoom("default");
+    _defaultRoom = _roomManager->createRoom("default");
+    if (!_defaultRoom) {
+        LOG_ERROR("Failed to create default room");
+        return false;
+    }
     LOG_INFO("✓ Default room created");
 
     // Subscribe to game events on global EventBus
@@ -336,10 +339,9 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
         return;
     }
 
-    _lobby->removePlayer(playerId);
-
     if (!room->join(playerId)) {
         LOG_ERROR("Failed to join created room");
+        _roomManager->removeRoom(roomId);  // Clean up the room since it couldn't be joined
         S2C::RoomCreated response(roomId, false, "Failed to join room");
         std::vector<uint8_t> respPayload = response.serialize();
         std::vector<uint8_t> respPacket =
@@ -348,6 +350,9 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
         event.peer->send(std::move(netPacket), 0);
         return;
     }
+
+    // Only remove from lobby after successfully joining the room
+    _lobby->removePlayer(playerId);
 
     LOG_INFO("Room '", request.roomName, "' created by player ", playerId);
 
@@ -397,8 +402,6 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         return;
     }
 
-    _lobby->removePlayer(playerId);
-
     if (!room->join(playerId)) {
         LOG_ERROR("Failed to join room (full or in progress)");
         S2C::JoinedRoom response("", false, "Room is full or in progress");
@@ -409,6 +412,9 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         event.peer->send(std::move(netPacket), 0);
         return;
     }
+
+    // Only remove from lobby after successfully joining the room
+    _lobby->removePlayer(playerId);
 
     LOG_INFO("Player ", playerId, " joined room '", request.roomId, "'");
 
@@ -472,18 +478,20 @@ void Server::run() {
     _eventBus->publish(server::GameStartedEvent());
 
     _running = true;
+    _frameTimer.reset();
 
     while (_running && _networkManager->isRunning()) {
+        float deltaTime = static_cast<float>(_frameTimer.tick());
+
         _networkManager->processMessages();
 
         if (_roomManager) {
-            _roomManager->update(0.016f);
+            _roomManager->update(deltaTime);
 
             auto rooms = _roomManager->getAllRooms();
             for (const auto &room : rooms) {
-                if (room->getState() == server::RoomState::IN_PROGRESS && !room->isGameStartSent()) {
+                if (room->getState() == server::RoomState::IN_PROGRESS && room->tryMarkGameStartSent()) {
                     _sendGameStartToRoom(room);
-                    room->setGameStartSent(true);
                 }
             }
         }

@@ -105,6 +105,12 @@ namespace server {
         void setGameStartSent(bool sent) { _gameStartSent = sent; }
 
         /**
+         * @brief Atomically check and set GameStart sent flag (thread-safe)
+         * @return true if flag was false and is now set to true, false if already sent
+         */
+        bool tryMarkGameStartSent();
+
+        /**
          * @brief Check if room is private
          * @return true if room is private
          */

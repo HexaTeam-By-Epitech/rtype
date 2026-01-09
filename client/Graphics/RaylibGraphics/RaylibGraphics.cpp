@@ -26,6 +26,7 @@ namespace Graphics {
     // Window management
     void RaylibGraphics::InitWindow(int width, int height, const char *title) {
         ::InitWindow(width, height, title);
+        ::SetExitKey(KEY_NULL);  // Disable ESC key closing the window
         _windowInitialized = true;
     }
 

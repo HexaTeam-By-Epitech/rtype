@@ -189,7 +189,8 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
 void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
-    std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData());
+    bool isSpectator = false;
+    std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData(), isSpectator);
 
     // TODO: Add authentication for production
 
@@ -199,21 +200,24 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     std::string sessionId = "session_" + std::to_string(newPlayerId);
     std::shared_ptr<server::Session> session = _sessionManager->createSession(sessionId);
     session->setPlayerId(newPlayerId);
+    session->setSpectator(isSpectator);
     session->setActive(true);
 
     _sessionPeers[sessionId] = event.peer;
     _peerToSession[event.peer] = sessionId;
 
     _lobby->addPlayer(newPlayerId, playerName);
-    LOG_INFO("Player ", newPlayerId, " ('", playerName, "') connected");
+
+    std::string modeStr = isSpectator ? " (SPECTATOR)" : "";
+    LOG_INFO("Player ", newPlayerId, " ('", playerName, "')", modeStr, " connected");
 
     std::vector<uint8_t> responseData = NetworkMessages::createConnectResponse("Welcome to R-Type!");
     std::unique_ptr<IPacket> responsePacket =
         createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(responsePacket), 0);
 
-    LOG_INFO("✓ Player '", playerName, "' connected (Session: ", sessionId, ", Player ID: ", newPlayerId,
-             ")");
+    LOG_INFO("✓ Player '", playerName, "'", modeStr, " connected (Session: ", sessionId,
+             ", Player ID: ", newPlayerId, ")");
     LOG_INFO("  Player is now in lobby - waiting for room selection");
 }
 
@@ -240,12 +244,19 @@ void Server::_handlePlayerInput(HostNetworkEvent &event) {
 
     // Find session from peer using fast reverse lookup
     uint32_t playerId = 0;
+    bool isSpectator = false;
     auto it = _peerToSession.find(event.peer);
     if (it != _peerToSession.end()) {
         std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
         if (session) {
             playerId = session->getPlayerId();
+            isSpectator = session->isSpectator();
         }
+    }
+
+    // Spectators cannot send inputs
+    if (isSpectator) {
+        return;
     }
 
     if (playerId != 0) {
@@ -305,17 +316,30 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
     C2S::CreateRoom request = C2S::CreateRoom::deserialize(payload);
 
     uint32_t playerId = 0;
+    bool isSpectator = false;
     auto it = _peerToSession.find(event.peer);
     if (it != _peerToSession.end()) {
         std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
         if (session) {
             playerId = session->getPlayerId();
+            isSpectator = session->isSpectator();
         }
     }
 
     if (playerId == 0) {
         LOG_ERROR("Failed to find player for room creation");
         S2C::RoomCreated response("", false, "Session not found");
+        std::vector<uint8_t> respPayload = response.serialize();
+        std::vector<uint8_t> respPacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_CREATED, respPayload);
+        std::unique_ptr<IPacket> netPacket = createPacket(respPacket, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(netPacket), 0);
+        return;
+    }
+
+    if (isSpectator) {
+        LOG_ERROR("Spectators cannot create rooms");
+        S2C::RoomCreated response("", false, "Spectators cannot create rooms");
         std::vector<uint8_t> respPayload = response.serialize();
         std::vector<uint8_t> respPacket =
             NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ROOM_CREATED, respPayload);
@@ -371,11 +395,13 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
     C2S::JoinRoom request = C2S::JoinRoom::deserialize(payload);
 
     uint32_t playerId = 0;
+    bool isSpectator = false;
     auto it = _peerToSession.find(event.peer);
     if (it != _peerToSession.end()) {
         std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
         if (session) {
             playerId = session->getPlayerId();
+            isSpectator = session->isSpectator();
         }
     }
 
@@ -402,9 +428,18 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         return;
     }
 
-    if (!room->join(playerId)) {
-        LOG_ERROR("Failed to join room (full or in progress)");
-        S2C::JoinedRoom response("", false, "Room is full or in progress");
+    // Join as spectator or player based on session type
+    bool joinSuccess = false;
+    if (isSpectator) {
+        joinSuccess = room->joinAsSpectator(playerId);
+    } else {
+        joinSuccess = room->join(playerId);
+    }
+
+    if (!joinSuccess) {
+        std::string errorMsg = isSpectator ? "Failed to join as spectator" : "Room is full or in progress";
+        LOG_ERROR(errorMsg);
+        S2C::JoinedRoom response("", false, errorMsg);
         std::vector<uint8_t> respPayload = response.serialize();
         std::vector<uint8_t> respPacket =
             NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_JOINED_ROOM, respPayload);
@@ -416,7 +451,8 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
     // Only remove from lobby after successfully joining the room
     _lobby->removePlayer(playerId);
 
-    LOG_INFO("Player ", playerId, " joined room '", request.roomId, "'");
+    std::string modeStr = isSpectator ? " as spectator" : "";
+    LOG_INFO("Player ", playerId, " joined room '", request.roomId, "'", modeStr);
 
     S2C::JoinedRoom response(request.roomId, true);
     std::vector<uint8_t> respPayload = response.serialize();
@@ -564,11 +600,17 @@ void Server::_broadcastGameState() {
         std::vector<uint8_t> packet =
             NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
 
-        // Broadcast only to players in this room
+        // Broadcast to both players and spectators in this room
         auto players = room->getPlayers();
-        for (uint32_t playerId : players) {
-            // Find session for this player
-            std::string sessionId = "session_" + std::to_string(playerId);
+        auto spectators = room->getSpectators();
+
+        // Combine players and spectators
+        std::vector<uint32_t> allRecipients = players;
+        allRecipients.insert(allRecipients.end(), spectators.begin(), spectators.end());
+
+        for (uint32_t recipientId : allRecipients) {
+            // Find session for this recipient
+            std::string sessionId = "session_" + std::to_string(recipientId);
             auto peerIt = _sessionPeers.find(sessionId);
             if (peerIt != _sessionPeers.end() && peerIt->second) {
                 std::unique_ptr<IPacket> peerPacket =
@@ -606,7 +648,9 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
 
     // Get all players in room
     auto players = room->getPlayers();
+    auto spectators = room->getSpectators();
 
+    // Send to players (with their entity ID)
     for (uint32_t playerId : players) {
         // Find entity ID for this player
         uint32_t entityId = 0;
@@ -653,6 +697,39 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
 
             LOG_INFO("✓ Sent GameStart to player ", playerId, " (entity: ", entityId,
                      ", room: ", room->getId(), ")");
+        }
+    }
+
+    // Send to spectators (with entityId = 0)
+    for (uint32_t spectatorId : spectators) {
+        // Create GameStart message for spectator
+        S2C::GameStart gameStart;
+        gameStart.yourEntityId = 0;  // Spectators don't have an entity
+        gameStart.initialState.serverTick = roomLoop->getCurrentTick();
+
+        // Serialize all entities in the room
+        auto allEntities = ecsWorld->query<ecs::Transform>();
+        for (auto &entity : allEntities) {
+            try {
+                S2C::EntityState entityState = _serializeEntity(entity);
+                gameStart.initialState.entities.push_back(entityState);
+            } catch (const std::exception &e) {
+                LOG_ERROR("Failed to serialize entity: ", e.what());
+                continue;
+            }
+        }
+
+        // Send to spectator
+        std::string sessionId = "session_" + std::to_string(spectatorId);
+        auto peerIt = _sessionPeers.find(sessionId);
+        if (peerIt != _sessionPeers.end() && peerIt->second) {
+            std::vector<uint8_t> payload = gameStart.serialize();
+            std::vector<uint8_t> packet =
+                NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, payload);
+            std::unique_ptr<IPacket> netPacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
+            peerIt->second->send(std::move(netPacket), 0);
+
+            LOG_INFO("✓ Sent GameStart to spectator ", spectatorId, " (room: ", room->getId(), ")");
         }
     }
 }

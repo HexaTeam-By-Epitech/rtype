@@ -37,6 +37,7 @@ namespace server {
         ~Room() override = default;
 
         bool join(uint32_t playerId) override;
+        bool joinAsSpectator(uint32_t playerId) override;
         bool leave(uint32_t playerId) override;
         std::string getId() const override { return _id; };
         std::string getName() const override { return _name; };
@@ -46,7 +47,9 @@ namespace server {
         size_t getMaxPlayers() const override { return _maxPlayers; };
         bool isFull() const override { return _players.size() >= _maxPlayers; };
         std::vector<uint32_t> getPlayers() const override;
+        std::vector<uint32_t> getSpectators() const override;
         bool hasPlayer(uint32_t playerId) const override;
+        bool hasSpectator(uint32_t playerId) const override;
         RoomInfo getInfo() const override;
 
         /**
@@ -124,6 +127,7 @@ namespace server {
         bool _isPrivate;
         uint32_t _hostPlayerId;
         std::vector<uint32_t> _players;
+        std::vector<uint32_t> _spectators;
         std::shared_ptr<IGameLogic> _gameLogic;
         std::unique_ptr<ServerLoop> _gameLoop;  // Dedicated game loop for this room
         std::shared_ptr<EventBus> _eventBus;    // Event bus for this room

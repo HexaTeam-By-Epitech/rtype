@@ -149,10 +149,10 @@ namespace server {
     }
 
     std::shared_ptr<Room> RoomManager::getRoomByPlayer(uint32_t playerId) {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard lock(_mutex);
 
         for (const auto &[id, room] : _rooms) {
-            if (room->hasPlayer(playerId)) {
+            if (room->hasPlayer(playerId) || room->hasSpectator(playerId)) {
                 return room;
             }
         }

@@ -74,23 +74,45 @@ namespace server {
         return true;
     }
 
-    bool Room::leave(uint32_t playerId) {
+    bool Room::joinAsSpectator(uint32_t playerId) {
         std::lock_guard<std::mutex> lock(_mutex);
 
-        auto it = std::find(_players.begin(), _players.end(), playerId);
-        if (it == _players.end()) {
+        if (hasPlayer(playerId) || hasSpectator(playerId)) {
+            LOG_WARNING("Player ", playerId, " already in room ", _id);
             return false;
         }
 
-        _players.erase(it);
-        LOG_INFO("Player ", playerId, " left room ", _id, " (", _players.size(), " remaining)");
+        _spectators.push_back(playerId);
+        LOG_INFO("Spectator ", playerId, " joined room ", _id, " (", _spectators.size(), " spectators)");
+        return true;
+    }
 
-        if (playerId == _hostPlayerId && !_players.empty()) {
-            _hostPlayerId = _players[0];
-            LOG_INFO("Player ", _hostPlayerId, " is new host");
+    bool Room::leave(uint32_t playerId) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        // Check if it's a regular player
+        auto it = std::find(_players.begin(), _players.end(), playerId);
+        if (it != _players.end()) {
+            _players.erase(it);
+            LOG_INFO("Player ", playerId, " left room ", _id, " (", _players.size(), " remaining)");
+
+            if (playerId == _hostPlayerId && !_players.empty()) {
+                _hostPlayerId = _players[0];
+                LOG_INFO("Player ", _hostPlayerId, " is new host");
+            }
+            return true;
         }
 
-        return true;
+        // Check if it's a spectator
+        auto specIt = std::find(_spectators.begin(), _spectators.end(), playerId);
+        if (specIt != _spectators.end()) {
+            _spectators.erase(specIt);
+            LOG_INFO("Spectator ", playerId, " left room ", _id, " (", _spectators.size(),
+                     " spectators remaining)");
+            return true;
+        }
+
+        return false;
     }
 
     void Room::setState(RoomState state) {
@@ -112,8 +134,17 @@ namespace server {
         return _players;
     }
 
+    std::vector<uint32_t> Room::getSpectators() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _spectators;
+    }
+
     bool Room::hasPlayer(uint32_t playerId) const {
         return std::find(_players.begin(), _players.end(), playerId) != _players.end();
+    }
+
+    bool Room::hasSpectator(uint32_t playerId) const {
+        return std::ranges::find(_spectators, playerId) != _spectators.end();
     }
 
     RoomInfo Room::getInfo() const {

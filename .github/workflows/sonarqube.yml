@@ -1,0 +1,112 @@
+name: SonarQube
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - dev
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: self-hosted
+    env:
+      BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          submodules: recursive  # Needed for vcpkg submodule
+      
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg/buildtrees
+            vcpkg/packages
+            vcpkg/downloads
+            build/linux-debug/vcpkg_installed
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-
+      
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build/linux-debug
+          key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt', 'vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-
+      
+      - name: Install Build Wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
+      
+      - name: Bootstrap vcpkg
+        run: |
+          cd vcpkg
+          ./bootstrap-vcpkg.sh
+      
+      - name: Install lcov and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov
+      
+      - name: Configure CMake with Coverage
+        run: cmake --preset linux-debug -DENABLE_COVERAGE=ON
+      
+      - name: Run Build Wrapper
+        run: |
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build --preset linux-debug
+      
+      - name: Run Tests with Coverage
+        run: |
+          ctest --preset linux-debug --output-on-failure
+        continue-on-error: true
+      
+      - name: Generate Coverage Reports
+        run: |
+          echo "Generating gcov files for SonarQube..."
+          # Find all .gcda files and generate .gcov files
+          find build/linux-debug -type f -name "*.gcda" -exec gcov -p -b {} \; > /dev/null 2>&1
+          # Count generated gcov files
+          GCOV_COUNT=$(find . -maxdepth 1 -name "*.gcov" | wc -l)
+          echo "Generated $GCOV_COUNT gcov files"
+          # Also generate lcov report for artifact
+          mkdir -p coverage
+          lcov --capture --directory build/linux-debug --output-file coverage/coverage.info \
+            --ignore-errors inconsistent,mismatch,unused \
+            --rc lcov_branch_coverage=1 || true
+          lcov --remove coverage/coverage.info \
+            '/usr/*' \
+            '*/vcpkg_installed/*' \
+            '*/vcpkg/*' \
+            '*/tests/*' \
+            '*/build/*' \
+            '*/.cache/*' \
+            -o coverage/coverage.info \
+            --ignore-errors inconsistent,unused \
+            --rc lcov_branch_coverage=1 || true
+          # Generate HTML report for artifact
+          if command -v genhtml > /dev/null; then
+            genhtml coverage/coverage.info --output-directory coverage/html --ignore-errors inconsistent || true
+          fi
+          echo "Coverage report generated"
+          lcov --list coverage/coverage.info --ignore-errors inconsistent || true
+      
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: coverage/
+          retention-days: 7
+      
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
+

@@ -7,8 +7,8 @@
 
 #include "Replicator.hpp"
 
-Replicator::Replicator(EventBus &eventBus) : _eventBus(eventBus), _host(createClientHost()) {}
-
+Replicator::Replicator(EventBus &eventBus, bool isSpectator)
+    : _eventBus(eventBus), _isSpectator(isSpectator), _host(createClientHost()) {}
 Replicator::~Replicator() {
     disconnect();
 }
@@ -220,8 +220,8 @@ bool Replicator::sendConnectRequest(const std::string &playerName) {
         return false;
     }
 
-    // Create Cap'n Proto ConnectRequest
-    auto requestData = NetworkMessages::createConnectRequest(playerName);
+    // Create Cap'n Proto ConnectRequest with spectator flag
+    auto requestData = NetworkMessages::createConnectRequest(playerName, _isSpectator);
 
     // Send via ENet
     auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
@@ -310,6 +310,10 @@ uint32_t Replicator::getLatency() const {
 
 uint32_t Replicator::getPacketLoss() const {
     return _packetLoss;
+}
+
+bool Replicator::isSpectator() const {
+    return _isSpectator;
 }
 
 void Replicator::onInputEvent(const InputEvent &event) {

@@ -119,10 +119,10 @@ namespace RType::Messages::S2C {
             auto builder = message.initRoot<::GamerulePacket>();
 
             // Build gamerules list
-            auto gamerarulesBuilder = builder.initGamerules(static_cast<unsigned int>(gamerules.size()));
+            auto gamerulesBuilder = builder.initGamerules(static_cast<unsigned int>(gamerules.size()));
             unsigned int i = 0;
             for (const auto &[key, value] : gamerules) {
-                auto gameruleBuilder = gamerarulesBuilder[i];
+                auto gameruleBuilder = gamerulesBuilder[i];
                 gameruleBuilder.setKey(key);
                 gameruleBuilder.setValue(value);
                 ++i;

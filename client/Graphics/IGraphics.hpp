@@ -308,5 +308,71 @@ namespace Graphics {
      * @return true if the window should close, false otherwise
      */
         virtual bool WindowShouldClose() const = 0;
+
+        /**
+     * @brief Get the current X position of the mouse cursor
+     * @return X coordinate in pixels
+     */
+        virtual int GetMouseX() const = 0;
+
+        /**
+     * @brief Get the current Y position of the mouse cursor
+     * @return Y coordinate in pixels
+     */
+        virtual int GetMouseY() const = 0;
+
+        /**
+     * @brief Get the next character from the keyboard input queue
+     * @return Character code (0 if no character in queue)
+     */
+        virtual int GetCharPressed() const = 0;
+
+        /**
+     * @brief Get the screen width (same as window width)
+     * @return Width in pixels
+     */
+        virtual int GetScreenWidth() const = 0;
+
+        /**
+     * @brief Get the screen height (same as window height)
+     * @return Height in pixels
+     */
+        virtual int GetScreenHeight() const = 0;
+
+        /**
+     * @brief Get frame time (delta time)
+     * @return Time elapsed for last frame in seconds
+     */
+        virtual float GetFrameTime() const = 0;
+
+        /**
+     * @brief Draw a filled rectangle (alias for DrawRectFilled)
+     * @param x X coordinate of the top-left corner
+     * @param y Y coordinate of the top-left corner
+     * @param width Width of the rectangle
+     * @param height Height of the rectangle
+     * @param color Color in 0xAARRGGBB format
+     */
+        virtual void DrawRectangle(int x, int y, int width, int height, unsigned int color) = 0;
+
+        /**
+     * @brief Draw a rectangle outline (alias for DrawRect)
+     * @param x X coordinate of the top-left corner
+     * @param y Y coordinate of the top-left corner
+     * @param width Width of the rectangle
+     * @param height Height of the rectangle
+     * @param color Color in 0xAARRGGBB format
+     */
+        virtual void DrawRectangleLines(int x, int y, int width, int height, unsigned int color) = 0;
+
+        /**
+     * @brief Draw text using default font (simplified version)
+     * @param text Text string to render
+     * @param x X coordinate for text position
+     * @param y Y coordinate for text position
+     * @param fontSize Size of the rendered text
+     * @param color Text color in 0xAARRGGBB format
+     */
+        virtual void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) = 0;
     };
 }  // namespace Graphics

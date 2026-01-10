@@ -20,6 +20,7 @@
 
 // UI library
 #include "Menu/ConfirmQuitMenu.hpp"
+#include "Menu/ConnectionMenu.hpp"
 #include "Menu/MainMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
 #include "UI/IButton.hpp"
@@ -341,6 +342,7 @@ class Rendering {
     // ===== Menu UI (business) =====
     std::unique_ptr<UI::RaylibUIFactory> _uiFactory;
     std::unique_ptr<Game::MainMenu> _mainMenu;
+    std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
 

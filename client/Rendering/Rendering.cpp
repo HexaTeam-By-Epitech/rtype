@@ -130,18 +130,12 @@ void Rendering::InitializeMenus() {
         }
     });
     _mainMenu->SetOnPlay([this]() {
-        // Start the game: switch scene and enable entity rendering
-        _scene = Scene::IN_GAME;
+        // Show connection menu instead of starting game directly
         if (_mainMenu) {
             _mainMenu->Hide();
         }
-        if (_settingsMenu) {
-            _settingsMenu->Hide();
-        }
-        _settingsOverlay = false;
-
-        if (!_entityRenderer) {
-            _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+        if (_connectionMenu) {
+            _connectionMenu->Show();
         }
     });
     _mainMenu->SetOnSettings([this]() {
@@ -156,6 +150,35 @@ void Rendering::InitializeMenus() {
     });
     _mainMenu->Initialize();
     _mainMenu->Show();
+
+    // ===== Connection menu =====
+    _connectionMenu = std::make_unique<Game::ConnectionMenu>(*_uiFactory, _graphics);
+    _connectionMenu->SetOnJoin(
+        [this](const std::string &nickname, const std::string &ip, const std::string &port) {
+            // Start the game: switch scene and enable entity rendering
+            _scene = Scene::IN_GAME;
+            if (_connectionMenu) {
+                _connectionMenu->Hide();
+            }
+            if (_settingsMenu) {
+                _settingsMenu->Hide();
+            }
+            _settingsOverlay = false;
+
+            if (!_entityRenderer) {
+                _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+            }
+        });
+    _connectionMenu->SetOnBack([this]() {
+        if (_connectionMenu) {
+            _connectionMenu->Hide();
+        }
+        if (_mainMenu) {
+            _mainMenu->Show();
+        }
+    });
+    _connectionMenu->Initialize();
+    _connectionMenu->Hide();
 }
 
 void Rendering::ApplyInitialMenuSettings() {
@@ -258,6 +281,9 @@ void Rendering::Render() {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Update();
         }
+        if (_connectionMenu && _connectionMenu->IsVisible()) {
+            _connectionMenu->Update();
+        }
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Update();
         }
@@ -285,6 +311,9 @@ void Rendering::Render() {
     } else if (_scene == Scene::MENU) {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Render();
+        }
+        if (_connectionMenu && _connectionMenu->IsVisible()) {
+            _connectionMenu->Render();
         }
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Render();

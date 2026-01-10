@@ -11,6 +11,7 @@
 
 #include "UI/IButton.hpp"
 #include "UI/IMenu.hpp"
+#include "UI/ITextInput.hpp"
 
 namespace UI {
     /**
@@ -39,5 +40,11 @@ namespace UI {
          * @return Unique pointer to a new menu.
          */
         virtual std::unique_ptr<IMenu> CreateMenu() = 0;
+
+        /**
+         * @brief Create a text input instance.
+         * @return Unique pointer to a new text input.
+         */
+        virtual std::unique_ptr<ITextInput> CreateTextInput() = 0;
     };
 }  // namespace UI

@@ -38,6 +38,9 @@ namespace UI {
         /** @copydoc UI::IUIFactory::CreateMenu */
         std::unique_ptr<IMenu> CreateMenu() override;
 
+        /** @copydoc UI::IUIFactory::CreateTextInput */
+        std::unique_ptr<ITextInput> CreateTextInput() override;
+
        private:
         Graphics::IGraphics &_graphics;  ///< Graphics dependency injected into UI elements
     };

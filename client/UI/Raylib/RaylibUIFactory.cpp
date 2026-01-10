@@ -8,6 +8,7 @@
 #include "UI/Raylib/RaylibUIFactory.hpp"
 #include "UI/Raylib/RaylibButton.hpp"
 #include "UI/Raylib/RaylibMenu.hpp"
+#include "UI/Raylib/RaylibTextInput.hpp"
 
 namespace UI {
     RaylibUIFactory::RaylibUIFactory(Graphics::IGraphics &graphics) : _graphics(graphics) {}
@@ -18,5 +19,9 @@ namespace UI {
 
     std::unique_ptr<IMenu> RaylibUIFactory::CreateMenu() {
         return std::make_unique<RaylibMenu>(_graphics);
+    }
+
+    std::unique_ptr<ITextInput> RaylibUIFactory::CreateTextInput() {
+        return std::make_unique<RaylibTextInput>(_graphics);
     }
 }  // namespace UI

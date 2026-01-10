@@ -7,8 +7,13 @@
 
 #pragma once
 
+#include "CreateRoom.hpp"
 #include "JoinGame.hpp"
+#include "JoinRoom.hpp"
+#include "ListRooms.hpp"
 #include "PlayerInput.hpp"
+#include "StartGame.hpp"
+#include "StartMatchmaking.hpp"
 
 /**
  * @namespace RType::Messages::C2S

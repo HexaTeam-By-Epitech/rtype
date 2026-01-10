@@ -48,10 +48,8 @@ namespace server {
         // Create ECSWorld if not provided
         if (!world) {
             _world = std::make_shared<ecs::wrapper::ECSWorld>();
-            LOG_DEBUG("GameLogic: Created new ECSWorld");
         } else {
             _world = world;
-            LOG_DEBUG("GameLogic: Using provided ECSWorld");
         }
 
         if (_threadPool) {
@@ -152,18 +150,14 @@ namespace server {
             LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
         }
 
-        // 2. Update game state manager (Lobby, InGame, GameOver)
         if (_stateManager) {
             _stateManager->update(deltaTime);
         }
 
-        // 3. Execute all systems in order
         _executeSystems(deltaTime);
 
-        // 4. Clean up dead entities
         _cleanupDeadEntities();
 
-        // 5. Check if all players are dead -> trigger game over
         _checkGameOverCondition();
     }
 
@@ -365,7 +359,6 @@ namespace server {
             std::scoped_lock lock(_playerMutex);
             for (auto it = _playerMap.begin(); it != _playerMap.end();) {
                 if (it->second == entityAddress) {
-                    LOG_DEBUG("Player entity ", entityAddress, " (ID: ", it->first, ") died");
                     it = _playerMap.erase(it);
                 } else {
                     ++it;
@@ -373,13 +366,8 @@ namespace server {
             }
         }
 
-        // Destroy all dead entities
         for (ecs::Address address : toDestroy) {
             _world->destroyEntity(address);
-        }
-
-        if (!toDestroy.empty()) {
-            LOG_DEBUG("Cleaned up ", toDestroy.size(), " dead entities");
         }
     }
 

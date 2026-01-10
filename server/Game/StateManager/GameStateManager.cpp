@@ -14,15 +14,12 @@ namespace server {
 
     void GameStateManager::changeState(int stateID) {
         if (_currentStateID == stateID) {
-            LOG_DEBUG("Already in state ", stateID);
             return;
         }
 
-        // Exit current state
         if (_currentStateID >= 0 && _currentStateID < static_cast<int>(_states.size()) &&
             _states[_currentStateID]) {
             _states[_currentStateID]->exit();
-            LOG_DEBUG("Exited state ", _currentStateID);
         }
 
         _currentStateID = stateID;
@@ -55,7 +52,6 @@ namespace server {
             _states.resize(stateID + 1);
         }
         _states[stateID] = state;
-        LOG_DEBUG("Registered state ", stateID);
     }
 
     void GameStateManager::update(float dt) {
@@ -67,7 +63,6 @@ namespace server {
 
     void GameStateManager::setEventBus(std::shared_ptr<EventBus> eventBus) {
         _eventBus = eventBus;
-        LOG_DEBUG("GameStateManager: EventBus set");
     }
 
 }  // namespace server

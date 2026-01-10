@@ -21,7 +21,6 @@
 #include "Input/InputBuffer.hpp"
 #include "Network/Replicator.hpp"
 #include "Rendering/Rendering.hpp"
-#include "UI/MenuUI.hpp"
 
 enum class GameScene { LOBBY, IN_GAME, PAUSED, GAME_OVER };
 
@@ -229,7 +228,6 @@ class GameLoop {
     std::unique_ptr<InputBuffer> _inputBuffer;
     Replicator *_replicator;  // Non-owning pointer (owned by Client)
     std::unique_ptr<Rendering> _rendering;
-    std::unique_ptr<MenuUI> _menuUI;
 
     bool _running = false;
     bool _initialized = false;

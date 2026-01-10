@@ -298,12 +298,6 @@ class Rendering {
      */
     void SetPing(uint32_t pingMs);
 
-    /**
-     * @brief Get the graphics interface
-     * @return Reference to the graphics interface
-     */
-    Graphics::IGraphics &GetGraphics() { return _graphics; }
-
    private:
     EventBus _eventBus;
     bool _initialized = false;

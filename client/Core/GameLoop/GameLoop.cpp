@@ -30,10 +30,7 @@ bool GameLoop::initialize() {
     _rendering = std::make_unique<Rendering>(*_eventBus);
     LOG_INFO("Rendering initialized");
 
-    // 3. MenuUI (must be after rendering, but rendering's window is initialized in run())
-    // We'll initialize MenuUI in run() after window creation
-
-    // 4. Subscribe to network events for entity updates
+    // 3. Subscribe to network events for entity updates
     _eventBus->subscribe<NetworkEvent>([this](const NetworkEvent &event) { handleNetworkMessage(event); });
     LOG_INFO("Subscribed to NetworkEvent");
 
@@ -55,40 +52,6 @@ void GameLoop::run() {
     LOG_INFO("  - THREAD 2 (Main):    Game logic + Rendering");
 
     _rendering->Initialize(800, 600, "R-Type Client");
-
-    // Initialize MenuUI after window creation
-    _menuUI = std::make_unique<MenuUI>(_rendering->GetGraphics());
-    LOG_INFO("MenuUI initialized");
-
-    // Set menu callbacks
-    _menuUI->setOnCreateRoom([this]() {
-        LOG_INFO("User wants to create a room");
-        // Create a default room
-        if (_replicator) {
-            _replicator->sendCreateRoom("My Room", 4, false);
-        }
-    });
-
-    _menuUI->setOnListRooms([this]() {
-        LOG_INFO("User wants to list rooms");
-        if (_replicator) {
-            _replicator->sendListRooms();
-        }
-    });
-
-    _menuUI->setOnJoinRoom([this](const std::string &roomId) {
-        LOG_INFO("User wants to join room: ", roomId);
-        if (_replicator) {
-            _replicator->sendJoinRoom(roomId);
-        }
-    });
-
-    _menuUI->setOnStartGame([this]() {
-        LOG_INFO("User wants to start the game");
-        if (_replicator) {
-            _replicator->sendStartGame();
-        }
-    });
 
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {
@@ -134,9 +97,6 @@ void GameLoop::shutdown() {
     }
 
     LOG_INFO("Shutting down subsystems...");
-
-    _menuUI.reset();
-    LOG_INFO("MenuUI stopped");
 
     _rendering.reset();
     LOG_INFO("Rendering stopped");
@@ -193,7 +153,7 @@ void GameLoop::update(float deltaTime) {
     }
 
     if (_rendering && _rendering->WindowShouldClose()) {
-        stop();
+        shutdown();
     }
 }
 
@@ -211,29 +171,12 @@ void GameLoop::render() {
         return;
     }
 
-    // Render based on current scene
-    if (_currentScene == GameScene::LOBBY && _menuUI) {
-        // Start drawing frame
-        _rendering->GetGraphics().StartDrawing();
-        _rendering->GetGraphics().ClearWindow();
-
-        // Draw menu
-        _menuUI->draw();
-
-        // End frame
-        _rendering->GetGraphics().DisplayWindow();
-    } else if (_currentScene == GameScene::IN_GAME) {
-        _rendering->Render();
-    }
+    _rendering->ClearWindow();
+    _rendering->Render();
 }
 
 void GameLoop::processInput() {
     if (!_rendering || !_replicator) {
-        return;
-    }
-
-    // Only process game inputs when in-game, not in lobby
-    if (_currentScene != GameScene::IN_GAME) {
         return;
     }
 
@@ -322,67 +265,8 @@ float GameLoop::calculateDeltaTime() {
 void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
     auto messageType = NetworkMessages::getMessageType(event.getData());
 
-    // Handle RoomList message
-    if (messageType == NetworkMessages::MessageType::S2C_ROOM_LIST) {
-        LOG_INFO("RoomList message received");
-        auto payload = NetworkMessages::getPayload(event.getData());
-        try {
-            auto roomList = RType::Messages::S2C::RoomList::deserialize(payload);
-            LOG_INFO("Received ", roomList.rooms.size(), " rooms");
-
-            // Update menu UI with room list
-            if (_menuUI) {
-                _menuUI->setRoomList(roomList.rooms);
-            }
-        } catch (const std::exception &e) {
-            LOG_ERROR("Failed to parse RoomList: ", e.what());
-        }
-    }
-
-    // Handle RoomCreated message
-    else if (messageType == NetworkMessages::MessageType::S2C_ROOM_CREATED) {
-        LOG_INFO("RoomCreated message received");
-        auto payload = NetworkMessages::getPayload(event.getData());
-        try {
-            auto response = RType::Messages::S2C::RoomCreated::deserialize(payload);
-            if (response.success) {
-                LOG_INFO("✓ Room created successfully: ", response.roomId);
-                // Update menu state to show "in room"
-                if (_menuUI) {
-                    _menuUI->setCurrentRoomId(response.roomId);
-                    _menuUI->setState(MenuUI::MenuState::IN_ROOM);
-                }
-            } else {
-                LOG_ERROR("Failed to create room: ", response.errorMessage);
-            }
-        } catch (const std::exception &e) {
-            LOG_ERROR("Failed to parse RoomCreated: ", e.what());
-        }
-    }
-
-    // Handle JoinedRoom message
-    else if (messageType == NetworkMessages::MessageType::S2C_JOINED_ROOM) {
-        LOG_INFO("JoinedRoom message received");
-        auto payload = NetworkMessages::getPayload(event.getData());
-        try {
-            auto response = RType::Messages::S2C::JoinedRoom::deserialize(payload);
-            if (response.success) {
-                LOG_INFO("✓ Joined room successfully: ", response.roomId);
-                // Update menu state to show "in room"
-                if (_menuUI) {
-                    _menuUI->setCurrentRoomId(response.roomId);
-                    _menuUI->setState(MenuUI::MenuState::IN_ROOM);
-                }
-            } else {
-                LOG_ERROR("Failed to join room: ", response.errorMessage);
-            }
-        } catch (const std::exception &e) {
-            LOG_ERROR("Failed to parse JoinedRoom: ", e.what());
-        }
-    }
-
     // Handle GameStart message (sent once when player connects)
-    else if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
+    if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
         LOG_INFO("GameStart message received");
         auto payload = NetworkMessages::getPayload(event.getData());
         try {
@@ -412,10 +296,6 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
             }
 
             LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");
-
-            // Switch to IN_GAME scene
-            _currentScene = GameScene::IN_GAME;
-            LOG_INFO("✓ Switched to IN_GAME scene");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to parse GameStart: ", e.what());
         }

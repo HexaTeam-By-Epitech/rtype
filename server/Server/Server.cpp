@@ -218,7 +218,40 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
 
     LOG_INFO("✓ Player '", playerName, "'", modeStr, " connected (Session: ", sessionId,
              ", Player ID: ", newPlayerId, ")");
-    LOG_INFO("  Player is now in lobby - waiting for room selection");
+
+    // DELETE ME - START
+    // DEV MODE: Auto-join default room and start game
+    if (DEV_MODE_SKIP_MATCHMAKING && _defaultRoom && !isSpectator) {
+        LOG_INFO("[DEV MODE] Auto-joining player ", newPlayerId, " to default room");
+
+        if (_defaultRoom->join(newPlayerId)) {
+            LOG_INFO("✓ Player ", newPlayerId, " auto-joined default room");
+
+            // Send JoinedRoom response
+            S2C::JoinedRoom joinedResponse;
+            joinedResponse.success = true;
+            joinedResponse.roomId = _defaultRoom->getId();
+            joinedResponse.errorMessage = "";
+
+            std::vector<uint8_t> joinedData = NetworkMessages::createMessage(
+                NetworkMessages::MessageType::S2C_JOINED_ROOM, joinedResponse.serialize());
+            std::unique_ptr<IPacket> joinedPacket =
+                createPacket(joinedData, static_cast<int>(PacketFlag::RELIABLE));
+            event.peer->send(std::move(joinedPacket), 0);
+
+            // Auto-start the game
+            if (_defaultRoom->getState() == server::RoomState::WAITING) {
+                LOG_INFO("[DEV MODE] Auto-starting game in default room");
+                _defaultRoom->startGame();
+                _sendGameStartToRoom(_defaultRoom);
+            }
+        } else {
+            LOG_ERROR("Failed to auto-join player ", newPlayerId, " to default room");
+        }
+    } else {
+        LOG_INFO("  Player is now in lobby - waiting for room selection");
+    }
+    // DELETE ME - END
 }
 
 void Server::_handlePlayerInput(HostNetworkEvent &event) {

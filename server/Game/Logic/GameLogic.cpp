@@ -48,10 +48,8 @@ namespace server {
         // Create ECSWorld if not provided
         if (!world) {
             _world = std::make_shared<ecs::wrapper::ECSWorld>();
-            LOG_DEBUG("GameLogic: Created new ECSWorld");
         } else {
             _world = world;
-            LOG_DEBUG("GameLogic: Using provided ECSWorld");
         }
 
         if (_threadPool) {
@@ -148,22 +146,18 @@ namespace server {
         _processInput();
 
         // Periodic tick summary (once per second at 60 FPS)
-        if (currentTick % 60 == 0) {
-            LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
-        }
+        // if (currentTick % 60 == 0) {
+        //     LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
+        // }
 
-        // 2. Update game state manager (Lobby, InGame, GameOver)
         if (_stateManager) {
             _stateManager->update(deltaTime);
         }
 
-        // 3. Execute all systems in order
         _executeSystems(deltaTime);
 
-        // 4. Clean up dead entities
         _cleanupDeadEntities();
 
-        // 5. Check if all players are dead -> trigger game over
         _checkGameOverCondition();
     }
 
@@ -278,10 +272,10 @@ namespace server {
                 }
 
                 // Debug: log processed input once per message (only when there's movement)
-                if (input.inputX != 0 || input.inputY != 0) {
-                    LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
-                              input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
-                }
+                // if (input.inputX != 0 || input.inputY != 0) {
+                //     LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
+                //               input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
+                // }
 
                 // Handle shooting
                 if (input.isShooting) {
@@ -365,7 +359,6 @@ namespace server {
             std::scoped_lock lock(_playerMutex);
             for (auto it = _playerMap.begin(); it != _playerMap.end();) {
                 if (it->second == entityAddress) {
-                    LOG_DEBUG("Player entity ", entityAddress, " (ID: ", it->first, ") died");
                     it = _playerMap.erase(it);
                 } else {
                     ++it;
@@ -373,13 +366,8 @@ namespace server {
             }
         }
 
-        // Destroy all dead entities
         for (ecs::Address address : toDestroy) {
             _world->destroyEntity(address);
-        }
-
-        if (!toDestroy.empty()) {
-            LOG_DEBUG("Cleaned up ", toDestroy.size(), " dead entities");
         }
     }
 

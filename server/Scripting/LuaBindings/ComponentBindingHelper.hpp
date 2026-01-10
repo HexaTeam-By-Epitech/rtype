@@ -98,6 +98,11 @@ namespace scripting::bindings {
          */
         const std::vector<ComponentBinding> &getBindings() const;
 
+        /**
+         * @brief Clear all registered components (for testing/reinitialization)
+         */
+        void clear();
+
        private:
         std::vector<ComponentBinding> _bindings;
         std::unordered_map<std::string, std::function<sol::object(ecs::wrapper::Entity &, sol::this_state)>>
@@ -139,6 +144,7 @@ namespace scripting::bindings {
      */
     template <typename T>
     void ComponentBindingHelper::registerComponent(const std::string &name) {
+        // Store direct lambdas that sol2 can understand
         _getters[name] = [](ecs::wrapper::Entity &e, sol::this_state L) -> sol::object {
             sol::state_view lua(L);
             if (!e.has<T>()) {
@@ -147,6 +153,8 @@ namespace scripting::bindings {
             return sol::make_object(lua, &e.get<T>());
         };
 
+        // CRITICAL: Use a direct lambda that sol2 can properly bind
+        // The key is to not wrap it in std::function before assigning to usertype
         _hasCheckers[name] = [](ecs::wrapper::Entity &e) -> bool {
             return e.has<T>();
         };

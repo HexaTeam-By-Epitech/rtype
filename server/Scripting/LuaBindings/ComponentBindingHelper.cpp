@@ -44,4 +44,11 @@ namespace scripting::bindings {
         return _bindings;
     }
 
+    void ComponentBindingHelper::clear() {
+        _bindings.clear();
+        _getters.clear();
+        _hasCheckers.clear();
+        _removers.clear();
+    }
+
 }  // namespace scripting::bindings

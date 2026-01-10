@@ -12,18 +12,15 @@
 namespace server {
 
     ServerLoop::ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus)
-        : _gameLogic(std::move(gameLogic)), _eventBus(eventBus) {
-        LOG_DEBUG("ServerLoop created with EventBus");
-    }
+        : _gameLogic(std::move(gameLogic)), _eventBus(eventBus) {}
 
     ServerLoop::~ServerLoop() {
         ServerLoop::stop();
-        // jthread joins automatically in its destructor
     }
 
     bool ServerLoop::initialize() {
         if (_initialized.exchange(true)) {
-            return true;  // Already initialized
+            return true;
         }
 
         LOG_INFO("Initializing deterministic game loop...");
@@ -49,7 +46,7 @@ namespace server {
     void ServerLoop::start() {
         if (_loopThread.joinable()) {
             LOG_WARNING("Game loop already running");
-            return;  // Already running
+            return;
         }
 
         LOG_INFO("Starting game loop thread...");
@@ -60,14 +57,12 @@ namespace server {
             _skippedFrames = 0;
 
             _frameTimer.reset();
-            // Create jthread with lambda that captures 'this' and receives stop_token from jthread
-            // The stop_token is automatically passed by jthread when the lambda signature accepts it
             _loopThread = std::jthread([this](std::stop_token st) { _gameLoopThread(st); });
 
             LOG_INFO("✓ Game loop thread started");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to start game loop: ", e.what());
-            throw;  // Re-throw for proper error handling
+            throw;
         }
     }
 
@@ -88,23 +83,20 @@ namespace server {
     }
 
     void ServerLoop::_gameLoopThread(std::stop_token stopToken) {
-        LOG_DEBUG("Game loop thread started (TID: ", std::this_thread::get_id(), ")");
+        LOG_DEBUG("Game loop thread started");
 
         while (!stopToken.stop_requested()) {
             try {
-                // Measure frame time (tick() gets elapsed time and resets in one call)
                 double frameTime = _frameTimer.tick();
 
                 // Cap frame time to prevent spiral of death (lag recovery)
                 if (frameTime > 0.1) {
                     LOG_WARNING("Frame time exceeded 100ms (", frameTime * 1000.0, "ms)");
-                    frameTime = 0.1;  // Cap at 100ms
+                    frameTime = 0.1;
                 }
 
-                // Accumulate time
                 _timeAccumulator += frameTime;
 
-                // Process fixed updates
                 int frameSkips = 0;
                 while (_timeAccumulator >= FIXED_TIMESTEP && frameSkips < 5) {
                     _fixedUpdate();
@@ -113,12 +105,10 @@ namespace server {
                     frameSkips++;
                 }
 
-                // Track frame skips
                 if (frameSkips > 1) {
                     _skippedFrames++;
                 }
 
-                // Yield to prevent busy-loop
                 FrameTimer::sleepMilliseconds(1);
 
             } catch (const std::exception &e) {
@@ -126,8 +116,6 @@ namespace server {
                 LOG_ERROR("Continuing...");
             }
         }
-
-        LOG_DEBUG("Thread exiting. Frames: ", _frameCount, ", Skipped: ", _skippedFrames);
     }
 
     void ServerLoop::_fixedUpdate() {

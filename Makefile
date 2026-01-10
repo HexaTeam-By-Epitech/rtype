@@ -154,6 +154,14 @@ else
 	@lcov --remove coverage/coverage.info '/usr/*' '*/vcpkg_installed/*' '*/vcpkg/*' '*/tests/*' '*/build/*' '*/.cache/*' '*/IHost.hpp' -o coverage/coverage.info \
 		--ignore-errors inconsistent,inconsistent \
 		--ignore-errors unused,unused
+	@echo "Generating gcov files for SonarQube..."
+	@find $(BUILD_DIR)/$(PRESET_DEBUG) -name "*.gcda" -exec gcov -p -b {} + > /dev/null 2>&1 || true
+	@GCOV_COUNT=$$(find . -maxdepth 1 -name "*.gcov" 2>/dev/null | wc -l | tr -d ' '); \
+		echo "Generated $$GCOV_COUNT gcov files in project root"
+	@if command -v genhtml > /dev/null; then \
+		genhtml coverage/coverage.info --output-directory coverage/html --ignore-errors inconsistent 2>/dev/null || true; \
+		echo "HTML coverage report generated in coverage/html"; \
+	fi
 	@echo ""
 	@echo "========================================"
 	@echo "Coverage Report"

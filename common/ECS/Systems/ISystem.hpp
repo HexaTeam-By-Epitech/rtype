@@ -18,6 +18,8 @@ namespace ecs {
      * 
      * Used to represent which components are required by a system.
      * Each bit corresponds to a component type ID.
+     * 
+     * @note Size matches Registry::Signature (N_MAX_COMPONENTS = 64 bits)
      */
     using ComponentMask = std::uint64_t;
 

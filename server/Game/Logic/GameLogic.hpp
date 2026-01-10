@@ -17,6 +17,11 @@
 #include "server/Game/Rules/GameRules.hpp"
 #include "server/Game/StateManager/GameStateManager.hpp"
 
+namespace scripting {
+    class LuaEngine;
+    class LuaSystemAdapter;
+}  // namespace scripting
+
 namespace ecs {
     class ISystem;
 }
@@ -113,6 +118,9 @@ namespace server {
 
         // ECS World
         std::shared_ptr<ecs::wrapper::ECSWorld> _world;
+
+        // Lua scripting
+        std::unique_ptr<scripting::LuaEngine> _luaEngine;
 
         // Player management
         std::unordered_map<uint32_t, ecs::Address> _playerMap;  // playerId -> entityAddress

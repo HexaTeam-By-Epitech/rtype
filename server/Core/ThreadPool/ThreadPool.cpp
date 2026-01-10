@@ -10,9 +10,7 @@
 
 namespace server {
 
-    ThreadPool::ThreadPool(size_t threadCount) : _threadCount(threadCount) {
-        LOG_DEBUG("ThreadPool created with ", _threadCount, " threads");
-    }
+    ThreadPool::ThreadPool(size_t threadCount) : _threadCount(threadCount) {}
 
     ThreadPool::~ThreadPool() {
         try {

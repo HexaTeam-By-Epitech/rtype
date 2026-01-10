@@ -10,6 +10,7 @@
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include "../Shared/SharedTypes.hpp"
 #include "schemas/c2s_messages.capnp.h"

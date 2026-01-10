@@ -125,6 +125,26 @@ target_link_libraries(threading_tests PRIVATE
 
 add_test(NAME threading_tests COMMAND threading_tests)
 
+# Scripting tests
+add_executable(scripting_tests
+    scripting_tests/LuaEngineTest.cpp
+    scripting_tests/LuaSystemAdapterTest.cpp
+)
+
+target_include_directories(scripting_tests PRIVATE 
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/server
+    ${CMAKE_SOURCE_DIR}/server/Scripting
+    ${CMAKE_SOURCE_DIR}/common
+)
+
+target_link_libraries(scripting_tests PRIVATE 
+    GTest::gtest_main
+    rtype_server_lib
+)
+
+add_test(NAME scripting_tests COMMAND scripting_tests)
+
 # On Windows, copy required DLLs next to test executables
 if(WIN32)
     # Function to copy vcpkg DLLs for a test target
@@ -146,5 +166,6 @@ if(WIN32)
     copy_test_dlls(server_tests)
     copy_test_dlls(networking_tests)
     copy_test_dlls(serialization_tests)
+    copy_test_dlls(scripting_tests)
 endif()
 

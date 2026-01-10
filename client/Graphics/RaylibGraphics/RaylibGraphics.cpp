@@ -20,12 +20,14 @@ namespace Graphics {
         }
         if (_windowInitialized) {
             ::CloseWindow();
+            _windowInitialized = false;
         }
     }
 
     // Window management
     void RaylibGraphics::InitWindow(int width, int height, const char *title) {
         ::InitWindow(width, height, title);
+        ::SetExitKey(0);
         _windowInitialized = true;
     }
 
@@ -43,6 +45,14 @@ namespace Graphics {
 
     bool RaylibGraphics::IsWindowOpen() const {
         return _windowInitialized && !::WindowShouldClose();
+    }
+
+    int RaylibGraphics::GetWindowWidth() const {
+        return ::GetScreenWidth();
+    }
+
+    int RaylibGraphics::GetWindowHeight() const {
+        return ::GetScreenHeight();
     }
 
     void RaylibGraphics::CloseWindow() {

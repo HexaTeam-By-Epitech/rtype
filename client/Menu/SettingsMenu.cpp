@@ -1,0 +1,310 @@
+/*
+** EPITECH PROJECT, 2026
+** r-type
+** File description:
+** SettingsMenu - Settings menu (business logic)
+*/
+
+#include "Menu/SettingsMenu.hpp"
+#include "../common/Logger/Logger.hpp"
+
+namespace Game {
+    SettingsMenu::SettingsMenu(UI::IUIFactory &uiFactory) : _uiFactory(uiFactory) {
+        _menu = _uiFactory.CreateMenu();
+    }
+
+    void SettingsMenu::Initialize() {
+        if (!_menu) {
+            return;
+        }
+
+        _menu->Clear();
+
+        const float buttonWidth = 360.0f;
+        const float buttonHeight = 50.0f;
+        const float spacing = 18.0f;
+
+        const bool showMainMenuButton = (_mode == Mode::OVERLAY);
+        const int buttonCount = showMainMenuButton ? 5 : 4;
+
+        // Center buttons vertically as a stack
+        const float totalHeight = (buttonHeight * static_cast<float>(buttonCount)) +
+                                  (spacing * static_cast<float>(buttonCount - 1));
+
+        auto offsetForIndex = [&](int idx) {
+            // idx in [0..buttonCount-1], centered stack
+            const float start = -(totalHeight / 2.0f) + (buttonHeight / 2.0f);
+            return start + (buttonHeight + spacing) * static_cast<float>(idx);
+        };
+
+        auto makeButton = [&](const char *label, float offsetY, unsigned int backgroundColor,
+                              unsigned int hoverColor, std::function<void()> callback) {
+            auto button = _uiFactory.CreateButton();
+            button->SetSize(buttonWidth, buttonHeight);
+            button->SetAlign(UI::Align::CENTER_BOTH);
+            button->ApplyAlignment();
+
+            float x = 0.0f;
+            float y = 0.0f;
+            button->GetPosition(x, y);
+            button->SetPosition(x, y + offsetY);
+
+            button->SetBackgroundColor(backgroundColor);
+            button->SetHoverColor(hoverColor);
+
+            button->SetText(label);
+            button->SetTextSize(18);
+            button->SetTextColor(0xFFFFFFFF);
+            button->SetFont(-1);
+
+            button->SetCallback(std::move(callback));
+            return button;
+        };
+
+        // Toggle Ping button
+        _menu->AddButton(makeButton("PING: ON", offsetForIndex(0), 0xFF424242, 0xFF616161,
+                                    [this]() { SetShowPing(!_showPing); }));
+
+        // Toggle FPS display button
+        _menu->AddButton(makeButton("FPS: ON", offsetForIndex(1), 0xFF424242, 0xFF616161,
+                                    [this]() { SetShowFps(!_showFps); }));
+
+        // Target FPS selection button (cycles)
+        _menu->AddButton(makeButton("TARGET FPS: 60", offsetForIndex(2), 0xFF424242, 0xFF616161,
+                                    [this]() { SetTargetFps(NextTargetFps(_targetFps)); }));
+
+        // Back (closes settings)
+        _menu->AddButton(makeButton("BACK", offsetForIndex(3), 0xFF1976D2, 0xFF1E88E5, [this]() {
+            if (_onBack) {
+                _onBack();
+            } else {
+                Hide();
+            }
+        }));
+
+        // Main menu (only in overlay)
+        if (showMainMenuButton) {
+            _menu->AddButton(makeButton("MAIN MENU", offsetForIndex(4), 0xFF5D4037, 0xFF6D4C41, [this]() {
+                if (_onMainMenu) {
+                    _onMainMenu();
+                }
+            }));
+        }
+
+        RefreshVisuals();
+    }
+
+    void SettingsMenu::Update() {
+        if (_menu) {
+            _menu->Update();
+        }
+    }
+
+    void SettingsMenu::Render() {
+        if (_menu) {
+            _menu->Render();
+        }
+    }
+
+    void SettingsMenu::Show() {
+        if (_menu) {
+            _menu->SetVisible(true);
+        }
+    }
+
+    void SettingsMenu::Hide() {
+        if (_menu) {
+            _menu->SetVisible(false);
+        }
+    }
+
+    bool SettingsMenu::IsVisible() const {
+        return _menu && _menu->IsVisible();
+    }
+
+    void SettingsMenu::SetMode(Mode mode) {
+        _mode = mode;
+    }
+
+    SettingsMenu::Mode SettingsMenu::GetMode() const {
+        return _mode;
+    }
+
+    void SettingsMenu::SetShowPing(bool enabled) {
+        _showPing = enabled;
+        UpdateToggleVisuals();
+        if (_onShowPingChanged) {
+            _onShowPingChanged(_showPing);
+        }
+        LOG_INFO("[SettingsMenu] showPing=", _showPing ? "true" : "false");
+    }
+
+    bool SettingsMenu::GetShowPing() const {
+        return _showPing;
+    }
+
+    void SettingsMenu::SetOnShowPingChanged(std::function<void(bool)> cb) {
+        _onShowPingChanged = std::move(cb);
+    }
+
+    void SettingsMenu::SetOnBack(std::function<void()> cb) {
+        _onBack = std::move(cb);
+    }
+
+    void SettingsMenu::SetOnMainMenu(std::function<void()> cb) {
+        _onMainMenu = std::move(cb);
+    }
+
+    void SettingsMenu::SetShowFps(bool enabled) {
+        _showFps = enabled;
+        UpdateFpsToggleVisuals();
+        if (_onShowFpsChanged) {
+            _onShowFpsChanged(_showFps);
+        }
+        LOG_INFO("[SettingsMenu] showFps=", _showFps ? "true" : "false");
+    }
+
+    bool SettingsMenu::GetShowFps() const {
+        return _showFps;
+    }
+
+    void SettingsMenu::SetOnShowFpsChanged(std::function<void(bool)> cb) {
+        _onShowFpsChanged = std::move(cb);
+    }
+
+    uint32_t SettingsMenu::NextTargetFps(uint32_t current) const {
+        switch (current) {
+            case 30:
+                return 60;
+            case 60:
+                return 120;
+            case 120:
+                return 144;
+            case 144:
+                return 240;
+            default:
+                return 30;
+        }
+    }
+
+    uint32_t SettingsMenu::ValidateTargetFps(uint32_t targetFps) const {
+        switch (targetFps) {
+            case 30:
+            case 60:
+            case 120:
+            case 144:
+            case 240:
+                return targetFps;
+            default:
+                return 60;
+        }
+    }
+
+    void SettingsMenu::RefreshVisuals() {
+        UpdateToggleVisuals();
+        UpdateFpsToggleVisuals();
+        UpdateTargetFpsVisuals();
+    }
+
+    void SettingsMenu::SetShowPingSilent(bool enabled) {
+        _showPing = enabled;
+        UpdateToggleVisuals();
+    }
+
+    void SettingsMenu::SetShowFpsSilent(bool enabled) {
+        _showFps = enabled;
+        UpdateFpsToggleVisuals();
+    }
+
+    void SettingsMenu::SetTargetFpsSilent(uint32_t targetFps) {
+        _targetFps = ValidateTargetFps(targetFps);
+        UpdateTargetFpsVisuals();
+    }
+
+    void SettingsMenu::SetTargetFps(uint32_t targetFps) {
+        _targetFps = ValidateTargetFps(targetFps);
+
+        UpdateTargetFpsVisuals();
+        if (_onTargetFpsChanged) {
+            _onTargetFpsChanged(_targetFps);
+        }
+        LOG_INFO("[SettingsMenu] targetFps=", _targetFps);
+    }
+
+    uint32_t SettingsMenu::GetTargetFps() const {
+        return _targetFps;
+    }
+
+    void SettingsMenu::SetOnTargetFpsChanged(std::function<void(uint32_t)> callback) {
+        _onTargetFpsChanged = std::move(callback);
+    }
+
+    void SettingsMenu::UpdateToggleVisuals() {
+        if (!_menu) {
+            return;
+        }
+        auto toggleBtn = _menu->GetButton(TOGGLE_PING_INDEX);
+        if (!toggleBtn) {
+            return;
+        }
+
+        if (_showPing) {
+            toggleBtn->SetText("PING: ON");
+            toggleBtn->SetBackgroundColor(0xFF2E7D32);
+            toggleBtn->SetHoverColor(0xFF388E3C);
+        } else {
+            toggleBtn->SetText("PING: OFF");
+            toggleBtn->SetBackgroundColor(0xFFB71C1C);
+            toggleBtn->SetHoverColor(0xFFD32F2F);
+        }
+        toggleBtn->SetTextColor(0xFFFFFFFF);
+    }
+
+    void SettingsMenu::UpdateFpsToggleVisuals() {
+        if (!_menu) {
+            return;
+        }
+        auto toggleBtn = _menu->GetButton(TOGGLE_FPS_INDEX);
+        if (!toggleBtn) {
+            return;
+        }
+
+        if (_showFps) {
+            toggleBtn->SetText("FPS: ON");
+            toggleBtn->SetBackgroundColor(0xFF2E7D32);
+            toggleBtn->SetHoverColor(0xFF388E3C);
+        } else {
+            toggleBtn->SetText("FPS: OFF");
+            toggleBtn->SetBackgroundColor(0xFFB71C1C);
+            toggleBtn->SetHoverColor(0xFFD32F2F);
+        }
+        toggleBtn->SetTextColor(0xFFFFFFFF);
+    }
+
+    void SettingsMenu::UpdateTargetFpsVisuals() {
+        if (!_menu) {
+            return;
+        }
+        auto targetBtn = _menu->GetButton(TARGET_FPS_INDEX);
+        if (!targetBtn) {
+            return;
+        }
+
+        targetBtn->SetText("TARGET FPS: " + std::to_string(_targetFps));
+        targetBtn->SetBackgroundColor(0xFF424242);
+        targetBtn->SetHoverColor(0xFF616161);
+        targetBtn->SetTextColor(0xFFFFFFFF);
+    }
+
+    void SettingsMenu::SetOverlayDimColor(unsigned int color) {
+        _overlayDimColor = color;
+    }
+
+    unsigned int SettingsMenu::GetOverlayDimColor() const {
+        return _overlayDimColor;
+    }
+
+    bool SettingsMenu::ShouldDimBackground() const {
+        return _mode == Mode::OVERLAY && IsVisible();
+    }
+}  // namespace Game

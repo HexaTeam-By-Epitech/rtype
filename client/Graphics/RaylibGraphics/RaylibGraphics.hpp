@@ -37,6 +37,8 @@ namespace Graphics {
         void DisplayWindow() override;
         bool IsWindowOpen() const override;
         void CloseWindow() override;
+        [[nodiscard]] int GetWindowWidth() const override;
+        [[nodiscard]] int GetWindowHeight() const override;
         void SetWindowTitle(const char *title) override;
         void SetWindowSize(int width, int height) override;
         void ToggleFullScreen() override;

@@ -20,16 +20,155 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
     }
 
     _graphics.InitWindow(static_cast<int>(width), static_cast<int>(height), title.c_str());
+
     _width = width;
     _height = height;
 
-    // Initialize EntityRenderer subsystem
-    _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
-    LOG_DEBUG("EntityRenderer subsystem initialized");
+    _quitRequested = false;
+
+    _showPing = true;
+    _showFps = true;
+
+    _fps = 0;
+    _fpsAccumulator = 0.0f;
+    _fpsFrameCount = 0;
+
+    InitializeMenus();
+    ApplyInitialMenuSettings();
+
+    // Start in menu: disable entity renderer until Play
+    _entityRenderer.reset();
 
     _initialized = true;
     LOG_INFO("Rendering initialized: ", width, "x", height, " (", title, ")");
     return true;
+}
+
+void Rendering::InitializeMenus() {
+    _uiFactory = std::make_unique<UI::RaylibUIFactory>(_graphics);
+
+    // ===== Confirm quit dialog =====
+    _confirmQuitMenu = std::make_unique<Game::ConfirmQuitMenu>(*_uiFactory);
+    _confirmQuitMenu->SetOnConfirm([this]() { _quitRequested = true; });
+    _confirmQuitMenu->SetOnCancel([this]() {
+        if (_confirmQuitMenu) {
+            _confirmQuitMenu->Hide();
+        }
+        _confirmQuitOverlay = false;
+
+        // Return to previous UI depending on scene
+        if (_scene == Scene::MENU) {
+            if (_mainMenu) {
+                _mainMenu->Show();
+            }
+        }
+    });
+    _confirmQuitMenu->Initialize();
+    _confirmQuitMenu->Hide();
+
+    // ===== Settings menu =====
+    _settingsMenu = std::make_unique<Game::SettingsMenu>(*_uiFactory);
+    _settingsMenu->SetMode(Game::SettingsMenu::Mode::FULLSCREEN);
+
+    _settingsMenu->SetOnShowPingChanged([this](bool enabled) { SetShowPing(enabled); });
+    _settingsMenu->SetOnShowFpsChanged([this](bool enabled) { SetShowFps(enabled); });
+    _settingsMenu->SetOnTargetFpsChanged(
+        [this](uint32_t fps) { _graphics.SetTargetFPS(static_cast<int>(fps)); });
+
+    _settingsMenu->SetOnBack([this]() {
+        if (_settingsMenu) {
+            _settingsMenu->Hide();
+        }
+        if (_scene == Scene::MENU) {
+            if (_mainMenu) {
+                _mainMenu->Show();
+            }
+        }
+        _settingsOverlay = false;
+    });
+
+    _settingsMenu->SetOnMainMenu([this]() {
+        // Return to main menu while in-game
+        _scene = Scene::MENU;
+        _settingsOverlay = false;
+        if (_settingsMenu) {
+            _settingsMenu->Hide();
+            if (_settingsMenu->GetMode() != Game::SettingsMenu::Mode::FULLSCREEN) {
+                _settingsMenu->SetMode(Game::SettingsMenu::Mode::FULLSCREEN);
+                _settingsMenu->Initialize();
+            } else {
+                _settingsMenu->RefreshVisuals();
+            }
+        }
+        if (_entityRenderer) {
+            _entityRenderer->clearAllEntities();
+        }
+        _entityRenderer.reset();
+        if (_mainMenu) {
+            _mainMenu->Show();
+        }
+    });
+
+    _settingsMenu->Initialize();
+    _settingsMenu->Hide();
+
+    // ===== Main menu =====
+    _mainMenu = std::make_unique<Game::MainMenu>(*_uiFactory);
+    _mainMenu->SetOnQuit([this]() {
+        // Don't quit immediately: ask confirmation
+        if (_mainMenu) {
+            _mainMenu->Hide();
+        }
+        if (_settingsMenu) {
+            _settingsMenu->Hide();
+        }
+        _settingsOverlay = false;
+
+        if (_confirmQuitMenu) {
+            _confirmQuitOverlay = (_scene == Scene::IN_GAME);
+            _confirmQuitMenu->Show();
+        }
+    });
+    _mainMenu->SetOnPlay([this]() {
+        // Start the game: switch scene and enable entity rendering
+        _scene = Scene::IN_GAME;
+        if (_mainMenu) {
+            _mainMenu->Hide();
+        }
+        if (_settingsMenu) {
+            _settingsMenu->Hide();
+        }
+        _settingsOverlay = false;
+
+        if (!_entityRenderer) {
+            _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+        }
+    });
+    _mainMenu->SetOnSettings([this]() {
+        if (_mainMenu) {
+            _mainMenu->Hide();
+        }
+        if (_settingsMenu) {
+            _settingsMenu->SetMode(Game::SettingsMenu::Mode::FULLSCREEN);
+            _settingsMenu->Show();
+        }
+        _settingsOverlay = false;
+    });
+    _mainMenu->Initialize();
+    _mainMenu->Show();
+}
+
+void Rendering::ApplyInitialMenuSettings() {
+    // Default: 60 FPS cap at startup
+    _graphics.SetTargetFPS(60);
+
+    // Keep menu button state consistent with renderer state (silent sync)
+    if (_settingsMenu) {
+        _settingsMenu->SetTargetFpsSilent(60);
+        _settingsMenu->SetShowPingSilent(_showPing);
+        _settingsMenu->SetShowFpsSilent(_showFps);
+        _settingsMenu->RefreshVisuals();
+    }
 }
 
 void Rendering::Shutdown() {
@@ -45,47 +184,156 @@ void Rendering::ClearWindow() {
         return;
     }
 
+    // Kept for legacy callers; main loop uses Render() which clears.
     _graphics.ClearWindow();
 }
+
+void Rendering::SetShowPing(bool enabled) {
+    _showPing = enabled;
+}
+
+bool Rendering::GetShowPing() const {
+    return _showPing;
+}
+
+void Rendering::SetShowFps(bool enabled) {
+    _showFps = enabled;
+}
+
+bool Rendering::GetShowFps() const {
+    return _showFps;
+}
+
+namespace {
+    // Rough width estimation (same heuristic as RaylibButton)
+    int EstimateTextWidth(const std::string &text, int fontSize) {
+        return static_cast<int>(text.size() * static_cast<size_t>(fontSize) * 6 / 10);
+    }
+}  // namespace
 
 void Rendering::Render() {
     if (!_initialized) {
         return;
     }
 
-    _graphics.StartDrawing();
+    // Update FPS counter
+    const float dt = _graphics.GetDeltaTime();
+    _fpsAccumulator += dt;
+    _fpsFrameCount += 1;
+    if (_fpsAccumulator >= 1.0f) {
+        _fps = _fpsFrameCount;
+        _fpsFrameCount = 0;
+        _fpsAccumulator = 0.0f;
+    }
 
-    // Render entities (if EntityRenderer is initialized)
-    if (_entityRenderer) {
+    if (_quitRequested) {
+        Shutdown();
+        return;
+    }
+
+    // ESC toggles settings overlay only in-game
+    if (_scene == Scene::IN_GAME && _graphics.IsKeyPressed(KEY_ESCAPE)) {
+        if (_settingsMenu) {
+            if (_settingsMenu->IsVisible() && _settingsOverlay) {
+                _settingsMenu->Hide();
+                _settingsOverlay = false;
+            } else {
+                // Only rebuild menu if the mode actually changes (button count differs)
+                if (_settingsMenu->GetMode() != Game::SettingsMenu::Mode::OVERLAY) {
+                    _settingsMenu->SetMode(Game::SettingsMenu::Mode::OVERLAY);
+                    _settingsMenu->Initialize();
+                } else {
+                    _settingsMenu->RefreshVisuals();
+                }
+                _settingsMenu->Show();
+                _settingsOverlay = true;
+            }
+        }
+    }
+
+    // Update UI
+    if (_confirmQuitMenu && _confirmQuitMenu->IsVisible()) {
+        _confirmQuitMenu->Update();
+    } else if (_scene == Scene::MENU) {
+        if (_mainMenu && _mainMenu->IsVisible()) {
+            _mainMenu->Update();
+        }
+        if (_settingsMenu && _settingsMenu->IsVisible()) {
+            _settingsMenu->Update();
+        }
+    } else {
+        // In-game: only overlay settings gets updates
+        if (_settingsMenu && _settingsMenu->IsVisible() && _settingsOverlay) {
+            _settingsMenu->Update();
+        }
+    }
+
+    _graphics.StartDrawing();
+    _graphics.ClearWindow();
+
+    // ===== Draw game =====
+    if (_scene == Scene::IN_GAME && _entityRenderer) {
         _entityRenderer->render();
     }
 
-    // Render ping display in top-right corner (always visible when initialized)
-    // Determine color based on ping quality
-    uint32_t color;
-    std::string pingText;
-
-    if (_displayedPing == 0) {
-        // No ping data yet or disconnected
-        color = 0xB3B3B3AA;  // Gray
-    } else if (_displayedPing <= 50) {
-        color = 0x9DFF73AA;  // Green (excellent)
-    } else if (_displayedPing <= 100) {
-        color = 0xFDFF75AA;  // Yellow (good)
-    } else if (_displayedPing <= 150) {
-        color = 0xFFB057AA;  // Orange (fair)
+    // ===== Draw UI =====
+    if (_confirmQuitMenu && _confirmQuitMenu->IsVisible()) {
+        if (_confirmQuitOverlay) {
+            _graphics.DrawRectFilled(0, 0, static_cast<int>(_width), static_cast<int>(_height), 0x88000000);
+        }
+        _confirmQuitMenu->Render();
+    } else if (_scene == Scene::MENU) {
+        if (_mainMenu && _mainMenu->IsVisible()) {
+            _mainMenu->Render();
+        }
+        if (_settingsMenu && _settingsMenu->IsVisible()) {
+            _settingsMenu->Render();
+        }
     } else {
-        color = 0xF05454AA;  // Red (poor)
+        if (_settingsMenu && _settingsMenu->IsVisible() && _settingsOverlay) {
+            if (_settingsMenu->ShouldDimBackground()) {
+                _graphics.DrawRectFilled(0, 0, static_cast<int>(_width), static_cast<int>(_height),
+                                         _settingsMenu->GetOverlayDimColor());
+            }
+            _settingsMenu->Render();
+        }
     }
-    pingText = "Ping: " + std::to_string(_displayedPing) + "ms";
 
-    // Position in top-right corner (with padding)
-    const int textWidth = static_cast<int>(pingText.length() * 10);  // Approximate width
-    const int xPos = static_cast<int>(_width) - textWidth - 20;
-    constexpr int yPos = 10;
+    // ===== HUD (draw last, always on top) =====
 
-    // Draw with colored text
-    _graphics.DrawText(-1, pingText.c_str(), xPos, yPos, 20, color);
+    const int fontSize = 20;
+    const int margin = 10;
+    const int pad = 6;
+
+    // Ping (top-right)
+    int hudRightX = _graphics.GetWindowWidth() - margin;
+    int hudY = margin;
+
+    if (_showPing) {
+        const bool hasMeasurement = (_displayedPing != 0);
+        const std::string pingText =
+            hasMeasurement ? ("PING: " + std::to_string(_displayedPing) + " ms") : std::string("PING: --");
+
+        const int textWidth = EstimateTextWidth(pingText, fontSize);
+        const int x = hudRightX - textWidth;
+        const int y = hudY;
+
+        _graphics.DrawRectFilled(x - pad, y - pad, textWidth + pad * 2, fontSize + pad * 2, 0x88000000);
+        _graphics.DrawText(-1, pingText.c_str(), x, y, fontSize, 0xFFFFFFFF);
+
+        hudY += fontSize + pad * 2 + 6;
+    }
+
+    // FPS (below ping, top-right)
+    if (_showFps) {
+        const std::string fpsText = "FPS: " + std::to_string(_fps);
+        const int textWidth = EstimateTextWidth(fpsText, fontSize);
+        const int x = hudRightX - textWidth;
+        const int y = hudY;
+
+        _graphics.DrawRectFilled(x - pad, y - pad, textWidth + pad * 2, fontSize + pad * 2, 0x88000000);
+        _graphics.DrawText(-1, fpsText.c_str(), x, y, fontSize, 0xFFFFFFFF);
+    }
 
     _graphics.DisplayWindow();
 }

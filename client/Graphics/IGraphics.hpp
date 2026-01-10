@@ -60,6 +60,18 @@ namespace Graphics {
      */
         virtual void CloseWindow() = 0;
 
+        /**
+     * @brief Get current window width in pixels.
+     * @return Width in pixels.
+     */
+        [[nodiscard]] virtual int GetWindowWidth() const = 0;
+
+        /**
+     * @brief Get current window height in pixels.
+     * @return Height in pixels.
+     */
+        [[nodiscard]] virtual int GetWindowHeight() const = 0;
+
         // ========== Window Configuration ==========
 
         /**

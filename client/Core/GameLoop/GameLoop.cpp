@@ -153,7 +153,17 @@ void GameLoop::update(float deltaTime) {
     }
 
     if (_rendering && _rendering->WindowShouldClose()) {
+        // User requested close or Quit button closed the window.
+        stop();
         shutdown();
+        return;
+    }
+
+    // If rendering was shutdown (e.g. quit requested), stop loop as well.
+    if (_rendering && !_rendering->IsWindowOpen()) {
+        stop();
+        shutdown();
+        return;
     }
 }
 
@@ -171,7 +181,7 @@ void GameLoop::render() {
         return;
     }
 
-    _rendering->ClearWindow();
+    // Rendering::Render() already clears the window.
     _rendering->Render();
 }
 

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <sol/sol.hpp>
 #include <string>
 #include <unordered_map>
@@ -77,6 +78,7 @@ namespace scripting {
         std::unordered_map<std::string, sol::table> _scriptCache;
         ecs::wrapper::ECSWorld *_world;
         bool _bindingsInitialized;
+        mutable std::recursive_mutex _luaMutex;  // Protects _lua and _scriptCache from concurrent access
 
         void initializeBindings();
         //void bindComponents();

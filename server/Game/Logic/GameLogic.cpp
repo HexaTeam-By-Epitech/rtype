@@ -146,9 +146,9 @@ namespace server {
         _processInput();
 
         // Periodic tick summary (once per second at 60 FPS)
-        if (currentTick % 60 == 0) {
-            LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
-        }
+        // if (currentTick % 60 == 0) {
+        //     LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
+        // }
 
         if (_stateManager) {
             _stateManager->update(deltaTime);
@@ -272,10 +272,10 @@ namespace server {
                 }
 
                 // Debug: log processed input once per message (only when there's movement)
-                if (input.inputX != 0 || input.inputY != 0) {
-                    LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
-                              input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
-                }
+                // if (input.inputX != 0 || input.inputY != 0) {
+                //     LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
+                //               input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
+                // }
 
                 // Handle shooting
                 if (input.isShooting) {

@@ -9,7 +9,7 @@ local time = 0
 local centerX = 400
 local centerY = 300
 local radius = 150
-local speed = 2.0  -- Vitesse de rotation (radians/sec)
+local speed = 1.0  -- Vitesse de rotation (radians/sec)
 
 function onUpdate(entity, deltaTime)
     if not entity:isValid() or not entity:hasTransform() then

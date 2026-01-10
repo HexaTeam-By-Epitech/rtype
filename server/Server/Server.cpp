@@ -31,6 +31,8 @@
 #include "server/Game/Logic/GameLogic.hpp"
 #include "server/Game/Logic/GameStateSerializer.hpp"
 #include "server/Game/Logic/IGameLogic.hpp"
+#include "server/Game/Rules/GameRules.hpp"
+#include "server/Game/Rules/GameruleBroadcaster.hpp"
 #include "server/Sessions/Session/Session.hpp"
 
 // CONFIGURATION: Set to true to bypass matchmaking and use default room
@@ -216,6 +218,13 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
         createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(responsePacket), 0);
 
+    // Send server constants (game rules) early so client can configure itself before gameplay.
+    // If/when rules become per-room, we also resend them on GameStart.
+    {
+        server::GameRules defaultRules;
+        server::GameruleBroadcaster::sendAllGamerules(event.peer, defaultRules);
+    }
+
     LOG_INFO("✓ Player '", playerName, "'", modeStr, " connected (Session: ", sessionId,
              ", Player ID: ", newPlayerId, ")");
 
@@ -242,8 +251,10 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
             // Auto-start the game
             if (_defaultRoom->getState() == server::RoomState::WAITING) {
                 LOG_INFO("[DEV MODE] Auto-starting game in default room");
+                // NOTE: Don't call _sendGameStartToRoom() here.
+                // The main server loop will detect IN_PROGRESS and call it exactly once
+                // using room->tryMarkGameStartSent(). Calling it here causes double GameStart.
                 _defaultRoom->startGame();
-                _sendGameStartToRoom(_defaultRoom);
             }
         } else {
             LOG_ERROR("Failed to auto-join player ", newPlayerId, " to default room");
@@ -679,12 +690,23 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
         return;
     }
 
+    // (Re)send gamerules right before the game starts, in case they are room-specific.
+    auto sendRulesToRecipient = [&](uint32_t recipientId) {
+        std::string sessionId = "session_" + std::to_string(recipientId);
+        auto peerIt = _sessionPeers.find(sessionId);
+        if (peerIt == _sessionPeers.end() || !peerIt->second) {
+            return;
+        }
+        server::GameruleBroadcaster::sendAllGamerules(peerIt->second, gameLogic->getGameRules());
+    };
+
     // Get all players in room
     auto players = room->getPlayers();
     auto spectators = room->getSpectators();
 
-    // Send to players (with their entity ID)
     for (uint32_t playerId : players) {
+        sendRulesToRecipient(playerId);
+
         // Find entity ID for this player
         uint32_t entityId = 0;
         auto entities = ecsWorld->query<ecs::Transform, ecs::Player>();

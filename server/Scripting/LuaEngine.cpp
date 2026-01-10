@@ -72,10 +72,8 @@ namespace scripting {
                 return false;
             }
             try {
-                // Create an isolated environment for this script
-                const sol::environment scriptEnv(_lua, sol::create, _lua.globals());
-
-                // Load the script file in the isolated environment
+                // Load the script file directly (no isolated environment)
+                // This allows scripts to access all global types and metatables
                 const sol::load_result loadResult = _lua.load_file(p.string());
                 if (!loadResult.valid()) {
                     const sol::error err = loadResult;
@@ -84,7 +82,6 @@ namespace scripting {
                 }
 
                 const sol::protected_function scriptFunc = loadResult;
-                sol::set_environment(scriptEnv, scriptFunc);
 
                 sol::protected_function_result result = scriptFunc();
                 if (!result.valid()) {
@@ -93,7 +90,8 @@ namespace scripting {
                     return false;
                 }
 
-                _scriptCache[scriptPath] = scriptEnv;
+                // Store script in cache (using globals as the table)
+                _scriptCache[scriptPath] = _lua.globals();
                 LOG_INFO("Loaded Lua script: " + scriptPath + " (" + p.string() + ")");
                 return true;
             } catch (const sol::error &e) {

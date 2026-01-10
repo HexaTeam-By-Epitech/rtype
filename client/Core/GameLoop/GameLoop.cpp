@@ -7,6 +7,8 @@
 
 #include "GameLoop.hpp"
 #include <cmath>
+#include "../ClientGameRules.hpp"
+#include "GameruleKeys.hpp"
 
 GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator)
     : _eventBus(&eventBus), _replicator(&replicator) {}
@@ -318,6 +320,28 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
             }
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to parse GameState: ", e.what());
+        }
+    }
+
+    // Handle GamerulePacket message (sent by server to synchronize game constants)
+    else if (messageType == NetworkMessages::MessageType::S2C_GAMERULE_UPDATE) {
+        auto payload = NetworkMessages::getPayload(event.getData());
+        try {
+            auto gamerulePacket = RType::Messages::S2C::GamerulePacket::deserialize(payload);
+
+            // Update local gamerule storage
+            auto &clientRules = client::ClientGameRules::getInstance();
+            clientRules.updateMultiple(gamerulePacket.getGamerules());
+
+            LOG_INFO("✓ Gamerule update received: ", gamerulePacket.size(), " rules updated");
+
+            // Update local player speed if it was included
+            if (gamerulePacket.hasGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED))) {
+                _playerSpeed = gamerulePacket.getGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED));
+                LOG_INFO("  - Player speed updated to: ", _playerSpeed);
+            }
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to parse GamerulePacket: ", e.what());
         }
     }
 }

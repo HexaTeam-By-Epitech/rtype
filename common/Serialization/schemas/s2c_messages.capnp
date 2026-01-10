@@ -67,3 +67,13 @@ struct MatchmakingStarted {
 struct MatchFound {
   roomId @0 :Text;
 }
+
+struct Gamerule {
+  key @0 :Text;
+  value @1 :Float32;
+}
+
+struct GamerulePacket {
+  gamerules @0 :List(Gamerule);
+}
+

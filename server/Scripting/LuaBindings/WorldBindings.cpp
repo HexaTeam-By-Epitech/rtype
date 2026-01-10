@@ -41,7 +41,7 @@ void scripting::bindings::bindWorld(sol::state &lua, ecs::wrapper::ECSWorld *wor
     });
 
     // log(string message) -> void
-    lua.set_function("log", [](const std::string &message) { LOG_INFO("[LUA] " + message); });
+    lua.set_function("log", [](const std::string &message) { LOG_DEBUG("[LUA] " + message); });
 
     // entityExists(addr) -> bool
     lua.set_function("entityExists", [world](ecs::Address addr) -> bool {

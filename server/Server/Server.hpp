@@ -29,7 +29,7 @@ namespace RType::Messages::Shared {
 }
 
 namespace RType::Messages::S2C {
-    struct EntityState;
+    class EntityState;
 }
 
 /**

@@ -13,6 +13,7 @@
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Transform.hpp"
@@ -33,6 +34,8 @@
 #include "server/Game/StateManager/GameOverState.hpp"
 #include "server/Game/StateManager/InGameState.hpp"
 #include "server/Game/StateManager/LobbyState.hpp"
+#include "server/Scripting/LuaEngine.hpp"
+#include "server/Scripting/LuaSystemAdapter.hpp"
 
 namespace server {
 
@@ -58,6 +61,10 @@ namespace server {
             LOG_DEBUG("GameLogic: Running in single-threaded mode");
         }
 
+        // Initialize Lua scripting engine
+        _luaEngine = std::make_unique<scripting::LuaEngine>("server/Scripting/scripts/");
+        _luaEngine->setWorld(_world.get());
+        LOG_INFO("GameLogic: Lua scripting engine initialized");
         if (_eventBus) {
             LOG_DEBUG("GameLogic: EventBus enabled for event publishing");
         }
@@ -85,6 +92,11 @@ namespace server {
             _world->createSystem<ecs::BoundarySystem>("BoundarySystem");
             _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
 
+            // Create and register Lua system (executes after other systems)
+            auto luaSystem = std::make_unique<scripting::LuaSystemAdapter>(_luaEngine.get(), _world.get());
+            _world->registerSystem("Lua", std::move(luaSystem));
+            LOG_INFO("✓ Lua system registered");
+
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
             if (_threadPool) {
                 LOG_INFO("✓ Systems will execute in parallel mode (4 groups)");
@@ -105,6 +117,16 @@ namespace server {
             // Start in InGame state (skip lobby for dev)
             _stateManager->changeState(1);
             LOG_INFO("✓ GameStateManager initialized with 3 states");
+
+            // 🧪 TEST: Spawn a test enemy with Lua script
+            LOG_INFO("🧪 Spawning test enemy with Lua script...");
+            _world->createEntity()
+                .with(ecs::Transform(600.0f, 300.0f))
+                .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
+                .with(ecs::Health(100, 100))
+                .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
+                .with(ecs::LuaScript("test_movement.lua"));
+            LOG_INFO("✓ Test enemy spawned at (600, 300) with script: test_movement.lua");
 
             _gameActive = true;
 
@@ -290,8 +312,8 @@ namespace server {
         // Group 3: Depends on collision results
         std::vector<std::string> group3 = {"HealthSystem", "ProjectileSystem"};
 
-        // Group 4: AI and spawning (can run in parallel)
-        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem"};
+        // Group 4: AI, spawning, and scripting (can run in parallel)
+        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem", "Lua"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {

@@ -377,5 +377,37 @@ class Rendering {
      * @brief Apply runtime settings affecting rendering (target FPS, HUD visibility...).
      */
     void ApplyInitialMenuSettings();
+
+    // ===== Helper methods for Render() to reduce cognitive complexity =====
+
+    /**
+     * @brief Update FPS counter based on delta time.
+     */
+    void UpdateFpsCounter();
+
+    /**
+     * @brief Handle ESC key input to toggle settings overlay in-game.
+     */
+    void HandleEscapeKeyInput();
+
+    /**
+     * @brief Update all UI elements based on current scene.
+     */
+    void UpdateUI();
+
+    /**
+     * @brief Render the game scene (entities).
+     */
+    void RenderGameScene();
+
+    /**
+     * @brief Render all UI menus based on current scene and overlay state.
+     */
+    void RenderUI();
+
+    /**
+     * @brief Render HUD elements (ping, FPS).
+     */
+    void RenderHUD();
 };
 #endif

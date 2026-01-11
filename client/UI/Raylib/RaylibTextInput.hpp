@@ -135,6 +135,45 @@ namespace UI {
          */
         [[nodiscard]] bool IsCharValid(char c) const;
 
+        // ===== Helper methods for Update() to reduce cognitive complexity =====
+
+        /**
+         * @brief Handle mouse click to set focus state.
+         */
+        void HandleFocusClick();
+
+        /**
+         * @brief Update cursor blink animation.
+         */
+        void UpdateCursorBlink();
+
+        /**
+         * @brief Handle paste operation (Ctrl+V or Cmd+V).
+         */
+        void HandlePaste();
+
+        /**
+         * @brief Handle backspace key with repeat support.
+         */
+        void HandleBackspace();
+
+        /**
+         * @brief Handle regular character input.
+         */
+        void HandleCharacterInput();
+
+        /**
+         * @brief Add a character to the text if valid.
+         * @param c Character to add.
+         * @return true if character was added.
+         */
+        bool TryAddCharacter(char c);
+
+        /**
+         * @brief Show cursor and reset blink timer.
+         */
+        void ResetCursor();
+
         Graphics::IGraphics &_graphics;
         std::function<void(const std::string &)> _onTextChanged{};
 

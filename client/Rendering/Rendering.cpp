@@ -233,7 +233,27 @@ void Rendering::Render() {
         return;
     }
 
-    // Update FPS counter
+    UpdateFpsCounter();
+
+    if (_quitRequested) {
+        Shutdown();
+        return;
+    }
+
+    HandleEscapeKeyInput();
+    UpdateUI();
+
+    _graphics.StartDrawing();
+    _graphics.ClearWindow();
+
+    RenderGameScene();
+    RenderUI();
+    RenderHUD();
+
+    _graphics.DisplayWindow();
+}
+
+void Rendering::UpdateFpsCounter() {
     const float dt = _graphics.GetDeltaTime();
     _fpsAccumulator += dt;
     _fpsFrameCount += 1;
@@ -242,36 +262,37 @@ void Rendering::Render() {
         _fpsFrameCount = 0;
         _fpsAccumulator = 0.0f;
     }
+}
 
-    if (_quitRequested) {
-        Shutdown();
+void Rendering::HandleEscapeKeyInput() {
+    // ESC toggles settings overlay only in-game
+    if (_scene != Scene::IN_GAME || !_graphics.IsKeyPressed(KEY_ESCAPE) || !_settingsMenu) {
         return;
     }
 
-    // ESC toggles settings overlay only in-game
-    if (_scene == Scene::IN_GAME && _graphics.IsKeyPressed(KEY_ESCAPE)) {
-        if (_settingsMenu) {
-            if (_settingsMenu->IsVisible() && _settingsOverlay) {
-                _settingsMenu->Hide();
-                _settingsOverlay = false;
-            } else {
-                // Only rebuild menu if the mode actually changes (button count differs)
-                if (_settingsMenu->GetMode() != Game::SettingsMenu::Mode::OVERLAY) {
-                    _settingsMenu->SetMode(Game::SettingsMenu::Mode::OVERLAY);
-                    _settingsMenu->Initialize();
-                } else {
-                    _settingsMenu->RefreshVisuals();
-                }
-                _settingsMenu->Show();
-                _settingsOverlay = true;
-            }
+    if (_settingsMenu->IsVisible() && _settingsOverlay) {
+        _settingsMenu->Hide();
+        _settingsOverlay = false;
+    } else {
+        // Only rebuild menu if the mode actually changes (button count differs)
+        if (_settingsMenu->GetMode() != Game::SettingsMenu::Mode::OVERLAY) {
+            _settingsMenu->SetMode(Game::SettingsMenu::Mode::OVERLAY);
+            _settingsMenu->Initialize();
+        } else {
+            _settingsMenu->RefreshVisuals();
         }
+        _settingsMenu->Show();
+        _settingsOverlay = true;
     }
+}
 
-    // Update UI
+void Rendering::UpdateUI() {
     if (_confirmQuitMenu && _confirmQuitMenu->IsVisible()) {
         _confirmQuitMenu->Update();
-    } else if (_scene == Scene::MENU) {
+        return;
+    }
+
+    if (_scene == Scene::MENU) {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Update();
         }
@@ -287,22 +308,24 @@ void Rendering::Render() {
             _settingsMenu->Update();
         }
     }
+}
 
-    _graphics.StartDrawing();
-    _graphics.ClearWindow();
-
-    // ===== Draw game =====
+void Rendering::RenderGameScene() {
     if (_scene == Scene::IN_GAME && _entityRenderer) {
         _entityRenderer->render();
     }
+}
 
-    // ===== Draw UI =====
+void Rendering::RenderUI() {
     if (_confirmQuitMenu && _confirmQuitMenu->IsVisible()) {
         if (_confirmQuitOverlay) {
             _graphics.DrawRectFilled(0, 0, static_cast<int>(_width), static_cast<int>(_height), 0x88000000);
         }
         _confirmQuitMenu->Render();
-    } else if (_scene == Scene::MENU) {
+        return;
+    }
+
+    if (_scene == Scene::MENU) {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Render();
         }
@@ -321,9 +344,9 @@ void Rendering::Render() {
             _settingsMenu->Render();
         }
     }
+}
 
-    // ===== HUD (draw last, always on top) =====
-
+void Rendering::RenderHUD() {
     const int fontSize = 20;
     const int margin = 10;
     const int pad = 6;
@@ -357,8 +380,6 @@ void Rendering::Render() {
         _graphics.DrawRectFilled(x - pad, y - pad, textWidth + pad * 2, fontSize + pad * 2, 0x88000000);
         _graphics.DrawText(-1, fpsText.c_str(), x, y, fontSize, 0xFFFFFFFF);
     }
-
-    _graphics.DisplayWindow();
 }
 
 bool Rendering::IsWindowOpen() const {

@@ -11,6 +11,7 @@
 
 #include "UI/IButton.hpp"
 #include "UI/IMenu.hpp"
+#include "UI/ISlider.hpp"
 #include "UI/ITextInput.hpp"
 
 namespace UI {
@@ -46,5 +47,11 @@ namespace UI {
          * @return Unique pointer to a new text input.
          */
         virtual std::unique_ptr<ITextInput> CreateTextInput() = 0;
+
+        /**
+         * @brief Create a slider instance.
+         * @return Unique pointer to a new slider.
+         */
+        virtual std::unique_ptr<ISlider> CreateSlider() = 0;
     };
 }  // namespace UI

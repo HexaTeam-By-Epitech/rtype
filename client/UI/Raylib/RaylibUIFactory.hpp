@@ -41,6 +41,9 @@ namespace UI {
         /** @copydoc UI::IUIFactory::CreateTextInput */
         std::unique_ptr<ITextInput> CreateTextInput() override;
 
+        /** @copydoc UI::IUIFactory::CreateSlider */
+        std::unique_ptr<ISlider> CreateSlider() override;
+
        private:
         Graphics::IGraphics &_graphics;  ///< Graphics dependency injected into UI elements
     };

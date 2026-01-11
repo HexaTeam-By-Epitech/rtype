@@ -10,7 +10,9 @@
 #include <functional>
 #include <memory>
 
+#include "Graphics/IGraphics.hpp"
 #include "UI/IMenu.hpp"
+#include "UI/ISlider.hpp"
 #include "UI/IUIFactory.hpp"
 
 namespace Game {
@@ -33,8 +35,9 @@ namespace Game {
         /**
          * @brief Construct a new SettingsMenu.
          * @param uiFactory UI factory used to create menus and buttons.
+         * @param graphics Graphics interface for rendering slider labels.
          */
-        explicit SettingsMenu(UI::IUIFactory &uiFactory);
+        explicit SettingsMenu(UI::IUIFactory &uiFactory, Graphics::IGraphics &graphics);
         ~SettingsMenu() = default;
 
         /**
@@ -151,6 +154,26 @@ namespace Game {
          */
         void SetTargetFpsSilent(uint32_t targetFps);
 
+        /**
+         * @brief Set the volume level (0-100).
+         */
+        void SetVolume(float volume);
+
+        /**
+         * @brief Get the current volume level.
+         */
+        [[nodiscard]] float GetVolume() const;
+
+        /**
+         * @brief Set callback invoked when the volume changes.
+         */
+        void SetOnVolumeChanged(std::function<void(float)> callback);
+
+        /**
+         * @brief Set volume without emitting callbacks/logs.
+         */
+        void SetVolumeSilent(float volume);
+
        private:
         [[nodiscard]] uint32_t ValidateTargetFps(uint32_t targetFps) const;
         void UpdateToggleVisuals();
@@ -159,19 +182,23 @@ namespace Game {
         [[nodiscard]] uint32_t NextTargetFps(uint32_t current) const;
 
         UI::IUIFactory &_uiFactory;
+        Graphics::IGraphics &_graphics;
         std::unique_ptr<UI::IMenu> _menu;
+        std::unique_ptr<UI::ISlider> _volumeSlider;
 
         Mode _mode{Mode::FULLSCREEN};
         bool _showPing{true};
         bool _showFps{true};
         unsigned int _overlayDimColor{0x88000000};
         uint32_t _targetFps{60};
+        float _volume{50.0F};  // Default volume 50%
 
         std::function<void(bool)> _onShowPingChanged{};
         std::function<void()> _onBack{};
         std::function<void()> _onMainMenu{};
         std::function<void(bool)> _onShowFpsChanged{};
         std::function<void(uint32_t)> _onTargetFpsChanged{};
+        std::function<void(float)> _onVolumeChanged{};
 
         static constexpr size_t TOGGLE_PING_INDEX = 0;
         static constexpr size_t TOGGLE_FPS_INDEX = 1;

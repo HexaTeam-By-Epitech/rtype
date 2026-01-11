@@ -67,7 +67,7 @@ void Rendering::InitializeMenus() {
     _confirmQuitMenu->Hide();
 
     // ===== Settings menu =====
-    _settingsMenu = std::make_unique<Game::SettingsMenu>(*_uiFactory);
+    _settingsMenu = std::make_unique<Game::SettingsMenu>(*_uiFactory, _graphics);
     _settingsMenu->SetMode(Game::SettingsMenu::Mode::FULLSCREEN);
 
     _settingsMenu->SetOnShowPingChanged([this](bool enabled) { SetShowPing(enabled); });

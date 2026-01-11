@@ -119,6 +119,13 @@ class Replicator {
     bool isConnected() const;
 
     /**
+     * @brief Check if authenticated with server
+     * 
+     * @return true if authentication succeeded, false otherwise
+     */
+    bool isAuthenticated() const;
+
+    /**
      * @brief Process incoming network messages
      * 
      * Processes messages from the network thread queue and publishes them
@@ -262,6 +269,7 @@ class Replicator {
 
     EventBus &_eventBus;
     std::atomic<bool> _connected{false};
+    std::atomic<bool> _authenticated{false};
     bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;

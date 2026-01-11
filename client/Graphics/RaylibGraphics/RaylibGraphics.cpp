@@ -18,9 +18,6 @@ namespace Graphics {
         for (const auto &[name, texture] : _textures) {
             ::UnloadTexture(texture);
         }
-        if (_windowInitialized) {
-            ::CloseWindow();
-        }
     }
 
     // Window management

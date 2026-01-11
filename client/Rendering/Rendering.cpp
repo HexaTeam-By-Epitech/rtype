@@ -36,7 +36,8 @@ void Rendering::Shutdown() {
     if (!_initialized) {
         return;
     }
-    _graphics.CloseWindow();
+    // Don't close the window - it may be reused
+    // _graphics.CloseWindow();
     _initialized = false;
 }
 

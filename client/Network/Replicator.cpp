@@ -56,10 +56,15 @@ void Replicator::disconnect() {
         _serverPeer = nullptr;
     }
     _connected.store(false);
+    _authenticated.store(false);
 }
 
 bool Replicator::isConnected() const {
     return _connected.load();
+}
+
+bool Replicator::isAuthenticated() const {
+    return _authenticated.load();
 }
 
 void Replicator::startNetworkThread() {
@@ -124,6 +129,13 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                     // Parse based on message type
                     if (messageType == NetworkMessages::MessageType::HANDSHAKE_RESPONSE) {
                         messageContent = NetworkMessages::parseConnectResponse(event.packet->getData());
+
+                        // Check if authentication succeeded
+                        if (messageContent.find("Authentication successful") != std::string::npos) {
+                            _authenticated.store(true);
+                        } else {
+                            _authenticated.store(false);
+                        }
                     } else if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
                         messageContent = "GameStart received";
                     }
@@ -145,6 +157,7 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
 
             case NetworkEventType::DISCONNECT:
                 _connected.store(false);
+                _authenticated.store(false);
                 _serverPeer = nullptr;
                 // Publish disconnection event
                 {

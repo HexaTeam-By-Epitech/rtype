@@ -17,6 +17,7 @@ namespace server {
     class AuthService : public IAuthService {
        public:
         AuthService();
+        explicit AuthService(const std::string &accountsFile);
         ~AuthService() override = default;
 
         /**

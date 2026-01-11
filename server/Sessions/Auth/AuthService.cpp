@@ -10,6 +10,7 @@
 #include <fstream>
 #include <random>
 #include <sstream>
+#include "common/Logger/Logger.hpp"
 
 namespace server {
 
@@ -17,8 +18,17 @@ namespace server {
         loadAccounts();
     }
 
+    AuthService::AuthService(const std::string &accountsFile) : _accountsFile(accountsFile) {
+        loadAccounts();
+    }
+
     bool AuthService::authenticate(const std::string &username, const std::string &password) {
-        // Basic validation
+        // Special case: guest login doesn't require account registration
+        if (username == "guest" && password == "guest") {
+            _authenticatedUsers.insert(username);
+            return true;
+        }
+
         if (username.empty() || password.empty()) {
             return false;
         }
@@ -78,35 +88,41 @@ namespace server {
     }
 
     bool AuthService::registerUser(const std::string &username, const std::string &password) {
+        // Prevent registering "guest" as a regular account
+        if (username == "guest" || username.starts_with("Guest_")) {
+            LOG_WARNING("Registration failed: username '", username, "' is reserved for guest access");
+            return false;  // Guest is reserved for anonymous access
+        }
+
         // Validation
         if (username.empty() || password.empty()) {
+            LOG_WARNING("Registration failed: empty username or password");
             return false;
         }
 
         if (username.length() < 3 || password.length() < 4) {
+            LOG_WARNING("Registration failed: username '", username, "' (", username.length(),
+                        " chars) or password (", password.length(), " chars) too short");
             return false;
         }
 
-        // Check if user already exists
+        // Check if username already exists
         if (_accounts.find(username) != _accounts.end()) {
-            return false;  // Username already taken
+            LOG_WARNING("Registration failed: username '", username, "' already exists");
+            return false;
         }
 
-        // Register new account (in production, hash the password)
+        // Register new user
         _accounts[username] = password;
         saveAccounts();
-
         return true;
     }
 
     void AuthService::loadAccounts() {
         std::ifstream file(_accountsFile, std::ios::binary);
         if (!file.is_open()) {
-            // File doesn't exist, create default accounts
-            _accounts["demo"] = "1234";
-            _accounts["guest"] = "guest";
-            _accounts["admin"] = "admin123";
-            saveAccounts();
+            // File doesn't exist, create empty file (no default accounts)
+            // Guest login works without registration
             return;
         }
 

@@ -4,7 +4,6 @@ file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS
 )
 
 list(FILTER CLIENT_SOURCES EXCLUDE REGEX ".*/main.cpp$")
-list(FILTER CLIENT_SOURCES EXCLUDE REGEX ".*/main_with_login.cpp$")
 
 # Use SHARED on Windows (MSVC), STATIC on Linux/macOS
 if(WIN32)
@@ -38,10 +37,3 @@ add_executable(r-type_client
 )
 
 target_link_libraries(r-type_client PRIVATE rtype_client_lib)
-
-# Client with authentication login screen
-add_executable(r-type_client_auth
-        main_with_login.cpp
-)
-
-target_link_libraries(r-type_client_auth PRIVATE rtype_client_lib)

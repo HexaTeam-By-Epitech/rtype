@@ -27,6 +27,7 @@ namespace Graphics {
     // Window management
     void RaylibGraphics::InitWindow(int width, int height, const char *title) {
         ::InitWindow(width, height, title);
+        // Disable default ESC exit behavior to allow custom window/menu handling
         ::SetExitKey(0);
         _windowInitialized = true;
     }
@@ -293,10 +294,6 @@ namespace Graphics {
 
     int RaylibGraphics::GetScreenHeight() const {
         return ::GetScreenHeight();
-    }
-
-    float RaylibGraphics::GetFrameTime() const {
-        return ::GetFrameTime();
     }
 
     void RaylibGraphics::DrawRectangle(int x, int y, int width, int height, unsigned int color) {

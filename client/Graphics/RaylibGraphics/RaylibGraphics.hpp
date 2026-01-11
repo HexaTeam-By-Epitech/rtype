@@ -86,7 +86,6 @@ namespace Graphics {
         int GetCharPressed() const override;
         int GetScreenWidth() const override;
         int GetScreenHeight() const override;
-        float GetFrameTime() const override;
         void DrawRectangle(int x, int y, int width, int height, unsigned int color) override;
         void DrawRectangleLines(int x, int y, int width, int height, unsigned int color) override;
         void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) override;

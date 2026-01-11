@@ -340,12 +340,6 @@ namespace Graphics {
         virtual int GetScreenHeight() const = 0;
 
         /**
-     * @brief Get frame time (delta time)
-     * @return Time elapsed for last frame in seconds
-     */
-        virtual float GetFrameTime() const = 0;
-
-        /**
      * @brief Draw a filled rectangle (alias for DrawRectFilled)
      * @param x X coordinate of the top-left corner
      * @param y Y coordinate of the top-left corner

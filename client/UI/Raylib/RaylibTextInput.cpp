@@ -28,7 +28,7 @@ namespace UI {
         // Handle keyboard input when focused
         if (_focused) {
             // Update cursor blink
-            _cursorBlinkTimer += _graphics.GetFrameTime();
+            _cursorBlinkTimer += _graphics.GetDeltaTime();
             if (_cursorBlinkTimer >= CURSOR_BLINK_RATE) {
                 _cursorBlinkTimer = 0.0F;
                 _cursorVisible = !_cursorVisible;
@@ -83,7 +83,7 @@ namespace UI {
                     _backspaceTimer = 0.0F;
                 } else {
                     // Key is held down - check repeat timing
-                    _backspaceTimer += _graphics.GetFrameTime();
+                    _backspaceTimer += _graphics.GetDeltaTime();
 
                     // Initial delay before repeat starts
                     if (_backspaceTimer >= BACKSPACE_REPEAT_DELAY) {

@@ -6,6 +6,7 @@
 */
 
 #include "Rendering.hpp"
+#include "UI/TextUtils.hpp"
 
 Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {}
 
@@ -227,13 +228,6 @@ bool Rendering::GetShowFps() const {
     return _showFps;
 }
 
-namespace {
-    // Rough width estimation (same heuristic as RaylibButton)
-    int EstimateTextWidth(const std::string &text, int fontSize) {
-        return static_cast<int>(text.size() * static_cast<size_t>(fontSize) * 6 / 10);
-    }
-}  // namespace
-
 void Rendering::Render() {
     if (!_initialized) {
         return;
@@ -343,7 +337,7 @@ void Rendering::Render() {
         const std::string pingText =
             hasMeasurement ? ("PING: " + std::to_string(_displayedPing) + " ms") : std::string("PING: --");
 
-        const int textWidth = EstimateTextWidth(pingText, fontSize);
+        const int textWidth = UI::TextUtils::EstimateTextWidth(pingText, fontSize);
         const int x = hudRightX - textWidth;
         const int y = hudY;
 
@@ -356,7 +350,7 @@ void Rendering::Render() {
     // FPS (below ping, top-right)
     if (_showFps) {
         const std::string fpsText = "FPS: " + std::to_string(_fps);
-        const int textWidth = EstimateTextWidth(fpsText, fontSize);
+        const int textWidth = UI::TextUtils::EstimateTextWidth(fpsText, fontSize);
         const int x = hudRightX - textWidth;
         const int y = hudY;
 

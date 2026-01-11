@@ -8,6 +8,7 @@
 #include <math.h>
 
 #include "UI/Raylib/RaylibButton.hpp"
+#include "UI/TextUtils.hpp"
 
 namespace UI {
     RaylibButton::RaylibButton(Graphics::IGraphics &graphics) : _graphics(graphics) {}
@@ -39,12 +40,6 @@ namespace UI {
         _wasMouseDown = mouseDown && mouseOver;
     }
 
-    int RaylibButton::EstimateTextWidth(const std::string &text, int fontSize) {
-        // Rough monospace-ish estimate; Raylib wrapper doesn't expose MeasureText yet.
-        // 0.6 is a common average glyph width ratio for many fonts.
-        return static_cast<int>(text.size() * static_cast<size_t>(fontSize) * 6 / 10);
-    }
-
     void RaylibButton::Render() {
         if (!_enabled) {
             // Render disabled state (could use a different color)
@@ -71,7 +66,7 @@ namespace UI {
 
         // ===== Centered text rendering =====
         if (!_text.empty()) {
-            const int textWidth = EstimateTextWidth(_text, _textSize);
+            const int textWidth = TextUtils::EstimateTextWidth(_text, _textSize);
             const int textHeight = _graphics.GetFontHeight(_fontHandle, _textSize);
 
             const int textX = static_cast<int>(_x + ((_width - static_cast<float>(textWidth)) / 2.0f));

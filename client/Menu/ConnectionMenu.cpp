@@ -54,7 +54,7 @@ namespace Game {
 
         _nicknameInput->SetPlaceholder("Enter your nickname...");
         _nicknameInput->SetMaxLength(20);
-        _nicknameInput->SetValidationRegex("[a-zA-Z0-9_-]");
+        _nicknameInput->SetValidationRegex("[a-zA-Z0-9_-]+");
         _nicknameInput->SetTextSize(18);
         _nicknameInput->SetBackgroundColor(0xFF2A2A2A);
         _nicknameInput->SetBorderColor(0xFF505050);
@@ -78,7 +78,7 @@ namespace Game {
 
         _ipInput->SetPlaceholder("127.0.0.1");
         _ipInput->SetMaxLength(15);
-        _ipInput->SetValidationRegex("[0-9.]");
+        _ipInput->SetValidationRegex("[0-9.]+");
         _ipInput->SetTextSize(18);
         _ipInput->SetBackgroundColor(0xFF2A2A2A);
         _ipInput->SetBorderColor(0xFF505050);
@@ -102,7 +102,7 @@ namespace Game {
 
         _portInput->SetPlaceholder("4242");
         _portInput->SetMaxLength(5);
-        _portInput->SetValidationRegex("[0-9]");
+        _portInput->SetValidationRegex("[0-9]+");
         _portInput->SetTextSize(18);
         _portInput->SetBackgroundColor(0xFF2A2A2A);
         _portInput->SetBorderColor(0xFF505050);

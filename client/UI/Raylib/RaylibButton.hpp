@@ -135,7 +135,5 @@ namespace UI {
         int _fontHandle{-1};
 
         Align _align{Align::NONE};
-
-        static int EstimateTextWidth(const std::string &text, int fontSize);
     };
 }  // namespace UI

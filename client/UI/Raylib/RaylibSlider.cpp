@@ -59,8 +59,12 @@ namespace UI {
         _graphics.DrawRectangle(static_cast<int>(_x), static_cast<int>(trackY), static_cast<int>(_width),
                                 static_cast<int>(trackHeight), _trackColor);
 
-        // Calculate filled width based on value
-        float valueRatio = (_value - _minValue) / (_maxValue - _minValue);
+        // Calculate filled width based on value (with division by zero protection)
+        float valueRatio = 0.0F;
+        if (_maxValue != _minValue) {
+            valueRatio = (_value - _minValue) / (_maxValue - _minValue);
+        }
+        valueRatio = std::clamp(valueRatio, 0.0F, 1.0F);
         float filledWidth = _width * valueRatio;
 
         // Draw filled portion
@@ -200,8 +204,12 @@ namespace UI {
         int mouseX = _graphics.GetMouseX();
         int mouseY = _graphics.GetMouseY();
 
-        // Calculate handle position
-        float valueRatio = (_value - _minValue) / (_maxValue - _minValue);
+        // Calculate handle position (with division by zero protection)
+        float valueRatio = 0.0F;
+        if (_maxValue != _minValue) {
+            valueRatio = (_value - _minValue) / (_maxValue - _minValue);
+        }
+        valueRatio = std::clamp(valueRatio, 0.0F, 1.0F);
         float handleX = _x + _width * valueRatio;
         float handleY = _y + _height / 2.0F;
 
@@ -231,9 +239,13 @@ namespace UI {
         // Clamp ratio to [0, 1]
         valueRatio = std::max(0.0F, std::min(1.0F, valueRatio));
 
-        // Calculate new value
+        // Calculate new value (with protection against min == max)
         float oldValue = _value;
-        _value = _minValue + valueRatio * (_maxValue - _minValue);
+        if (_maxValue != _minValue) {
+            _value = _minValue + valueRatio * (_maxValue - _minValue);
+        } else {
+            _value = _minValue;  // If min == max, value is always min
+        }
 
         // Trigger callback if value changed
         if (_value != oldValue && _onValueChanged) {

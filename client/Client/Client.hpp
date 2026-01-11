@@ -47,6 +47,17 @@ class Client {
     Client(const std::string &playerName, const std::string &host, uint16_t port, bool isSpectator = false);
 
     /**
+     * @brief Constructor with authentication
+     * @param playerName Player's display name
+     * @param username Username for authentication
+     * @param password Password for authentication
+     * @param host Server hostname/IP
+     * @param port Server port
+     */
+    Client(const std::string &playerName, const std::string &username, const std::string &password,
+           const std::string &host, uint16_t port);
+
+    /**
      * @brief Destructor - clean shutdown
      */
     ~Client();
@@ -75,6 +86,8 @@ class Client {
     bool connectToServer();
 
     std::string _playerName;
+    std::string _username;
+    std::string _password;
     std::string _serverHost;
     uint16_t _serverPort;
     bool _isSpectator;

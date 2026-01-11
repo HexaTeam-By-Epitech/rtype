@@ -7,6 +7,7 @@
 
 #include "server/Server/Server.hpp"
 #include <thread>
+#include "Capnp/ConnectionMessages.hpp"
 #include "Capnp/Messages/Messages.hpp"
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Capnp/NetworkMessages.hpp"
@@ -36,7 +37,7 @@
 #include "server/Sessions/Session/Session.hpp"
 
 // CONFIGURATION: Set to true to bypass matchmaking and use default room
-constexpr bool DEV_MODE_SKIP_MATCHMAKING = true;
+constexpr bool DEV_MODE_SKIP_MATCHMAKING = false;
 
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 
@@ -120,6 +121,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 _handleHandshakeRequest(event);
                 break;
 
+            case NetworkMessages::MessageType::REGISTER_REQUEST:
+                _handleRegisterRequest(event);
+                break;
+
             case NetworkMessages::MessageType::C2S_PLAYER_INPUT:
                 _handlePlayerInput(event);
                 break;
@@ -190,19 +195,52 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
 
 void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     using namespace RType::Messages;
+    using namespace ConnectionMessages;
 
-    bool isSpectator = false;
-    std::string playerName = NetworkMessages::parseConnectRequest(event.packet->getData(), isSpectator);
+    // Parse handshake request with authentication credentials
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+    HandshakeRequestData handshakeData = parseHandshakeRequest(payload);
 
-    // TODO: Add authentication for production
+    std::string playerName = handshakeData.playerName;
+    std::string username = handshakeData.username;
+    std::string password = handshakeData.password;
 
+    LOG_INFO("Authentication attempt - Username: '", username, "', Player: '", playerName, "'");
+
+    // Use SessionManager's authenticateAndCreateSession (respects architecture)
+    std::string sessionId = _sessionManager->authenticateAndCreateSession(username, password);
+
+    if (sessionId.empty()) {
+        LOG_WARNING("❌ Authentication FAILED for user: ", username);
+
+        // Send rejection response
+        std::vector<uint8_t> responseData =
+            NetworkMessages::createConnectResponse("Authentication failed! Invalid username or password.");
+        std::unique_ptr<IPacket> responsePacket =
+            createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
+        event.peer->send(std::move(responsePacket), 0);
+
+        // Disconnect the peer
+        event.peer->disconnect();
+        return;
+    }
+
+    LOG_INFO("✓ Authentication SUCCESS for user: ", username);
+
+    // Get the created session
+    std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionId);
+    if (!session) {
+        LOG_ERROR("Session creation failed after authentication");
+        event.peer->disconnect();
+        return;
+    }
+
+    // Configure session
     static std::atomic<uint32_t> nextPlayerId{1000};
     uint32_t newPlayerId = nextPlayerId.fetch_add(1);
 
-    std::string sessionId = "session_" + std::to_string(newPlayerId);
-    std::shared_ptr<server::Session> session = _sessionManager->createSession(sessionId);
     session->setPlayerId(newPlayerId);
-    session->setSpectator(isSpectator);
+    session->setSpectator(false);
     session->setActive(true);
 
     _sessionPeers[sessionId] = event.peer;
@@ -210,10 +248,11 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
 
     _lobby->addPlayer(newPlayerId, playerName);
 
-    std::string modeStr = isSpectator ? " (SPECTATOR)" : "";
-    LOG_INFO("Player ", newPlayerId, " ('", playerName, "')", modeStr, " connected");
+    LOG_INFO("✓ Player '", playerName, "' (", username, ") authenticated (Session: ", sessionId,
+             ", Player ID: ", newPlayerId, ")");
 
-    std::vector<uint8_t> responseData = NetworkMessages::createConnectResponse("Welcome to R-Type!");
+    std::vector<uint8_t> responseData = NetworkMessages::createConnectResponse(
+        "✓ Authentication successful! Welcome to R-Type, " + playerName + "!");
     std::unique_ptr<IPacket> responsePacket =
         createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(responsePacket), 0);
@@ -225,12 +264,9 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
         server::GameruleBroadcaster::sendAllGamerules(event.peer, defaultRules);
     }
 
-    LOG_INFO("✓ Player '", playerName, "'", modeStr, " connected (Session: ", sessionId,
-             ", Player ID: ", newPlayerId, ")");
-
     // DELETE ME - START
     // DEV MODE: Auto-join default room and start game
-    if (DEV_MODE_SKIP_MATCHMAKING && _defaultRoom && !isSpectator) {
+    if (DEV_MODE_SKIP_MATCHMAKING && _defaultRoom) {
         LOG_INFO("[DEV MODE] Auto-joining player ", newPlayerId, " to default room");
 
         if (_defaultRoom->join(newPlayerId)) {
@@ -263,6 +299,43 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
         LOG_INFO("  Player is now in lobby - waiting for room selection");
     }
     // DELETE ME - END
+}
+
+void Server::_handleRegisterRequest(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+    using namespace ConnectionMessages;
+
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+    RegisterRequestData registerData = parseRegisterRequest(payload);
+
+    std::string username = registerData.username;
+    std::string password = registerData.password;
+
+    LOG_INFO("Registration attempt - Username: '", username, "'");
+
+    // Try to register the user
+    bool success = _sessionManager->getAuthService()->registerUser(username, password);
+
+    RegisterResponseData response;
+    if (success) {
+        response.success = true;
+        response.message = "✓ Account created successfully! You can now login.";
+        LOG_INFO("✓ Registration SUCCESS for user: ", username);
+    } else {
+        response.success = false;
+        response.message =
+            "❌ Registration failed! Username may already exist or invalid credentials (min 3 chars "
+            "username, 4 chars password).";
+        LOG_WARNING("❌ Registration FAILED for user: ", username);
+    }
+
+    // Send response
+    std::vector<uint8_t> responsePayload = createRegisterResponse(response);
+    std::vector<uint8_t> responseData =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::REGISTER_RESPONSE, responsePayload);
+    std::unique_ptr<IPacket> responsePacket =
+        createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
+    event.peer->send(std::move(responsePacket), 0);
 }
 
 void Server::_handlePlayerInput(HostNetworkEvent &event) {

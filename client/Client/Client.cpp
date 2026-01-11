@@ -8,7 +8,21 @@
 #include "Client.hpp"
 
 Client::Client(const std::string &playerName, const std::string &host, uint16_t port, bool isSpectator)
-    : _playerName(playerName), _serverHost(host), _serverPort(port), _isSpectator(isSpectator) {}
+    : _playerName(playerName),
+      _username(""),
+      _password(""),
+      _serverHost(host),
+      _serverPort(port),
+      _isSpectator(isSpectator) {}
+
+Client::Client(const std::string &playerName, const std::string &username, const std::string &password,
+               const std::string &host, uint16_t port)
+    : _playerName(playerName),
+      _username(username),
+      _password(password),
+      _serverHost(host),
+      _serverPort(port),
+      _isSpectator(false) {}
 
 Client::~Client() {
     LOG_INFO("Client shutting down...");
@@ -81,9 +95,14 @@ bool Client::connectToServer() {
 
     LOG_INFO("✓ Connected to server!");
 
-    // Send connect request with player name
-    LOG_INFO("Sending connect request (player: ", _playerName, ")...");
-    if (!_replicator->sendConnectRequest(_playerName)) {
+    // Send connect request with authentication
+    LOG_INFO("Sending authentication request...");
+
+    // Use default credentials if not provided
+    std::string username = _username.empty() ? "guest" : _username;
+    std::string password = _password.empty() ? "guest" : _password;
+
+    if (!_replicator->sendConnectRequest(_playerName, username, password)) {
         LOG_ERROR("Failed to send connect request");
         return false;
     }
@@ -96,6 +115,35 @@ bool Client::connectToServer() {
     }
 
     LOG_INFO("✓ Handshake complete!");
+
+    // Automatically join the default room
+    LOG_INFO("Joining default room...");
+    if (!_replicator->sendJoinRoom("default")) {
+        LOG_ERROR("Failed to send join room request");
+        return false;
+    }
+
+    // Wait for room join confirmation
+    for (int i = 0; i < 20; ++i) {
+        _replicator->processMessages();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    LOG_INFO("✓ Joined room!");
+
+    // Start the game
+    LOG_INFO("Starting game...");
+    if (!_replicator->sendStartGame()) {
+        LOG_ERROR("Failed to send start game request");
+        return false;
+    }
+
+    // Wait for game start
+    for (int i = 0; i < 20; ++i) {
+        _replicator->processMessages();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    LOG_INFO("✓ Game started!");
+
     return true;
 }
 

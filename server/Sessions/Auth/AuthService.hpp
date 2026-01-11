@@ -16,7 +16,7 @@ namespace server {
 
     class AuthService : public IAuthService {
        public:
-        AuthService() = default;
+        AuthService();
         ~AuthService() override = default;
 
         /**
@@ -54,9 +54,29 @@ namespace server {
          */
         bool isUserAuthenticated(const std::string &username) const;
 
+        /**
+         * @brief Register a new user account
+         * @param username The username
+         * @param password The password
+         * @return bool True if registration succeeds
+         */
+        bool registerUser(const std::string &username, const std::string &password);
+
+        /**
+         * @brief Load user accounts from file
+         */
+        void loadAccounts();
+
+        /**
+         * @brief Save user accounts to file
+         */
+        void saveAccounts();
+
        private:
         std::unordered_set<std::string> _authenticatedUsers;         ///< Set of authenticated usernames
         std::unordered_map<std::string, std::string> _activeTokens;  ///< Map of tokens to usernames
+        std::unordered_map<std::string, std::string> _accounts;      ///< Map of username to password
+        std::string _accountsFile = "accounts.dat";                  ///< File to store accounts
     };
 
 }  // namespace server

@@ -110,6 +110,12 @@ class Server {
     void _handleHandshakeRequest(HostNetworkEvent &event);
 
     /**
+     * @brief Handle player registration request
+     * @param event Network event with packet data
+     */
+    void _handleRegisterRequest(HostNetworkEvent &event);
+
+    /**
      * @brief Handle player input packet
      * @param event Network event with packet data
      */

@@ -6,6 +6,8 @@
 */
 
 #include "Replicator.hpp"
+#include <chrono>
+#include "Capnp/ConnectionMessages.hpp"
 
 Replicator::Replicator(EventBus &eventBus, bool isSpectator)
     : _eventBus(eventBus), _isSpectator(isSpectator), _host(createClientHost()) {}
@@ -215,13 +217,28 @@ void Replicator::sendPacket(NetworkMessageType type, const std::vector<uint8_t> 
     _serverPeer->send(std::move(packet), 0);
 }
 
-bool Replicator::sendConnectRequest(const std::string &playerName) {
+bool Replicator::sendConnectRequest(const std::string &playerName, const std::string &username,
+                                    const std::string &password) {
     if (!_serverPeer || !_connected.load()) {
         return false;
     }
 
-    // Create Cap'n Proto ConnectRequest with spectator flag
-    auto requestData = NetworkMessages::createConnectRequest(playerName, _isSpectator);
+    // Create HandshakeRequest with authentication credentials
+    using namespace ConnectionMessages;
+    HandshakeRequestData handshakeData;
+    handshakeData.clientVersion = "1.0.0";
+    handshakeData.playerName = playerName;
+    handshakeData.username = username;
+    handshakeData.password = password;
+    handshakeData.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count();
+
+    std::vector<uint8_t> payload = createHandshakeRequest(handshakeData);
+
+    // Wrap in network protocol
+    auto requestData =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::HANDSHAKE_REQUEST, payload);
 
     // Send via ENet
     auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));

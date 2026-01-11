@@ -53,6 +53,8 @@ namespace NetworkMessages {
         // Connection messages (0x00xx)
         HANDSHAKE_REQUEST = 0x0001,
         HANDSHAKE_RESPONSE = 0x0002,
+        REGISTER_REQUEST = 0x0007,
+        REGISTER_RESPONSE = 0x0008,
         DISCONNECT = 0x0003,
         KICK = 0x0004,
         PING = 0x0005,

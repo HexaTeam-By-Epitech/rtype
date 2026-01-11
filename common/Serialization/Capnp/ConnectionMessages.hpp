@@ -26,7 +26,19 @@ namespace ConnectionMessages {
     struct HandshakeRequestData {
         std::string clientVersion;
         std::string playerName;
+        std::string username;  // For authentication
+        std::string password;  // For authentication
         uint64_t timestamp;
+    };
+
+    struct RegisterRequestData {
+        std::string username;
+        std::string password;
+    };
+
+    struct RegisterResponseData {
+        bool success;
+        std::string message;
     };
 
     struct HandshakeResponseData {
@@ -38,7 +50,7 @@ namespace ConnectionMessages {
     };
 
     inline std::vector<uint8_t> createHandshakeRequest(const HandshakeRequestData &data) {
-        // Format: [4:version_len][version][4:name_len][name][8:timestamp]
+        // Format: [4:version_len][version][4:name_len][name][4:username_len][username][4:password_len][password][8:timestamp]
         std::vector<uint8_t> packet;
 
         // Client version
@@ -56,6 +68,22 @@ namespace ConnectionMessages {
         packet.push_back(static_cast<uint8_t>((nameLen >> 16) & 0xFF));
         packet.push_back(static_cast<uint8_t>((nameLen >> 24) & 0xFF));
         packet.insert(packet.end(), data.playerName.begin(), data.playerName.end());
+
+        // Username
+        uint32_t usernameLen = static_cast<uint32_t>(data.username.size());
+        packet.push_back(static_cast<uint8_t>(usernameLen & 0xFF));
+        packet.push_back(static_cast<uint8_t>((usernameLen >> 8) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((usernameLen >> 16) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((usernameLen >> 24) & 0xFF));
+        packet.insert(packet.end(), data.username.begin(), data.username.end());
+
+        // Password
+        uint32_t passwordLen = static_cast<uint32_t>(data.password.size());
+        packet.push_back(static_cast<uint8_t>(passwordLen & 0xFF));
+        packet.push_back(static_cast<uint8_t>((passwordLen >> 8) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((passwordLen >> 16) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((passwordLen >> 24) & 0xFF));
+        packet.insert(packet.end(), data.password.begin(), data.password.end());
 
         // Timestamp
         for (int i = 0; i < 8; ++i) {
@@ -92,6 +120,28 @@ namespace ConnectionMessages {
         result.playerName = std::string(data.begin() + offset, data.begin() + offset + nameLen);
         offset += nameLen;
 
+        // Read username
+        if (data.size() < offset + 4)
+            return result;
+        uint32_t usernameLen =
+            data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
+        offset += 4;
+        if (data.size() < offset + usernameLen)
+            return result;
+        result.username = std::string(data.begin() + offset, data.begin() + offset + usernameLen);
+        offset += usernameLen;
+
+        // Read password
+        if (data.size() < offset + 4)
+            return result;
+        uint32_t passwordLen =
+            data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
+        offset += 4;
+        if (data.size() < offset + passwordLen)
+            return result;
+        result.password = std::string(data.begin() + offset, data.begin() + offset + passwordLen);
+        offset += passwordLen;
+
         // Read timestamp
         if (data.size() < offset + 8)
             return result;
@@ -99,6 +149,103 @@ namespace ConnectionMessages {
         for (int i = 0; i < 8; ++i) {
             result.timestamp |= static_cast<uint64_t>(data[offset + i]) << (i * 8);
         }
+
+        return result;
+    }
+
+    // ============================================================================
+    // REGISTER
+    // ============================================================================
+
+    inline std::vector<uint8_t> createRegisterRequest(const RegisterRequestData &data) {
+        // Format: [4:username_len][username][4:password_len][password]
+        std::vector<uint8_t> packet;
+
+        // Username
+        uint32_t usernameLen = static_cast<uint32_t>(data.username.size());
+        packet.push_back(static_cast<uint8_t>(usernameLen & 0xFF));
+        packet.push_back(static_cast<uint8_t>((usernameLen >> 8) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((usernameLen >> 16) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((usernameLen >> 24) & 0xFF));
+        packet.insert(packet.end(), data.username.begin(), data.username.end());
+
+        // Password
+        uint32_t passwordLen = static_cast<uint32_t>(data.password.size());
+        packet.push_back(static_cast<uint8_t>(passwordLen & 0xFF));
+        packet.push_back(static_cast<uint8_t>((passwordLen >> 8) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((passwordLen >> 16) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((passwordLen >> 24) & 0xFF));
+        packet.insert(packet.end(), data.password.begin(), data.password.end());
+
+        return packet;
+    }
+
+    inline RegisterRequestData parseRegisterRequest(const std::vector<uint8_t> &data) {
+        RegisterRequestData result;
+        size_t offset = 0;
+
+        if (data.size() < 4)
+            return result;
+
+        // Read username
+        uint32_t usernameLen =
+            data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
+        offset += 4;
+        if (data.size() < offset + usernameLen)
+            return result;
+        result.username = std::string(data.begin() + offset, data.begin() + offset + usernameLen);
+        offset += usernameLen;
+
+        // Read password
+        if (data.size() < offset + 4)
+            return result;
+        uint32_t passwordLen =
+            data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
+        offset += 4;
+        if (data.size() < offset + passwordLen)
+            return result;
+        result.password = std::string(data.begin() + offset, data.begin() + offset + passwordLen);
+
+        return result;
+    }
+
+    inline std::vector<uint8_t> createRegisterResponse(const RegisterResponseData &data) {
+        std::vector<uint8_t> packet;
+
+        // Success flag
+        packet.push_back(data.success ? 1 : 0);
+
+        // Message
+        uint32_t msgLen = static_cast<uint32_t>(data.message.size());
+        packet.push_back(static_cast<uint8_t>(msgLen & 0xFF));
+        packet.push_back(static_cast<uint8_t>((msgLen >> 8) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((msgLen >> 16) & 0xFF));
+        packet.push_back(static_cast<uint8_t>((msgLen >> 24) & 0xFF));
+        packet.insert(packet.end(), data.message.begin(), data.message.end());
+
+        return packet;
+    }
+
+    inline RegisterResponseData parseRegisterResponse(const std::vector<uint8_t> &data) {
+        RegisterResponseData result;
+        size_t offset = 0;
+
+        if (data.size() < 1)
+            return result;
+
+        // Success flag
+        result.success = (data[offset] != 0);
+        offset += 1;
+
+        // Message
+        if (data.size() < offset + 4)
+            return result;
+        uint32_t msgLen =
+            data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
+        offset += 4;
+        if (data.size() < offset + msgLen)
+            return result;
+        result.message = std::string(data.begin() + offset, data.begin() + offset + msgLen);
 
         return result;
     }

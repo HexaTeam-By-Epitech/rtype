@@ -204,7 +204,8 @@ class Replicator {
      * @param playerName The player's name/pseudo
      * @return true if the packet was sent successfully
      */
-    bool sendConnectRequest(const std::string &playerName);
+    bool sendConnectRequest(const std::string &playerName, const std::string &username,
+                            const std::string &password);
 
     /**
      * @brief Send list rooms request to server.

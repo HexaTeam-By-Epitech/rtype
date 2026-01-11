@@ -25,7 +25,14 @@ namespace Graphics {
 
     // Window management
     void RaylibGraphics::InitWindow(int width, int height, const char *title) {
-        ::InitWindow(width, height, title);
+        if (!::IsWindowReady()) {
+            // Create new window
+            ::InitWindow(width, height, title);
+        } else {
+            // Window already exists (from login), reconfigure it
+            ::SetWindowTitle(title);
+            ::SetWindowSize(width, height);
+        }
         _windowInitialized = true;
     }
 

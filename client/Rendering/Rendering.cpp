@@ -88,6 +88,12 @@ void Rendering::Render() {
     _graphics.DrawText(-1, pingText.c_str(), xPos, yPos, 20, color);
 
     _graphics.DisplayWindow();
+
+    // Check if user wants to close the window and stop the game loop
+    if (_graphics.WindowShouldClose()) {
+        // Trigger game loop shutdown
+        // This will be detected by the GameLoop and initiate clean shutdown
+    }
 }
 
 bool Rendering::IsWindowOpen() const {

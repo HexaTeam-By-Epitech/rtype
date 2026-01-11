@@ -154,9 +154,8 @@ void GameLoop::update(float deltaTime) {
         _rendering->UpdatePingTimer(deltaTime);
     }
 
-    if (_rendering && _rendering->WindowShouldClose()) {
-        shutdown();
-    }
+    // Note: Don't check WindowShouldClose here - it's checked in render()
+    // The window state is managed properly in the rendering system
 }
 
 void GameLoop::fixedUpdate(float fixedDeltaTime) {
@@ -210,6 +209,13 @@ void GameLoop::processInput() {
     }
     if (_rendering->IsKeyDown(KEY_SPACE)) {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
+    }
+
+    // Allow quitting with ESC key
+    if (_rendering->IsKeyDown(KEY_ESCAPE)) {
+        LOG_INFO("ESC pressed - quitting game");
+        stop();
+        return;
     }
 
     // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)

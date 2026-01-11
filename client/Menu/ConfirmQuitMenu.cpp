@@ -9,9 +9,7 @@
 #include "../common/Logger/Logger.hpp"
 
 namespace Game {
-    ConfirmQuitMenu::ConfirmQuitMenu(UI::IUIFactory &uiFactory) : _uiFactory(uiFactory) {
-        _menu = _uiFactory.CreateMenu();
-    }
+    ConfirmQuitMenu::ConfirmQuitMenu(UI::IUIFactory &uiFactory) : BaseMenu(uiFactory) {}
 
     void ConfirmQuitMenu::Initialize() {
         if (!_menu) {
@@ -29,60 +27,10 @@ namespace Game {
         const float offsets[2] = {-(totalHeight / 2.0f) + (buttonHeight / 2.0f),
                                   (totalHeight / 2.0f) - (buttonHeight / 2.0f)};
 
-        auto makeButton = [&](const char *label, float offsetY, unsigned int backgroundColor,
-                              unsigned int hoverColor, std::function<void()> callback) {
-            auto button = _uiFactory.CreateButton();
-            button->SetSize(buttonWidth, buttonHeight);
-            button->SetAlign(UI::Align::CENTER_BOTH);
-            button->ApplyAlignment();
-
-            float x = 0.0f;
-            float y = 0.0f;
-            button->GetPosition(x, y);
-            button->SetPosition(x, y + offsetY);
-
-            button->SetBackgroundColor(backgroundColor);
-            button->SetHoverColor(hoverColor);
-            button->SetText(label);
-            button->SetTextSize(18);
-            button->SetTextColor(0xFFFFFFFF);
-            button->SetFont(-1);
-            button->SetCallback(std::move(callback));
-            return button;
-        };
-
-        _menu->AddButton(
-            makeButton("YES, QUIT", offsets[0], 0xFFF44336, 0xFFE57373, [this]() { OnConfirmClicked(); }));
-        _menu->AddButton(
-            makeButton("NO", offsets[1], 0xFF424242, 0xFF616161, [this]() { OnCancelClicked(); }));
-    }
-
-    void ConfirmQuitMenu::Update() {
-        if (_menu) {
-            _menu->Update();
-        }
-    }
-
-    void ConfirmQuitMenu::Render() {
-        if (_menu) {
-            _menu->Render();
-        }
-    }
-
-    void ConfirmQuitMenu::Show() {
-        if (_menu) {
-            _menu->SetVisible(true);
-        }
-    }
-
-    void ConfirmQuitMenu::Hide() {
-        if (_menu) {
-            _menu->SetVisible(false);
-        }
-    }
-
-    bool ConfirmQuitMenu::IsVisible() const {
-        return _menu && _menu->IsVisible();
+        _menu->AddButton(CreateCenteredButton("YES, QUIT", offsets[0], buttonWidth, buttonHeight, 0xFFF44336,
+                                              0xFFE57373, [this]() { OnConfirmClicked(); }));
+        _menu->AddButton(CreateCenteredButton("NO", offsets[1], buttonWidth, buttonHeight, 0xFF424242,
+                                              0xFF616161, [this]() { OnCancelClicked(); }));
     }
 
     void ConfirmQuitMenu::SetOnConfirm(std::function<void()> callback) {

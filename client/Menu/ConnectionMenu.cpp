@@ -12,9 +12,7 @@
 
 namespace Game {
     ConnectionMenu::ConnectionMenu(UI::IUIFactory &uiFactory, Graphics::IGraphics &graphics)
-        : _uiFactory(uiFactory), _graphics(graphics) {
-        _menu = _uiFactory.CreateMenu();
-    }
+        : BaseMenu(uiFactory), _graphics(graphics) {}
 
     void ConnectionMenu::SetOnJoin(
         std::function<void(const std::string &, const std::string &, const std::string &)> onJoin) {
@@ -121,8 +119,9 @@ namespace Game {
         float joinButtonX = -(totalButtonWidth / 2.0f);
         float backButtonX = joinButtonX + buttonWidth + buttonSpacing;
 
-        auto makeButton = [&](const char *label, float posX, float posY, unsigned int backgroundColor,
-                              unsigned int hoverColor, std::function<void()> callback) {
+        // Helper to create buttons with horizontal alignment
+        auto createHorizontalButton = [&](const char *label, float posX, unsigned int backgroundColor,
+                                          unsigned int hoverColor, std::function<void()> callback) {
             auto button = _uiFactory.CreateButton();
             button->SetSize(buttonWidth, buttonHeight);
             button->SetAlign(UI::Align::CENTER_HORIZONTAL);
@@ -130,7 +129,7 @@ namespace Game {
 
             float bx, by;
             button->GetPosition(bx, by);
-            button->SetPosition(bx + posX + (totalButtonWidth / 2.0f) - (buttonWidth / 2.0f), posY);
+            button->SetPosition(bx + posX + (totalButtonWidth / 2.0f) - (buttonWidth / 2.0f), _buttonsY);
 
             button->SetBackgroundColor(backgroundColor);
             button->SetHoverColor(hoverColor);
@@ -142,17 +141,15 @@ namespace Game {
             return button;
         };
 
-        _menu->AddButton(makeButton("JOIN", joinButtonX, _buttonsY, 0xFF4CAF50, 0xFF66BB6A,
-                                    [this]() { OnJoinClicked(); }));
+        _menu->AddButton(createHorizontalButton("JOIN", joinButtonX, 0xFF4CAF50, 0xFF66BB6A,
+                                                [this]() { OnJoinClicked(); }));
 
-        _menu->AddButton(makeButton("BACK", backButtonX, _buttonsY, 0xFF424242, 0xFF616161,
-                                    [this]() { OnBackClicked(); }));
+        _menu->AddButton(createHorizontalButton("BACK", backButtonX, 0xFF424242, 0xFF616161,
+                                                [this]() { OnBackClicked(); }));
     }
 
     void ConnectionMenu::Update() {
-        if (_menu) {
-            _menu->Update();
-        }
+        BaseMenu::Update();
         if (_nicknameInput) {
             _nicknameInput->Update();
         }
@@ -179,9 +176,8 @@ namespace Game {
         if (_portInput) {
             _portInput->Render();
         }
-        if (_menu) {
-            _menu->Render();
-        }
+
+        BaseMenu::Render();
 
         // Render error message if present
         if (_hasError && !_errorMessage.empty()) {
@@ -200,22 +196,6 @@ namespace Game {
             // Draw error message in red
             _graphics.DrawText(_errorMessage.c_str(), errorX, errorY, fontSize, 0xFFFF0000);
         }
-    }
-
-    void ConnectionMenu::Show() {
-        if (_menu) {
-            _menu->SetVisible(true);
-        }
-    }
-
-    void ConnectionMenu::Hide() {
-        if (_menu) {
-            _menu->SetVisible(false);
-        }
-    }
-
-    bool ConnectionMenu::IsVisible() const {
-        return _menu && _menu->IsVisible();
     }
 
     void ConnectionMenu::OnJoinClicked() {

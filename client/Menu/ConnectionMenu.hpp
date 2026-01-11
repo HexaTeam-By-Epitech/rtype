@@ -11,8 +11,7 @@
 #include <memory>
 
 #include "Graphics/IGraphics.hpp"
-#include "UI/IButton.hpp"
-#include "UI/IMenu.hpp"
+#include "Menu/BaseMenu.hpp"
 #include "UI/ITextInput.hpp"
 #include "UI/IUIFactory.hpp"
 
@@ -27,10 +26,10 @@ namespace Game {
      * - Join the game (triggers callback with entered values)
      * - Go back to main menu
      */
-    class ConnectionMenu {
+    class ConnectionMenu : public BaseMenu {
        public:
         explicit ConnectionMenu(UI::IUIFactory &uiFactory, Graphics::IGraphics &graphics);
-        ~ConnectionMenu() = default;
+        ~ConnectionMenu() override = default;
 
         /**
          * @brief Set callback triggered when the Join button is clicked.
@@ -44,13 +43,9 @@ namespace Game {
          */
         void SetOnBack(std::function<void()> onBack);
 
-        void Initialize();
-        void Update();
-        void Render();
-
-        void Show();
-        void Hide();
-        bool IsVisible() const;
+        void Initialize() override;
+        void Update() override;
+        void Render() override;
 
        private:
         void OnJoinClicked();
@@ -65,9 +60,7 @@ namespace Game {
         std::function<void(const std::string &, const std::string &, const std::string &)> _onJoin{};
         std::function<void()> _onBack{};
 
-        UI::IUIFactory &_uiFactory;
         Graphics::IGraphics &_graphics;
-        std::unique_ptr<UI::IMenu> _menu;
 
         // Text inputs
         std::unique_ptr<UI::ITextInput> _nicknameInput;

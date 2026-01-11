@@ -10,7 +10,7 @@
 #include <functional>
 #include <memory>
 
-#include "UI/IMenu.hpp"
+#include "Menu/BaseMenu.hpp"
 #include "UI/IUIFactory.hpp"
 
 namespace Game {
@@ -21,26 +21,19 @@ namespace Game {
      * It is meant to be displayed either fullscreen (main menu context) or as an
      * overlay (in-game context) depending on how the caller renders it.
      */
-    class ConfirmQuitMenu {
+    class ConfirmQuitMenu : public BaseMenu {
        public:
         /**
          * @brief Construct a new ConfirmQuitMenu.
          * @param uiFactory UI factory used to create menus and buttons.
          */
         explicit ConfirmQuitMenu(UI::IUIFactory &uiFactory);
-        ~ConfirmQuitMenu() = default;
+        ~ConfirmQuitMenu() override = default;
 
         /**
          * @brief Initialize UI elements (creates buttons).
          */
-        void Initialize();
-
-        void Update();
-        void Render();
-
-        void Show();
-        void Hide();
-        [[nodiscard]] bool IsVisible() const;
+        void Initialize() override;
 
         /**
          * @brief Set callback invoked when user confirms quit.
@@ -55,9 +48,6 @@ namespace Game {
        private:
         void OnConfirmClicked();
         void OnCancelClicked();
-
-        UI::IUIFactory &_uiFactory;
-        std::unique_ptr<UI::IMenu> _menu;
 
         std::function<void()> _onConfirm{};
         std::function<void()> _onCancel{};

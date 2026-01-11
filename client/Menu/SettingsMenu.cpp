@@ -11,8 +11,7 @@
 
 namespace Game {
     SettingsMenu::SettingsMenu(UI::IUIFactory &uiFactory, Graphics::IGraphics &graphics)
-        : _uiFactory(uiFactory), _graphics(graphics) {
-        _menu = _uiFactory.CreateMenu();
+        : BaseMenu(uiFactory), _graphics(graphics) {
         _volumeSlider = _uiFactory.CreateSlider();
     }
 
@@ -71,67 +70,44 @@ namespace Game {
             });
         }
 
-        auto makeButton = [&](const char *label, float offsetY, unsigned int backgroundColor,
-                              unsigned int hoverColor, std::function<void()> callback) {
-            auto button = _uiFactory.CreateButton();
-            button->SetSize(buttonWidth, buttonHeight);
-            button->SetAlign(UI::Align::CENTER_BOTH);
-            button->ApplyAlignment();
-
-            float x = 0.0f;
-            float y = 0.0f;
-            button->GetPosition(x, y);
-            button->SetPosition(x, y + offsetY);
-
-            button->SetBackgroundColor(backgroundColor);
-            button->SetHoverColor(hoverColor);
-
-            button->SetText(label);
-            button->SetTextSize(18);
-            button->SetTextColor(0xFFFFFFFF);
-            button->SetFont(-1);
-
-            button->SetCallback(std::move(callback));
-            return button;
-        };
-
         // Toggle Ping button
-        _menu->AddButton(makeButton("PING: ON", offsetForIndex(0), 0xFF424242, 0xFF616161,
-                                    [this]() { SetShowPing(!_showPing); }));
+        _menu->AddButton(CreateCenteredButton("PING: ON", offsetForIndex(0), buttonWidth, buttonHeight,
+                                              0xFF424242, 0xFF616161, [this]() { SetShowPing(!_showPing); }));
 
         // Toggle FPS display button
-        _menu->AddButton(makeButton("FPS: ON", offsetForIndex(1), 0xFF424242, 0xFF616161,
-                                    [this]() { SetShowFps(!_showFps); }));
+        _menu->AddButton(CreateCenteredButton("FPS: ON", offsetForIndex(1), buttonWidth, buttonHeight,
+                                              0xFF424242, 0xFF616161, [this]() { SetShowFps(!_showFps); }));
 
         // Target FPS selection button (cycles)
-        _menu->AddButton(makeButton("TARGET FPS: 60", offsetForIndex(2), 0xFF424242, 0xFF616161,
-                                    [this]() { SetTargetFps(NextTargetFps(_targetFps)); }));
+        _menu->AddButton(CreateCenteredButton("TARGET FPS: 60", offsetForIndex(2), buttonWidth, buttonHeight,
+                                              0xFF424242, 0xFF616161,
+                                              [this]() { SetTargetFps(NextTargetFps(_targetFps)); }));
 
         // Back (closes settings)
-        _menu->AddButton(makeButton("BACK", offsetForIndex(3), 0xFF1976D2, 0xFF1E88E5, [this]() {
-            if (_onBack) {
-                _onBack();
-            } else {
-                Hide();
-            }
-        }));
+        _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(3), buttonWidth, buttonHeight,
+                                              0xFF1976D2, 0xFF1E88E5, [this]() {
+                                                  if (_onBack) {
+                                                      _onBack();
+                                                  } else {
+                                                      Hide();
+                                                  }
+                                              }));
 
         // Main menu (only in overlay)
         if (showMainMenuButton) {
-            _menu->AddButton(makeButton("MAIN MENU", offsetForIndex(4), 0xFF5D4037, 0xFF6D4C41, [this]() {
-                if (_onMainMenu) {
-                    _onMainMenu();
-                }
-            }));
+            _menu->AddButton(CreateCenteredButton("MAIN MENU", offsetForIndex(4), buttonWidth, buttonHeight,
+                                                  0xFF5D4037, 0xFF6D4C41, [this]() {
+                                                      if (_onMainMenu) {
+                                                          _onMainMenu();
+                                                      }
+                                                  }));
         }
 
         RefreshVisuals();
     }
 
     void SettingsMenu::Update() {
-        if (_menu) {
-            _menu->Update();
-        }
+        BaseMenu::Update();
         if (_volumeSlider && _menu && _menu->IsVisible()) {
             _volumeSlider->Update();
         }
@@ -180,25 +156,7 @@ namespace Game {
             _volumeSlider->Render();
         }
 
-        if (_menu) {
-            _menu->Render();
-        }
-    }
-
-    void SettingsMenu::Show() {
-        if (_menu) {
-            _menu->SetVisible(true);
-        }
-    }
-
-    void SettingsMenu::Hide() {
-        if (_menu) {
-            _menu->SetVisible(false);
-        }
-    }
-
-    bool SettingsMenu::IsVisible() const {
-        return _menu && _menu->IsVisible();
+        BaseMenu::Render();
     }
 
     void SettingsMenu::SetMode(Mode mode) {

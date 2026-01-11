@@ -10,7 +10,7 @@
 #include <functional>
 #include <memory>
 
-#include "UI/IMenu.hpp"
+#include "Menu/BaseMenu.hpp"
 #include "UI/IUIFactory.hpp"
 
 namespace Game {
@@ -19,10 +19,10 @@ namespace Game {
      *
      * Business-level class: it *uses* the UI library, but does not belong to it.
      */
-    class MainMenu {
+    class MainMenu : public BaseMenu {
        public:
         explicit MainMenu(UI::IUIFactory &uiFactory);
-        ~MainMenu() = default;
+        ~MainMenu() override = default;
 
         /**
          * @brief Set callback triggered when the Quit button is clicked.
@@ -41,13 +41,7 @@ namespace Game {
          */
         void SetOnPlay(std::function<void()> onPlay);
 
-        void Initialize();
-        void Update();
-        void Render();
-
-        void Show();
-        void Hide();
-        bool IsVisible() const;
+        void Initialize() override;
 
        private:
         void OnPlayClicked();
@@ -57,8 +51,5 @@ namespace Game {
         std::function<void()> _onPlay{};
         std::function<void()> _onQuit{};
         std::function<void()> _onSettings{};
-
-        UI::IUIFactory &_uiFactory;
-        std::unique_ptr<UI::IMenu> _menu;
     };
 }  // namespace Game

@@ -11,7 +11,7 @@
 #include <memory>
 
 #include "Graphics/IGraphics.hpp"
-#include "UI/IMenu.hpp"
+#include "Menu/BaseMenu.hpp"
 #include "UI/ISlider.hpp"
 #include "UI/IUIFactory.hpp"
 
@@ -22,7 +22,7 @@ namespace Game {
      * Business-level class: it uses the UI library but remains decoupled from
      * the graphics backend.
      */
-    class SettingsMenu {
+    class SettingsMenu : public BaseMenu {
        public:
         /**
          * @brief Display mode for the settings menu.
@@ -38,19 +38,15 @@ namespace Game {
          * @param graphics Graphics interface for rendering slider labels.
          */
         explicit SettingsMenu(UI::IUIFactory &uiFactory, Graphics::IGraphics &graphics);
-        ~SettingsMenu() = default;
+        ~SettingsMenu() override = default;
 
         /**
          * @brief Initialize UI elements.
          */
-        void Initialize();
+        void Initialize() override;
 
-        void Update();
-        void Render();
-
-        void Show();
-        void Hide();
-        [[nodiscard]] bool IsVisible() const;
+        void Update() override;
+        void Render() override;
 
         /**
          * @brief Set display mode (fullscreen or overlay).
@@ -181,9 +177,7 @@ namespace Game {
         void UpdateTargetFpsVisuals();
         [[nodiscard]] uint32_t NextTargetFps(uint32_t current) const;
 
-        UI::IUIFactory &_uiFactory;
         Graphics::IGraphics &_graphics;
-        std::unique_ptr<UI::IMenu> _menu;
         std::unique_ptr<UI::ISlider> _volumeSlider;
 
         Mode _mode{Mode::FULLSCREEN};

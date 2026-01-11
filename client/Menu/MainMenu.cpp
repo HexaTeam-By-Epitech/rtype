@@ -9,9 +9,7 @@
 #include "../common/Logger/Logger.hpp"
 
 namespace Game {
-    MainMenu::MainMenu(UI::IUIFactory &uiFactory) : _uiFactory(uiFactory) {
-        _menu = _uiFactory.CreateMenu();
-    }
+    MainMenu::MainMenu(UI::IUIFactory &uiFactory) : BaseMenu(uiFactory) {}
 
     void MainMenu::SetOnQuit(std::function<void()> onQuit) {
         _onQuit = std::move(onQuit);
@@ -39,63 +37,13 @@ namespace Game {
         const float offsets[3] = {-(totalHeight / 2.0f) + (buttonHeight / 2.0f), 0.0f,
                                   (totalHeight / 2.0f) - (buttonHeight / 2.0f)};
 
-        auto makeButton = [&](const char *label, float offsetY, unsigned int backgroundColor,
-                              unsigned int hoverColor, std::function<void()> callback) {
-            auto button = _uiFactory.CreateButton();
-            button->SetSize(buttonWidth, buttonHeight);
-            button->SetAlign(UI::Align::CENTER_BOTH);
-            button->ApplyAlignment();
-
-            float x = 0.0f;
-            float y = 0.0f;
-            button->GetPosition(x, y);
-            button->SetPosition(x, y + offsetY);
-
-            button->SetBackgroundColor(backgroundColor);
-            button->SetHoverColor(hoverColor);
-            button->SetText(label);
-            button->SetTextSize(18);
-            button->SetTextColor(0xFFFFFFFF);
-            button->SetFont(-1);
-            button->SetCallback(std::move(callback));
-            return button;
-        };
-
         _menu->Clear();
-        _menu->AddButton(
-            makeButton("PLAY", offsets[0], 0xFF4CAF50, 0xFF66BB6A, [this]() { OnPlayClicked(); }));
-        _menu->AddButton(
-            makeButton("SETTINGS", offsets[1], 0xFF424242, 0xFF616161, [this]() { OnSettingsClicked(); }));
-        _menu->AddButton(
-            makeButton("QUIT", offsets[2], 0xFFF44336, 0xFFE57373, [this]() { OnQuitClicked(); }));
-    }
-
-    void MainMenu::Update() {
-        if (_menu) {
-            _menu->Update();
-        }
-    }
-
-    void MainMenu::Render() {
-        if (_menu) {
-            _menu->Render();
-        }
-    }
-
-    void MainMenu::Show() {
-        if (_menu) {
-            _menu->SetVisible(true);
-        }
-    }
-
-    void MainMenu::Hide() {
-        if (_menu) {
-            _menu->SetVisible(false);
-        }
-    }
-
-    bool MainMenu::IsVisible() const {
-        return _menu && _menu->IsVisible();
+        _menu->AddButton(CreateCenteredButton("PLAY", offsets[0], buttonWidth, buttonHeight, 0xFF4CAF50,
+                                              0xFF66BB6A, [this]() { OnPlayClicked(); }));
+        _menu->AddButton(CreateCenteredButton("SETTINGS", offsets[1], buttonWidth, buttonHeight, 0xFF424242,
+                                              0xFF616161, [this]() { OnSettingsClicked(); }));
+        _menu->AddButton(CreateCenteredButton("QUIT", offsets[2], buttonWidth, buttonHeight, 0xFFF44336,
+                                              0xFFE57373, [this]() { OnQuitClicked(); }));
     }
 
     void MainMenu::OnPlayClicked() {

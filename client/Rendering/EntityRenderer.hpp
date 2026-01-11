@@ -54,11 +54,15 @@ class EntityRenderer {
         float targetX;                             ///< Target position X (from server)
         float targetY;                             ///< Target position Y (from server)
         float interpolationFactor;                 ///< Progress from 0.0 (prev) to 1.0 (target)
-
-        // Future fields for enhanced rendering:
-        // float rotation;        ///< Rotation angle in degrees
-        // float scale;           ///< Uniform scale factor
-        // uint8_t animFrame;     ///< Current animation frame
+        int startPixelX;                           ///< Sprite sheet start pixel X
+        int startPixelY;                           ///< Sprite sheet start pixel Y
+        int spriteSizeX;                           ///< Sprite sheet size X
+        int spriteSizeY;                           ///< Sprite sheet size Y
+        int offsetX;                               ///< Sprite offset X for rendering
+        int offsetY;                               ///< Sprite offset Y for rendering
+        std::vector<int>
+            animationFrameIndices;  ///< Animation frame sequence (sprite indices to allow freedom of picking frames manually)
+        int currentFrame;  ///< Current animation frame
     };
 
     /**

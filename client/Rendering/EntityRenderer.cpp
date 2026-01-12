@@ -19,6 +19,10 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
 
+        // Always update type and health first (critical data)
+        it->second.type = type;
+        it->second.health = health;
+
         if (isLocalPlayer && _clientSidePredictionEnabled) {
             // CLIENT-SIDE PREDICTION for local player (pro-style dead reckoning)
             float errorX = x - it->second.x;
@@ -29,7 +33,7 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             // If the correction is tiny (floating point error from Replay), ignore it completely.
             // This stops the ship from "shivering" 1 pixel back and forth.
             if (errorDistance < 2.0f) {
-                return;  // Visually perfect, don't touch
+                return;  // Visually perfect, don't touch position
             }
 
             // Only reconcile when error exceeds threshold (use same threshold regardless of movement state)
@@ -39,11 +43,6 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                 it->second.prevX = it->second.x;
                 it->second.prevY = it->second.y;
 
-                // EXPONENTIAL SMOOTHING (DECAY) instead of linear snap
-                float blendFactor = 0.5f;  // Default blend
-                if (_reconciliationThreshold > 10.0f)
-                    blendFactor = 0.2f;  // High ping -> Slow blend
-
                 it->second.targetX = x;  // Server says X
                 it->second.targetY = y;  // Server says Y
 
@@ -52,8 +51,9 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
 
                 // Log ALL corrections for debugging
                 LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px (moving=", isMoving,
-                          " threshold=", _reconciliationThreshold, " blend=", blendFactor, ")");
-            }  // Otherwise keep predicted position - client knows best!
+                          " threshold=", _reconciliationThreshold, ")");
+            }
+            // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled) {
             // INTERPOLATION for other entities
             it->second.prevX = it->second.x;
@@ -66,9 +66,6 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.x = x;
             it->second.y = y;
         }
-        // Always update type and health
-        it->second.type = type;
-        it->second.health = health;
     } else {
         // Create new entity - initialize with immediate position (no interpolation for first frame)
         _entities[id] = {

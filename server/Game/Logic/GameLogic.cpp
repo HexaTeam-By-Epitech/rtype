@@ -227,8 +227,9 @@ namespace server {
 
         // Filter duplicates (redundant inputs)
         // If we have already processed this sequence ID or a newer one, ignore it.
-        if (_lastProcessedSequenceId.contains(playerId)) {
-            if (sequenceId <= _lastProcessedSequenceId[playerId]) {
+        auto it = _lastProcessedSequenceId.find(playerId);
+        if (it != _lastProcessedSequenceId.end()) {
+            if (sequenceId <= it->second) {
                 return;  // Already processed
             }
         }
@@ -263,7 +264,7 @@ namespace server {
             for (size_t i = 0; i < inputsToProcess && !inputs.empty(); ++i) {
                 const auto &input = inputs.front();
                 _applyPlayerInput(playerId, input);
-                inputs.erase(inputs.begin());
+                inputs.pop_front();
             }
         }
     }
@@ -290,8 +291,8 @@ namespace server {
             // If no input (0, 0), stop the player completely
             if (input.inputX == 0 && input.inputY == 0) {
                 vel.setDirection(0.0f, 0.0f);
-                // Debug log throttled
-                static uint32_t stopLogCount = 0;
+                // Debug log throttled (thread-local to avoid races)
+                thread_local uint32_t stopLogCount = 0;
                 if (++stopLogCount % 60 == 0) {
                     LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
                 }
@@ -309,7 +310,7 @@ namespace server {
 
                 vel.setDirection(dirX, dirY);
                 // Debug log throttled
-                static uint32_t moveLogCount = 0;
+                thread_local uint32_t moveLogCount = 0;
                 if (++moveLogCount % 60 == 0) {
                     LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ")");
                 }

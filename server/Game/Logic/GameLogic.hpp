@@ -8,6 +8,7 @@
 #pragma once
 
 #include <atomic>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -74,6 +75,7 @@ namespace server {
                                 uint32_t sequenceId) override;
 
         uint32_t getLastProcessedInput(uint32_t playerId) const override {
+            std::lock_guard<std::mutex> lock(_inputMutex);
             auto it = _lastProcessedSequenceId.find(playerId);
             return (it != _lastProcessedSequenceId.end()) ? it->second : 0;
         }
@@ -148,7 +150,8 @@ namespace server {
         void _applyPlayerInput(uint32_t playerId, const PlayerInput &input);
 
         // Per-player input queue (FIFO)
-        std::unordered_map<uint32_t, std::vector<PlayerInput>> _pendingInput;
+        // Use deque for efficient front removal
+        std::unordered_map<uint32_t, std::deque<PlayerInput>> _pendingInput;
 
         // Last processed input sequence ID per player (for redundancy)
         std::unordered_map<uint32_t, uint32_t> _lastProcessedSequenceId;
@@ -161,8 +164,8 @@ namespace server {
         std::atomic<bool> _initialized{false};
 
         // Thread synchronization
-        std::mutex _inputMutex;   // Protects _pendingInput
-        std::mutex _playerMutex;  // Protects _playerMap
+        mutable std::mutex _inputMutex;  // Protects _pendingInput
+        std::mutex _playerMutex;         // Protects _playerMap
 
         // Game rules
         GameRules _gameRules;

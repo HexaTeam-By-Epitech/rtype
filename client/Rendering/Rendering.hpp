@@ -195,11 +195,15 @@ class Rendering {
      * @param y World position Y
      * @param health Current health (-1 if not applicable)
      * @param currentAnimation Current animation clip name
+     * @param srcX Sprite source X on spritesheet
+     * @param srcY Sprite source Y on spritesheet  
+     * @param srcW Sprite width
+     * @param srcH Sprite height
      * 
      * Delegates to EntityRenderer. Call when receiving GameState updates.
      */
     void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
-                      const std::string &currentAnimation);
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
 
     /**
      * @brief Remove an entity from rendering

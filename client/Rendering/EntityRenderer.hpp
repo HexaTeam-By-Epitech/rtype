@@ -60,6 +60,7 @@ class EntityRenderer {
         int spriteSizeY;                           ///< Sprite sheet size Y
         int offsetX;                               ///< Sprite offset X for rendering
         int offsetY;                               ///< Sprite offset Y for rendering
+        float scale;                               ///< Sprite scale multiplier
         std::vector<int>
             animationFrameIndices;  ///< Animation frame sequence (sprite indices to allow freedom of picking frames manually)
         int currentFrame;  ///< Current animation frame
@@ -95,7 +96,7 @@ class EntityRenderer {
          * message is received from the server.
          */
     void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
-                      const std::string &currentAnimation);
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
 
     /**
          * @brief Update or create an entity without animation (backwards compatibility)

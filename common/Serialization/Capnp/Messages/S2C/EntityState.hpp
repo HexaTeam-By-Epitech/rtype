@@ -27,8 +27,19 @@ namespace RType::Messages::S2C {
         Shared::Vec2 position;
         std::optional<int32_t> health;
         std::string currentAnimation;
+        int32_t spriteX;
+        int32_t spriteY;
+        int32_t spriteW;
+        int32_t spriteH;
 
-        EntityState() : entityId(0), type(Shared::EntityType::Player), currentAnimation("idle") {}
+        EntityState()
+            : entityId(0),
+              type(Shared::EntityType::Player),
+              currentAnimation("idle"),
+              spriteX(0),
+              spriteY(0),
+              spriteW(33),
+              spriteH(17) {}
 
         void toCapnp(::EntityState::Builder builder) const {
             builder.setEntityId(entityId);
@@ -39,6 +50,10 @@ namespace RType::Messages::S2C {
 
             builder.setHealth(health.value_or(-1));
             builder.setCurrentAnimation(currentAnimation);
+            builder.setSpriteX(spriteX);
+            builder.setSpriteY(spriteY);
+            builder.setSpriteW(spriteW);
+            builder.setSpriteH(spriteH);
         }
 
         static EntityState fromCapnp(::EntityState::Reader reader) {
@@ -53,7 +68,10 @@ namespace RType::Messages::S2C {
             }
 
             result.currentAnimation = reader.getCurrentAnimation();
-
+            result.spriteX = reader.getSpriteX();
+            result.spriteY = reader.getSpriteY();
+            result.spriteW = reader.getSpriteW();
+            result.spriteH = reader.getSpriteH();
             return result;
         }
     };

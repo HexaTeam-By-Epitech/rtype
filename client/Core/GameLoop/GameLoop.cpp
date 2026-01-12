@@ -53,6 +53,19 @@ void GameLoop::run() {
 
     _rendering->Initialize(800, 600, "R-Type Client");
 
+    // Load sprite sheets
+    LOG_INFO("Loading sprite sheets...");
+    if (!_rendering->LoadTexture("r-typesheet1.gif", "assets/sprites/r-typesheet1.gif")) {
+        LOG_WARNING("Failed to load r-typesheet1.gif");
+    } else {
+        LOG_INFO("✓ Loaded r-typesheet1.gif (player ship)");
+    }
+    if (!_rendering->LoadTexture("r-typesheet2.gif", "assets/sprites/r-typesheet2.gif")) {
+        LOG_WARNING("Failed to load r-typesheet2.gif");
+    } else {
+        LOG_INFO("✓ Loaded r-typesheet2.gif (enemies)");
+    }
+
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {
         LOG_INFO("Applying stored local player entity ID: ", _myEntityId.value());
@@ -292,7 +305,8 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
                 if (_rendering) {
                     _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x,
                                              entity.position.y, entity.health.value_or(-1),
-                                             entity.currentAnimation);
+                                             entity.currentAnimation, entity.spriteX, entity.spriteY,
+                                             entity.spriteW, entity.spriteH);
                 }
             }
 
@@ -310,7 +324,8 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
 
             for (const auto &entity : gameState.entities) {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1), entity.currentAnimation);
+                                         entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
+                                         entity.spriteY, entity.spriteW, entity.spriteH);
             }
 
             static uint32_t logCounter = 0;

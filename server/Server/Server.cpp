@@ -17,6 +17,7 @@
 #include "common/ECS/Components/IComponent.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
@@ -492,6 +493,22 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
         entityState.currentAnimation = entity.get<ecs::Animation>().getCurrentClipName();
     } else {
         entityState.currentAnimation = "idle";  // Default fallback
+    }
+
+    // Get sprite info if available
+    if (entity.has<ecs::Sprite>()) {
+        ecs::Sprite &sprite = entity.get<ecs::Sprite>();
+        const auto &rect = sprite.getSourceRect();
+        entityState.spriteX = rect.x;
+        entityState.spriteY = rect.y;
+        entityState.spriteW = rect.width;
+        entityState.spriteH = rect.height;
+    } else {
+        // Default sprite coords (player ship)
+        entityState.spriteX = 0;
+        entityState.spriteY = 0;
+        entityState.spriteW = 33;
+        entityState.spriteH = 17;
     }
 
     // Determine entity type and get health

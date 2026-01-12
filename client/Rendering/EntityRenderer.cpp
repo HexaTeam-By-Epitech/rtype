@@ -14,7 +14,8 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 }
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                                  int health, const std::string &currentAnimation) {
+                                  int health, const std::string &currentAnimation, int srcX, int srcY,
+                                  int srcW, int srcH) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
@@ -46,23 +47,25 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.x = x;
             it->second.y = y;
         }
-        // Always update type and health
+        // Always update type, health, and sprite coords
         it->second.type = type;
         it->second.health = health;
-
-        // TODO: Update animation from currentAnimation parameter when ECS rendering is ready
-        // For now, animation is not used (still using legacy colored rectangles)
+        it->second.startPixelX = srcX;
+        it->second.startPixelY = srcY;
+        it->second.spriteSizeX = srcW;
+        it->second.spriteSizeY = srcH;
     } else {
-        // Create new entity - initialize with immediate position (no interpolation for first frame)
-        _entities[id] = {id, type, x, y, health, x, y, x, y, 1.0f};
-        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y, ")");
+        // Create new entity with sprite values from server
+        _entities[id] = {id, type, x, y, health, x, y, x, y, 1.0f, srcX, srcY, srcW, srcH, 0, 0, 3.0f, {}, 0};
+        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y,
+                  ") sprite(", srcX, ",", srcY, ",", srcW, ",", srcH, ")");
     }
 }
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                                   int health) {
-    // Backwards compatibility - call with default animation
-    updateEntity(id, type, x, y, health, "idle");
+    // Backwards compatibility - call with default animation and sprite
+    updateEntity(id, type, x, y, health, "idle", 0, 0, 33, 17);
 }
 
 void EntityRenderer::removeEntity(uint32_t id) {
@@ -117,18 +120,30 @@ void EntityRenderer::render() {
 }
 
 void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPlayer) {
-    // Visual differentiation: local player is green, others are blue
-    // TODO: Replace with actual sprite loading when assets are ready
-    // Example: _graphics.DrawTextureEx("player_ship", ...)
+    // Draw player sprite with animation
+    // R-Type player ship sprites are in the top-left area of r-typesheet1
 
-    // Placeholder: Draw colored rectangle
-    // Green for local player (0x00FF00FF), Blue for others (0x0080FFFF)
-    uint32_t color = isLocalPlayer ? 0x00FF00FF : 0x0080FFFF;
+    // Source rectangle on the sprite sheet (frame from animation)
+    int srcX = entity.startPixelX;
+    int srcY = entity.startPixelY;
+    int srcWidth = entity.spriteSizeX > 0 ? entity.spriteSizeX : 33;
+    int srcHeight = entity.spriteSizeY > 0 ? entity.spriteSizeY : 17;
 
-    // Draw a 32x32 rectangle centered on entity position
-    float halfSize = 16.0f;
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 32,
-                             32, color);
+    // Scale up 3x for better visibility
+    float scale = entity.scale > 0.0f ? entity.scale : 3.0f;
+
+    // Visual differentiation: tint green for local player
+    uint32_t tint = isLocalPlayer ? 0xAAFFAAFF : 0xFFFFFFFF;
+
+    // DEBUG: Log once per second
+    static int frameCount = 0;
+    if (++frameCount % 60 == 0) {
+        LOG_DEBUG("Rendering player: sprite(", srcX, ",", srcY, ",", srcWidth, ",", srcHeight,
+                  ") scale=", scale, " at (", entity.x, ",", entity.y, ")");
+    }
+    _graphics.DrawTextureEx("r-typesheet1.gif", srcX, srcY, srcWidth, srcHeight,
+                            entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
+                            scale, tint);
 
     // Render health bar if entity has health
     if (entity.health > 0) {

@@ -31,16 +31,24 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                 // ALWAYS interpolate corrections to avoid visible snapping
                 it->second.prevX = it->second.x;
                 it->second.prevY = it->second.y;
-                it->second.targetX = x;
-                it->second.targetY = y;
+
+                // EXPONENTIAL SMOOTHING (DECAY) instead of linear snap
+                // We don't just snap targetX to x. We blend them.
+                // The higher the threshold (high ping), the softer we blend.
+                float blendFactor = 0.5f;  // Default blend
+                if (_reconciliationThreshold > 10.0f)
+                    blendFactor = 0.2f;  // High ping -> Slow blend
+
+                it->second.targetX = x;  // Server says X
+                it->second.targetY = y;  // Server says Y
+
+                // We keep interpolationFactor low to allow the slide to happen
                 it->second.interpolationFactor = 0.0f;
 
                 // Log ALL corrections for debugging
                 LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px (moving=", isMoving,
-                          " threshold=", _reconciliationThreshold, " from=(", it->second.x, ",", it->second.y,
-                          ") to=(", x, ",", y, ")");
-            }
-            // Otherwise keep predicted position - client knows best!
+                          " threshold=", _reconciliationThreshold, " blend=", blendFactor, ")");
+            }  // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled) {
             // INTERPOLATION for other entities
             it->second.prevX = it->second.x;

@@ -144,10 +144,20 @@ void GameLoop::update(float deltaTime) {
     if (_rendering && _rendering->IsWindowOpen()) {
         _rendering->UpdateInterpolation(deltaTime);
 
-        // Update ping display from Replicator (throttled to once per second internally)
+        // Update ping display and adaptive reconciliation
         if (_replicator != nullptr) {
             const uint32_t currentPing = _replicator->getLatency();
             _rendering->SetPing(currentPing);
+
+            // ADAPTIVE RECONCILIATION THRESHOLD
+            // Base threshold: 3.0px (tight)
+            // Penalty: +0.2px per ms of ping
+            // Max: 20.0px (very loose)
+            float adaptiveThreshold = 3.0f + (static_cast<float>(currentPing) * _playerSpeed * 0.002f);
+            if (adaptiveThreshold > 20.0f)
+                adaptiveThreshold = 20.0f;
+
+            _rendering->SetReconciliationThreshold(adaptiveThreshold);
         }
 
         // Update ping display timer (throttles updates to 1 second)

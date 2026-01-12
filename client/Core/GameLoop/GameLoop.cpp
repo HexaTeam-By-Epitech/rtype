@@ -222,8 +222,12 @@ void GameLoop::processInput() {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
     }
 
+    // Update movement state based on input
+    _isMoving = (dx != 0 || dy != 0);
+
     // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
-    if (_myEntityId.has_value() && _clientSidePredictionEnabled && (dx != 0 || dy != 0)) {
+    // Only predict if entity is initialized (prevents moving before spawn)
+    if (_myEntityId.has_value() && _entityInitialized && _clientSidePredictionEnabled && _isMoving) {
         float moveX = static_cast<float>(dx);
         float moveY = static_cast<float>(dy);
 
@@ -243,24 +247,37 @@ void GameLoop::processInput() {
         return;
     }
 
-    RType::Messages::C2S::PlayerInput input;
-    input._sequenceId = _inputSequenceId++;
-    input.actions = actions;
+    // Create current snapshot
+    RType::Messages::C2S::PlayerInput::InputSnapshot currentSnapshot;
+    currentSnapshot.sequenceId = _inputSequenceId++;
+    currentSnapshot.actions = actions;
+
+    // Add to history
+    _inputHistory.push_front(currentSnapshot);
+    if (_inputHistory.size() > INPUT_HISTORY_SIZE) {
+        _inputHistory.pop_back();
+    }
+
+    // Create packet with full history (redundancy)
+    // Convert deque to vector for the message constructor
+    std::vector<RType::Messages::C2S::PlayerInput::InputSnapshot> historyVector(_inputHistory.begin(),
+                                                                                _inputHistory.end());
+
+    RType::Messages::C2S::PlayerInput inputPacket(historyVector);
 
     // Serialize and wrap in network message
-    std::vector<uint8_t> payload = input.serialize();
+    std::vector<uint8_t> payload = inputPacket.serialize();
     std::vector<uint8_t> packet =
         NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_PLAYER_INPUT, payload);
 
     // Send to server (packet already contains type, so pass empty type)
     _replicator->sendPacket(static_cast<NetworkMessageType>(0), packet);
 
-    // Log occasionally for debugging (only when there are actions)
-    if (!actions.empty()) {
-        static uint32_t logCounter = 0;
-        if (++logCounter % 60 == 0) {
-            LOG_DEBUG("Sent input seq=", input._sequenceId, " actions=", actions.size());
-        }
+    // Log ALL inputs for debugging (not just non-empty)
+    static uint32_t logCounter = 0;
+    if (++logCounter % 60 == 0) {
+        LOG_DEBUG("[INPUT] Sent seq=", currentSnapshot.sequenceId, " actions=", actions.size(), " (",
+                  (dx != 0 || dy != 0 ? "MOVING" : "STOPPED"), ") + history=", _inputHistory.size());
     }
 }
 
@@ -292,6 +309,7 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
                 if (entity.entityId == gameStart.yourEntityId) {
                     // Store the local player's entity ID
                     _myEntityId = entity.entityId;
+                    _entityInitialized = true;  // Mark as initialized - prediction can now start!
                     LOG_INFO("✓ Stored local player entity ID: ", entity.entityId);
 
                     // Set it in the renderer if initialized
@@ -303,7 +321,7 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
                 // Update entity in renderer (if initialized)
                 if (_rendering) {
                     _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x,
-                                             entity.position.y, entity.health.value_or(-1));
+                                             entity.position.y, entity.health.value_or(-1), false);
                 }
             }
 
@@ -320,8 +338,10 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
             auto gameState = RType::Messages::S2C::GameState::deserialize(payload);
 
             for (const auto &entity : gameState.entities) {
+                // Pass movement state for local player, false for others
+                bool entityIsMoving = (entity.entityId == _myEntityId.value_or(0)) ? _isMoving : false;
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1));
+                                         entity.health.value_or(-1), entityIsMoving);
             }
 
             static uint32_t logCounter = 0;

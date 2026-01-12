@@ -226,36 +226,77 @@ namespace server {
         }
     }
 
-    void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) {
+    void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting,
+                                       uint32_t sequenceId) {
         std::scoped_lock lock(_inputMutex);
-        _pendingInput.push_back({playerId, inputX, inputY, isShooting});
+
+        // Filter duplicates (redundant inputs)
+        // If we have already processed this sequence ID or a newer one, ignore it.
+        if (_lastProcessedSequenceId.contains(playerId)) {
+            if (sequenceId <= _lastProcessedSequenceId[playerId]) {
+                return;  // Already processed
+            }
+        }
+
+        // Update the last "seen" sequence ID.
+        // Note: We update it here to prevent re-queueing the same ID from the same packet or subsequent packets.
+        // The actual simulation logic (_processInput) will consume it.
+        // Wait: If we receive packets out of order (e.g. 100, then 99), we should ignore 99.
+        // But if we receive a redundant batch [100, 99, 98], we process 100 and ignore 99, 98.
+        // This logic holds.
+        _lastProcessedSequenceId[playerId] = sequenceId;
+
+        // Add to queue
+        _pendingInput[playerId].push_back({playerId, inputX, inputY, isShooting, sequenceId});
+
+        // Sort the queue by sequence ID just in case (though usually unnecessary if redundant packets arrive in order)
+        // Actually, since we only process NEW sequence IDs, and we assume we receive mostly in order or redundant batches,
+        // we might not need sorting if we just trust the increasing ID.
+        // But for safety against out-of-order UDP packets arriving oddly:
+        // We might want to buffer inputs and only process them in strict order.
+        // However, with the redundancy strategy (receiving 100, 99, 98), we just take the new ones.
     }
 
     void GameLogic::_processInput() {
-        // Move pending input to local copy under lock to minimize lock time
-        std::vector<PlayerInput> inputCopy;
-        {
-            std::scoped_lock lock(_inputMutex);
-            inputCopy = std::move(_pendingInput);
-            // _pendingInput is now in a valid but unspecified state (typically empty)
-            // No need to explicitly clear after move
-        }
+        std::scoped_lock lock(_inputMutex);
 
-        for (const auto &input : inputCopy) {
-            auto it = _playerMap.find(input.playerId);
+        for (auto &[playerId, inputs] : _pendingInput) {
+            if (inputs.empty()) {
+                continue;
+            }
+
+            // Process exactly ONE input per player per tick to ensure smooth movement history
+            // regardless of network batching
+            const auto &input = inputs.front();
+
+            auto it = _playerMap.find(playerId);
             if (it == _playerMap.end()) {
-                continue;  // Player not found, skip
+                inputs.erase(inputs.begin());
+                continue;
             }
 
             ecs::Address playerEntity = it->second;
             try {
-                // Get entity wrapper and update velocity
+                // Get entity wrapper and check if it still exists
                 ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
+
+                // Check if entity has Velocity component (entity might be destroyed)
+                if (!entity.has<ecs::Velocity>()) {
+                    LOG_WARNING("Player ", playerId, " entity has no Velocity component (entity destroyed?)");
+                    inputs.erase(inputs.begin());
+                    continue;  // Skip this input
+                }
+
                 ecs::Velocity &vel = entity.get<ecs::Velocity>();
 
                 // If no input (0, 0), stop the player completely
                 if (input.inputX == 0 && input.inputY == 0) {
                     vel.setDirection(0.0f, 0.0f);
+                    // Debug log throttled
+                    static uint32_t stopLogCount = 0;
+                    if (++stopLogCount % 60 == 0) {
+                        LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
+                    }
                 } else {
                     // Normalize diagonal movement
                     float dirX = static_cast<float>(input.inputX);
@@ -269,21 +310,23 @@ namespace server {
                     }
 
                     vel.setDirection(dirX, dirY);
+                    // Debug log throttled
+                    static uint32_t moveLogCount = 0;
+                    if (++moveLogCount % 60 == 0) {
+                        LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ")");
+                    }
                 }
-
-                // Debug: log processed input once per message (only when there's movement)
-                // if (input.inputX != 0 || input.inputY != 0) {
-                //     LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
-                //               input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
-                // }
 
                 // Handle shooting
                 if (input.isShooting) {
                     // Weapon system will handle actual projectile creation
                 }
             } catch (const std::exception &e) {
-                LOG_ERROR("Error processing input for player ", input.playerId, ": ", e.what());
+                LOG_ERROR("Error processing input for player ", playerId, ": ", e.what());
             }
+
+            // Remove the processed input
+            inputs.erase(inputs.begin());
         }
     }
 

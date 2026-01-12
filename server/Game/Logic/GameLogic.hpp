@@ -70,7 +70,8 @@ namespace server {
         void update(float deltaTime, uint32_t currentTick) override;
         uint32_t spawnPlayer(uint32_t playerId, const std::string &playerName) override;
         void despawnPlayer(uint32_t playerId) override;
-        void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) override;
+        void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting,
+                                uint32_t sequenceId) override;
 
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
         bool isGameActive() const override { return _gameActive; }
@@ -131,8 +132,13 @@ namespace server {
             int inputX;
             int inputY;
             bool isShooting;
+            uint32_t sequenceId;
         };
-        std::vector<PlayerInput> _pendingInput;
+        // Per-player input queue (FIFO)
+        std::unordered_map<uint32_t, std::vector<PlayerInput>> _pendingInput;
+
+        // Last processed input sequence ID per player (for redundancy)
+        std::unordered_map<uint32_t, uint32_t> _lastProcessedSequenceId;
 
         // Game state
         std::shared_ptr<GameStateManager> _stateManager;

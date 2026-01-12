@@ -14,26 +14,33 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 }
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                                  int health) {
+                                  int health, bool isMoving) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
 
         if (isLocalPlayer && _clientSidePredictionEnabled) {
-            // CLIENT-SIDE PREDICTION for local player
+            // CLIENT-SIDE PREDICTION for local player (pro-style dead reckoning)
             float errorX = x - it->second.x;
             float errorY = y - it->second.y;
             float errorDistance = std::sqrt(errorX * errorX + errorY * errorY);
 
-            // If server correction is significant, reconcile smoothly
+            // Only reconcile when error exceeds threshold (use same threshold regardless of movement state)
             if (errorDistance > _reconciliationThreshold) {
+                // Significant desync detected - smooth correction needed
+                // ALWAYS interpolate corrections to avoid visible snapping
                 it->second.prevX = it->second.x;
                 it->second.prevY = it->second.y;
                 it->second.targetX = x;
                 it->second.targetY = y;
                 it->second.interpolationFactor = 0.0f;
+
+                // Log ALL corrections for debugging
+                LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px (moving=", isMoving,
+                          " threshold=", _reconciliationThreshold, " from=(", it->second.x, ",", it->second.y,
+                          ") to=(", x, ",", y, ")");
             }
-            // Otherwise keep predicted position (no snap)
+            // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled) {
             // INTERPOLATION for other entities
             it->second.prevX = it->second.x;
@@ -259,14 +266,20 @@ void EntityRenderer::moveEntityLocally(uint32_t entityId, float deltaX, float de
         return;  // Entity doesn't exist
     }
 
-    // Apply movement immediately
+    // Apply movement immediately to current position (prediction)
     it->second.x += deltaX;
     it->second.y += deltaY;
 
-    // Update target to match (no interpolation for predicted movement)
-    it->second.targetX = it->second.x;
-    it->second.targetY = it->second.y;
-    it->second.interpolationFactor = 1.0f;  // Already at target
+    // Also shift the interpolation targets/anchors so we don't fight the reconciliation
+    // This allows the smooth correction to continue RELATIVE to the moving frame of reference
+    it->second.targetX += deltaX;
+    it->second.targetY += deltaY;
+    it->second.prevX += deltaX;
+    it->second.prevY += deltaY;
+
+    // Do NOT reset interpolationFactor.
+    // If we are reconciling (factor < 1.0), let it continue.
+    // If we are stable (factor = 1.0), it stays 1.0.
 }
 
 float EntityRenderer::lerp(float start, float end, float t) const {

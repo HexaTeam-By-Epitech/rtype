@@ -269,49 +269,59 @@ void Server::_handlePlayerInput(HostNetworkEvent &event) {
     using namespace RType::Messages;
 
     std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
-    C2S::PlayerInput input = C2S::PlayerInput::deserialize(payload);
 
-    // Process each action in the input
-    int dx = 0;
-    int dy = 0;
-    bool shoot = false;
+    try {
+        C2S::PlayerInput packet = C2S::PlayerInput::deserialize(payload);
 
-    for (const auto &action : input.actions) {
-        int actionDx = 0;
-        int actionDy = 0;
-        bool actionShoot = false;
-        _actionToInput(action, actionDx, actionDy, actionShoot);
-        dx += actionDx;
-        dy += actionDy;
-        shoot = shoot || actionShoot;
-    }
-
-    // Find session from peer using fast reverse lookup
-    uint32_t playerId = 0;
-    bool isSpectator = false;
-    auto it = _peerToSession.find(event.peer);
-    if (it != _peerToSession.end()) {
-        std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
-        if (session) {
-            playerId = session->getPlayerId();
-            isSpectator = session->isSpectator();
-        }
-    }
-
-    // Spectators cannot send inputs
-    if (isSpectator) {
-        return;
-    }
-
-    if (playerId != 0) {
-        // Find which room the player is in
-        std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
-        if (playerRoom) {
-            std::shared_ptr<server::IGameLogic> gameLogic = playerRoom->getGameLogic();
-            if (gameLogic) {
-                gameLogic->processPlayerInput(playerId, dx, dy, shoot);
+        // Find session from peer using fast reverse lookup
+        uint32_t playerId = 0;
+        bool isSpectator = false;
+        auto it = _peerToSession.find(event.peer);
+        if (it != _peerToSession.end()) {
+            std::shared_ptr<server::Session> session = _sessionManager->getSession(it->second);
+            if (session) {
+                playerId = session->getPlayerId();
+                isSpectator = session->isSpectator();
             }
         }
+
+        // Spectators cannot send inputs
+        if (isSpectator || playerId == 0) {
+            return;
+        }
+
+        std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
+        if (!playerRoom) {
+            return;
+        }
+
+        std::shared_ptr<server::IGameLogic> gameLogic = playerRoom->getGameLogic();
+        if (!gameLogic) {
+            return;
+        }
+
+        // Iterate through all snapshots in the redundant packet
+        // The packet contains a history of inputs. We try to apply all of them.
+        // GameLogic::processPlayerInput has a filter to ignore already processed sequence IDs.
+        for (const auto &snapshot : packet.inputs) {
+            int dx = 0;
+            int dy = 0;
+            bool shoot = false;
+
+            for (const auto &action : snapshot.actions) {
+                int actionDx = 0;
+                int actionDy = 0;
+                bool actionShoot = false;
+                _actionToInput(action, actionDx, actionDy, actionShoot);
+                dx += actionDx;
+                dy += actionDy;
+                shoot = shoot || actionShoot;
+            }
+
+            gameLogic->processPlayerInput(playerId, dx, dy, shoot, snapshot.sequenceId);
+        }
+    } catch (const std::exception &e) {
+        LOG_WARNING("Failed to deserialize input packet: ", e.what());
     }
 }
 

@@ -6,6 +6,7 @@
 */
 
 #include "Menu/WaitingRoomMenu.hpp"
+#include <cstring>
 #include <sstream>
 #include "../common/Logger/Logger.hpp"
 

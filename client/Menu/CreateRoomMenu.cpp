@@ -6,6 +6,7 @@
 */
 
 #include "Menu/CreateRoomMenu.hpp"
+#include <cstring>
 #include "../common/Logger/Logger.hpp"
 
 namespace Game {

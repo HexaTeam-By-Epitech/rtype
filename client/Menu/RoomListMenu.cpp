@@ -6,6 +6,7 @@
 */
 
 #include "Menu/RoomListMenu.hpp"
+#include <cstring>
 #include <sstream>
 #include "../common/Logger/Logger.hpp"
 

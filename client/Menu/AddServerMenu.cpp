@@ -6,6 +6,7 @@
 */
 
 #include "Menu/AddServerMenu.hpp"
+#include <cstring>
 #include <regex>
 #include <sstream>
 #include "../common/Logger/Logger.hpp"

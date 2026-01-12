@@ -8,7 +8,10 @@
 #include "ServerGameBindings.hpp"
 #include <cstdlib>
 #include <ctime>
+#include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/LuaScript.hpp"
+#include "common/ECS/Components/Spawner.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/Logger/Logger.hpp"
@@ -90,6 +93,38 @@ namespace scripting::bindings {
             result["x"] = x / length;
             result["y"] = y / length;
             return result;
+        });
+
+        // Queue a spawn request through a Spawner entity
+        // Usage: queueSpawn(spawnerEntity, x, y, type, scriptPath, health, scoreValue)
+        lua.set_function("queueSpawn", [world](ecs::wrapper::Entity spawner, float x, float y,
+                                               const std::string &enemyType, const std::string &scriptPath,
+                                               float health, int scoreValue) {
+            try {
+                if (!world) {
+                    LOG_ERROR("[LUA] queueSpawn: world is null");
+                    return;
+                }
+
+                if (!spawner.isValid()) {
+                    LOG_WARNING("[LUA] Cannot queue spawn: invalid spawner entity (address: ",
+                                spawner.getAddress(), ")");
+                    return;
+                }
+
+                if (!spawner.has<ecs::Spawner>()) {
+                    LOG_WARNING("[LUA] Entity (", spawner.getAddress(), ") does not have Spawner component");
+                    return;
+                }
+
+                ecs::Spawner &spawnerComp = spawner.get<ecs::Spawner>();
+                ecs::SpawnRequest request{x, y, enemyType, scriptPath, health, scoreValue};
+                spawnerComp.queueSpawn(request);
+
+                LOG_DEBUG("[LUA] Queued spawn for ", enemyType, " at (", x, ", ", y, ")");
+            } catch (const std::exception &e) {
+                LOG_ERROR("[LUA] queueSpawn exception: ", e.what());
+            }
         });
 
         LOG_INFO("Server game bindings initialized");

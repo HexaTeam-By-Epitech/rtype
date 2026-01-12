@@ -744,14 +744,38 @@ void Server::_broadcastGameState() {
         S2C::GameState state;
         state.serverTick = roomLoop->getCurrentTick();
 
-        // Use helper to serialize entities
-        std::shared_ptr<server::IGameLogic> gameLogic = room->getGameLogic();
-        state.entities = _serializeEntities(ecsWorld, gameLogic.get());
+        // Get all entities with Transform component
+        auto entities = ecsWorld->query<ecs::Transform>();
+
+        LOG_DEBUG("[BroadcastGameState] Room '", room->getId(), "' - Found ", entities.size(),
+                  " entities with Transform");
+
+        // Serialize each entity's state
+        for (auto &entity : entities) {
+            try {
+                S2C::EntityState entityState = _serializeEntity(entity);
+                state.entities.push_back(entityState);
+            } catch (const std::exception &e) {
+                LOG_ERROR("Failed to serialize entity: ", e.what());
+                continue;
+            }
+        }
 
         // Serialize and create packet
         std::vector<uint8_t> payload = state.serialize();
         std::vector<uint8_t> packet =
             NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
+
+        // Log detailed entity information (every 10 frames to avoid spam)
+        static uint32_t logCounter = 0;
+        if (++logCounter % 10 == 0 && !state.entities.empty()) {
+            LOG_INFO("[GameState] Tick ", state.serverTick, " - Broadcasting ", state.entities.size(),
+                     " entities");
+            for (const auto &e : state.entities) {
+                LOG_DEBUG("  Entity ", e.entityId, ": Type=", static_cast<int>(e.type), " Pos=(",
+                          e.position.x, ",", e.position.y, ") Health=", e.health.value_or(-1));
+            }
+        }
 
         // Broadcast to both players and spectators in this room
         auto players = room->getPlayers();

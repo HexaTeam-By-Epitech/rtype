@@ -19,6 +19,7 @@
 #include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Spawner.hpp"
 #include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
@@ -125,17 +126,8 @@ namespace server {
             LOG_INFO("✓ GameStateManager initialized with 3 states");
 
             // 🧪 TEST: Spawn a test enemy with Lua script
-
-            LOG_INFO("🧪 Spawning test enemy with Lua script...");
-
-            _world->createEntity()
-                .with(ecs::Transform(600.0f, 300.0f))
-                .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
-                .with(ecs::Health(100, 100))
-                .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
-                .with(ecs::LuaScript("test_movement.lua"));
-
-            LOG_INFO("✓ Test enemy spawned at (600, 300) with script: test_movement.lua");
+            LOG_INFO("🧪 Spawning test with Lua script...");
+            _world->createEntity().with(ecs::Spawner()).with(ecs::LuaScript("wave_manager.lua"));
 
             _gameActive = true;
 
@@ -360,8 +352,8 @@ namespace server {
         // Group 3: Depends on collision results
         std::vector<std::string> group3 = {"HealthSystem", "ProjectileSystem"};
 
-        // Group 4: AI, spawning, and scripting (can run in parallel)
-        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem", "Lua"};
+        // Group 4: AI, spawning, and weapons (can run in parallel)
+        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {
@@ -388,6 +380,9 @@ namespace server {
         executeGroup(group2);
         executeGroup(group3);
         executeGroup(group4);
+
+        // Execute Lua system SEQUENTIALLY after all other systems to avoid registry concurrency issues
+        _world->updateSystem("Lua", deltaTime);
     }
 
     void GameLogic::_cleanupDeadEntities() {

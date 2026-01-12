@@ -68,6 +68,7 @@ namespace NetworkMessages {
         C2S_LIST_ROOMS = 0x0300,
         C2S_CREATE_ROOM = 0x0301,
         C2S_JOIN_ROOM = 0x0302,
+        C2S_LEAVE_ROOM = 0x0306,
         C2S_START_MATCHMAKING = 0x0303,
         C2S_CANCEL_MATCHMAKING = 0x0304,
         C2S_START_GAME = 0x0305,
@@ -85,6 +86,7 @@ namespace NetworkMessages {
         S2C_JOINED_ROOM = 0x0402,
         S2C_MATCHMAKING_STARTED = 0x0403,
         S2C_MATCH_FOUND = 0x0404,
+        S2C_ROOM_STATE = 0x0405,
 
         UNKNOWN = 0xFFFF
     };

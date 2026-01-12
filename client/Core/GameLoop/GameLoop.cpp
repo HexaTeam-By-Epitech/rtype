@@ -60,9 +60,8 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
             LOG_INFO("[GameLoop] Joining room: ", roomId);
             _replicator->sendJoinRoom(roomId);
 
-            // Wait a bit for join confirmation
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            _replicator->sendStartGame();
+            // Wait for S2C_ROOM_STATE from server with player list
+            // No need for mock data anymore
         }
     } else if (event.getType() == UIEventType::CREATE_ROOM) {
         LOG_INFO("[GameLoop] Create room requested by UI");
@@ -81,6 +80,9 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
                          ", Private: ", isPrivate, ")");
                 _replicator->sendCreateRoom(roomName, maxPlayers, isPrivate);
 
+                // Mark that we just created a room, so we know we're the host when RoomState comes back
+                _justCreatedRoom = true;
+
                 // Request room list after creation (with small delay)
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 // TODO: Request room list
@@ -90,6 +92,17 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
         LOG_INFO("[GameLoop] Room list requested by UI");
         if (_replicator) {
             _replicator->sendRequestRoomList();
+        }
+    } else if (event.getType() == UIEventType::START_GAME_REQUEST) {
+        LOG_INFO("[GameLoop] Host requesting game start");
+        if (_replicator) {
+            _replicator->sendStartGame();
+        }
+    } else if (event.getType() == UIEventType::LEAVE_ROOM) {
+        LOG_INFO("[GameLoop] Player leaving room");
+        _justCreatedRoom = false;  // Reset host flag when leaving
+        if (_replicator) {
+            _replicator->sendLeaveRoom();
         }
     } else if (event.getType() == UIEventType::QUIT_GAME) {
         stop();
@@ -372,6 +385,9 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
         case NetworkMessages::MessageType::S2C_ROOM_LIST:
             handleRoomList(payload);
             break;
+        case NetworkMessages::MessageType::S2C_ROOM_STATE:
+            handleRoomState(payload);
+            break;
         default:
             break;
     }
@@ -379,6 +395,12 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
 
 void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
     LOG_INFO("GameStart message received");
+
+    // Hide waiting room and start game
+    if (_rendering) {
+        _rendering->StartGame();
+    }
+
     try {
         auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
         LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
@@ -433,6 +455,48 @@ void GameLoop::handleRoomList(const std::vector<uint8_t> &payload) {
 
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse RoomList: ", e.what());
+    }
+}
+
+void GameLoop::handleRoomState(const std::vector<uint8_t> &payload) {
+    try {
+        auto roomState = RType::Messages::S2C::RoomState::deserialize(payload);
+
+        LOG_INFO("✓ RoomState received: ", roomState.roomName, " with ", roomState.players.size(),
+                 " players");
+
+        // Convert to PlayerInfo format for Rendering
+        std::vector<Game::PlayerInfo> players;
+        bool isHost = false;
+
+        // If we just created the room, we're the host
+        // Keep the flag until we leave the room, so it works for multiple RoomState updates
+        if (_justCreatedRoom) {
+            isHost = true;
+            LOG_INFO("  - Detected as host (just created room)");
+        } else {
+            // Otherwise, don't assume anything - all players are not hosts from our perspective
+            // unless the server sends us our player ID (which it should)
+            isHost = false;
+            LOG_INFO("  - Not host (didn't create this room)");
+        }
+
+        for (const auto &playerData : roomState.players) {
+            Game::PlayerInfo playerInfo(playerData.playerId, playerData.playerName, playerData.isHost,
+                                        playerData.isSpectator);
+            players.push_back(playerInfo);
+
+            LOG_INFO("  - Player: ", playerData.playerName, (playerData.isHost ? " (HOST)" : ""),
+                     (playerData.isSpectator ? " [SPECTATOR]" : ""));
+        }
+
+        // Update waiting room with player list
+        if (_rendering) {
+            _rendering->UpdateWaitingRoom(players, roomState.roomName, isHost);
+        }
+
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse RoomState: ", e.what());
     }
 }
 

@@ -33,6 +33,10 @@ struct JoinRoom {
   roomId @0 :Text;
 }
 
+struct LeaveRoom {
+  # Request to leave current room
+}
+
 struct StartMatchmaking {
   # Request to enter matchmaking queue
 }

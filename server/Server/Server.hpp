@@ -146,6 +146,12 @@ class Server {
     void _handleJoinRoom(HostNetworkEvent &event);
 
     /**
+     * @brief Handle leave room request
+     * @param event Network event with packet data
+     */
+    void _handleLeaveRoom(HostNetworkEvent &event);
+
+    /**
      * @brief Handle start game request (from room host)
      * @param event Network event with packet data
      */
@@ -161,6 +167,12 @@ class Server {
      * @param room Room that just started
      */
     void _sendGameStartToRoom(std::shared_ptr<server::Room> room);
+
+    /**
+     * @brief Broadcast room state (player list) to all players in a room
+     * @param room Room to broadcast state for
+     */
+    void _broadcastRoomState(std::shared_ptr<server::Room> room);
 
     /**
      * @brief Serialize a single entity to network format

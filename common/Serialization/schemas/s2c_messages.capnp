@@ -60,6 +60,22 @@ struct JoinedRoom {
   errorMessage @2 :Text;
 }
 
+struct PlayerData {
+  playerId @0 :UInt32;
+  playerName @1 :Text;
+  isHost @2 :Bool;
+  isSpectator @3 :Bool;
+}
+
+struct RoomState {
+  roomId @0 :Text;
+  roomName @1 :Text;
+  currentPlayers @2 :UInt32;
+  maxPlayers @3 :UInt32;
+  players @4 :List(PlayerData);
+  state @5 :UInt8;  # 0=WAITING, 1=STARTING, 2=IN_PROGRESS, 3=FINISHED
+}
+
 struct MatchmakingStarted {
   success @0 :Bool;
   errorMessage @1 :Text;

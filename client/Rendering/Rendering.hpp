@@ -29,6 +29,7 @@
 #include "Menu/RoomListMenu.hpp"
 #include "Menu/ServerListMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
+#include "Menu/WaitingRoomMenu.hpp"
 #include "UI/IButton.hpp"
 #include "UI/IMenu.hpp"
 #include "UI/Raylib/RaylibUIFactory.hpp"
@@ -286,6 +287,15 @@ class Rendering {
     void UpdateRoomList(const std::vector<RoomData> &rooms);
 
     /**
+     * @brief Update waiting room with player list
+     * @param players Vector of players in the room
+     * @param roomName Name of the room
+     * @param isHost Whether local player is the host
+     */
+    void UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, const std::string &roomName,
+                           bool isHost);
+
+    /**
      * @brief Enable or disable client-side prediction for local player
      * @param enabled true to enable prediction (instant movement), false for interpolation
      * 
@@ -372,6 +382,7 @@ class Rendering {
     std::unique_ptr<Game::AddServerMenu> _addServerMenu;
     std::unique_ptr<Game::RoomListMenu> _roomListMenu;
     std::unique_ptr<Game::CreateRoomMenu> _createRoomMenu;
+    std::unique_ptr<Game::WaitingRoomMenu> _waitingRoomMenu;
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
@@ -428,6 +439,7 @@ class Rendering {
     void InitializeAddServerMenu();
     void InitializeRoomListMenu();
     void InitializeCreateRoomMenu();
+    void InitializeWaitingRoomMenu();
     void InitializeConnectionMenu();
     void SubscribeToConnectionEvents();
 

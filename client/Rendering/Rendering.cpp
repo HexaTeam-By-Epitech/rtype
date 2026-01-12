@@ -63,6 +63,7 @@ void Rendering::InitializeMenus() {
     InitializeAddServerMenu();
     InitializeRoomListMenu();
     InitializeCreateRoomMenu();
+    InitializeWaitingRoomMenu();
     InitializeConnectionMenu();
     SubscribeToConnectionEvents();
 }
@@ -167,6 +168,9 @@ void Rendering::InitializeMainMenu() {
         // Show room selection menu
         if (_roomListMenu)
             _roomListMenu->Show();
+
+        // Request room list from server
+        _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
     });
 
     _mainMenu->SetOnQuit([this]() { _quitRequested = true; });
@@ -193,8 +197,8 @@ void Rendering::InitializeMainMenu() {
     _mainMenu->SetOnSelectServer([this]() {
         if (_mainMenu)
             _mainMenu->Hide();
-        if (_roomListMenu)
-            _roomListMenu->Show();
+        if (_serverListMenu)
+            _serverListMenu->Show();
     });
 
     // Pass screen dimensions for responsive layout (profile button)
@@ -336,13 +340,14 @@ void Rendering::InitializeRoomListMenu() {
         LOG_INFO("[Rendering] Room selected: ", roomId);
         _selectedRoomId = roomId;
 
-        // Hide room list and start the game
+        // Hide room list and show waiting room
         if (_roomListMenu)
             _roomListMenu->Hide();
+        if (_waitingRoomMenu)
+            _waitingRoomMenu->Show();
 
-        // Send JOIN_GAME event with room ID
+        // Send JOIN_GAME event with room ID (but don't start game yet)
         _eventBus.publish(UIEvent(UIEventType::JOIN_GAME, _selectedRoomId));
-        StartGame();
     });
 
     _roomListMenu->SetOnCreateRoom([this]() {
@@ -382,8 +387,10 @@ void Rendering::InitializeCreateRoomMenu() {
 
         if (_createRoomMenu)
             _createRoomMenu->Hide();
-        if (_roomListMenu)
-            _roomListMenu->Show();
+
+        // Show WaitingRoom instead of RoomListMenu (creator becomes host automatically)
+        if (_waitingRoomMenu)
+            _waitingRoomMenu->Show();
     });
 
     _createRoomMenu->SetOnCancel([this]() {
@@ -395,6 +402,31 @@ void Rendering::InitializeCreateRoomMenu() {
 
     _createRoomMenu->Initialize();
     _createRoomMenu->Hide();
+}
+
+void Rendering::InitializeWaitingRoomMenu() {
+    _waitingRoomMenu = std::make_unique<Game::WaitingRoomMenu>(*_uiFactory, _graphics);
+
+    _waitingRoomMenu->SetOnStartGame([this]() {
+        LOG_INFO("[Rendering] Start Game button clicked");
+        // Publish START_GAME_REQUEST event
+        _eventBus.publish(UIEvent(UIEventType::START_GAME_REQUEST));
+    });
+
+    _waitingRoomMenu->SetOnBack([this]() {
+        LOG_INFO("[Rendering] Back to room list - leaving room");
+        if (_waitingRoomMenu)
+            _waitingRoomMenu->Hide();
+
+        // Notify server that player is leaving the room
+        _eventBus.publish(UIEvent(UIEventType::LEAVE_ROOM));
+
+        if (_roomListMenu)
+            _roomListMenu->Show();
+    });
+
+    _waitingRoomMenu->Initialize();
+    _waitingRoomMenu->Hide();
 }
 
 void Rendering::SubscribeToConnectionEvents() {
@@ -487,6 +519,12 @@ void Rendering::StartGame() {
         _serverListMenu->Hide();
     if (_addServerMenu)
         _addServerMenu->Hide();
+    if (_roomListMenu)
+        _roomListMenu->Hide();
+    if (_createRoomMenu)
+        _createRoomMenu->Hide();
+    if (_waitingRoomMenu)
+        _waitingRoomMenu->Hide();
     if (_connectionMenu)
         _connectionMenu->Hide();
     if (_settingsMenu)
@@ -586,6 +624,9 @@ void Rendering::UpdateUI() {
         if (_createRoomMenu && _createRoomMenu->IsVisible()) {
             _createRoomMenu->Update();
         }
+        if (_waitingRoomMenu && _waitingRoomMenu->IsVisible()) {
+            _waitingRoomMenu->Update();
+        }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Update();
         }
@@ -658,6 +699,9 @@ void Rendering::RenderUI() {
         }
         if (_createRoomMenu && _createRoomMenu->IsVisible()) {
             _createRoomMenu->Render();
+        }
+        if (_waitingRoomMenu && _waitingRoomMenu->IsVisible()) {
+            _waitingRoomMenu->Render();
         }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Render();
@@ -843,4 +887,18 @@ void Rendering::UpdateRoomList(const std::vector<RoomData> &rooms) {
 
     _roomListMenu->UpdateRoomList(roomInfos);
     LOG_INFO("[Rendering] Room list updated with ", rooms.size(), " rooms");
+}
+
+void Rendering::UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, const std::string &roomName,
+                                  bool isHost) {
+    if (!_waitingRoomMenu) {
+        return;
+    }
+
+    _waitingRoomMenu->UpdatePlayerList(players);
+    _waitingRoomMenu->SetRoomInfo(roomName, static_cast<uint32_t>(players.size()),
+                                  4);  // TODO: get max from server
+    _waitingRoomMenu->SetIsHost(isHost);
+
+    LOG_INFO("[Rendering] Waiting room updated with ", players.size(), " players, isHost=", isHost);
 }

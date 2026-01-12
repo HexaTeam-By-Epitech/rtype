@@ -81,63 +81,6 @@ bool sendRegisterRequest(const std::string &username, const std::string &passwor
     return gotResponse && success;
 }
 
-// Authenticate with server using only Replicator (no Client initialization)
-bool authenticateWithServer(const std::string &playerName, const std::string &username,
-                            const std::string &password, const std::string &host, uint16_t port) {
-    // Create minimal EventBus for Replicator
-    EventBus eventBus;
-    Replicator replicator(eventBus);
-
-    LOG_INFO("Connecting to ", host, ":", port, "...");
-
-    if (!replicator.connect(host, port)) {
-        LOG_ERROR("Failed to initiate connection");
-        return false;
-    }
-
-    // Wait for connection
-    LOG_INFO("Waiting for connection...");
-    bool connected = false;
-    for (int i = 0; i < 50 && !connected; ++i) {
-        replicator.processMessages();
-        connected = replicator.isConnected();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    if (!connected) {
-        LOG_ERROR("Connection timeout");
-        return false;
-    }
-
-    LOG_INFO("✓ Connected to server!");
-
-    // Send authentication request
-    LOG_INFO("Sending authentication request...");
-    if (!replicator.sendConnectRequest(playerName, username, password)) {
-        LOG_ERROR("Failed to send connect request");
-        return false;
-    }
-
-    // Wait for server response
-    LOG_INFO("Waiting for server response...");
-    for (int i = 0; i < 30; ++i) {
-        replicator.processMessages();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    // Check authentication result
-    if (!replicator.isAuthenticated()) {
-        LOG_ERROR("Authentication failed - server rejected credentials");
-        return false;
-    }
-
-    LOG_INFO("✓ Authentication successful!");
-
-    // Disconnect this temporary connection
-    replicator.disconnect();
-    return true;
-}
-
 // Handle async registration check
 void handleRegistrationStatus(bool &isRegistering, std::future<bool> &registerFuture,
                               LoginScreen &loginScreen) {
@@ -267,12 +210,13 @@ int main(int argc, char **argv) {
     // Main game loop with authentication retry
     bool gameRunning = true;
     while (gameRunning && !WindowShouldClose()) {
-        // Try authentication before creating full Client
-        bool authSuccess = authenticateWithServer(playerName, username, password, host, port);
+        // Create and initialize Client - it will handle connection and authentication
+        LOG_INFO("Creating client and connecting to server...");
+        Client client(playerName, username, password, host, port);
 
-        if (!authSuccess) {
-            std::cerr << "Authentication failed - returning to login screen" << std::endl;
-            loginScreen.setErrorMessage("❌ Authentication failed! Check your credentials.");
+        if (!client.initialize()) {
+            std::cerr << "Failed to initialize client" << std::endl;
+            loginScreen.setErrorMessage("❌ Failed to initialize game client.");
             loginScreen.reset();
 
             // Return to login screen for retry
@@ -282,18 +226,14 @@ int main(int argc, char **argv) {
                 gameRunning = false;
                 continue;
             }
+            continue;  // Retry with new credentials
         }
 
-        // Authentication successful - create and run game client
-        Client client(playerName, username, password, host, port);
-
-        if (!client.initialize()) {
-            std::cerr << "Failed to initialize client" << std::endl;
-            gameRunning = false;
-            break;
-        }
-
+        // Run client - this will connect, authenticate, and start game
+        // If authentication fails, it will return and we'll retry
         client.run();
+
+        // Game ended - ask user if they want to play again or return to login
         gameRunning = false;
     }
 

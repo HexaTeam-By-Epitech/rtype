@@ -37,3 +37,15 @@ add_executable(r-type_client
 )
 
 target_link_libraries(r-type_client PRIVATE rtype_client_lib)
+
+# Copy DLLs to the executable directory on Windows
+if(WIN32)
+    # Get the vcpkg_installed directory
+    get_filename_component(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed" ABSOLUTE)
+    
+    # Copy all DLLs from vcpkg_installed bin directories
+    add_custom_command(TARGET r-type_client POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for r-type_client..."
+        COMMAND ${CMAKE_COMMAND} -P "${CMAKE_SOURCE_DIR}/copy_dlls.cmake" "$<TARGET_FILE_DIR:r-type_client>" "${VCPKG_INSTALLED_DIR}" "${CMAKE_BINARY_DIR}"
+    )
+endif()

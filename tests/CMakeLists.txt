@@ -148,18 +148,14 @@ add_test(NAME scripting_tests COMMAND scripting_tests)
 
 # On Windows, copy required DLLs next to test executables
 if(WIN32)
-    # Function to copy vcpkg DLLs for a test target
+    # Get the vcpkg_installed directory
+    get_filename_component(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed" ABSOLUTE)
+    
+    # Function to copy vcpkg DLLs for a test target using CMake's native file operations
     function(copy_test_dlls target_name)
-        # Copy vcpkg DLLs (enet, capnproto, etc.)
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for ${target_name}..."
-            COMMAND ${CMAKE_COMMAND} -E true
-            COMMAND_EXPAND_LISTS
-        )
-        
-        # Copy runtime DLLs if available
-        set_target_properties(${target_name} PROPERTIES
-            VS_DEBUGGER_ENVIRONMENT "PATH=$<TARGET_FILE_DIR:${target_name}>;%PATH%"
+            COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/copy_dlls.cmake" "$<TARGET_FILE_DIR:${target_name}>" "${VCPKG_INSTALLED_DIR}" "${CMAKE_BINARY_DIR}"
         )
     endfunction()
 
@@ -168,5 +164,6 @@ if(WIN32)
     copy_test_dlls(networking_tests)
     copy_test_dlls(serialization_tests)
     copy_test_dlls(scripting_tests)
+    copy_test_dlls(client_tests)
 endif()
 

@@ -139,6 +139,14 @@ namespace server {
             bool isShooting;
             uint32_t sequenceId;
         };
+
+        /**
+         * @brief Apply a single input snapshot to a player entity
+         * @param playerId Player ID
+         * @param input Input snapshot to apply
+         */
+        void _applyPlayerInput(uint32_t playerId, const PlayerInput &input);
+
         // Per-player input queue (FIFO)
         std::unordered_map<uint32_t, std::vector<PlayerInput>> _pendingInput;
 

@@ -262,67 +262,65 @@ namespace server {
 
             for (size_t i = 0; i < inputsToProcess && !inputs.empty(); ++i) {
                 const auto &input = inputs.front();
-
-                auto it = _playerMap.find(playerId);
-                if (it == _playerMap.end()) {
-                    inputs.erase(inputs.begin());
-                    continue;
-                }
-
-                ecs::Address playerEntity = it->second;
-                try {
-                    // Get entity wrapper and check if it still exists
-                    ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
-
-                    // Check if entity has Velocity component (entity might be destroyed)
-                    if (!entity.has<ecs::Velocity>()) {
-                        LOG_WARNING("Player ", playerId,
-                                    " entity has no Velocity component (entity destroyed?)");
-                        inputs.erase(inputs.begin());
-                        continue;  // Skip this input
-                    }
-
-                    ecs::Velocity &vel = entity.get<ecs::Velocity>();
-
-                    // If no input (0, 0), stop the player completely
-                    if (input.inputX == 0 && input.inputY == 0) {
-                        vel.setDirection(0.0f, 0.0f);
-                        // Debug log throttled
-                        static uint32_t stopLogCount = 0;
-                        if (++stopLogCount % 60 == 0) {
-                            LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
-                        }
-                    } else {
-                        // Normalize diagonal movement
-                        float dirX = static_cast<float>(input.inputX);
-                        float dirY = static_cast<float>(input.inputY);
-
-                        // Normalize if diagonal
-                        if (dirX != 0.0f && dirY != 0.0f) {
-                            float length = std::sqrt(dirX * dirX + dirY * dirY);
-                            dirX /= length;
-                            dirY /= length;
-                        }
-
-                        vel.setDirection(dirX, dirY);
-                        // Debug log throttled
-                        static uint32_t moveLogCount = 0;
-                        if (++moveLogCount % 60 == 0) {
-                            LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ")");
-                        }
-                    }
-
-                    // Handle shooting
-                    if (input.isShooting) {
-                        // Weapon system will handle actual projectile creation
-                    }
-                } catch (const std::exception &e) {
-                    LOG_ERROR("Error processing input for player ", playerId, ": ", e.what());
-                }
-
-                // Remove the processed input
+                _applyPlayerInput(playerId, input);
                 inputs.erase(inputs.begin());
             }
+        }
+    }
+
+    void GameLogic::_applyPlayerInput(uint32_t playerId, const PlayerInput &input) {
+        auto it = _playerMap.find(playerId);
+        if (it == _playerMap.end()) {
+            return;
+        }
+
+        ecs::Address playerEntity = it->second;
+        try {
+            // Get entity wrapper and check if it still exists
+            ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
+
+            // Check if entity has Velocity component (entity might be destroyed)
+            if (!entity.has<ecs::Velocity>()) {
+                LOG_WARNING("Player ", playerId, " entity has no Velocity component (entity destroyed?)");
+                return;
+            }
+
+            ecs::Velocity &vel = entity.get<ecs::Velocity>();
+
+            // If no input (0, 0), stop the player completely
+            if (input.inputX == 0 && input.inputY == 0) {
+                vel.setDirection(0.0f, 0.0f);
+                // Debug log throttled
+                static uint32_t stopLogCount = 0;
+                if (++stopLogCount % 60 == 0) {
+                    LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
+                }
+            } else {
+                // Normalize diagonal movement
+                float dirX = static_cast<float>(input.inputX);
+                float dirY = static_cast<float>(input.inputY);
+
+                // Normalize if diagonal
+                if (dirX != 0.0f && dirY != 0.0f) {
+                    float length = std::sqrt(dirX * dirX + dirY * dirY);
+                    dirX /= length;
+                    dirY /= length;
+                }
+
+                vel.setDirection(dirX, dirY);
+                // Debug log throttled
+                static uint32_t moveLogCount = 0;
+                if (++moveLogCount % 60 == 0) {
+                    LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ")");
+                }
+            }
+
+            // Handle shooting
+            if (input.isShooting) {
+                // Weapon system will handle actual projectile creation
+            }
+        } catch (const std::exception &e) {
+            LOG_ERROR("Error applying input for player ", playerId, ": ", e.what());
         }
     }
     void GameLogic::_executeSystems(float deltaTime) {

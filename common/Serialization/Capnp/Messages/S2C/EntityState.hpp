@@ -26,6 +26,7 @@ namespace RType::Messages::S2C {
         Shared::EntityType type;
         Shared::Vec2 position;
         std::optional<int32_t> health;
+        uint32_t lastProcessedInput = 0;  // 0 if N/A
 
         EntityState() : entityId(0), type(Shared::EntityType::Player) {}
 
@@ -37,6 +38,7 @@ namespace RType::Messages::S2C {
             position.toCapnp(posBuilder);
 
             builder.setHealth(health.value_or(-1));
+            builder.setLastProcessedInput(lastProcessedInput);
         }
 
         static EntityState fromCapnp(::EntityState::Reader reader) {
@@ -44,6 +46,7 @@ namespace RType::Messages::S2C {
             result.entityId = reader.getEntityId();
             result.type = Shared::fromCapnpEntityType(reader.getType());
             result.position = Shared::Vec2::fromCapnp(reader.getPosition());
+            result.lastProcessedInput = reader.getLastProcessedInput();
 
             int32_t healthValue = reader.getHealth();
             if (healthValue >= 0) {

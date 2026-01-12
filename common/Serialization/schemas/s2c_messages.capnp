@@ -12,6 +12,7 @@ struct EntityState {
   type @1 :EntityType;
   position @2 :Vec2;
   health @3 :Int32;           # Use -1 for "no health" (bullets, etc.)
+  lastProcessedInput @4 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
 }
 
 struct GameState {

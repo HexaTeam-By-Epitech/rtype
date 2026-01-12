@@ -5,9 +5,13 @@ using import "shared_types.capnp".Action;
 # Client to Server messages
 # All messages that flow from client to server
 
-struct PlayerInput {
+struct InputSnapshot {
   sequenceId @0 :UInt32;
   actions @1 :List(Action);
+}
+
+struct PlayerInput {
+  inputs @0 :List(InputSnapshot);
 }
 
 struct JoinGame {

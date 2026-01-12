@@ -8,6 +8,7 @@
 #pragma once
 
 #include <atomic>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -16,6 +17,11 @@
 #include "server/Game/Logic/IGameLogic.hpp"
 #include "server/Game/Rules/GameRules.hpp"
 #include "server/Game/StateManager/GameStateManager.hpp"
+
+namespace scripting {
+    class LuaEngine;
+    class LuaSystemAdapter;
+}  // namespace scripting
 
 namespace ecs {
     class ISystem;
@@ -65,7 +71,14 @@ namespace server {
         void update(float deltaTime, uint32_t currentTick) override;
         uint32_t spawnPlayer(uint32_t playerId, const std::string &playerName) override;
         void despawnPlayer(uint32_t playerId) override;
-        void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) override;
+        void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting,
+                                uint32_t sequenceId) override;
+
+        uint32_t getLastProcessedInput(uint32_t playerId) const override {
+            std::lock_guard<std::mutex> lock(_inputMutex);
+            auto it = _lastProcessedSequenceId.find(playerId);
+            return (it != _lastProcessedSequenceId.end()) ? it->second : 0;
+        }
 
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
         bool isGameActive() const override { return _gameActive; }
@@ -82,6 +95,12 @@ namespace server {
          * @return Shared pointer to GameStateManager
          */
         std::shared_ptr<GameStateManager> getStateManager() { return _stateManager; }
+
+        /**
+         * @brief Get the game rules
+         * @return Reference to game rules
+         */
+        const GameRules &getGameRules() const override { return _gameRules; }
 
        private:
         /**
@@ -108,6 +127,9 @@ namespace server {
         // ECS World
         std::shared_ptr<ecs::wrapper::ECSWorld> _world;
 
+        // Lua scripting
+        std::unique_ptr<scripting::LuaEngine> _luaEngine;
+
         // Player management
         std::unordered_map<uint32_t, ecs::Address> _playerMap;  // playerId -> entityAddress
 
@@ -117,8 +139,22 @@ namespace server {
             int inputX;
             int inputY;
             bool isShooting;
+            uint32_t sequenceId;
         };
-        std::vector<PlayerInput> _pendingInput;
+
+        /**
+         * @brief Apply a single input snapshot to a player entity
+         * @param playerId Player ID
+         * @param input Input snapshot to apply
+         */
+        void _applyPlayerInput(uint32_t playerId, const PlayerInput &input);
+
+        // Per-player input queue (FIFO)
+        // Use deque for efficient front removal
+        std::unordered_map<uint32_t, std::deque<PlayerInput>> _pendingInput;
+
+        // Last processed input sequence ID per player (for redundancy)
+        std::unordered_map<uint32_t, uint32_t> _lastProcessedSequenceId;
 
         // Game state
         std::shared_ptr<GameStateManager> _stateManager;
@@ -128,8 +164,8 @@ namespace server {
         std::atomic<bool> _initialized{false};
 
         // Thread synchronization
-        std::mutex _inputMutex;   // Protects _pendingInput
-        std::mutex _playerMutex;  // Protects _playerMap
+        mutable std::mutex _inputMutex;  // Protects _pendingInput
+        std::mutex _playerMutex;         // Protects _playerMap
 
         // Game rules
         GameRules _gameRules;

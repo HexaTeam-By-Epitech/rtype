@@ -10,6 +10,7 @@
 
 #include <raylib.h>
 #include <chrono>
+#include <deque>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -18,6 +19,7 @@
 #include "Capnp/NetworkMessages.hpp"
 #include "Core/EventBus/EventBus.hpp"
 #include "Events/NetworkEvent/NetworkEvent.hpp"
+#include "Events/UIEvent.hpp"
 #include "Input/InputBuffer.hpp"
 #include "Network/Replicator.hpp"
 #include "Rendering/Rendering.hpp"
@@ -223,6 +225,16 @@ class GameLoop {
      * @param event Network event containing message data
      */
     void handleNetworkMessage(const NetworkEvent &event);
+    void handleUIEvent(const UIEvent &event);
+
+    // Network message handlers
+    void handleGameStart(const std::vector<uint8_t> &payload);
+    void handleGameState(const std::vector<uint8_t> &payload);
+    void handleGameruleUpdate(const std::vector<uint8_t> &payload);
+
+    // Helpers
+    void processServerReconciliation(const RType::Messages::S2C::EntityState &entity, bool isMoving);
+    void simulateInputHistory(float &x, float &y);
 
     EventBus *_eventBus;  // Non-owning pointer (owned by Client)
     std::unique_ptr<InputBuffer> _inputBuffer;
@@ -239,10 +251,16 @@ class GameLoop {
     // Input tracking
     uint32_t _inputSequenceId = 0;
 
+    // Input redundancy history
+    static constexpr size_t INPUT_HISTORY_SIZE = 12;  // Send last 12 inputs (~200ms)
+    std::deque<RType::Messages::C2S::PlayerInput::InputSnapshot> _inputHistory;
+
     // Player entity tracking
     std::optional<uint32_t> _myEntityId;       // Local player's entity ID (std::nullopt if not yet assigned)
-    float _playerSpeed = 200.0f;               // pixels per second (MUST MATCH SERVER!)
-    bool _clientSidePredictionEnabled = true;  // Client-side prediction enabled by default (can be toggled)
+    bool _entityInitialized = false;           // True after first server update received
+    bool _isMoving = false;                    // True when player is actively moving
+    float _playerSpeed = 100.0f;               // pixels per second (MUST MATCH SERVER!)
+    bool _clientSidePredictionEnabled = true;  // Client-side prediction for smooth movement
 
     GameScene _currentScene = GameScene::LOBBY;
 };

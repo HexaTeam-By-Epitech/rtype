@@ -10,7 +10,9 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Network/ServerNetworkManager.hpp"
+#include "server/Rooms/Lobby/Lobby.hpp"
 #include "server/Rooms/RoomManager/RoomManager.hpp"
 #include "server/Sessions/SessionManager/SessionManager.hpp"
 
@@ -29,7 +31,7 @@ namespace RType::Messages::Shared {
 }
 
 namespace RType::Messages::S2C {
-    struct EntityState;
+    class EntityState;
 }
 
 /**
@@ -108,6 +110,12 @@ class Server {
     void _handleHandshakeRequest(HostNetworkEvent &event);
 
     /**
+     * @brief Handle player registration request
+     * @param event Network event with packet data
+     */
+    void _handleRegisterRequest(HostNetworkEvent &event);
+
+    /**
      * @brief Handle player input packet
      * @param event Network event with packet data
      */
@@ -120,16 +128,52 @@ class Server {
     void _handleDisconnect(HostNetworkEvent &event);
 
     /**
+     * @brief Handle list rooms request
+     * @param event Network event with packet data
+     */
+    void _handleListRooms(HostNetworkEvent &event);
+
+    /**
+     * @brief Handle create room request
+     * @param event Network event with packet data
+     */
+    void _handleCreateRoom(HostNetworkEvent &event);
+
+    /**
+     * @brief Handle join room request
+     * @param event Network event with packet data
+     */
+    void _handleJoinRoom(HostNetworkEvent &event);
+
+    /**
+     * @brief Handle start game request (from room host)
+     * @param event Network event with packet data
+     */
+    void _handleStartGame(HostNetworkEvent &event);
+
+    /**
      * @brief Broadcast game state to all connected clients
      */
     void _broadcastGameState();
+
+    /**
+     * @brief Send GameStart message to all players in a room
+     * @param room Room that just started
+     */
+    void _sendGameStartToRoom(std::shared_ptr<server::Room> room);
 
     /**
      * @brief Serialize a single entity to network format
      * @param entity The entity to serialize
      * @return EntityState structure ready for network transmission
      */
-    RType::Messages::S2C::EntityState _serializeEntity(ecs::wrapper::Entity &entity);
+    /**
+     * @brief Serialize entity to EntityState
+     * @param entity ECS Entity
+     * @param gameLogic Optional pointer to GameLogic (to retrieve player input state)
+     */
+    RType::Messages::S2C::EntityState _serializeEntity(ecs::wrapper::Entity &entity,
+                                                       server::IGameLogic *gameLogic = nullptr);
 
     /**
      * @brief Convert Action enum to directional input (dx, dy)
@@ -149,16 +193,22 @@ class Server {
     // Architecture components
     std::shared_ptr<server::SessionManager> _sessionManager;
     std::shared_ptr<server::RoomManager> _roomManager;
+    std::shared_ptr<server::Lobby> _lobby;
 
-    // Default room (TODO: Multiple rooms with matchmaking)
+    // Default room for development mode
     std::shared_ptr<server::Room> _defaultRoom;
-    std::unique_ptr<server::ServerLoop> _gameLoop;
+    // NOTE: No global _gameLoop anymore - each Room has its own
 
     // Track session ID to peer mapping for network communication
     std::unordered_map<std::string, IPeer *> _sessionPeers;
     // Reverse lookup: peer -> session ID for fast disconnect handling
     std::unordered_map<IPeer *, std::string> _peerToSession;
+    // Lookup: Player ID -> Session ID for broadcasting
+    std::unordered_map<uint32_t, std::string> _playerIdToSessionId;
 
     bool _initialized = false;
     bool _running = false;
+
+    // Frame timing for accurate deltaTime calculation
+    server::FrameTimer _frameTimer;
 };

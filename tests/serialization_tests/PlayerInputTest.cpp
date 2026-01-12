@@ -12,24 +12,34 @@
 
 TEST(PlayerInputTest, SerializeDeserializeRoundTrip) {
     RType::Messages::C2S::PlayerInput input;
-    input._sequenceId = 42;
-    input.actions = {RType::Messages::Shared::Action::MoveUp, RType::Messages::Shared::Action::Shoot};
+    RType::Messages::C2S::PlayerInput::InputSnapshot snapshot;
+    snapshot.sequenceId = 42;
+    snapshot.actions = {RType::Messages::Shared::Action::MoveUp, RType::Messages::Shared::Action::Shoot};
+    input.inputs.push_back(snapshot);
+
     auto bytes = input.serialize();
     auto deserialized = RType::Messages::C2S::PlayerInput::deserialize(bytes);
-    EXPECT_EQ(deserialized._sequenceId, 42);
-    ASSERT_EQ(deserialized.actions.size(), 2);
-    EXPECT_EQ(deserialized.actions[0], RType::Messages::Shared::Action::MoveUp);
-    EXPECT_EQ(deserialized.actions[1], RType::Messages::Shared::Action::Shoot);
+
+    ASSERT_EQ(deserialized.inputs.size(), 1);
+    EXPECT_EQ(deserialized.inputs[0].sequenceId, 42);
+    ASSERT_EQ(deserialized.inputs[0].actions.size(), 2);
+    EXPECT_EQ(deserialized.inputs[0].actions[0], RType::Messages::Shared::Action::MoveUp);
+    EXPECT_EQ(deserialized.inputs[0].actions[1], RType::Messages::Shared::Action::Shoot);
 }
 
 TEST(PlayerInputTest, EmptyActionList) {
     RType::Messages::C2S::PlayerInput input;
-    input._sequenceId = 1;
-    input.actions = {};
+    RType::Messages::C2S::PlayerInput::InputSnapshot snapshot;
+    snapshot.sequenceId = 1;
+    snapshot.actions = {};
+    input.inputs.push_back(snapshot);
+
     auto bytes = input.serialize();
     auto deserialized = RType::Messages::C2S::PlayerInput::deserialize(bytes);
-    EXPECT_EQ(deserialized._sequenceId, 1);
-    EXPECT_TRUE(deserialized.actions.empty());
+
+    ASSERT_EQ(deserialized.inputs.size(), 1);
+    EXPECT_EQ(deserialized.inputs[0].sequenceId, 1);
+    EXPECT_TRUE(deserialized.inputs[0].actions.empty());
 }
 
 TEST(PlayerInputTest, VariousActionCombinations) {
@@ -41,14 +51,19 @@ TEST(PlayerInputTest, VariousActionCombinations) {
     uint32_t seq = 10;
     for (const auto &actions : combos) {
         RType::Messages::C2S::PlayerInput input;
-        input._sequenceId = seq++;
-        input.actions = actions;
+        RType::Messages::C2S::PlayerInput::InputSnapshot snapshot;
+        snapshot.sequenceId = seq++;
+        snapshot.actions = actions;
+        input.inputs.push_back(snapshot);
+
         auto bytes = input.serialize();
         auto deserialized = RType::Messages::C2S::PlayerInput::deserialize(bytes);
-        EXPECT_EQ(deserialized._sequenceId, seq - 1);
-        ASSERT_EQ(deserialized.actions.size(), actions.size());
+
+        ASSERT_EQ(deserialized.inputs.size(), 1);
+        EXPECT_EQ(deserialized.inputs[0].sequenceId, seq - 1);
+        ASSERT_EQ(deserialized.inputs[0].actions.size(), actions.size());
         for (size_t i = 0; i < actions.size(); ++i) {
-            EXPECT_EQ(deserialized.actions[i], actions[i]);
+            EXPECT_EQ(deserialized.inputs[0].actions[i], actions[i]);
         }
     }
 }
@@ -58,12 +73,38 @@ TEST(PlayerInputTest, SequenceIdEdgeCases) {
     std::vector<uint32_t> ids = {0, 1, UINT32_MAX, UINT32_MAX - 1};
     for (auto id : ids) {
         PI input;
-        input._sequenceId = id;
-        input.actions = {RType::Messages::Shared::Action::MoveLeft};
+        PI::InputSnapshot snapshot;
+        snapshot.sequenceId = id;
+        snapshot.actions = {RType::Messages::Shared::Action::MoveLeft};
+        input.inputs.push_back(snapshot);
+
         auto bytes = input.serialize();
         auto deserialized = PI::deserialize(bytes);
-        EXPECT_EQ(deserialized._sequenceId, id);
-        ASSERT_EQ(deserialized.actions.size(), 1);
-        EXPECT_EQ(deserialized.actions[0], RType::Messages::Shared::Action::MoveLeft);
+
+        ASSERT_EQ(deserialized.inputs.size(), 1);
+        EXPECT_EQ(deserialized.inputs[0].sequenceId, id);
+        ASSERT_EQ(deserialized.inputs[0].actions.size(), 1);
+        EXPECT_EQ(deserialized.inputs[0].actions[0], RType::Messages::Shared::Action::MoveLeft);
     }
+}
+
+TEST(PlayerInputTest, HistoryRedundancy) {
+    // Test multiple inputs in one packet
+    RType::Messages::C2S::PlayerInput input;
+
+    // Add 3 snapshots
+    for (int i = 0; i < 3; ++i) {
+        RType::Messages::C2S::PlayerInput::InputSnapshot snapshot;
+        snapshot.sequenceId = 100 + i;
+        snapshot.actions = {RType::Messages::Shared::Action::MoveUp};
+        input.inputs.push_back(snapshot);
+    }
+
+    auto bytes = input.serialize();
+    auto deserialized = RType::Messages::C2S::PlayerInput::deserialize(bytes);
+
+    ASSERT_EQ(deserialized.inputs.size(), 3);
+    EXPECT_EQ(deserialized.inputs[0].sequenceId, 100);
+    EXPECT_EQ(deserialized.inputs[1].sequenceId, 101);
+    EXPECT_EQ(deserialized.inputs[2].sequenceId, 102);
 }

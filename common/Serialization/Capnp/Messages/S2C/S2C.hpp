@@ -12,6 +12,10 @@
 #include "GameOver.hpp"
 #include "GameStart.hpp"
 #include "GameState.hpp"
+#include "GamerulePacket.hpp"
+#include "JoinedRoom.hpp"
+#include "RoomCreated.hpp"
+#include "RoomList.hpp"
 
 /**
  * @namespace RType::Messages::S2C

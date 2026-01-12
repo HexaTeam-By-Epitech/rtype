@@ -1,0 +1,205 @@
+/*
+** EPITECH PROJECT, 2025
+** RTYPE
+** File description:
+** LuaEngine implementation
+*/
+
+#include "LuaEngine.hpp"
+#include <filesystem>
+#include <unordered_set>
+
+#include "LuaBindings/ComponentBindings.hpp"
+#include "LuaBindings/EntityBindings.hpp"
+#include "LuaBindings/ServerGameBindings.hpp"
+#include "LuaBindings/WorldBindings.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECSWrapper/ECSWorld.hpp"
+#include "common/Logger/Logger.hpp"
+
+namespace scripting {
+    LuaEngine::LuaEngine(const std::string &scriptPath)
+        : _scriptPath(scriptPath), _world(nullptr), _bindingsInitialized(false) {
+        _lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::table,
+                            sol::lib::string);
+
+        LOG_INFO("LuaEngine initialized with script path: " + scriptPath);
+        LOG_WARNING("Lua bindings not yet initialized. Call setWorld() before executing scripts.");
+    }
+
+    void LuaEngine::setWorld(ecs::wrapper::ECSWorld *world) {
+        if (world == nullptr) {
+            LOG_ERROR("Attempted to set null world in LuaEngine");
+            throw std::invalid_argument("World cannot be nullptr");
+        }
+
+        _world = world;
+
+        if (!_bindingsInitialized) {
+            initializeBindings();
+            _bindingsInitialized = true;
+            LOG_INFO("Lua bindings initialized successfully");
+        } else {
+            LOG_WARNING("World updated in LuaEngine - bindings already initialized");
+        }
+    }
+
+    void LuaEngine::initializeBindings() {
+        // Enregistrer tous les composants et obtenir le helper
+        auto &helper = bindings::bindComponents(_lua, _world);
+
+        // Utiliser le helper pour g\u00e9n\u00e9rer automatiquement les bindings Entity
+        bindings::bindEntity(_lua, _world, helper);
+
+        // Bindings globaux (world, createEntity, etc.)
+        bindings::bindWorld(_lua, _world);
+        // Bindings spécifiques au serveur (spawn, random, etc.)
+        bindings::bindServerGame(_lua, _world);
+    }
+
+    bool LuaEngine::loadScript(const std::string &scriptPath) {
+        std::scoped_lock lock(_luaMutex);
+
+        namespace fs = std::filesystem;
+
+        // scriptPath is typically like: "test_movement.lua"
+        // _scriptPath is typically like: "server/Scripting/scripts/"
+        const auto base = fs::path(_scriptPath);
+        const fs::path candidate = base / scriptPath;
+
+        auto tryLoad = [&](const fs::path &p) -> bool {
+            if (!fs::exists(p)) {
+                return false;
+            }
+            try {
+                // Load the script file directly (no isolated environment)
+                // This allows scripts to access all global types and metatables
+                const sol::load_result loadResult = _lua.load_file(p.string());
+                if (!loadResult.valid()) {
+                    const sol::error err = loadResult;
+                    LOG_ERROR("Lua error loading " + p.string() + ": " + std::string(err.what()));
+                    return false;
+                }
+
+                const sol::protected_function scriptFunc = loadResult;
+
+                sol::protected_function_result result = scriptFunc();
+                if (!result.valid()) {
+                    const sol::error err = result;
+                    LOG_ERROR("Lua error executing " + p.string() + ": " + std::string(err.what()));
+                    return false;
+                }
+
+                // Store script in cache (using globals as the table)
+                _scriptCache[scriptPath] = _lua.globals();
+                LOG_INFO("Loaded Lua script: " + scriptPath + " (" + p.string() + ")");
+                return true;
+            } catch (const sol::error &e) {
+                LOG_ERROR("Lua error loading " + p.string() + ": " + std::string(e.what()));
+                return false;
+            }
+        };
+
+        // 1) Try as-is relative to current working directory
+        if (tryLoad(candidate)) {
+            return true;
+        }
+
+        // 2) Fallback: if CLion runs from a build directory, try going up a few levels
+        //    and re-appending server/Scripting/scripts.
+        //    This keeps things simple without requiring extra CMake configuration.
+        fs::path cwd = fs::current_path();
+        for (int up = 0; up < 6; ++up) {
+            fs::path probeRoot = cwd;
+            for (int i = 0; i < up; ++i) {
+                probeRoot = probeRoot.parent_path();
+            }
+            fs::path probe = probeRoot / "server" / "Scripting" / "scripts" / scriptPath;
+            if (tryLoad(probe)) {
+                return true;
+            }
+        }
+
+        // Avoid log spam: only print the "not found" error once per script name.
+        static std::unordered_set<std::string> loggedMissing;
+        if (!loggedMissing.contains(scriptPath)) {
+            loggedMissing.insert(scriptPath);
+            LOG_ERROR("Lua script not found: " + candidate.string());
+            LOG_ERROR("  - cwd: " + cwd.string());
+            LOG_ERROR("  - scriptPath: " + scriptPath);
+            LOG_ERROR("  - basePath: " + base.string());
+        }
+        return false;
+    }
+
+    void LuaEngine::executeUpdate(const std::string &scriptPath, ecs::wrapper::Entity entity,
+                                  float deltaTime) {
+        std::lock_guard<std::recursive_mutex> lock(_luaMutex);
+
+        if (!_world || !_bindingsInitialized) {
+            LOG_ERROR("LuaEngine not properly initialized. Call setWorld() first.");
+            return;
+        }
+
+        if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
+            if (!loadScript(scriptPath)) {
+                return;
+            }
+        }
+
+        try {
+            // Retrieve the specific script's environment from cache
+            sol::table script = _scriptCache[scriptPath];
+
+            // Always call Lua through a protected function to avoid hard crashes on script errors.
+            sol::optional<sol::function> onUpdateOpt = script["onUpdate"];
+
+            if (!onUpdateOpt) {
+                LOG_WARNING("Script " + scriptPath + " has no onUpdate function");
+                return;
+            }
+
+            sol::protected_function onUpdate = onUpdateOpt.value();
+
+            sol::protected_function_result result = onUpdate(entity, deltaTime);
+            if (!result.valid()) {
+                sol::error err = result;
+                LOG_ERROR("Lua runtime error in " + scriptPath + ": " + std::string(err.what()));
+            }
+        } catch (const sol::error &e) {
+            LOG_ERROR("Lua runtime error in " + scriptPath + ": " + std::string(e.what()));
+        } catch (const std::exception &e) {
+            LOG_ERROR("C++ exception in executeUpdate: " + std::string(e.what()));
+        }
+    }
+
+    template <typename... Args>
+    void LuaEngine::callFunction(const std::string &scriptPath, const std::string &functionName,
+                                 Args &&...args) {
+        std::lock_guard<std::recursive_mutex> lock(_luaMutex);
+
+        if (!_world || !_bindingsInitialized) {
+            LOG_ERROR("LuaEngine not properly initialized. Call setWorld() first.");
+            return;
+        }
+
+        if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
+            if (!loadScript(scriptPath)) {
+                return;
+            }
+        }
+
+        try {
+            sol::table script = _scriptCache[scriptPath];
+            sol::optional<sol::function> func = script[functionName];
+
+            if (func) {
+                func.value()(std::forward<Args>(args)...);
+            } else {
+                LOG_WARNING("Function " + functionName + " not found in " + scriptPath);
+            }
+        } catch (const sol::error &e) {
+            LOG_ERROR("Lua error calling " + functionName + ": " + std::string(e.what()));
+        }
+    }
+};  // namespace scripting

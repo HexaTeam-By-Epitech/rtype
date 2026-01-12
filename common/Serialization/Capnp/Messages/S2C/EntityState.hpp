@@ -31,6 +31,7 @@ namespace RType::Messages::S2C {
         int32_t spriteY;
         int32_t spriteW;
         int32_t spriteH;
+        uint32_t lastProcessedInput = 0;  // 0 if N/A
 
         EntityState()
             : entityId(0),
@@ -54,6 +55,7 @@ namespace RType::Messages::S2C {
             builder.setSpriteY(spriteY);
             builder.setSpriteW(spriteW);
             builder.setSpriteH(spriteH);
+            builder.setLastProcessedInput(lastProcessedInput);
         }
 
         static EntityState fromCapnp(::EntityState::Reader reader) {
@@ -61,6 +63,7 @@ namespace RType::Messages::S2C {
             result.entityId = reader.getEntityId();
             result.type = Shared::fromCapnpEntityType(reader.getType());
             result.position = Shared::Vec2::fromCapnp(reader.getPosition());
+            result.lastProcessedInput = reader.getLastProcessedInput();
 
             int32_t healthValue = reader.getHealth();
             if (healthValue >= 0) {

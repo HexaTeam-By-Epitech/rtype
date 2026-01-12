@@ -47,11 +47,14 @@ namespace NetworkMessages {
      * - S2C_GAME_START -> RType::Messages::S2C::GameStart
      * - S2C_ENTITY_DESTROYED -> RType::Messages::S2C::EntityDestroyed
      * - S2C_GAME_OVER -> RType::Messages::S2C::GameOver
+     * - S2C_GAMERULE_UPDATE -> RType::Messages::S2C::GamerulePacket
      */
     enum class MessageType : uint16_t {
         // Connection messages (0x00xx)
         HANDSHAKE_REQUEST = 0x0001,
         HANDSHAKE_RESPONSE = 0x0002,
+        REGISTER_REQUEST = 0x0007,
+        REGISTER_RESPONSE = 0x0008,
         DISCONNECT = 0x0003,
         KICK = 0x0004,
         PING = 0x0005,
@@ -61,11 +64,27 @@ namespace NetworkMessages {
         C2S_PLAYER_INPUT = 0x0100,
         C2S_JOIN_GAME = 0x0101,
 
+        // Client to Server lobby messages (0x03xx)
+        C2S_LIST_ROOMS = 0x0300,
+        C2S_CREATE_ROOM = 0x0301,
+        C2S_JOIN_ROOM = 0x0302,
+        C2S_START_MATCHMAKING = 0x0303,
+        C2S_CANCEL_MATCHMAKING = 0x0304,
+        C2S_START_GAME = 0x0305,
+
         // Server to Client gameplay messages (0x02xx)
         S2C_GAME_STATE = 0x0200,
         S2C_GAME_START = 0x0201,
         S2C_ENTITY_DESTROYED = 0x0202,
         S2C_GAME_OVER = 0x0203,
+        S2C_GAMERULE_UPDATE = 0x0204,
+
+        // Server to Client lobby messages (0x04xx)
+        S2C_ROOM_LIST = 0x0400,
+        S2C_ROOM_CREATED = 0x0401,
+        S2C_JOINED_ROOM = 0x0402,
+        S2C_MATCHMAKING_STARTED = 0x0403,
+        S2C_MATCH_FOUND = 0x0404,
 
         UNKNOWN = 0xFFFF
     };

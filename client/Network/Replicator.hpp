@@ -119,6 +119,13 @@ class Replicator {
     bool isConnected() const;
 
     /**
+     * @brief Check if authenticated with server
+     * 
+     * @return true if authentication succeeded, false otherwise
+     */
+    bool isAuthenticated() const;
+
+    /**
      * @brief Process incoming network messages
      * 
      * Processes messages from the network thread queue and publishes them
@@ -204,7 +211,41 @@ class Replicator {
      * @param playerName The player's name/pseudo
      * @return true if the packet was sent successfully
      */
-    bool sendConnectRequest(const std::string &playerName);
+    bool sendConnectRequest(const std::string &playerName, const std::string &username,
+                            const std::string &password);
+
+    /**
+     * @brief Send list rooms request to server.
+     * 
+     * @return true if the packet was sent successfully
+     */
+    bool sendListRooms();
+
+    /**
+     * @brief Send create room request to server.
+     * 
+     * @param roomName Name of the room to create
+     * @param maxPlayers Maximum number of players
+     * @param isPrivate Whether the room is private
+     * @return true if the packet was sent successfully
+     */
+    bool sendCreateRoom(const std::string &roomName, uint32_t maxPlayers, bool isPrivate);
+
+    /**
+     * @brief Send join room request to server.
+     * 
+     * @param roomId ID of the room to join
+     * @return true if the packet was sent successfully
+     */
+    bool sendJoinRoom(const std::string &roomId);
+
+    /**
+     * @brief Send start game request to server.
+     * 
+     * Only the host of the room can start the game.
+     * @return true if the packet was sent successfully
+     */
+    bool sendStartGame();
 
    private:
     /**
@@ -228,6 +269,7 @@ class Replicator {
 
     EventBus &_eventBus;
     std::atomic<bool> _connected{false};
+    std::atomic<bool> _authenticated{false};
     bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;

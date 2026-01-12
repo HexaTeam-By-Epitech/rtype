@@ -76,8 +76,17 @@ namespace server {
          * @param inputX Horizontal input (-1, 0, 1)
          * @param inputY Vertical input (-1, 0, 1)
          * @param isShooting Whether player is shooting
+         * @param sequenceId Input sequence ID (for redundancy handling)
          */
-        virtual void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) = 0;
+        virtual void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting,
+                                        uint32_t sequenceId) = 0;
+
+        /**
+         * @brief Get the last processed input sequence ID for a player
+         * @param playerId Player ID
+         * @return Sequence ID or 0 if none
+         */
+        virtual uint32_t getLastProcessedInput(uint32_t playerId) const = 0;
 
         /**
          * @brief Get reference to the ECS registry
@@ -95,6 +104,12 @@ namespace server {
          * @brief Reset game state (new game)
          */
         virtual void resetGame() = 0;
+
+        /**
+         * @brief Get the game rules
+         * @return Reference to game rules
+         */
+        virtual const class GameRules &getGameRules() const = 0;
     };
 
 }  // namespace server

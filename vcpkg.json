@@ -5,6 +5,8 @@
     "gtest",
     "raylib",
     "capnproto",
-    "enet"
+    "enet",
+    "sol2",
+    "lua"
   ]
 }

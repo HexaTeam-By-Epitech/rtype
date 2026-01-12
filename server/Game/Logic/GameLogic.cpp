@@ -19,6 +19,7 @@
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"
 #include "common/ECS/Systems/AISystem/AISystem.hpp"
+#include "common/ECS/Systems/AnimationSystem/AnimationSystem.hpp"
 #include "common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
 #include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
@@ -77,6 +78,7 @@ namespace server {
 
             // Create and register all systems with ECSWorld in execution order
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
+            _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
             _world->createSystem<ecs::SpawnSystem>("SpawnSystem");

@@ -12,6 +12,7 @@ struct EntityState {
   type @1 :EntityType;
   position @2 :Vec2;
   health @3 :Int32;           # Use -1 for "no health" (bullets, etc.)
+  currentAnimation @4 :Text;  # Current animation clip name (e.g., "idle", "shoot")
 }
 
 struct GameState {

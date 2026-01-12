@@ -86,12 +86,24 @@ class EntityRenderer {
          * @param x World position X
          * @param y World position Y
          * @param health Current health (-1 if not applicable)
+         * @param currentAnimation Current animation clip name (e.g., "idle", "shoot")
          * 
          * If the entity already exists, its state is updated.
          * If it's a new entity, it's added to the cache.
          * 
          * This method should be called whenever a GameState or GameStart
          * message is received from the server.
+         */
+    void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
+                      const std::string &currentAnimation);
+
+    /**
+         * @brief Update or create an entity without animation (backwards compatibility)
+         * @param id Entity unique identifier
+         * @param type Entity type (Player, Enemy, Bullet)
+         * @param x World position X
+         * @param y World position Y
+         * @param health Current health (-1 if not applicable)
          */
     void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                       int health); /**

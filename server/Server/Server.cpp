@@ -11,6 +11,7 @@
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Capnp/NetworkMessages.hpp"
 #include "NetworkFactory.hpp"
+#include "common/ECS/Components/Animation.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/IComponent.hpp"
@@ -485,6 +486,13 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
     ecs::Transform &transform = entity.get<ecs::Transform>();
     entityState.position.x = transform.getPosition().x;
     entityState.position.y = transform.getPosition().y;
+
+    // Get current animation if available
+    if (entity.has<ecs::Animation>()) {
+        entityState.currentAnimation = entity.get<ecs::Animation>().getCurrentClipName();
+    } else {
+        entityState.currentAnimation = "idle";  // Default fallback
+    }
 
     // Determine entity type and get health
     if (entity.has<ecs::Player>()) {

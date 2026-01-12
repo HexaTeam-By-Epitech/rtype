@@ -291,7 +291,8 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
                 // Update entity in renderer (if initialized)
                 if (_rendering) {
                     _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x,
-                                             entity.position.y, entity.health.value_or(-1));
+                                             entity.position.y, entity.health.value_or(-1),
+                                             entity.currentAnimation);
                 }
             }
 
@@ -309,7 +310,7 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
 
             for (const auto &entity : gameState.entities) {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1));
+                                         entity.health.value_or(-1), entity.currentAnimation);
             }
 
             static uint32_t logCounter = 0;

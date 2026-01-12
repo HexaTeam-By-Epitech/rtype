@@ -14,7 +14,7 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 }
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                                  int health) {
+                                  int health, const std::string &currentAnimation) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
@@ -49,22 +49,20 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
         // Always update type and health
         it->second.type = type;
         it->second.health = health;
+
+        // TODO: Update animation from currentAnimation parameter when ECS rendering is ready
+        // For now, animation is not used (still using legacy colored rectangles)
     } else {
         // Create new entity - initialize with immediate position (no interpolation for first frame)
-        _entities[id] = {
-            id,      // entityId
-            type,    // type
-            x,       // x (display position)
-            y,       // y (display position)
-            health,  // health
-            x,       // prevX (same as current for first frame)
-            y,       // prevY
-            x,       // targetX
-            y,       // targetY
-            1.0f     // interpolationFactor (fully arrived)
-        };
+        _entities[id] = {id, type, x, y, health, x, y, x, y, 1.0f};
         LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y, ")");
     }
+}
+
+void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
+                                  int health) {
+    // Backwards compatibility - call with default animation
+    updateEntity(id, type, x, y, health, "idle");
 }
 
 void EntityRenderer::removeEntity(uint32_t id) {

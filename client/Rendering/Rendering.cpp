@@ -134,7 +134,14 @@ bool Rendering::WindowShouldClose() const {
 void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                              int health) {
     if (_entityRenderer) {
-        _entityRenderer->updateEntity(id, type, x, y, health);
+        _entityRenderer->updateEntity(id, type, x, y, health, "idle");  // Default animation
+    }
+}
+
+void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
+                             int health, const std::string &currentAnimation) {
+    if (_entityRenderer) {
+        _entityRenderer->updateEntity(id, type, x, y, health, currentAnimation);
     }
 }
 

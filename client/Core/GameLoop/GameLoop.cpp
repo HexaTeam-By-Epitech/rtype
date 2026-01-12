@@ -165,10 +165,25 @@ void GameLoop::update(float deltaTime) {
     if (_rendering && _rendering->IsWindowOpen()) {
         _rendering->UpdateInterpolation(deltaTime);
 
-        // Update ping display from Replicator (throttled to once per second internally)
+        // Update ping display and adaptive reconciliation
         if (_replicator != nullptr) {
             const uint32_t currentPing = _replicator->getLatency();
             _rendering->SetPing(currentPing);
+
+            // ADAPTIVE RECONCILIATION THRESHOLD
+
+            // Base threshold: 5.0px (was 3.0px) - Gives more breathing room for local prediction
+
+            // Penalty: +0.25px per ms of ping (was 0.2px)
+
+            // Max: 30.0px (was 20.0px) - Allow significant drift at high ping (100ms+)
+
+            float adaptiveThreshold = 5.0f + (static_cast<float>(currentPing) * _playerSpeed * 0.0025f);
+
+            if (adaptiveThreshold > 30.0f)
+                adaptiveThreshold = 30.0f;
+
+            _rendering->SetReconciliationThreshold(adaptiveThreshold);
         }
 
         // Update ping display timer (throttles updates to 1 second)
@@ -238,8 +253,12 @@ void GameLoop::processInput() {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
     }
 
+    // Update movement state based on input
+    _isMoving = (dx != 0 || dy != 0);
+
     // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
-    if (_myEntityId.has_value() && _clientSidePredictionEnabled && (dx != 0 || dy != 0)) {
+    // Only predict if entity is initialized (prevents moving before spawn)
+    if (_myEntityId.has_value() && _entityInitialized && _clientSidePredictionEnabled && _isMoving) {
         float moveX = static_cast<float>(dx);
         float moveY = static_cast<float>(dy);
 
@@ -259,24 +278,37 @@ void GameLoop::processInput() {
         return;
     }
 
-    RType::Messages::C2S::PlayerInput input;
-    input._sequenceId = _inputSequenceId++;
-    input.actions = actions;
+    // Create current snapshot
+    RType::Messages::C2S::PlayerInput::InputSnapshot currentSnapshot;
+    currentSnapshot.sequenceId = _inputSequenceId++;
+    currentSnapshot.actions = actions;
+
+    // Add to history
+    _inputHistory.push_front(currentSnapshot);
+    if (_inputHistory.size() > INPUT_HISTORY_SIZE) {
+        _inputHistory.pop_back();
+    }
+
+    // Create packet with full history (redundancy)
+    // Convert deque to vector for the message constructor
+    std::vector<RType::Messages::C2S::PlayerInput::InputSnapshot> historyVector(_inputHistory.begin(),
+                                                                                _inputHistory.end());
+
+    RType::Messages::C2S::PlayerInput inputPacket(historyVector);
 
     // Serialize and wrap in network message
-    std::vector<uint8_t> payload = input.serialize();
+    std::vector<uint8_t> payload = inputPacket.serialize();
     std::vector<uint8_t> packet =
         NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_PLAYER_INPUT, payload);
 
     // Send to server (packet already contains type, so pass empty type)
     _replicator->sendPacket(static_cast<NetworkMessageType>(0), packet);
 
-    // Log occasionally for debugging (only when there are actions)
-    if (!actions.empty()) {
-        static uint32_t logCounter = 0;
-        if (++logCounter % 60 == 0) {
-            LOG_DEBUG("Sent input seq=", input._sequenceId, " actions=", actions.size());
-        }
+    // Log ALL inputs for debugging (not just non-empty)
+    static uint32_t logCounter = 0;
+    if (++logCounter % 60 == 0) {
+        LOG_DEBUG("[INPUT] Sent seq=", currentSnapshot.sequenceId, " actions=", actions.size(), " (",
+                  (dx != 0 || dy != 0 ? "MOVING" : "STOPPED"), ") + history=", _inputHistory.size());
     }
 }
 
@@ -292,87 +324,140 @@ float GameLoop::calculateDeltaTime() {
 
 void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
     auto messageType = NetworkMessages::getMessageType(event.getData());
+    auto payload = NetworkMessages::getPayload(event.getData());
 
-    // Debug log for message reception (filtered to avoid spamming for GameState)
-    if (messageType != NetworkMessages::MessageType::S2C_GAME_STATE) {
-        LOG_INFO("[GameLoop] Received network message type: ", static_cast<int>(messageType));
+    switch (messageType) {
+        case NetworkMessages::MessageType::S2C_GAME_START:
+            handleGameStart(payload);
+            break;
+        case NetworkMessages::MessageType::S2C_GAME_STATE:
+            handleGameState(payload);
+            break;
+        case NetworkMessages::MessageType::S2C_GAMERULE_UPDATE:
+            handleGameruleUpdate(payload);
+            break;
+        default:
+            break;
     }
+}
 
-    // Handle GameStart message (sent once when player connects)
-    if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
-        LOG_INFO("GameStart message received");
-        auto payload = NetworkMessages::getPayload(event.getData());
-        try {
-            auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
+void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
+    LOG_INFO("GameStart message received");
+    try {
+        auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
+        LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
 
-            LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
+        for (const auto &entity : gameStart.initialState.entities) {
+            if (entity.entityId == gameStart.yourEntityId) {
+                _myEntityId = entity.entityId;
+                _entityInitialized = true;
+                LOG_INFO("✓ Stored local player entity ID: ", entity.entityId);
 
-            // Load all initial entities and identify the local player
-            for (const auto &entity : gameStart.initialState.entities) {
-                // Check if this entity is the local player by comparing with yourEntityId
-                if (entity.entityId == gameStart.yourEntityId) {
-                    // Store the local player's entity ID
-                    _myEntityId = entity.entityId;
-                    LOG_INFO("✓ Stored local player entity ID: ", entity.entityId);
-
-                    // Set it in the renderer if initialized
-                    if (_rendering) {
-                        _rendering->SetMyEntityId(entity.entityId);
-                    }
-                }
-
-                // Update entity in renderer (if initialized)
                 if (_rendering) {
-                    _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x,
-                                             entity.position.y, entity.health.value_or(-1));
+                    _rendering->SetMyEntityId(entity.entityId);
                 }
             }
 
-            LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");
-        } catch (const std::exception &e) {
-            LOG_ERROR("Failed to parse GameStart: ", e.what());
-        }
-    }
-
-    // Handle GameState message (broadcast continuously by server)
-    else if (messageType == NetworkMessages::MessageType::S2C_GAME_STATE) {
-        auto payload = NetworkMessages::getPayload(event.getData());
-        try {
-            auto gameState = RType::Messages::S2C::GameState::deserialize(payload);
-
-            for (const auto &entity : gameState.entities) {
+            if (_rendering) {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1));
+                                         entity.health.value_or(-1), false);
             }
-
-            static uint32_t logCounter = 0;
-            if (++logCounter % 60 == 0) {
-                LOG_DEBUG("GameState tick=", gameState.serverTick, " entities=", gameState.entities.size());
-            }
-        } catch (const std::exception &e) {
-            LOG_ERROR("Failed to parse GameState: ", e.what());
         }
+        LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse GameStart: ", e.what());
+    }
+}
+
+void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
+    try {
+        auto gameState = RType::Messages::S2C::GameState::deserialize(payload);
+
+        for (const auto &entity : gameState.entities) {
+            bool entityIsMoving = (entity.entityId == _myEntityId.value_or(0)) ? _isMoving : false;
+
+            if (entity.entityId == _myEntityId.value_or(0) && _clientSidePredictionEnabled) {
+                processServerReconciliation(entity, entityIsMoving);
+            } else {
+                _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
+                                         entity.health.value_or(-1), entityIsMoving);
+            }
+        }
+
+        static uint32_t logCounter = 0;
+        if (++logCounter % 60 == 0) {
+            LOG_DEBUG("GameState tick=", gameState.serverTick, " entities=", gameState.entities.size());
+        }
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse GameState: ", e.what());
+    }
+}
+
+void GameLoop::processServerReconciliation(const RType::Messages::S2C::EntityState &entity, bool isMoving) {
+    // 1. Prune history: Remove inputs already processed by server
+    while (!_inputHistory.empty() && _inputHistory.back().sequenceId <= entity.lastProcessedInput) {
+        _inputHistory.pop_back();
     }
 
-    // Handle GamerulePacket message (sent by server to synchronize game constants)
-    else if (messageType == NetworkMessages::MessageType::S2C_GAMERULE_UPDATE) {
-        auto payload = NetworkMessages::getPayload(event.getData());
-        try {
-            auto gamerulePacket = RType::Messages::S2C::GamerulePacket::deserialize(payload);
+    // 2. Re-simulate: Start from Server Position
+    float predictedX = entity.position.x;
+    float predictedY = entity.position.y;
 
-            // Update local gamerule storage
-            auto &clientRules = client::ClientGameRules::getInstance();
-            clientRules.updateMultiple(gamerulePacket.getGamerules());
+    simulateInputHistory(predictedX, predictedY);
 
-            LOG_INFO("✓ Gamerule update received: ", gamerulePacket.size(), " rules updated");
+    if (_rendering) {
+        _rendering->UpdateEntity(entity.entityId, entity.type, predictedX, predictedY,
+                                 entity.health.value_or(-1), isMoving);
+    }
+}
 
-            // Update local player speed if it was included
-            if (gamerulePacket.hasGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED))) {
-                _playerSpeed = gamerulePacket.getGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED));
-                LOG_INFO("  - Player speed updated to: ", _playerSpeed);
-            }
-        } catch (const std::exception &e) {
-            LOG_ERROR("Failed to parse GamerulePacket: ", e.what());
+void GameLoop::simulateInputHistory(float &x, float &y) {
+    for (auto it = _inputHistory.rbegin(); it != _inputHistory.rend(); ++it) {
+        const auto &snapshot = *it;
+        int dx = 0, dy = 0;
+
+        for (auto act : snapshot.actions) {
+            if (act == RType::Messages::Shared::Action::MoveUp)
+                dy = -1;
+            else if (act == RType::Messages::Shared::Action::MoveDown)
+                dy = 1;
+            else if (act == RType::Messages::Shared::Action::MoveLeft)
+                dx = -1;
+            else if (act == RType::Messages::Shared::Action::MoveRight)
+                dx = 1;
         }
+
+        if (dx != 0 || dy != 0) {
+            float moveX = static_cast<float>(dx);
+            float moveY = static_cast<float>(dy);
+
+            // Normalize diagonal
+            if (dx != 0 && dy != 0) {
+                float length = std::sqrt(moveX * moveX + moveY * moveY);
+                moveX /= length;
+                moveY /= length;
+            }
+
+            float frameDelta = _playerSpeed * (1.0f / 60.0f);
+            x += moveX * frameDelta;
+            y += moveY * frameDelta;
+        }
+    }
+}
+
+void GameLoop::handleGameruleUpdate(const std::vector<uint8_t> &payload) {
+    try {
+        auto gamerulePacket = RType::Messages::S2C::GamerulePacket::deserialize(payload);
+        auto &clientRules = client::ClientGameRules::getInstance();
+        clientRules.updateMultiple(gamerulePacket.getGamerules());
+
+        LOG_INFO("✓ Gamerule update received: ", gamerulePacket.size(), " rules updated");
+
+        if (gamerulePacket.hasGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED))) {
+            _playerSpeed = gamerulePacket.getGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED));
+            LOG_INFO("  - Player speed updated to: ", _playerSpeed);
+        }
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse GamerulePacket: ", e.what());
     }
 }

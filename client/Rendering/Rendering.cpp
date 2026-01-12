@@ -500,9 +500,9 @@ bool Rendering::WindowShouldClose() const {
 // ═══════════════════════════════════════════════════════════
 
 void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                             int health) {
+                             int health, bool isMoving) {
     if (_entityRenderer) {
-        _entityRenderer->updateEntity(id, type, x, y, health);
+        _entityRenderer->updateEntity(id, type, x, y, health, isMoving);
     }
 }
 

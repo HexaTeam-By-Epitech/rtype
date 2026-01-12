@@ -89,8 +89,10 @@ class EntityRenderer {
          * This method should be called whenever a GameState or GameStart
          * message is received from the server.
          */
-    void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                      int health); /**
+    void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
+                      bool isMoving = false);
+
+    /**
          * @brief Remove an entity from the rendering cache
          * @param id Entity unique identifier to remove
          * 
@@ -299,11 +301,16 @@ class EntityRenderer {
     bool _interpolationEnabled = true;
 
     /// Interpolation speed multiplier (higher = faster convergence)
+    /// Set to 10.0 for smooth corrections over ~100ms (6 frames at 60 FPS)
+    /// This allows client prediction to feel responsive while still correcting server authority
     float _interpolationSpeed = 10.0f;
 
     /// Client-side prediction enabled flag (for local player only)
     bool _clientSidePredictionEnabled = true;
 
     /// Reconciliation threshold in pixels (corrections smaller than this are ignored)
-    float _reconciliationThreshold = 5.0f;
+    /// Set to 15.0px to tolerate natural client prediction being ahead of server
+    /// With 100px/s speed at 60Hz, each frame is ~1.67px, so 15px = ~9 frames (150ms) tolerance
+    /// This prevents constant micro-corrections while client prediction is working normally
+    float _reconciliationThreshold = 15.0f;
 };

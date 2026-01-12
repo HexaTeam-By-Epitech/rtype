@@ -208,7 +208,8 @@ class Rendering {
      * 
      * Delegates to EntityRenderer. Call when receiving GameState updates.
      */
-    void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health);
+    void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
+                      bool isMoving = false);
 
     /**
      * @brief Remove an entity from rendering

@@ -122,17 +122,11 @@ namespace server {
 
             LOG_INFO("🧪 Spawning test enemy with Lua script...");
 
-            _world
-                ->createEntity()
-
+            _world->createEntity()
                 .with(ecs::Transform(600.0f, 300.0f))
-
                 .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
-
                 .with(ecs::Health(100, 100))
-
                 .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
-
                 .with(ecs::LuaScript("test_movement.lua"));
 
             LOG_INFO("✓ Test enemy spawned at (600, 300) with script: test_movement.lua");
@@ -155,11 +149,6 @@ namespace server {
 
         // 1. Process accumulated player input
         _processInput();
-
-        // Periodic tick summary (once per second at 60 FPS)
-        if (currentTick % 60 == 0) {
-            LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
-        }
 
         if (_stateManager) {
             _stateManager->update(deltaTime);
@@ -239,62 +228,104 @@ namespace server {
 
     void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) {
         std::scoped_lock lock(_inputMutex);
-        _pendingInput.push_back({playerId, inputX, inputY, isShooting});
+
+        // Filter duplicates (redundant inputs)
+        // If we have already processed this sequence ID or a newer one, ignore it.
+        auto it = _lastProcessedSequenceId.find(playerId);
+        if (it != _lastProcessedSequenceId.end()) {
+            if (sequenceId <= it->second) {
+                return;  // Already processed
+            }
+        }
+        _lastProcessedSequenceId[playerId] = sequenceId;
+
+        // Add to queue
+        _pendingInput[playerId].push_back({playerId, inputX, inputY, isShooting, sequenceId});
     }
 
     void GameLogic::_processInput() {
-        // Move pending input to local copy under lock to minimize lock time
-        std::vector<PlayerInput> inputCopy;
-        {
-            std::scoped_lock lock(_inputMutex);
-            inputCopy = std::move(_pendingInput);
-            // _pendingInput is now in a valid but unspecified state (typically empty)
-            // No need to explicitly clear after move
+        std::scoped_lock lock(_inputMutex);
+
+        for (auto &[playerId, inputs] : _pendingInput) {
+            if (inputs.empty()) {
+                continue;
+            }
+
+            // SMART JITTER BUFFER
+            // Target buffer size: 2-3 frames (~33-50ms buffer)
+            // Strategy:
+            // - If buffer > 5: Speed up (process 2 inputs) -> Catch up lag
+            // - If buffer < 1: Slow down (process 0 inputs) -> Build up buffer (handled by empty check)
+            // - Normal: Process 1 input
+
+            size_t inputsToProcess = 1;
+            if (inputs.size() > 5) {
+                inputsToProcess = 2;  // Catch up
+                LOG_DEBUG("[JITTER] Player ", playerId, " buffer high (", inputs.size(),
+                          "), processing 2 inputs");
+            }
+
+            for (size_t i = 0; i < inputsToProcess && !inputs.empty(); ++i) {
+                const auto &input = inputs.front();
+                _applyPlayerInput(playerId, input);
+                inputs.pop_front();
+            }
+        }
+    }
+
+    void GameLogic::_applyPlayerInput(uint32_t playerId, const PlayerInput &input) {
+        auto it = _playerMap.find(playerId);
+        if (it == _playerMap.end()) {
+            return;
         }
 
-        for (const auto &input : inputCopy) {
-            auto it = _playerMap.find(input.playerId);
-            if (it == _playerMap.end()) {
-                continue;  // Player not found, skip
+        ecs::Address playerEntity = it->second;
+        try {
+            // Get entity wrapper and check if it still exists
+            ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
+
+            // Check if entity has Velocity component (entity might be destroyed)
+            if (!entity.has<ecs::Velocity>()) {
+                LOG_WARNING("Player ", playerId, " entity has no Velocity component (entity destroyed?)");
+                return;
             }
 
-            ecs::Address playerEntity = it->second;
-            try {
-                // Get entity wrapper and update velocity
-                ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
-                ecs::Velocity &vel = entity.get<ecs::Velocity>();
+            ecs::Velocity &vel = entity.get<ecs::Velocity>();
 
-                // If no input (0, 0), stop the player completely
-                if (input.inputX == 0 && input.inputY == 0) {
-                    vel.setDirection(0.0f, 0.0f);
-                } else {
-                    // Normalize diagonal movement
-                    float dirX = static_cast<float>(input.inputX);
-                    float dirY = static_cast<float>(input.inputY);
+            // If no input (0, 0), stop the player completely
+            if (input.inputX == 0 && input.inputY == 0) {
+                vel.setDirection(0.0f, 0.0f);
+                // Debug log throttled (thread-local to avoid races)
+                thread_local uint32_t stopLogCount = 0;
+                if (++stopLogCount % 60 == 0) {
+                    LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
+                }
+            } else {
+                // Normalize diagonal movement
+                float dirX = static_cast<float>(input.inputX);
+                float dirY = static_cast<float>(input.inputY);
 
-                    // Normalize if diagonal
-                    if (dirX != 0.0f && dirY != 0.0f) {
-                        float length = std::sqrt(dirX * dirX + dirY * dirY);
-                        dirX /= length;
-                        dirY /= length;
-                    }
-
-                    vel.setDirection(dirX, dirY);
+                // Normalize if diagonal
+                if (dirX != 0.0f && dirY != 0.0f) {
+                    float length = std::sqrt(dirX * dirX + dirY * dirY);
+                    dirX /= length;
+                    dirY /= length;
                 }
 
-                // Debug: log processed input once per message (only when there's movement)
-                // if (input.inputX != 0 || input.inputY != 0) {
-                //     LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
-                //               input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
-                // }
-
-                // Handle shooting
-                if (input.isShooting) {
-                    // Weapon system will handle actual projectile creation
+                vel.setDirection(dirX, dirY);
+                // Debug log throttled
+                thread_local uint32_t moveLogCount = 0;
+                if (++moveLogCount % 60 == 0) {
+                    LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ")");
                 }
-            } catch (const std::exception &e) {
-                LOG_ERROR("Error processing input for player ", input.playerId, ": ", e.what());
             }
+
+            // Handle shooting
+            if (input.isShooting) {
+                // Weapon system will handle actual projectile creation
+            }
+        } catch (const std::exception &e) {
+            LOG_ERROR("Error applying input for player ", playerId, ": ", e.what());
         }
     }
 

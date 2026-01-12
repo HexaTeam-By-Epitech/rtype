@@ -191,6 +191,7 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
     _sessionManager->removeSession(sessionId);
     _sessionPeers.erase(sessionId);
     _peerToSession.erase(it);
+    _playerIdToSessionId.erase(playerId);
 }
 
 void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
@@ -245,6 +246,7 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
 
     _sessionPeers[sessionId] = event.peer;
     _peerToSession[event.peer] = sessionId;
+    _playerIdToSessionId[newPlayerId] = sessionId;
 
     _lobby->addPlayer(newPlayerId, playerName);
 
@@ -726,8 +728,13 @@ void Server::_broadcastGameState() {
         allRecipients.insert(allRecipients.end(), spectators.begin(), spectators.end());
 
         for (uint32_t recipientId : allRecipients) {
-            // Find session for this recipient
-            std::string sessionId = "session_" + std::to_string(recipientId);
+            // Find session for this recipient using the mapping
+            auto sessionIt = _playerIdToSessionId.find(recipientId);
+            if (sessionIt == _playerIdToSessionId.end()) {
+                continue;
+            }
+            const std::string &sessionId = sessionIt->second;
+
             auto peerIt = _sessionPeers.find(sessionId);
             if (peerIt != _sessionPeers.end() && peerIt->second) {
                 std::unique_ptr<IPacket> peerPacket =
@@ -765,7 +772,12 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
 
     // (Re)send gamerules right before the game starts, in case they are room-specific.
     auto sendRulesToRecipient = [&](uint32_t recipientId) {
-        std::string sessionId = "session_" + std::to_string(recipientId);
+        auto sessionIt = _playerIdToSessionId.find(recipientId);
+        if (sessionIt == _playerIdToSessionId.end()) {
+            return;
+        }
+        const std::string &sessionId = sessionIt->second;
+
         auto peerIt = _sessionPeers.find(sessionId);
         if (peerIt == _sessionPeers.end() || !peerIt->second) {
             return;
@@ -814,17 +826,22 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
         }
 
         // Send to player
-        std::string sessionId = "session_" + std::to_string(playerId);
-        auto peerIt = _sessionPeers.find(sessionId);
-        if (peerIt != _sessionPeers.end() && peerIt->second) {
-            std::vector<uint8_t> payload = gameStart.serialize();
-            std::vector<uint8_t> packet =
-                NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, payload);
-            std::unique_ptr<IPacket> netPacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
-            peerIt->second->send(std::move(netPacket), 0);
+        auto sessionIt = _playerIdToSessionId.find(playerId);
+        if (sessionIt != _playerIdToSessionId.end()) {
+            const std::string &sessionId = sessionIt->second;
+            auto peerIt = _sessionPeers.find(sessionId);
 
-            LOG_INFO("✓ Sent GameStart to player ", playerId, " (entity: ", entityId,
-                     ", room: ", room->getId(), ")");
+            if (peerIt != _sessionPeers.end() && peerIt->second) {
+                std::vector<uint8_t> payload = gameStart.serialize();
+                std::vector<uint8_t> packet =
+                    NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, payload);
+                std::unique_ptr<IPacket> netPacket =
+                    createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
+                peerIt->second->send(std::move(netPacket), 0);
+
+                LOG_INFO("✓ Sent GameStart to player ", playerId, " (entity: ", entityId,
+                         ", room: ", room->getId(), ")");
+            }
         }
     }
 
@@ -848,16 +865,21 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
         }
 
         // Send to spectator
-        std::string sessionId = "session_" + std::to_string(spectatorId);
-        auto peerIt = _sessionPeers.find(sessionId);
-        if (peerIt != _sessionPeers.end() && peerIt->second) {
-            std::vector<uint8_t> payload = gameStart.serialize();
-            std::vector<uint8_t> packet =
-                NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, payload);
-            std::unique_ptr<IPacket> netPacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
-            peerIt->second->send(std::move(netPacket), 0);
+        auto sessionIt = _playerIdToSessionId.find(spectatorId);
+        if (sessionIt != _playerIdToSessionId.end()) {
+            const std::string &sessionId = sessionIt->second;
+            auto peerIt = _sessionPeers.find(sessionId);
 
-            LOG_INFO("✓ Sent GameStart to spectator ", spectatorId, " (room: ", room->getId(), ")");
+            if (peerIt != _sessionPeers.end() && peerIt->second) {
+                std::vector<uint8_t> payload = gameStart.serialize();
+                std::vector<uint8_t> packet =
+                    NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_START, payload);
+                std::unique_ptr<IPacket> netPacket =
+                    createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
+                peerIt->second->send(std::move(netPacket), 0);
+
+                LOG_INFO("✓ Sent GameStart to spectator ", spectatorId, " (room: ", room->getId(), ")");
+            }
         }
     }
 }

@@ -113,19 +113,29 @@ namespace server {
             }
 
             // Start in InGame state (skip lobby for dev)
+
             _stateManager->changeState(1);
+
             LOG_INFO("✓ GameStateManager initialized with 3 states");
 
             // 🧪 TEST: Spawn a test enemy with Lua script
-            // TODO: Re-enable when Lua threading issues are fixed
-            // LOG_INFO("🧪 Spawning test enemy with Lua script...");
-            // _world->createEntity()
-            //     .with(ecs::Transform(600.0f, 300.0f))
-            //     .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
-            //     .with(ecs::Health(100, 100))
-            //     .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
-            //     .with(ecs::LuaScript("test_movement.lua"));
-            // LOG_INFO("✓ Test enemy spawned at (600, 300) with script: test_movement.lua");
+
+            LOG_INFO("🧪 Spawning test enemy with Lua script...");
+
+            _world
+                ->createEntity()
+
+                .with(ecs::Transform(600.0f, 300.0f))
+
+                .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
+
+                .with(ecs::Health(100, 100))
+
+                .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
+
+                .with(ecs::LuaScript("test_movement.lua"));
+
+            LOG_INFO("✓ Test enemy spawned at (600, 300) with script: test_movement.lua");
 
             _gameActive = true;
 

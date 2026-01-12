@@ -36,10 +36,31 @@ bool GameLoop::initialize() {
     _eventBus->subscribe<NetworkEvent>([this](const NetworkEvent &event) { handleNetworkMessage(event); });
     LOG_INFO("Subscribed to NetworkEvent");
 
+    // 4. Subscribe to UI events
+    _eventBus->subscribe<UIEvent>([this](const UIEvent &event) { handleUIEvent(event); });
+    LOG_INFO("Subscribed to UIEvent");
+
     _initialized = true;
     LOG_INFO("All subsystems initialized successfully!");
 
     return true;
+}
+
+void GameLoop::handleUIEvent(const UIEvent &event) {
+    if (event.getType() == UIEventType::JOIN_GAME) {
+        LOG_INFO("[GameLoop] Joining game requested by UI");
+        if (_replicator) {
+            _replicator->sendJoinRoom("default");
+            // Also start game immediately for now (or wait for confirmation?)
+            // Usually we wait for JOIN_ROOM_ACK or similar.
+            // But let's fire StartGame too as requested.
+            // A delay might be safer but let's try direct.
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            _replicator->sendStartGame();
+        }
+    } else if (event.getType() == UIEventType::QUIT_GAME) {
+        stop();
+    }
 }
 
 void GameLoop::run() {
@@ -174,6 +195,12 @@ void GameLoop::render() {
 
     // Rendering::Render() already clears the window.
     _rendering->Render();
+
+    // Check if shutdown was requested during render (e.g. Quit button)
+    if (!_rendering->IsWindowOpen()) {
+        stop();
+        shutdown();
+    }
 }
 
 void GameLoop::processInput() {
@@ -209,13 +236,6 @@ void GameLoop::processInput() {
     }
     if (_rendering->IsKeyDown(KEY_SPACE)) {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
-    }
-
-    // Allow quitting with ESC key
-    if (_rendering->IsKeyDown(KEY_ESCAPE)) {
-        LOG_INFO("ESC pressed - quitting game");
-        stop();
-        return;
     }
 
     // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
@@ -272,6 +292,11 @@ float GameLoop::calculateDeltaTime() {
 
 void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
     auto messageType = NetworkMessages::getMessageType(event.getData());
+
+    // Debug log for message reception (filtered to avoid spamming for GameState)
+    if (messageType != NetworkMessages::MessageType::S2C_GAME_STATE) {
+        LOG_INFO("[GameLoop] Received network message type: ", static_cast<int>(messageType));
+    }
 
     // Handle GameStart message (sent once when player connects)
     if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {

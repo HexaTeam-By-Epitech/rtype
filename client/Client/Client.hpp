@@ -8,6 +8,7 @@
 #pragma once
 
 #include <chrono>
+#include <future>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -23,6 +24,7 @@
  * @brief R-Type client application
  * 
  * Encapsulates the entire client:
+ * - Authentication (Login/Register)
  * - Network communication (Replicator)
  * - Game loop (GameLoop with ECS + Render)
  * - Event system (EventBus)
@@ -69,7 +71,7 @@ class Client {
     bool initialize();
 
     /**
-     * @brief Run the client (blocking until exit)
+     * @brief Run the client (Start Game Loop directly)
      */
     void run();
 
@@ -77,6 +79,11 @@ class Client {
      * @brief Stop the client
      */
     void stop();
+
+    /**
+     * @brief Update credentials for next connection attempt
+     */
+    void SetCredentials(const std::string &username, const std::string &password);
 
    private:
     /**

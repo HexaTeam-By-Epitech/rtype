@@ -71,6 +71,11 @@ bool Client::initialize() {
     return true;
 }
 
+void Client::SetCredentials(const std::string &username, const std::string &password) {
+    _username = username;
+    _password = password;
+}
+
 bool Client::connectToServer() {
     LOG_INFO("Connecting to ", _serverHost, ":", _serverPort, "...");
 
@@ -115,34 +120,6 @@ bool Client::connectToServer() {
     }
 
     LOG_INFO("✓ Handshake complete!");
-
-    // Automatically join the default room
-    LOG_INFO("Joining default room...");
-    if (!_replicator->sendJoinRoom("default")) {
-        LOG_ERROR("Failed to send join room request");
-        return false;
-    }
-
-    // Wait for room join confirmation
-    for (int i = 0; i < 20; ++i) {
-        _replicator->processMessages();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    LOG_INFO("✓ Joined room!");
-
-    // Start the game
-    LOG_INFO("Starting game...");
-    if (!_replicator->sendStartGame()) {
-        LOG_ERROR("Failed to send start game request");
-        return false;
-    }
-
-    // Wait for game start
-    for (int i = 0; i < 20; ++i) {
-        _replicator->processMessages();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    LOG_INFO("✓ Game started!");
 
     return true;
 }

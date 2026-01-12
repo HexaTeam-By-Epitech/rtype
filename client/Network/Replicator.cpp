@@ -104,6 +104,12 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
         switch (event.type) {
             case NetworkEventType::RECEIVE:
                 if (event.packet) {
+                    auto messageType = NetworkMessages::getMessageType(event.packet->getData());
+                    if (messageType != NetworkMessages::MessageType::S2C_GAME_STATE) {
+                        LOG_DEBUG("[Replicator] Network thread received packet type: ",
+                                  static_cast<int>(messageType));
+                    }
+
                     // Update latency from ENet's built-in RTT calculation
                     if (_serverPeer) {
                         uint32_t enetRtt = _serverPeer->getRoundTripTime();
@@ -123,7 +129,6 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                     }
 
                     // Decode message type and push to queue
-                    auto messageType = NetworkMessages::getMessageType(event.packet->getData());
                     std::string messageContent;
 
                     // Parse based on message type
@@ -181,6 +186,10 @@ void Replicator::processMessages() {
 
         // Decode and log specific message types
         auto messageType = NetworkMessages::getMessageType(netEvent.getData());
+
+        if (messageType != NetworkMessages::MessageType::S2C_GAME_STATE) {
+            LOG_DEBUG("[Replicator] Popped message type: ", static_cast<int>(messageType));
+        }
 
         if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
             // Decode GameStart message
@@ -298,8 +307,11 @@ bool Replicator::sendCreateRoom(const std::string &roomName, uint32_t maxPlayers
 
 bool Replicator::sendJoinRoom(const std::string &roomId) {
     if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot send JoinRoom: Not connected");
         return false;
     }
+
+    LOG_INFO("Sending JoinRoom request for room: ", roomId);
 
     using namespace RType::Messages;
 
@@ -317,8 +329,11 @@ bool Replicator::sendJoinRoom(const std::string &roomId) {
 
 bool Replicator::sendStartGame() {
     if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot send StartGame: Not connected");
         return false;
     }
+
+    LOG_INFO("Sending StartGame request");
 
     using namespace RType::Messages;
 

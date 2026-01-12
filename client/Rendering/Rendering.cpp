@@ -6,9 +6,14 @@
 */
 
 #include "Rendering.hpp"
+#include "Events/UIEvent.hpp"
 #include "UI/TextUtils.hpp"
 
-Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {}
+Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {
+    // Note: Window creation is deferred to Initialize()
+    // This allows GameLoop to control initialization timing
+    _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+}
 
 Rendering::~Rendering() {
     Shutdown();
@@ -115,30 +120,22 @@ void Rendering::InitializeMenus() {
 
     // ===== Main menu =====
     _mainMenu = std::make_unique<Game::MainMenu>(*_uiFactory);
-    _mainMenu->SetOnQuit([this]() {
-        // Don't quit immediately: ask confirmation
-        if (_mainMenu) {
-            _mainMenu->Hide();
-        }
-        if (_settingsMenu) {
-            _settingsMenu->Hide();
-        }
-        _settingsOverlay = false;
-
-        if (_confirmQuitMenu) {
-            _confirmQuitOverlay = (_scene == Scene::IN_GAME);
-            _confirmQuitMenu->Show();
-        }
-    });
     _mainMenu->SetOnPlay([this]() {
-        // Show connection menu instead of starting game directly
-        if (_mainMenu) {
+        if (_mainMenu)
             _mainMenu->Hide();
-        }
         if (_connectionMenu) {
             _connectionMenu->Show();
         }
     });
+
+    _mainMenu->SetOnQuit([this]() {
+        _quitRequested = true;
+        // Or show confirm quit menu
+        // if (_mainMenu) _mainMenu->Hide();
+        // if (_confirmQuitMenu) _confirmQuitMenu->Show();
+        // _confirmQuitOverlay = true;
+    });
+
     _mainMenu->SetOnSettings([this]() {
         if (_mainMenu) {
             _mainMenu->Hide();
@@ -149,35 +146,54 @@ void Rendering::InitializeMenus() {
         }
         _settingsOverlay = false;
     });
+
+    _mainMenu->SetOnProfile([this]() {
+        if (_mainMenu)
+            _mainMenu->Hide();
+        if (_loginMenu)
+            _loginMenu->Show();
+        _loginOverlay = true;
+    });
+
+    // Pass screen dimensions for responsive layout (profile button)
+    _mainMenu->SetScreenSize(static_cast<float>(_width), static_cast<float>(_height));
+
     _mainMenu->Initialize();
     _mainMenu->Show();
 
+    // ===== Login Menu =====
+    _loginMenu = std::make_unique<Game::LoginMenu>(*_uiFactory, _graphics);
+    _loginMenu->SetOnBack([this]() {
+        if (_loginMenu)
+            _loginMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+        _loginOverlay = false;
+    });
+    _loginMenu->Initialize();
+    _loginMenu->Hide();
+
     // ===== Connection menu =====
     _connectionMenu = std::make_unique<Game::ConnectionMenu>(*_uiFactory, _graphics);
+    _connectionMenu->SetOnBack([this]() {
+        if (_connectionMenu)
+            _connectionMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+    });
     _connectionMenu->SetOnJoin(
         [this](const std::string &nickname, const std::string &ip, const std::string &port) {
-            // Start the game: switch scene and enable entity rendering
-            _scene = Scene::IN_GAME;
-            if (_connectionMenu) {
-                _connectionMenu->Hide();
-            }
-            if (_settingsMenu) {
-                _settingsMenu->Hide();
-            }
-            _settingsOverlay = false;
+            (void)nickname;
+            (void)ip;
+            (void)port;
 
-            if (!_entityRenderer) {
-                _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
-            }
+            // Publish Join Game event
+            _eventBus.publish(UIEvent(UIEventType::JOIN_GAME));
+
+            if (_connectionMenu)
+                _connectionMenu->Hide();
+            StartGame();
         });
-    _connectionMenu->SetOnBack([this]() {
-        if (_connectionMenu) {
-            _connectionMenu->Hide();
-        }
-        if (_mainMenu) {
-            _mainMenu->Show();
-        }
-    });
     _connectionMenu->Initialize();
     _connectionMenu->Hide();
 }
@@ -199,8 +215,7 @@ void Rendering::Shutdown() {
     if (!_initialized) {
         return;
     }
-    // Don't close the window - it may be reused
-    // _graphics.CloseWindow();
+    _graphics.CloseWindow();
     _initialized = false;
 }
 
@@ -227,6 +242,29 @@ void Rendering::SetShowFps(bool enabled) {
 
 bool Rendering::GetShowFps() const {
     return _showFps;
+}
+
+void Rendering::StartGame() {
+    if (!_initialized)
+        return;
+
+    LOG_INFO("Rendering: Force switching to Game Scene");
+    _scene = Scene::IN_GAME;
+
+    // Hide all menus
+    if (_mainMenu)
+        _mainMenu->Hide();
+    if (_connectionMenu)
+        _connectionMenu->Hide();
+    if (_settingsMenu)
+        _settingsMenu->Hide();
+
+    _settingsOverlay = false;
+
+    // Enable entity renderer
+    if (!_entityRenderer) {
+        _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+    }
 }
 
 void Rendering::Render() {
@@ -309,6 +347,34 @@ void Rendering::UpdateUI() {
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Update();
         }
+        if (_loginMenu && _loginMenu->IsVisible()) {
+            _loginMenu->Update();
+
+            // Check for submission
+            if (_loginMenu->IsLoginSubmitted() || _loginMenu->IsRegisterSubmitted() ||
+                _loginMenu->IsGuestSubmitted()) {
+                std::string username;
+                if (_loginMenu->IsGuestSubmitted()) {
+                    username = "Guest";
+                } else {
+                    username = _loginMenu->GetUsername();
+                }
+
+                // Update MainMenu profile button
+                if (_mainMenu) {
+                    _mainMenu->SetProfileName(username);
+                }
+
+                LOG_INFO("[Rendering] User logged in as: " + username);
+
+                // Close menu
+                _loginMenu->Hide();
+                if (_mainMenu)
+                    _mainMenu->Show();
+                _loginOverlay = false;
+                _loginMenu->Reset();
+            }
+        }
     } else {
         // In-game: only overlay settings gets updates
         if (_settingsMenu && _settingsMenu->IsVisible() && _settingsOverlay) {
@@ -341,6 +407,9 @@ void Rendering::RenderUI() {
         }
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Render();
+        }
+        if (_loginMenu && _loginMenu->IsVisible()) {
+            _loginMenu->Render();
         }
     } else {
         if (_settingsMenu && _settingsMenu->IsVisible() && _settingsOverlay) {

@@ -23,6 +23,21 @@ namespace Game {
         _onPlay = std::move(onPlay);
     }
 
+    void MainMenu::SetOnProfile(std::function<void()> onProfile) {
+        _onProfile = std::move(onProfile);
+    }
+
+    void MainMenu::SetProfileName(const std::string &name) {
+        if (_profileButton) {
+            _profileButton->SetText(name);
+        }
+    }
+
+    void MainMenu::SetScreenSize(float width, float height) {
+        _screenWidth = width;
+        _screenHeight = height;
+    }
+
     void MainMenu::Initialize() {
         if (!_menu) {
             return;
@@ -44,6 +59,22 @@ namespace Game {
                                               0xFF616161, [this]() { OnSettingsClicked(); }));
         _menu->AddButton(CreateCenteredButton("QUIT", offsets[2], buttonWidth, buttonHeight, 0xFFF44336,
                                               0xFFE57373, [this]() { OnQuitClicked(); }));
+
+        // Profile Button (Top Left)
+        const float profileBtnWidth = 120.0f;
+        const float profileBtnHeight = 40.0f;
+        const float margin = 20.0f;
+
+        _profileButton = _uiFactory.CreateButton();
+        _profileButton->SetSize(profileBtnWidth, profileBtnHeight);
+        _profileButton->SetPosition(margin, margin);
+        _profileButton->SetText("GUEST");                // Default
+        _profileButton->SetBackgroundColor(0xFF2196F3);  // Blue
+        _profileButton->SetHoverColor(0xFF64B5F6);
+        _profileButton->SetTextColor(0xFFFFFFFF);
+        _profileButton->SetCallback([this]() { OnProfileClicked(); });
+
+        _menu->AddButton(_profileButton);
     }
 
     void MainMenu::OnPlayClicked() {
@@ -67,6 +98,13 @@ namespace Game {
             _onQuit();
         } else {
             LOG_WARNING("[MainMenu] Quit requested but no onQuit callback was set");
+        }
+    }
+
+    void MainMenu::OnProfileClicked() {
+        LOG_INFO("[MainMenu] Profile button clicked!");
+        if (_onProfile) {
+            _onProfile();
         }
     }
 }  // namespace Game

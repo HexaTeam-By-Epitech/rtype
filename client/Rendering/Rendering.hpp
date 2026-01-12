@@ -21,6 +21,7 @@
 // UI library
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
+#include "Menu/LoginMenu.hpp"
 #include "Menu/MainMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
 #include "UI/IButton.hpp"
@@ -114,6 +115,19 @@ class Rendering {
      * @note Returns false if user closes the window
      */
     [[nodiscard]] bool IsWindowOpen() const;
+
+    /**
+     * @brief Switch immediately to the game scene
+     * 
+     * Forces the rendering system to enter the game mode:
+     * - Hides all menus
+     * - Enables entity rendering
+     * - Sets scene to IN_GAME
+     * 
+     * Useful when the game state is already active (e.g. after login flow).
+     */
+    void StartGame();
+
     /**
      * @brief Load a texture from file
      * 
@@ -332,7 +346,7 @@ class Rendering {
 
     Scene _scene = Scene::MENU;
 
-    EventBus _eventBus;
+    EventBus &_eventBus;
     bool _initialized = false;
     bool _quitRequested = false;
     uint32_t _width = 0;
@@ -345,9 +359,11 @@ class Rendering {
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
+    std::unique_ptr<Game::LoginMenu> _loginMenu;
 
     bool _settingsOverlay = false;
     bool _confirmQuitOverlay = false;
+    bool _loginOverlay = false;
 
     // Entity rendering subsystem
     std::unique_ptr<EntityRenderer> _entityRenderer;

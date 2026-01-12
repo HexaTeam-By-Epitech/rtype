@@ -197,6 +197,8 @@ class Server {
     std::unordered_map<std::string, IPeer *> _sessionPeers;
     // Reverse lookup: peer -> session ID for fast disconnect handling
     std::unordered_map<IPeer *, std::string> _peerToSession;
+    // Lookup: Player ID -> Session ID for broadcasting
+    std::unordered_map<uint32_t, std::string> _playerIdToSessionId;
 
     bool _initialized = false;
     bool _running = false;

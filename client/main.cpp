@@ -5,165 +5,9 @@
 ** main.cpp
 */
 
-#include <atomic>
-#include <chrono>
-#include <ctime>
-#include <future>
-#include <thread>
-#include "../common/Networking/NetworkFactory.hpp"
-#include "../common/Serialization/Capnp/ConnectionMessages.hpp"
-#include "../common/Serialization/Capnp/NetworkMessages.hpp"
+#include <iostream>
+#include <string>
 #include "Client/Client.hpp"
-#include "UI/LoginScreen.hpp"
-#include "raylib.h"
-
-// Helper function to send registration request
-bool sendRegisterRequest(const std::string &username, const std::string &password, const std::string &host,
-                         uint16_t port) {
-    using namespace RType::Messages;
-    using namespace ConnectionMessages;
-
-    // Create temporary network connection
-    auto clientHost = createClientHost(2);
-    auto address = createAddress(host, port);
-
-    // Connect to server
-    auto peer = clientHost->connect(*address, 2, 0);
-    if (!peer) {
-        return false;
-    }
-
-    // Wait for connection
-    auto start = std::chrono::steady_clock::now();
-    bool connected = false;
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(3)) {
-        auto event = clientHost->service(100);
-        if (event && event->type == NetworkEventType::CONNECT) {
-            connected = true;
-            break;
-        }
-    }
-
-    if (!connected) {
-        return false;
-    }
-
-    // Send REGISTER_REQUEST
-    RegisterRequestData registerData;
-    registerData.username = username;
-    registerData.password = password;
-
-    std::vector<uint8_t> payload = createRegisterRequest(registerData);
-    std::vector<uint8_t> message =
-        NetworkMessages::createMessage(NetworkMessages::MessageType::REGISTER_REQUEST, payload);
-    auto packet = createPacket(message, static_cast<int>(PacketFlag::RELIABLE));
-    peer->send(std::move(packet), 0);
-
-    // Wait for response
-    bool gotResponse = false;
-    bool success = false;
-    start = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(3)) {
-        auto event = clientHost->service(100);
-        if (event && event->type == NetworkEventType::RECEIVE && event->packet) {
-            NetworkMessages::MessageType msgType = NetworkMessages::getMessageType(event->packet->getData());
-            if (msgType == NetworkMessages::MessageType::REGISTER_RESPONSE) {
-                std::vector<uint8_t> responsePayload = NetworkMessages::getPayload(event->packet->getData());
-                RegisterResponseData response = parseRegisterResponse(responsePayload);
-                success = response.success;
-                gotResponse = true;
-                break;
-            }
-        }
-    }
-
-    peer->disconnect();
-    return gotResponse && success;
-}
-
-// Handle async registration check
-void handleRegistrationStatus(bool &isRegistering, std::future<bool> &registerFuture,
-                              LoginScreen &loginScreen) {
-    if (isRegistering && registerFuture.valid()) {
-        if (registerFuture.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-            bool success = registerFuture.get();
-            isRegistering = false;
-
-            if (success) {
-                loginScreen.setSuccessMessage("✓ Account created! You can now login.");
-            } else {
-                loginScreen.setErrorMessage("❌ Registration failed! Username already exists.");
-            }
-            loginScreen.reset();
-        }
-    }
-}
-
-// Handle login screen user actions
-void handleLoginScreenActions(LoginScreen &loginScreen, std::string &username, std::string &password,
-                              std::string &playerName, bool &authenticated, bool &isRegistering,
-                              std::future<bool> &registerFuture, const std::string &host, uint16_t port) {
-    if (loginScreen.isLoginSubmitted()) {
-        username = loginScreen.getUsername();
-        password = loginScreen.getPassword();
-        playerName = username;
-        authenticated = true;
-    } else if (loginScreen.isGuestSubmitted()) {
-        // Connect as guest with default credentials
-        username = "guest";
-        password = "guest";
-        playerName = "Guest_" + std::to_string(std::time(nullptr) % 10000);
-        authenticated = true;
-    } else if (loginScreen.isRegisterSubmitted()) {
-        std::string registerUsername = loginScreen.getUsername();
-        std::string registerPassword = loginScreen.getPassword();
-
-        if (registerUsername.empty() || registerPassword.empty()) {
-            loginScreen.setErrorMessage("Username and password required!");
-            loginScreen.reset();
-        } else if (!isRegistering) {
-            loginScreen.setSuccessMessage("Sending registration...");
-            isRegistering = true;
-            registerFuture = std::async(std::launch::async, sendRegisterRequest, registerUsername,
-                                        registerPassword, host, port);
-        }
-    }
-}
-
-// Run login screen loop
-bool runLoginScreen(LoginScreen &loginScreen, std::string &username, std::string &password,
-                    std::string &playerName, const std::string &host, uint16_t port) {
-    bool authenticated = false;
-    std::future<bool> registerFuture;
-    bool isRegistering = false;
-
-    while (!WindowShouldClose() && !authenticated) {
-        handleRegistrationStatus(isRegistering, registerFuture, loginScreen);
-        loginScreen.update();
-
-        BeginDrawing();
-        loginScreen.render();
-        EndDrawing();
-
-        handleLoginScreenActions(loginScreen, username, password, playerName, authenticated, isRegistering,
-                                 registerFuture, host, port);
-    }
-
-    return authenticated;
-}
-
-// Initialize Raylib window
-bool initializeWindow() {
-    InitWindow(800, 600, "R-Type - Login");
-    SetTargetFPS(60);
-
-    if (!IsWindowReady()) {
-        std::cerr << "ERROR: Window failed to initialize!" << std::endl;
-        return false;
-    }
-
-    return true;
-}
 
 // Parse command line arguments
 void parseCommandLine(int argc, char **argv, std::string &host, uint16_t &port) {
@@ -178,7 +22,7 @@ void parseCommandLine(int argc, char **argv, std::string &host, uint16_t &port) 
 // Print welcome banner
 void printBanner(const std::string &host, uint16_t port) {
     std::cout << "==================================" << std::endl;
-    std::cout << "R-Type Client with Authentication" << std::endl;
+    std::cout << "R-Type Client" << std::endl;
     std::cout << "Server: " << host << ":" << port << std::endl;
     std::cout << "==================================" << std::endl;
 }
@@ -191,52 +35,19 @@ int main(int argc, char **argv) {
     parseCommandLine(argc, argv, host, port);
     printBanner(host, port);
 
-    // Initialize Raylib window
-    if (!initializeWindow()) {
+    std::string playerName = "Player";  // Default name, will be updated by login
+
+    // Create and initialize Client
+    // The client handles the login phase internally before connecting
+    Client client(playerName, host, port);
+
+    if (!client.initialize()) {
+        std::cerr << "Failed to initialize client" << std::endl;
         return 1;
     }
 
-    LoginScreen loginScreen;
-    std::string username, password, playerName;
+    // Run client - this will show login, connect, and start game
+    client.run();
 
-    // Initial login screen
-    bool authenticated = runLoginScreen(loginScreen, username, password, playerName, host, port);
-
-    if (!authenticated) {
-        CloseWindow();
-        return 0;
-    }
-
-    // Main game loop with authentication retry
-    bool gameRunning = true;
-    while (gameRunning && !WindowShouldClose()) {
-        // Create and initialize Client - it will handle connection and authentication
-        LOG_INFO("Creating client and connecting to server...");
-        Client client(playerName, username, password, host, port);
-
-        if (!client.initialize()) {
-            std::cerr << "Failed to initialize client" << std::endl;
-            loginScreen.setErrorMessage("❌ Failed to initialize game client.");
-            loginScreen.reset();
-
-            // Return to login screen for retry
-            authenticated = runLoginScreen(loginScreen, username, password, playerName, host, port);
-
-            if (WindowShouldClose() || !authenticated) {
-                gameRunning = false;
-                continue;
-            }
-            continue;  // Retry with new credentials
-        }
-
-        // Run client - this will connect, authenticate, and start game
-        // If authentication fails, it will return and we'll retry
-        client.run();
-
-        // Game ended - ask user if they want to play again or return to login
-        gameRunning = false;
-    }
-
-    CloseWindow();
     return 0;
 }

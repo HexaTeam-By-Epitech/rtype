@@ -226,7 +226,8 @@ namespace server {
         }
     }
 
-    void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) {
+    void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting,
+                                       uint32_t sequenceId) {
         std::scoped_lock lock(_inputMutex);
 
         // Filter duplicates (redundant inputs)

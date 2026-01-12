@@ -6,6 +6,8 @@
 */
 
 #include "Rendering.hpp"
+#include <chrono>
+#include <thread>
 #include "Events/UIEvent.hpp"
 #include "UI/TextUtils.hpp"
 
@@ -42,7 +44,7 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
     InitializeMenus();
     ApplyInitialMenuSettings();
 
-    // Start in menu: disable entity renderer until Play
+    // Start with server selection menu
     _entityRenderer.reset();
 
     _initialized = true;
@@ -53,9 +55,36 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
 void Rendering::InitializeMenus() {
     _uiFactory = std::make_unique<UI::RaylibUIFactory>(_graphics);
 
-    // ===== Confirm quit dialog =====
+    InitializeConfirmQuitMenu();
+    InitializeSettingsMenu();
+    InitializeMainMenu();
+    InitializeLoginMenu();
+    InitializeServerListMenu();
+    InitializeAddServerMenu();
+    InitializeConnectionMenu();
+    SubscribeToConnectionEvents();
+}
+
+void Rendering::ApplyInitialMenuSettings() {
+    // Default: 60 FPS cap at startup
+    _graphics.SetTargetFPS(60);
+
+    // Keep menu button state consistent with renderer state (silent sync)
+    if (_settingsMenu) {
+        _settingsMenu->SetTargetFpsSilent(60);
+        _settingsMenu->SetShowPingSilent(_showPing);
+        _settingsMenu->SetShowFpsSilent(_showFps);
+        _settingsMenu->RefreshVisuals();
+    }
+}
+
+// ===== Menu Initialization Functions (SOLID: Single Responsibility) =====
+
+void Rendering::InitializeConfirmQuitMenu() {
     _confirmQuitMenu = std::make_unique<Game::ConfirmQuitMenu>(*_uiFactory);
+
     _confirmQuitMenu->SetOnConfirm([this]() { _quitRequested = true; });
+
     _confirmQuitMenu->SetOnCancel([this]() {
         if (_confirmQuitMenu) {
             _confirmQuitMenu->Hide();
@@ -69,15 +98,19 @@ void Rendering::InitializeMenus() {
             }
         }
     });
+
     _confirmQuitMenu->Initialize();
     _confirmQuitMenu->Hide();
+}
 
-    // ===== Settings menu =====
+void Rendering::InitializeSettingsMenu() {
     _settingsMenu = std::make_unique<Game::SettingsMenu>(*_uiFactory, _graphics);
     _settingsMenu->SetMode(Game::SettingsMenu::Mode::FULLSCREEN);
 
     _settingsMenu->SetOnShowPingChanged([this](bool enabled) { SetShowPing(enabled); });
+
     _settingsMenu->SetOnShowFpsChanged([this](bool enabled) { SetShowFps(enabled); });
+
     _settingsMenu->SetOnTargetFpsChanged(
         [this](uint32_t fps) { _graphics.SetTargetFPS(static_cast<int>(fps)); });
 
@@ -97,6 +130,7 @@ void Rendering::InitializeMenus() {
         // Return to main menu while in-game
         _scene = Scene::MENU;
         _settingsOverlay = false;
+
         if (_settingsMenu) {
             _settingsMenu->Hide();
             if (_settingsMenu->GetMode() != Game::SettingsMenu::Mode::FULLSCREEN) {
@@ -106,10 +140,12 @@ void Rendering::InitializeMenus() {
                 _settingsMenu->RefreshVisuals();
             }
         }
+
         if (_entityRenderer) {
             _entityRenderer->clearAllEntities();
         }
         _entityRenderer.reset();
+
         if (_mainMenu) {
             _mainMenu->Show();
         }
@@ -117,24 +153,23 @@ void Rendering::InitializeMenus() {
 
     _settingsMenu->Initialize();
     _settingsMenu->Hide();
+}
 
-    // ===== Main menu =====
+void Rendering::InitializeMainMenu() {
     _mainMenu = std::make_unique<Game::MainMenu>(*_uiFactory);
+
     _mainMenu->SetOnPlay([this]() {
         if (_mainMenu)
             _mainMenu->Hide();
-        if (_connectionMenu) {
-            _connectionMenu->Show();
-        }
+
+        // Connection already established when server was selected
+        // Just send JOIN_GAME event to start playing
+        std::string serverInfo = _selectedServerIp + ":" + std::to_string(_selectedServerPort);
+        _eventBus.publish(UIEvent(UIEventType::JOIN_GAME, serverInfo));
+        StartGame();
     });
 
-    _mainMenu->SetOnQuit([this]() {
-        _quitRequested = true;
-        // Or show confirm quit menu
-        // if (_mainMenu) _mainMenu->Hide();
-        // if (_confirmQuitMenu) _confirmQuitMenu->Show();
-        // _confirmQuitOverlay = true;
-    });
+    _mainMenu->SetOnQuit([this]() { _quitRequested = true; });
 
     _mainMenu->SetOnSettings([this]() {
         if (_mainMenu) {
@@ -155,14 +190,23 @@ void Rendering::InitializeMenus() {
         _loginOverlay = true;
     });
 
+    _mainMenu->SetOnSelectServer([this]() {
+        if (_mainMenu)
+            _mainMenu->Hide();
+        if (_serverListMenu)
+            _serverListMenu->Show();
+    });
+
     // Pass screen dimensions for responsive layout (profile button)
     _mainMenu->SetScreenSize(static_cast<float>(_width), static_cast<float>(_height));
 
     _mainMenu->Initialize();
-    _mainMenu->Show();
+    _mainMenu->Hide();  // Start hidden, show after server selection
+}
 
-    // ===== Login Menu =====
+void Rendering::InitializeLoginMenu() {
     _loginMenu = std::make_unique<Game::LoginMenu>(*_uiFactory, _graphics);
+
     _loginMenu->SetOnBack([this]() {
         if (_loginMenu)
             _loginMenu->Hide();
@@ -170,17 +214,103 @@ void Rendering::InitializeMenus() {
             _mainMenu->Show();
         _loginOverlay = false;
     });
+
     _loginMenu->Initialize();
     _loginMenu->Hide();
+}
 
-    // ===== Connection menu =====
+void Rendering::InitializeServerListMenu() {
+    _serverListMenu = std::make_unique<Game::ServerListMenu>(*_uiFactory, _graphics);
+
+    _serverListMenu->SetOnBack([this]() {
+        // Back from server selection = quit game
+        _quitRequested = true;
+    });
+
+    _serverListMenu->SetOnServerSelected([this](const std::string &ip, uint16_t port) {
+        // Get server name for display
+        _connectingServerName = "Unknown";
+        for (const auto &server : _serverListMenu->GetServers()) {
+            if (server.ip == ip && server.port == port) {
+                _connectingServerName = server.name;
+                break;
+            }
+        }
+
+        // Store the selected server info
+        _selectedServerIp = ip;
+        _selectedServerPort = port;
+        LOG_INFO("[Rendering] Connecting to server: ", ip, ":", port, "...");
+
+        // Set connecting state in ServerListMenu
+        if (_serverListMenu)
+            _serverListMenu->SetConnecting(true, _connectingServerName);
+
+        // Set connecting state
+        _isConnecting = true;
+
+        // Publish Server Connect event to trigger connection (async)
+        std::string serverInfo = ip + ":" + std::to_string(port);
+        _eventBus.publish(UIEvent(UIEventType::SERVER_CONNECT, serverInfo));
+
+        // Don't block here - let the CONNECTION_FAILED or connection success handle UI updates
+    });
+
+    _serverListMenu->SetOnAddServer([this]() {
+        if (_serverListMenu)
+            _serverListMenu->Hide();
+        if (_addServerMenu)
+            _addServerMenu->Show();
+    });
+
+    _serverListMenu->Initialize();
+    _serverListMenu->Show();  // Show at startup
+}
+
+void Rendering::InitializeAddServerMenu() {
+    _addServerMenu = std::make_unique<Game::AddServerMenu>(*_uiFactory, _graphics);
+
+    _addServerMenu->SetOnCancel([this]() {
+        if (_addServerMenu)
+            _addServerMenu->Hide();
+        if (_serverListMenu)
+            _serverListMenu->Show();
+    });
+
+    _addServerMenu->SetOnAdd([this](const std::string &name, const std::string &ip, const std::string &port) {
+        LOG_INFO("[Rendering] Adding server: ", name, " - ", ip, ":", port);
+
+        // Add server to list
+        if (_serverListMenu) {
+            try {
+                uint16_t portNum = static_cast<uint16_t>(std::stoi(port));
+                _serverListMenu->AddServer(name, ip, portNum);
+            } catch (...) {
+                LOG_ERROR("[Rendering] Failed to parse port: ", port);
+            }
+        }
+
+        // Hide add server menu and show server list
+        if (_addServerMenu)
+            _addServerMenu->Hide();
+        if (_serverListMenu)
+            _serverListMenu->Show();
+    });
+
+    _addServerMenu->Initialize();
+    _addServerMenu->Hide();
+}
+
+void Rendering::InitializeConnectionMenu() {
     _connectionMenu = std::make_unique<Game::ConnectionMenu>(*_uiFactory, _graphics);
+
     _connectionMenu->SetOnBack([this]() {
         if (_connectionMenu)
             _connectionMenu->Hide();
         if (_mainMenu)
             _mainMenu->Show();
     });
+
     _connectionMenu->SetOnJoin(
         [this](const std::string &nickname, const std::string &ip, const std::string &port) {
             (void)nickname;
@@ -194,22 +324,47 @@ void Rendering::InitializeMenus() {
                 _connectionMenu->Hide();
             StartGame();
         });
+
     _connectionMenu->Initialize();
     _connectionMenu->Hide();
 }
 
-void Rendering::ApplyInitialMenuSettings() {
-    // Default: 60 FPS cap at startup
-    _graphics.SetTargetFPS(60);
+void Rendering::SubscribeToConnectionEvents() {
+    _eventBus.subscribe<UIEvent>([this](const UIEvent &event) {
+        if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
+            LOG_INFO("[Rendering] Connection successful!");
 
-    // Keep menu button state consistent with renderer state (silent sync)
-    if (_settingsMenu) {
-        _settingsMenu->SetTargetFpsSilent(60);
-        _settingsMenu->SetShowPingSilent(_showPing);
-        _settingsMenu->SetShowFpsSilent(_showFps);
-        _settingsMenu->RefreshVisuals();
-    }
+            // Clear connecting state
+            _isConnecting = false;
+            if (_serverListMenu)
+                _serverListMenu->SetConnecting(false);
+
+            // Hide server list and show main menu
+            if (_serverListMenu)
+                _serverListMenu->Hide();
+            if (_mainMenu)
+                _mainMenu->Show();
+
+        } else if (event.getType() == UIEventType::CONNECTION_FAILED) {
+            LOG_ERROR("[Rendering] Connection failed: ", event.getData());
+
+            // Clear connecting state
+            _isConnecting = false;
+            if (_serverListMenu)
+                _serverListMenu->SetConnecting(false);
+
+            // Set error message in server list (it's already visible)
+            if (_serverListMenu) {
+                _serverListMenu->SetConnectionError("Connection failed: Server unreachable");
+            }
+
+            // Make sure we're back to menu scene
+            _scene = Scene::MENU;
+        }
+    });
 }
+
+// ===== End of Menu Initialization Functions =====
 
 void Rendering::Shutdown() {
     if (!_initialized) {
@@ -254,6 +409,10 @@ void Rendering::StartGame() {
     // Hide all menus
     if (_mainMenu)
         _mainMenu->Hide();
+    if (_serverListMenu)
+        _serverListMenu->Hide();
+    if (_addServerMenu)
+        _addServerMenu->Hide();
     if (_connectionMenu)
         _connectionMenu->Hide();
     if (_settingsMenu)
@@ -341,6 +500,12 @@ void Rendering::UpdateUI() {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Update();
         }
+        if (_serverListMenu && _serverListMenu->IsVisible()) {
+            _serverListMenu->Update();
+        }
+        if (_addServerMenu && _addServerMenu->IsVisible()) {
+            _addServerMenu->Update();
+        }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Update();
         }
@@ -401,6 +566,12 @@ void Rendering::RenderUI() {
     if (_scene == Scene::MENU) {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Render();
+        }
+        if (_serverListMenu && _serverListMenu->IsVisible()) {
+            _serverListMenu->Render();
+        }
+        if (_addServerMenu && _addServerMenu->IsVisible()) {
+            _addServerMenu->Render();
         }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Render();

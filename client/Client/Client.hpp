@@ -85,6 +85,19 @@ class Client {
      */
     void SetCredentials(const std::string &username, const std::string &password);
 
+    /**
+     * @brief Set server address and port
+     * @param host Server hostname/IP
+     * @param port Server port
+     */
+    void SetServer(const std::string &host, uint16_t port);
+
+    /**
+     * @brief Connect to the configured server
+     * @return true if connection successful, false otherwise
+     */
+    bool Connect();
+
    private:
     /**
      * @brief Connect to server

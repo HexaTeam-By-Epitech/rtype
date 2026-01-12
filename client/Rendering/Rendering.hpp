@@ -19,10 +19,12 @@
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
 // UI library
+#include "Menu/AddServerMenu.hpp"
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
 #include "Menu/LoginMenu.hpp"
 #include "Menu/MainMenu.hpp"
+#include "Menu/ServerListMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
 #include "UI/IButton.hpp"
 #include "UI/IMenu.hpp"
@@ -357,6 +359,8 @@ class Rendering {
     // ===== Menu UI (business) =====
     std::unique_ptr<UI::RaylibUIFactory> _uiFactory;
     std::unique_ptr<Game::MainMenu> _mainMenu;
+    std::unique_ptr<Game::ServerListMenu> _serverListMenu;
+    std::unique_ptr<Game::AddServerMenu> _addServerMenu;
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
@@ -365,6 +369,12 @@ class Rendering {
     bool _settingsOverlay = false;
     bool _confirmQuitOverlay = false;
     bool _loginOverlay = false;
+
+    // Selected server for connection
+    std::string _selectedServerIp = "127.0.0.1";
+    uint16_t _selectedServerPort = 4242;
+    bool _isConnecting = false;
+    std::string _connectingServerName;
 
     // Entity rendering subsystem
     std::unique_ptr<EntityRenderer> _entityRenderer;
@@ -394,6 +404,16 @@ class Rendering {
      * @brief Apply runtime settings affecting rendering (target FPS, HUD visibility...).
      */
     void ApplyInitialMenuSettings();
+
+    // ===== Menu initialization helpers (SOLID: Single Responsibility) =====
+    void InitializeConfirmQuitMenu();
+    void InitializeSettingsMenu();
+    void InitializeMainMenu();
+    void InitializeLoginMenu();
+    void InitializeServerListMenu();
+    void InitializeAddServerMenu();
+    void InitializeConnectionMenu();
+    void SubscribeToConnectionEvents();
 
     // ===== Helper methods for Render() to reduce cognitive complexity =====
 

@@ -10,7 +10,14 @@
 #include <string>
 #include "Events/IEvent.hpp"
 
-enum class UIEventType { JOIN_GAME, START_GAME, QUIT_GAME };
+enum class UIEventType {
+    JOIN_GAME,
+    START_GAME,
+    QUIT_GAME,
+    SERVER_CONNECT,
+    CONNECTION_FAILED,
+    CONNECTION_SUCCESS
+};
 
 class UIEvent : public IEvent {
    public:

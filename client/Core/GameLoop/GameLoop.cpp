@@ -150,12 +150,17 @@ void GameLoop::update(float deltaTime) {
             _rendering->SetPing(currentPing);
 
             // ADAPTIVE RECONCILIATION THRESHOLD
-            // Base threshold: 3.0px (tight)
-            // Penalty: +0.2px per ms of ping
-            // Max: 20.0px (very loose)
-            float adaptiveThreshold = 3.0f + (static_cast<float>(currentPing) * _playerSpeed * 0.002f);
-            if (adaptiveThreshold > 20.0f)
-                adaptiveThreshold = 20.0f;
+
+            // Base threshold: 5.0px (was 3.0px) - Gives more breathing room for local prediction
+
+            // Penalty: +0.25px per ms of ping (was 0.2px)
+
+            // Max: 30.0px (was 20.0px) - Allow significant drift at high ping (100ms+)
+
+            float adaptiveThreshold = 5.0f + (static_cast<float>(currentPing) * _playerSpeed * 0.0025f);
+
+            if (adaptiveThreshold > 30.0f)
+                adaptiveThreshold = 30.0f;
 
             _rendering->SetReconciliationThreshold(adaptiveThreshold);
         }

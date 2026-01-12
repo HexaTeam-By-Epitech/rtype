@@ -362,10 +362,6 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
                     // 1. Prune history: Remove inputs already processed by server
                     while (!_inputHistory.empty() &&
                            _inputHistory.back().sequenceId <= entity.lastProcessedInput) {
-                        // We are removing from BACK because push_front adds new ones.
-                        // Wait, deque: back is oldest? Let's check GameLoop.cpp push_front call.
-                        // _inputHistory.push_front(currentSnapshot);
-                        // So FRONT is NEWEST, BACK is OLDEST. Correct.
                         _inputHistory.pop_back();
                     }
 
@@ -374,14 +370,9 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
                     float predictedX = entity.position.x;
                     float predictedY = entity.position.y;
 
-                    // Replay all pending inputs (not yet acknowledged by server)
-                    // Iterate from oldest (back) to newest (front)
-                    // Note: iterating deque from rbegin() to rend() gives oldest to newest
                     for (auto it = _inputHistory.rbegin(); it != _inputHistory.rend(); ++it) {
                         const auto &snapshot = *it;
 
-                        // Apply same physics logic as processInput (simplified for now)
-                        // Ideally we would use shared physics code
                         int dx = 0, dy = 0;
                         for (auto act : snapshot.actions) {
                             if (act == RType::Messages::Shared::Action::MoveUp)
@@ -404,22 +395,18 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
                                 moveY /= length;
                             }
 
-                            // Calculate delta for this past frame
-                            // Assuming fixed timestep of 1/60 for inputs
                             float frameDelta = _playerSpeed * (1.0f / 60.0f);
                             predictedX += moveX * frameDelta;
                             predictedY += moveY * frameDelta;
                         }
                     }
 
-                    // 3. Update Renderer with CORRECTED Predicted Position
-                    // We force the renderer to accept this new "Predicted Truth"
-                    // This effectively "Reconciles" the drift by snapping to the re-calculated path
-                    // instead of the raw server position.
-                    _rendering->UpdateEntity(entity.entityId, entity.type, predictedX, predictedY,
-                                             entity.health.value_or(-1), entityIsMoving);
+                    if (_rendering) {
 
-                    continue;  // Skip standard update
+                        _rendering->UpdateEntity(entity.entityId, entity.type, predictedX, predictedY,
+
+                                                 entity.health.value_or(-1), entityIsMoving);
+                    }
                 }
 
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,

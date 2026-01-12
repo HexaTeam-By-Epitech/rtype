@@ -25,6 +25,13 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             float errorY = y - it->second.y;
             float errorDistance = std::sqrt(errorX * errorX + errorY * errorY);
 
+            // MICRO-JITTER FILTERING
+            // If the correction is tiny (floating point error from Replay), ignore it completely.
+            // This stops the ship from "shivering" 1 pixel back and forth.
+            if (errorDistance < 2.0f) {
+                return;  // Visually perfect, don't touch
+            }
+
             // Only reconcile when error exceeds threshold (use same threshold regardless of movement state)
             if (errorDistance > _reconciliationThreshold) {
                 // Significant desync detected - smooth correction needed
@@ -33,8 +40,6 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                 it->second.prevY = it->second.y;
 
                 // EXPONENTIAL SMOOTHING (DECAY) instead of linear snap
-                // We don't just snap targetX to x. We blend them.
-                // The higher the threshold (high ping), the softer we blend.
                 float blendFactor = 0.5f;  // Default blend
                 if (_reconciliationThreshold > 10.0f)
                     blendFactor = 0.2f;  // High ping -> Slow blend
@@ -278,16 +283,10 @@ void EntityRenderer::moveEntityLocally(uint32_t entityId, float deltaX, float de
     it->second.x += deltaX;
     it->second.y += deltaY;
 
-    // Also shift the interpolation targets/anchors so we don't fight the reconciliation
-    // This allows the smooth correction to continue RELATIVE to the moving frame of reference
     it->second.targetX += deltaX;
     it->second.targetY += deltaY;
     it->second.prevX += deltaX;
     it->second.prevY += deltaY;
-
-    // Do NOT reset interpolationFactor.
-    // If we are reconciling (factor < 1.0), let it continue.
-    // If we are stable (factor = 1.0), it stays 1.0.
 }
 
 float EntityRenderer::lerp(float start, float end, float t) const {

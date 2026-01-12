@@ -5,50 +5,48 @@
 ** main.cpp
 */
 
+#include <iostream>
+#include <string>
 #include "Client/Client.hpp"
 
+// Parse command line arguments
+void parseCommandLine(int argc, char **argv, std::string &host, uint16_t &port) {
+    if (argc > 1) {
+        host = argv[1];
+    }
+    if (argc > 2) {
+        port = static_cast<uint16_t>(std::atoi(argv[2]));
+    }
+}
+
+// Print welcome banner
+void printBanner(const std::string &host, uint16_t port) {
+    std::cout << "==================================" << std::endl;
+    std::cout << "R-Type Client" << std::endl;
+    std::cout << "Server: " << host << ":" << port << std::endl;
+    std::cout << "==================================" << std::endl;
+}
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <player_name> [host] [port] [--spectator]" << '\n';
-        std::cerr << "Example: " << argv[0] << " Alice 127.0.0.1 4242" << '\n';
-        std::cerr << "         " << argv[0] << " Bob 127.0.0.1 4242 --spectator" << '\n';
-        std::cerr << "         " << argv[0] << " Charlie --spectator" << '\n';
-        return 1;
-    }
-
-    const std::string playerName = argv[1];
-
-    // Check for spectator mode first
-    bool isSpectator = false;
-    for (int i = 2; i < argc; ++i) {
-        if (std::string(argv[i]) == "--spectator") {
-            isSpectator = true;
-            break;
-        }
-    }
-
-    // Parse host and port (skip --spectator if present)
     std::string host = "127.0.0.1";
     uint16_t port = 4242;
 
-    int argIndex = 2;
-    if (argc > 2 && std::string(argv[2]) != "--spectator") {
-        host = argv[2];
-        argIndex = 3;
-    }
+    // Parse command line arguments
+    parseCommandLine(argc, argv, host, port);
+    printBanner(host, port);
 
-    if (argc > argIndex && std::string(argv[argIndex]) != "--spectator") {
-        port = static_cast<uint16_t>(std::atoi(argv[argIndex]));
-    }
+    std::string playerName = "Player";  // Default name, will be updated by login
 
-    // Create and run client
-    Client client(playerName, host, port, isSpectator);
+    // Create and initialize Client
+    // The client handles the login phase internally before connecting
+    Client client(playerName, host, port);
 
     if (!client.initialize()) {
         std::cerr << "Failed to initialize client" << std::endl;
         return 1;
     }
 
+    // Run client - this will show login, connect, and start game
     client.run();
 
     return 0;

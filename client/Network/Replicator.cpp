@@ -6,6 +6,8 @@
 */
 
 #include "Replicator.hpp"
+#include <chrono>
+#include "Capnp/ConnectionMessages.hpp"
 
 Replicator::Replicator(EventBus &eventBus, bool isSpectator)
     : _eventBus(eventBus), _isSpectator(isSpectator), _host(createClientHost()) {}
@@ -54,10 +56,15 @@ void Replicator::disconnect() {
         _serverPeer = nullptr;
     }
     _connected.store(false);
+    _authenticated.store(false);
 }
 
 bool Replicator::isConnected() const {
     return _connected.load();
+}
+
+bool Replicator::isAuthenticated() const {
+    return _authenticated.load();
 }
 
 void Replicator::startNetworkThread() {
@@ -97,6 +104,12 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
         switch (event.type) {
             case NetworkEventType::RECEIVE:
                 if (event.packet) {
+                    auto messageType = NetworkMessages::getMessageType(event.packet->getData());
+                    if (messageType != NetworkMessages::MessageType::S2C_GAME_STATE) {
+                        LOG_DEBUG("[Replicator] Network thread received packet type: ",
+                                  static_cast<int>(messageType));
+                    }
+
                     // Update latency from ENet's built-in RTT calculation
                     if (_serverPeer) {
                         uint32_t enetRtt = _serverPeer->getRoundTripTime();
@@ -116,12 +129,18 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                     }
 
                     // Decode message type and push to queue
-                    auto messageType = NetworkMessages::getMessageType(event.packet->getData());
                     std::string messageContent;
 
                     // Parse based on message type
                     if (messageType == NetworkMessages::MessageType::HANDSHAKE_RESPONSE) {
                         messageContent = NetworkMessages::parseConnectResponse(event.packet->getData());
+
+                        // Check if authentication succeeded
+                        if (messageContent.find("Authentication successful") != std::string::npos) {
+                            _authenticated.store(true);
+                        } else {
+                            _authenticated.store(false);
+                        }
                     } else if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
                         messageContent = "GameStart received";
                     }
@@ -143,6 +162,7 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
 
             case NetworkEventType::DISCONNECT:
                 _connected.store(false);
+                _authenticated.store(false);
                 _serverPeer = nullptr;
                 // Publish disconnection event
                 {
@@ -166,6 +186,10 @@ void Replicator::processMessages() {
 
         // Decode and log specific message types
         auto messageType = NetworkMessages::getMessageType(netEvent.getData());
+
+        if (messageType != NetworkMessages::MessageType::S2C_GAME_STATE) {
+            LOG_DEBUG("[Replicator] Popped message type: ", static_cast<int>(messageType));
+        }
 
         if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
             // Decode GameStart message
@@ -215,13 +239,28 @@ void Replicator::sendPacket(NetworkMessageType type, const std::vector<uint8_t> 
     _serverPeer->send(std::move(packet), 0);
 }
 
-bool Replicator::sendConnectRequest(const std::string &playerName) {
+bool Replicator::sendConnectRequest(const std::string &playerName, const std::string &username,
+                                    const std::string &password) {
     if (!_serverPeer || !_connected.load()) {
         return false;
     }
 
-    // Create Cap'n Proto ConnectRequest with spectator flag
-    auto requestData = NetworkMessages::createConnectRequest(playerName, _isSpectator);
+    // Create HandshakeRequest with authentication credentials
+    using namespace ConnectionMessages;
+    HandshakeRequestData handshakeData;
+    handshakeData.clientVersion = "1.0.0";
+    handshakeData.playerName = playerName;
+    handshakeData.username = username;
+    handshakeData.password = password;
+    handshakeData.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count();
+
+    std::vector<uint8_t> payload = createHandshakeRequest(handshakeData);
+
+    // Wrap in network protocol
+    auto requestData =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::HANDSHAKE_REQUEST, payload);
 
     // Send via ENet
     auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
@@ -268,8 +307,11 @@ bool Replicator::sendCreateRoom(const std::string &roomName, uint32_t maxPlayers
 
 bool Replicator::sendJoinRoom(const std::string &roomId) {
     if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot send JoinRoom: Not connected");
         return false;
     }
+
+    LOG_INFO("Sending JoinRoom request for room: ", roomId);
 
     using namespace RType::Messages;
 
@@ -287,8 +329,11 @@ bool Replicator::sendJoinRoom(const std::string &roomId) {
 
 bool Replicator::sendStartGame() {
     if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot send StartGame: Not connected");
         return false;
     }
+
+    LOG_INFO("Sending StartGame request");
 
     using namespace RType::Messages;
 

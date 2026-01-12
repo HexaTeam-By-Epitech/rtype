@@ -36,10 +36,31 @@ bool GameLoop::initialize() {
     _eventBus->subscribe<NetworkEvent>([this](const NetworkEvent &event) { handleNetworkMessage(event); });
     LOG_INFO("Subscribed to NetworkEvent");
 
+    // 4. Subscribe to UI events
+    _eventBus->subscribe<UIEvent>([this](const UIEvent &event) { handleUIEvent(event); });
+    LOG_INFO("Subscribed to UIEvent");
+
     _initialized = true;
     LOG_INFO("All subsystems initialized successfully!");
 
     return true;
+}
+
+void GameLoop::handleUIEvent(const UIEvent &event) {
+    if (event.getType() == UIEventType::JOIN_GAME) {
+        LOG_INFO("[GameLoop] Joining game requested by UI");
+        if (_replicator) {
+            _replicator->sendJoinRoom("default");
+            // Also start game immediately for now (or wait for confirmation?)
+            // Usually we wait for JOIN_ROOM_ACK or similar.
+            // But let's fire StartGame too as requested.
+            // A delay might be safer but let's try direct.
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            _replicator->sendStartGame();
+        }
+    } else if (event.getType() == UIEventType::QUIT_GAME) {
+        stop();
+    }
 }
 
 void GameLoop::run() {
@@ -169,19 +190,8 @@ void GameLoop::update(float deltaTime) {
         _rendering->UpdatePingTimer(deltaTime);
     }
 
-    if (_rendering && _rendering->WindowShouldClose()) {
-        // User requested close or Quit button closed the window.
-        stop();
-        shutdown();
-        return;
-    }
-
-    // If rendering was shutdown (e.g. quit requested), stop loop as well.
-    if (_rendering && !_rendering->IsWindowOpen()) {
-        stop();
-        shutdown();
-        return;
-    }
+    // Note: Don't check WindowShouldClose here - it's checked in render()
+    // The window state is managed properly in the rendering system
 }
 
 void GameLoop::fixedUpdate(float fixedDeltaTime) {
@@ -200,6 +210,12 @@ void GameLoop::render() {
 
     // Rendering::Render() already clears the window.
     _rendering->Render();
+
+    // Check if shutdown was requested during render (e.g. Quit button)
+    if (!_rendering->IsWindowOpen()) {
+        stop();
+        shutdown();
+    }
 }
 
 void GameLoop::processInput() {

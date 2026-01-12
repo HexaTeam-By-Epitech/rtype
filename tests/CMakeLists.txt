@@ -58,6 +58,7 @@ add_executable(server_tests
     server_tests/RoomTest.cpp
     server_tests/RoomManagerExtendedTest.cpp
     server_tests/SessionTest.cpp
+    server_tests/AuthenticationTest.cpp
     server_tests/MatchmakingTest.cpp
     server_tests/CoreComponentsTest.cpp
     server_tests/GameLogicExtendedTest.cpp

@@ -155,11 +155,20 @@ TEST_F(SessionManagerTest, SessionLifecycle) {
 
 class AuthServiceTest : public ::testing::Test {
    protected:
-    void SetUp() override { authService = std::make_shared<AuthService>(); }
+    void SetUp() override {
+        // Use a test-specific accounts file
+        testAccountsFile = "test_accounts_authservice.dat";
+        std::remove(testAccountsFile.c_str());
+        authService = std::make_shared<AuthService>(testAccountsFile);
+    }
 
-    void TearDown() override { authService.reset(); }
+    void TearDown() override {
+        authService.reset();
+        std::remove(testAccountsFile.c_str());
+    }
 
     std::shared_ptr<AuthService> authService;
+    std::string testAccountsFile;
 };
 
 TEST_F(AuthServiceTest, Construction) {
@@ -167,9 +176,12 @@ TEST_F(AuthServiceTest, Construction) {
 }
 
 TEST_F(AuthServiceTest, AuthenticateDefaultBehavior) {
-    // The default implementation always returns true for any credentials
-    EXPECT_TRUE(authService->authenticate("alice", "password123"));
-    EXPECT_TRUE(authService->authenticate("bob", "secret456"));
+    // Without registered users, authentication should fail
+    EXPECT_FALSE(authService->authenticate("alice", "password123"));
+    EXPECT_FALSE(authService->authenticate("bob", "secret456"));
+
+    // Guest authentication should always work
+    EXPECT_TRUE(authService->authenticate("guest", "guest"));
 }
 
 TEST_F(AuthServiceTest, GenerateToken) {
@@ -204,6 +216,8 @@ TEST_F(AuthServiceTest, RevokeToken) {
 }
 
 TEST_F(AuthServiceTest, IsUserAuthenticated) {
+    // Register and authenticate user first
+    EXPECT_TRUE(authService->registerUser("testuser", "testpass"));
     authService->authenticate("testuser", "testpass");
     EXPECT_TRUE(authService->isUserAuthenticated("testuser"));
 }
@@ -219,20 +233,27 @@ TEST_F(AuthServiceTest, UserNotAuthenticated) {
 class SessionManagerAuthTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        authService = std::make_shared<AuthService>();
+        testAccountsFile = "test_accounts_sessionmgr.dat";
+        std::remove(testAccountsFile.c_str());
+        authService = std::make_shared<AuthService>(testAccountsFile);
         manager = std::make_shared<SessionManager>(authService);
     }
 
     void TearDown() override {
         manager.reset();
         authService.reset();
+        std::remove(testAccountsFile.c_str());
     }
 
     std::shared_ptr<AuthService> authService;
     std::shared_ptr<SessionManager> manager;
+    std::string testAccountsFile;
 };
 
 TEST_F(SessionManagerAuthTest, AuthenticateAndCreateSession) {
+    // Register user first
+    authService->registerUser("testuser", "testpass");
+
     std::string sessionId = manager->authenticateAndCreateSession("testuser", "testpass");
     EXPECT_FALSE(sessionId.empty());
 
@@ -241,6 +262,10 @@ TEST_F(SessionManagerAuthTest, AuthenticateAndCreateSession) {
 }
 
 TEST_F(SessionManagerAuthTest, MultipleAuthentications) {
+    // Register users first
+    authService->registerUser("user1", "pass1");
+    authService->registerUser("user2", "pass2");
+
     std::string session1 = manager->authenticateAndCreateSession("user1", "pass1");
     std::string session2 = manager->authenticateAndCreateSession("user2", "pass2");
 
@@ -259,8 +284,15 @@ TEST_F(SessionManagerAuthTest, GetAuthService) {
 // ============================================================================
 
 TEST(SessionIntegrationTest, CompleteAuthenticationFlow) {
-    auto authService = std::make_shared<AuthService>();
+    std::string testFile = "test_accounts_integration.dat";
+    std::remove(testFile.c_str());
+
+    auto authService = std::make_shared<AuthService>(testFile);
     auto sessionManager = std::make_shared<SessionManager>(authService);
+
+    // Register users first
+    authService->registerUser("player1", "secret1");
+    authService->registerUser("player2", "secret2");
 
     // Authenticate and create sessions
     std::string session1 = sessionManager->authenticateAndCreateSession("player1", "secret1");
@@ -284,4 +316,7 @@ TEST(SessionIntegrationTest, CompleteAuthenticationFlow) {
 
     EXPECT_EQ(sessionManager->getSession(session1), nullptr);
     EXPECT_EQ(sessionManager->getSession(session2), nullptr);
+
+    // Clean up test file
+    std::remove(testFile.c_str());
 }

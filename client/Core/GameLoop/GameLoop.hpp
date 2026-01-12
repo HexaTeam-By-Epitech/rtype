@@ -19,6 +19,7 @@
 #include "Capnp/NetworkMessages.hpp"
 #include "Core/EventBus/EventBus.hpp"
 #include "Events/NetworkEvent/NetworkEvent.hpp"
+#include "Events/UIEvent.hpp"
 #include "Input/InputBuffer.hpp"
 #include "Network/Replicator.hpp"
 #include "Rendering/Rendering.hpp"
@@ -224,6 +225,7 @@ class GameLoop {
      * @param event Network event containing message data
      */
     void handleNetworkMessage(const NetworkEvent &event);
+    void handleUIEvent(const UIEvent &event);
 
     // Network message handlers
     void handleGameStart(const std::vector<uint8_t> &payload);

@@ -16,14 +16,17 @@
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Core/EventBus/EventBus.hpp"
 #include "EntityRenderer.hpp"
+#include "Events/UIEvent.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
 // UI library
 #include "Menu/AddServerMenu.hpp"
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
+#include "Menu/CreateRoomMenu.hpp"
 #include "Menu/LoginMenu.hpp"
 #include "Menu/MainMenu.hpp"
+#include "Menu/RoomListMenu.hpp"
 #include "Menu/ServerListMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
 #include "UI/IButton.hpp"
@@ -277,6 +280,12 @@ class Rendering {
     void MoveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
 
     /**
+     * @brief Update room list from server data
+     * @param rooms Vector of room information
+     */
+    void UpdateRoomList(const std::vector<RoomData> &rooms);
+
+    /**
      * @brief Enable or disable client-side prediction for local player
      * @param enabled true to enable prediction (instant movement), false for interpolation
      * 
@@ -361,6 +370,8 @@ class Rendering {
     std::unique_ptr<Game::MainMenu> _mainMenu;
     std::unique_ptr<Game::ServerListMenu> _serverListMenu;
     std::unique_ptr<Game::AddServerMenu> _addServerMenu;
+    std::unique_ptr<Game::RoomListMenu> _roomListMenu;
+    std::unique_ptr<Game::CreateRoomMenu> _createRoomMenu;
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
@@ -375,6 +386,9 @@ class Rendering {
     uint16_t _selectedServerPort = 4242;
     bool _isConnecting = false;
     std::string _connectingServerName;
+
+    // Selected room for joining
+    std::string _selectedRoomId;
 
     // Entity rendering subsystem
     std::unique_ptr<EntityRenderer> _entityRenderer;
@@ -412,6 +426,8 @@ class Rendering {
     void InitializeLoginMenu();
     void InitializeServerListMenu();
     void InitializeAddServerMenu();
+    void InitializeRoomListMenu();
+    void InitializeCreateRoomMenu();
     void InitializeConnectionMenu();
     void SubscribeToConnectionEvents();
 

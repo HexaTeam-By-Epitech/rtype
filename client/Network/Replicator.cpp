@@ -220,6 +220,19 @@ void Replicator::processMessages() {
             } catch (const std::exception &e) {
                 LOG_ERROR("Error decoding GameStart: ", e.what());
             }
+        } else if (messageType == NetworkMessages::MessageType::S2C_ROOM_LIST) {
+            // Decode RoomList message
+            auto payload = NetworkMessages::getPayload(netEvent.getData());
+            try {
+                auto roomList = S2C::RoomList::deserialize(payload);
+
+                LOG_INFO("✓ RoomList received with ", roomList.rooms.size(), " rooms");
+
+                // The NetworkEvent will be published on EventBus with the room list data
+                // GameLoop will handle it and update Rendering
+            } catch (const std::exception &e) {
+                LOG_ERROR("Error decoding RoomList: ", e.what());
+            }
         } else if (!netEvent.getMessageContent().empty()) {
             LOG_DEBUG("Received from server: ", netEvent.getMessageContent());
         }
@@ -359,6 +372,11 @@ uint32_t Replicator::getPacketLoss() const {
 
 bool Replicator::isSpectator() const {
     return _isSpectator;
+}
+
+bool Replicator::sendRequestRoomList() {
+    LOG_INFO("[Replicator] Requesting room list from server");
+    return sendListRooms();
 }
 
 void Replicator::onInputEvent(const InputEvent &event) {

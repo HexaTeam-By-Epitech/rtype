@@ -61,6 +61,8 @@ void Rendering::InitializeMenus() {
     InitializeLoginMenu();
     InitializeServerListMenu();
     InitializeAddServerMenu();
+    InitializeRoomListMenu();
+    InitializeCreateRoomMenu();
     InitializeConnectionMenu();
     SubscribeToConnectionEvents();
 }
@@ -162,11 +164,9 @@ void Rendering::InitializeMainMenu() {
         if (_mainMenu)
             _mainMenu->Hide();
 
-        // Connection already established when server was selected
-        // Just send JOIN_GAME event to start playing
-        std::string serverInfo = _selectedServerIp + ":" + std::to_string(_selectedServerPort);
-        _eventBus.publish(UIEvent(UIEventType::JOIN_GAME, serverInfo));
-        StartGame();
+        // Show room selection menu
+        if (_roomListMenu)
+            _roomListMenu->Show();
     });
 
     _mainMenu->SetOnQuit([this]() { _quitRequested = true; });
@@ -193,8 +193,8 @@ void Rendering::InitializeMainMenu() {
     _mainMenu->SetOnSelectServer([this]() {
         if (_mainMenu)
             _mainMenu->Hide();
-        if (_serverListMenu)
-            _serverListMenu->Show();
+        if (_roomListMenu)
+            _roomListMenu->Show();
     });
 
     // Pass screen dimensions for responsive layout (profile button)
@@ -329,6 +329,74 @@ void Rendering::InitializeConnectionMenu() {
     _connectionMenu->Hide();
 }
 
+void Rendering::InitializeRoomListMenu() {
+    _roomListMenu = std::make_unique<Game::RoomListMenu>(*_uiFactory, _graphics);
+
+    _roomListMenu->SetOnRoomSelected([this](const std::string &roomId) {
+        LOG_INFO("[Rendering] Room selected: ", roomId);
+        _selectedRoomId = roomId;
+
+        // Hide room list and start the game
+        if (_roomListMenu)
+            _roomListMenu->Hide();
+
+        // Send JOIN_GAME event with room ID
+        _eventBus.publish(UIEvent(UIEventType::JOIN_GAME, _selectedRoomId));
+        StartGame();
+    });
+
+    _roomListMenu->SetOnCreateRoom([this]() {
+        if (_roomListMenu)
+            _roomListMenu->Hide();
+        if (_createRoomMenu)
+            _createRoomMenu->Show();
+    });
+
+    _roomListMenu->SetOnRefresh([this]() {
+        LOG_INFO("[Rendering] Refreshing room list...");
+        // Publish REQUEST_ROOM_LIST event
+        _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
+    });
+
+    _roomListMenu->SetOnBack([this]() {
+        if (_roomListMenu)
+            _roomListMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+    });
+
+    _roomListMenu->Initialize();
+    _roomListMenu->Hide();
+}
+
+void Rendering::InitializeCreateRoomMenu() {
+    _createRoomMenu = std::make_unique<Game::CreateRoomMenu>(*_uiFactory, _graphics);
+
+    _createRoomMenu->SetOnCreate([this](const std::string &roomName, uint32_t maxPlayers, bool isPrivate) {
+        LOG_INFO("[Rendering] Creating room: ", roomName, " (Max: ", maxPlayers, ", Private: ", isPrivate,
+                 ")");
+
+        // Publish CREATE_ROOM event (format: "roomName|maxPlayers|isPrivate")
+        std::string roomData = roomName + "|" + std::to_string(maxPlayers) + "|" + (isPrivate ? "1" : "0");
+        _eventBus.publish(UIEvent(UIEventType::CREATE_ROOM, roomData));
+
+        if (_createRoomMenu)
+            _createRoomMenu->Hide();
+        if (_roomListMenu)
+            _roomListMenu->Show();
+    });
+
+    _createRoomMenu->SetOnCancel([this]() {
+        if (_createRoomMenu)
+            _createRoomMenu->Hide();
+        if (_roomListMenu)
+            _roomListMenu->Show();
+    });
+
+    _createRoomMenu->Initialize();
+    _createRoomMenu->Hide();
+}
+
 void Rendering::SubscribeToConnectionEvents() {
     _eventBus.subscribe<UIEvent>([this](const UIEvent &event) {
         if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
@@ -339,7 +407,10 @@ void Rendering::SubscribeToConnectionEvents() {
             if (_serverListMenu)
                 _serverListMenu->SetConnecting(false);
 
-            // Hide server list and show main menu
+            // Request room list from server
+            _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
+
+            // Hide server list and show main menu (room selection happens on PLAY click)
             if (_serverListMenu)
                 _serverListMenu->Hide();
             if (_mainMenu)
@@ -360,6 +431,9 @@ void Rendering::SubscribeToConnectionEvents() {
 
             // Make sure we're back to menu scene
             _scene = Scene::MENU;
+        } else if (event.getType() == UIEventType::ROOM_LIST_RECEIVED) {
+            LOG_INFO("[Rendering] Room list received");
+            // Room list will be updated by GameLoop parsing the network message
         }
     });
 }
@@ -506,6 +580,12 @@ void Rendering::UpdateUI() {
         if (_addServerMenu && _addServerMenu->IsVisible()) {
             _addServerMenu->Update();
         }
+        if (_roomListMenu && _roomListMenu->IsVisible()) {
+            _roomListMenu->Update();
+        }
+        if (_createRoomMenu && _createRoomMenu->IsVisible()) {
+            _createRoomMenu->Update();
+        }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Update();
         }
@@ -572,6 +652,12 @@ void Rendering::RenderUI() {
         }
         if (_addServerMenu && _addServerMenu->IsVisible()) {
             _addServerMenu->Render();
+        }
+        if (_roomListMenu && _roomListMenu->IsVisible()) {
+            _roomListMenu->Render();
+        }
+        if (_createRoomMenu && _createRoomMenu->IsVisible()) {
+            _createRoomMenu->Render();
         }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Render();
@@ -742,4 +828,19 @@ float Rendering::GetReconciliationThreshold() const {
 
 void Rendering::SetPing(uint32_t pingMs) {
     _currentPing = pingMs;
+}
+
+void Rendering::UpdateRoomList(const std::vector<RoomData> &rooms) {
+    if (!_roomListMenu) {
+        return;
+    }
+
+    std::vector<Game::RoomListMenu::RoomInfo> roomInfos;
+    for (const auto &room : rooms) {
+        roomInfos.emplace_back(room.roomId, room.roomName, room.playerCount, room.maxPlayers, room.isPrivate,
+                               room.state);
+    }
+
+    _roomListMenu->UpdateRoomList(roomInfos);
+    LOG_INFO("[Rendering] Room list updated with ", rooms.size(), " rooms");
 }

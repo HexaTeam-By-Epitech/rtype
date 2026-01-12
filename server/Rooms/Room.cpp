@@ -180,6 +180,12 @@ namespace server {
                 return false;
             }
 
+            // Spawn enemies (Lua scripts) now that game is starting
+            // Cast to GameLogic to access spawnEnemies()
+            if (auto *gameLogic = dynamic_cast<GameLogic *>(_gameLogic.get())) {
+                gameLogic->spawnEnemies();
+            }
+
             // Spawn players and validate entity IDs
             std::vector<uint32_t> failedPlayers;
             for (uint32_t playerId : _players) {

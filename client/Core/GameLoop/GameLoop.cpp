@@ -50,13 +50,46 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
     if (event.getType() == UIEventType::JOIN_GAME) {
         LOG_INFO("[GameLoop] Joining game requested by UI");
         if (_replicator) {
-            _replicator->sendJoinRoom("default");
-            // Also start game immediately for now (or wait for confirmation?)
-            // Usually we wait for JOIN_ROOM_ACK or similar.
-            // But let's fire StartGame too as requested.
-            // A delay might be safer but let's try direct.
+            // Get room ID from event data, fallback to "default" if empty
+            std::string roomId = event.getData();
+            if (roomId.empty()) {
+                roomId = "default";
+                LOG_WARNING("[GameLoop] No room ID provided, using default room");
+            }
+
+            LOG_INFO("[GameLoop] Joining room: ", roomId);
+            _replicator->sendJoinRoom(roomId);
+
+            // Wait a bit for join confirmation
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             _replicator->sendStartGame();
+        }
+    } else if (event.getType() == UIEventType::CREATE_ROOM) {
+        LOG_INFO("[GameLoop] Create room requested by UI");
+        if (_replicator) {
+            // Parse room data (format: "roomName|maxPlayers|isPrivate")
+            const std::string &data = event.getData();
+            size_t pos1 = data.find('|');
+            size_t pos2 = data.find('|', pos1 + 1);
+
+            if (pos1 != std::string::npos && pos2 != std::string::npos) {
+                std::string roomName = data.substr(0, pos1);
+                uint32_t maxPlayers = std::stoi(data.substr(pos1 + 1, pos2 - pos1 - 1));
+                bool isPrivate = (data.substr(pos2 + 1) == "1");
+
+                LOG_INFO("[GameLoop] Creating room: ", roomName, " (Max: ", maxPlayers,
+                         ", Private: ", isPrivate, ")");
+                _replicator->sendCreateRoom(roomName, maxPlayers, isPrivate);
+
+                // Request room list after creation (with small delay)
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                // TODO: Request room list
+            }
+        }
+    } else if (event.getType() == UIEventType::REQUEST_ROOM_LIST) {
+        LOG_INFO("[GameLoop] Room list requested by UI");
+        if (_replicator) {
+            _replicator->sendRequestRoomList();
         }
     } else if (event.getType() == UIEventType::QUIT_GAME) {
         stop();
@@ -336,6 +369,9 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
         case NetworkMessages::MessageType::S2C_GAMERULE_UPDATE:
             handleGameruleUpdate(payload);
             break;
+        case NetworkMessages::MessageType::S2C_ROOM_LIST:
+            handleRoomList(payload);
+            break;
         default:
             break;
     }
@@ -365,7 +401,38 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
         }
         LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");
     } catch (const std::exception &e) {
-        LOG_ERROR("Failed to parse GameStart: ", e.what());
+        LOG_ERROR("Failed to parse GamerulePacket: ", e.what());
+    }
+}
+
+void GameLoop::handleRoomList(const std::vector<uint8_t> &payload) {
+    try {
+        auto roomList = RType::Messages::S2C::RoomList::deserialize(payload);
+
+        LOG_INFO("✓ RoomList received with ", roomList.rooms.size(), " rooms");
+
+        // Convert to RoomData format for Rendering
+        std::vector<RoomData> rooms;
+        for (const auto &room : roomList.rooms) {
+            RoomData roomData;
+            roomData.roomId = room.roomId;
+            roomData.roomName = room.roomName;
+            roomData.playerCount = room.playerCount;
+            roomData.maxPlayers = room.maxPlayers;
+            roomData.isPrivate = room.isPrivate;
+            roomData.state = room.state;
+            rooms.push_back(roomData);
+
+            LOG_INFO("  - Room: ", room.roomName, " [", room.playerCount, "/", room.maxPlayers, "]");
+        }
+
+        // Update rendering with room list
+        if (_rendering) {
+            _rendering->UpdateRoomList(rooms);
+        }
+
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse RoomList: ", e.what());
     }
 }
 

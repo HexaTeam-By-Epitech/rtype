@@ -8,7 +8,18 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include "Events/IEvent.hpp"
+
+// Room data structure for events
+struct RoomData {
+    std::string roomId;
+    std::string roomName;
+    uint32_t playerCount;
+    uint32_t maxPlayers;
+    bool isPrivate;
+    uint8_t state;
+};
 
 enum class UIEventType {
     JOIN_GAME,
@@ -16,7 +27,10 @@ enum class UIEventType {
     QUIT_GAME,
     SERVER_CONNECT,
     CONNECTION_FAILED,
-    CONNECTION_SUCCESS
+    CONNECTION_SUCCESS,
+    CREATE_ROOM,
+    REQUEST_ROOM_LIST,
+    ROOM_LIST_RECEIVED
 };
 
 class UIEvent : public IEvent {

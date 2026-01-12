@@ -559,14 +559,24 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
 
     // Join as spectator or player based on session type
     bool joinSuccess = false;
+    bool autoSpectator = false;
+
     if (isSpectator) {
         joinSuccess = room->joinAsSpectator(playerId);
     } else {
         joinSuccess = room->join(playerId);
+
+        // If join fails because game is in progress, automatically join as spectator
+        if (!joinSuccess && room->getState() == server::RoomState::IN_PROGRESS) {
+            LOG_INFO("Game already in progress, joining player ", playerId, " as spectator");
+            joinSuccess = room->joinAsSpectator(playerId);
+            autoSpectator = true;
+        }
     }
 
     if (!joinSuccess) {
-        std::string errorMsg = isSpectator ? "Failed to join as spectator" : "Room is full or in progress";
+        std::string errorMsg =
+            isSpectator ? "Failed to join as spectator" : "Room is full or game already started";
         LOG_ERROR(errorMsg);
         S2C::JoinedRoom response("", false, errorMsg);
         std::vector<uint8_t> respPayload = response.serialize();
@@ -580,7 +590,7 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
     // Only remove from lobby after successfully joining the room
     _lobby->removePlayer(playerId);
 
-    std::string modeStr = isSpectator ? " as spectator" : "";
+    std::string modeStr = (isSpectator || autoSpectator) ? " as spectator" : "";
     LOG_INFO("Player ", playerId, " joined room '", request.roomId, "'", modeStr);
 
     S2C::JoinedRoom response(request.roomId, true);

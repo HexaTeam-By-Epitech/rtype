@@ -145,11 +145,6 @@ namespace server {
         // 1. Process accumulated player input
         _processInput();
 
-        // Periodic tick summary (once per second at 60 FPS)
-        // if (currentTick % 60 == 0) {
-        //     LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
-        // }
-
         if (_stateManager) {
             _stateManager->update(deltaTime);
         }
@@ -237,24 +232,10 @@ namespace server {
                 return;  // Already processed
             }
         }
-
-        // Update the last "seen" sequence ID.
-        // Note: We update it here to prevent re-queueing the same ID from the same packet or subsequent packets.
-        // The actual simulation logic (_processInput) will consume it.
-        // Wait: If we receive packets out of order (e.g. 100, then 99), we should ignore 99.
-        // But if we receive a redundant batch [100, 99, 98], we process 100 and ignore 99, 98.
-        // This logic holds.
         _lastProcessedSequenceId[playerId] = sequenceId;
 
         // Add to queue
         _pendingInput[playerId].push_back({playerId, inputX, inputY, isShooting, sequenceId});
-
-        // Sort the queue by sequence ID just in case (though usually unnecessary if redundant packets arrive in order)
-        // Actually, since we only process NEW sequence IDs, and we assume we receive mostly in order or redundant batches,
-        // we might not need sorting if we just trust the increasing ID.
-        // But for safety against out-of-order UDP packets arriving oddly:
-        // We might want to buffer inputs and only process them in strict order.
-        // However, with the redundancy strategy (receiving 100, 99, 98), we just take the new ones.
     }
 
     void GameLogic::_processInput() {

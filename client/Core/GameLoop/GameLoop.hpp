@@ -225,6 +225,15 @@ class GameLoop {
      */
     void handleNetworkMessage(const NetworkEvent &event);
 
+    // Network message handlers
+    void handleGameStart(const std::vector<uint8_t> &payload);
+    void handleGameState(const std::vector<uint8_t> &payload);
+    void handleGameruleUpdate(const std::vector<uint8_t> &payload);
+
+    // Helpers
+    void processServerReconciliation(const RType::Messages::S2C::EntityState &entity, bool isMoving);
+    void simulateInputHistory(float &x, float &y);
+
     EventBus *_eventBus;  // Non-owning pointer (owned by Client)
     std::unique_ptr<InputBuffer> _inputBuffer;
     Replicator *_replicator;  // Non-owning pointer (owned by Client)

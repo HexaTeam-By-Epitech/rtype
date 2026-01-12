@@ -172,7 +172,7 @@ void GameLoop::render() {
         return;
     }
 
-    _rendering->ClearWindow();
+    // Rendering::Render() already clears the window.
     _rendering->Render();
 }
 

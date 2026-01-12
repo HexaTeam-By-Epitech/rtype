@@ -25,10 +25,14 @@ namespace Graphics {
         if (!::IsWindowReady()) {
             // Create new window
             ::InitWindow(width, height, title);
+            // Disable default ESC exit behavior to allow custom window/menu handling
+            ::SetExitKey(0);
         } else {
             // Window already exists (from login), reconfigure it
             ::SetWindowTitle(title);
             ::SetWindowSize(width, height);
+            // Ensure this is set even if reused
+            ::SetExitKey(0);
         }
         _windowInitialized = true;
     }
@@ -47,6 +51,14 @@ namespace Graphics {
 
     bool RaylibGraphics::IsWindowOpen() const {
         return _windowInitialized && !::WindowShouldClose();
+    }
+
+    int RaylibGraphics::GetWindowWidth() const {
+        return ::GetScreenWidth();
+    }
+
+    int RaylibGraphics::GetWindowHeight() const {
+        return ::GetScreenHeight();
     }
 
     void RaylibGraphics::CloseWindow() {
@@ -267,5 +279,52 @@ namespace Graphics {
             return false;
         }
         return ::WindowShouldClose();
+    }
+
+    int RaylibGraphics::GetMouseX() const {
+        return ::GetMouseX();
+    }
+
+    int RaylibGraphics::GetMouseY() const {
+        return ::GetMouseY();
+    }
+
+    int RaylibGraphics::GetCharPressed() const {
+        return ::GetCharPressed();
+    }
+
+    int RaylibGraphics::GetScreenWidth() const {
+        return ::GetScreenWidth();
+    }
+
+    int RaylibGraphics::GetScreenHeight() const {
+        return ::GetScreenHeight();
+    }
+
+    void RaylibGraphics::DrawRectangle(int x, int y, int width, int height, unsigned int color) {
+        Color clr;
+        clr.a = (color >> 24) & 0xFF;
+        clr.r = (color >> 16) & 0xFF;
+        clr.g = (color >> 8) & 0xFF;
+        clr.b = color & 0xFF;
+        ::DrawRectangle(x, y, width, height, clr);
+    }
+
+    void RaylibGraphics::DrawRectangleLines(int x, int y, int width, int height, unsigned int color) {
+        Color clr;
+        clr.a = (color >> 24) & 0xFF;
+        clr.r = (color >> 16) & 0xFF;
+        clr.g = (color >> 8) & 0xFF;
+        clr.b = color & 0xFF;
+        ::DrawRectangleLines(x, y, width, height, clr);
+    }
+
+    void RaylibGraphics::DrawText(const char *text, int x, int y, int fontSize, unsigned int color) {
+        Color clr;
+        clr.a = (color >> 24) & 0xFF;
+        clr.r = (color >> 16) & 0xFF;
+        clr.g = (color >> 8) & 0xFF;
+        clr.b = color & 0xFF;
+        ::DrawText(text, x, y, fontSize, clr);
     }
 }  // namespace Graphics

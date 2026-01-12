@@ -10,12 +10,17 @@
 #include "../ISystem.hpp"
 
 namespace ecs {
+    struct SpawnRequest;
+
     /**
      * @class SpawnSystem
      * @brief System managing entity spawning and wave generation.
      * 
      * Handles enemy waves, power-ups spawning, and entity creation based on
      * game progression and patterns.
+     * 
+     * Processes SpawnRequest queues from Spawner components—the clean ECS way
+     * to handle dynamic spawning without tight coupling.
      */
     class SpawnSystem : public ISystem {
        public:
@@ -34,8 +39,8 @@ namespace ecs {
         /**
          * @brief Manages entity spawning based on wave progression.
          * 
-         * Controls the spawning of enemies at timed intervals.
-         * Handles wave progression when all enemies are spawned.
+         * Processes spawn requests from Spawner components.
+         * Handles the actual entity creation with all components.
          * 
          * @param registry Reference to the ECS registry
          * @param deltaTime Time elapsed since last frame (in seconds)
@@ -62,10 +67,17 @@ namespace ecs {
         void setWaveConfig(int waveNumber, int enemiesPerWave, float spawnInterval);
 
        private:
+        /**
+         * @brief Internal method to spawn an enemy from a request
+         * @param registry Reference to the ECS registry
+         * @param request The spawn request with all parameters
+         */
+        void _spawnEnemy(Registry &registry, const SpawnRequest &request);
+
         int _waveNumber;
         int _enemiesSpawned;
         int _enemiesPerWave;
         float _spawnTimer;
         float _spawnInterval;
     };
-}
+}  // namespace ecs

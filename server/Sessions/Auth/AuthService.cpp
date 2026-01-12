@@ -14,6 +14,33 @@
 
 namespace server {
 
+    // Constant-time string comparison to prevent timing attacks
+    // Returns true if strings are equal, false otherwise
+    static bool constantTimeCompare(const std::string &a, const std::string &b) {
+        // If lengths differ, still compare to maintain constant time
+        size_t length = a.length();
+        if (b.length() != length) {
+            // Continue comparison with padding to maintain timing
+            length = std::max(a.length(), b.length());
+        }
+
+        volatile uint8_t result = 0;
+
+        for (size_t i = 0; i < length; ++i) {
+            uint8_t aChar = (i < a.length()) ? static_cast<uint8_t>(a[i]) : 0;
+            uint8_t bChar = (i < b.length()) ? static_cast<uint8_t>(b[i]) : 0;
+            result |= aChar ^ bChar;
+        }
+
+        // Also check length equality in constant time
+        volatile uint8_t lengthDiff = 0;
+        if (a.length() != b.length()) {
+            lengthDiff = 1;
+        }
+
+        return (result | lengthDiff) == 0;
+    }
+
     AuthService::AuthService() {
         loadAccounts();
     }
@@ -44,8 +71,8 @@ namespace server {
             return false;  // Account doesn't exist
         }
 
-        // Verify password (in production, use hashed passwords)
-        if (it->second != password) {
+        // Verify password using constant-time comparison to prevent timing attacks
+        if (!constantTimeCompare(it->second, password)) {
             return false;  // Wrong password
         }
 

@@ -378,3 +378,21 @@ TEST_F(AuthenticationSecurityTest, DifferentUsersGetDifferentTokens) {
 
     EXPECT_NE(token1, token2) << "Different users should get different tokens";
 }
+
+TEST_F(AuthenticationSecurityTest, ConstantTimePasswordComparison) {
+    // Register test user with known password
+    authService->registerUser("timinguser", "correctpassword");
+
+    // Test various wrong passwords of different lengths
+    // All should fail but timing should be constant regardless of how many characters match
+    EXPECT_FALSE(
+        authService->authenticate("timinguser", "wrongpassword"));  // Same length, completely different
+    EXPECT_FALSE(authService->authenticate("timinguser", "correctpasswor"));  // Same length-1, prefix matches
+    EXPECT_FALSE(authService->authenticate("timinguser", "corre"));           // Shorter, prefix matches
+    EXPECT_FALSE(authService->authenticate("timinguser", "x"));               // Very short, no match
+    EXPECT_FALSE(
+        authService->authenticate("timinguser", "correctpasswordtoolong"));  // Longer, prefix matches
+
+    // Correct password should still work
+    EXPECT_TRUE(authService->authenticate("timinguser", "correctpassword"));
+}

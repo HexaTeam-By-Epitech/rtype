@@ -161,7 +161,13 @@ class Server {
      * @param entity The entity to serialize
      * @return EntityState structure ready for network transmission
      */
-    RType::Messages::S2C::EntityState _serializeEntity(ecs::wrapper::Entity &entity);
+    /**
+     * @brief Serialize entity to EntityState
+     * @param entity ECS Entity
+     * @param gameLogic Optional pointer to GameLogic (to retrieve player input state)
+     */
+    RType::Messages::S2C::EntityState _serializeEntity(ecs::wrapper::Entity &entity,
+                                                       server::IGameLogic *gameLogic = nullptr);
 
     /**
      * @brief Convert Action enum to directional input (dx, dy)

@@ -73,6 +73,11 @@ namespace server {
         void processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting,
                                 uint32_t sequenceId) override;
 
+        uint32_t getLastProcessedInput(uint32_t playerId) const override {
+            auto it = _lastProcessedSequenceId.find(playerId);
+            return (it != _lastProcessedSequenceId.end()) ? it->second : 0;
+        }
+
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
         bool isGameActive() const override { return _gameActive; }
         void resetGame() override;

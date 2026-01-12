@@ -639,9 +639,12 @@ void Server::_broadcastGameState() {
         auto entities = ecsWorld->query<ecs::Transform>();
 
         // Serialize each entity's state
+        // We need GameLogic to access player input state
+        std::shared_ptr<server::IGameLogic> gameLogic = room->getGameLogic();
+
         for (auto &entity : entities) {
             try {
-                S2C::EntityState entityState = _serializeEntity(entity);
+                S2C::EntityState entityState = _serializeEntity(entity, gameLogic.get());
                 state.entities.push_back(entityState);
             } catch (const std::exception &e) {
                 LOG_ERROR("Failed to serialize entity: ", e.what());
@@ -799,7 +802,8 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
     }
 }
 
-RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity &entity) {
+RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity &entity,
+                                                           server::IGameLogic *gameLogic) {
     using namespace RType::Messages;
 
     S2C::EntityState entityState;
@@ -814,6 +818,12 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
     if (entity.has<ecs::Player>()) {
         entityState.type = Shared::EntityType::Player;
         entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
+
+        // Retrieve last processed sequence ID for this player
+        if (gameLogic) {
+            ecs::Player &player = entity.get<ecs::Player>();
+            entityState.lastProcessedInput = gameLogic->getLastProcessedInput(player.getPlayerId());
+        }
     } else if (entity.has<ecs::Enemy>()) {
         ecs::Enemy &enemy = entity.get<ecs::Enemy>();
         // Map enemy type to EntityType enum (simplified)

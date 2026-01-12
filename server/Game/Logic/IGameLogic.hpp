@@ -82,6 +82,13 @@ namespace server {
                                         uint32_t sequenceId) = 0;
 
         /**
+         * @brief Get the last processed input sequence ID for a player
+         * @param playerId Player ID
+         * @return Sequence ID or 0 if none
+         */
+        virtual uint32_t getLastProcessedInput(uint32_t playerId) const = 0;
+
+        /**
          * @brief Get reference to the ECS registry
          * @return Registry reference
          */

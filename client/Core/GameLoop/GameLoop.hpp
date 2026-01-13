@@ -265,8 +265,6 @@ class GameLoop {
     bool _isMoving = false;                    // True when player is actively moving
     float _playerSpeed = 100.0f;               // pixels per second (MUST MATCH SERVER!)
     bool _clientSidePredictionEnabled = true;  // Client-side prediction for smooth movement
-
-    GameScene _currentScene = GameScene::LOBBY;
 };
 
 #endif

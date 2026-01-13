@@ -18,7 +18,8 @@ namespace RType::Messages::C2S {
 
         std::vector<uint8_t> serialize() const {
             ::capnp::MallocMessageBuilder message;
-            auto builder = message.initRoot<::LeaveRoom>();
+            // LeaveRoom has no fields, so we just initialize an empty message
+            message.initRoot<::LeaveRoom>();
 
             kj::VectorOutputStream output;
             ::capnp::writeMessage(output, message);

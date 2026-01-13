@@ -22,7 +22,9 @@ namespace ecs::wrapper {
      */
     class EntityBuilder {
        private:
-        ECSWorld *_world;
+        // The world pointer is kept for API completeness; some builds may not
+        // reference it directly which can trigger unused-field warnings.
+        [[maybe_unused]] ECSWorld *_world;
         Entity _entity;
 
        public:

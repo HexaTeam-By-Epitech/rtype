@@ -179,15 +179,19 @@ class Server {
     void _broadcastRoomState(std::shared_ptr<server::Room> room);
 
     /**
-     * @brief Broadcast room list to all players in the lobby
-     */
-    void _broadcastRoomList();
-
-    /**
-     * @brief Broadcast room list to specific peers (or all lobby players if empty)
-     * @param specificPeers Vector of peers to send to (empty = all lobby players)
+     * @brief Broadcast room list to specific peers only
+     * @param specificPeers Vector of peers to send to (used when player requests list)
      */
     void _broadcastRoomList(const std::vector<IPeer *> &specificPeers);
+
+    /**
+     * @brief Broadcast room list to ALL connected players on the server
+     * 
+     * This sends the room list to everyone connected, regardless of whether
+     * they are in the lobby or already in a room. All players should be able
+     * to see all public rooms at all times.
+     */
+    void _broadcastRoomListToAll();
 
     /**
      * @brief Serialize a single entity to network format

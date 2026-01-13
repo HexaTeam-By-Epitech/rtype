@@ -357,12 +357,6 @@ void Rendering::InitializeRoomListMenu() {
             _createRoomMenu->Show();
     });
 
-    _roomListMenu->SetOnRefresh([this]() {
-        LOG_INFO("[Rendering] Refreshing room list...");
-        // Publish REQUEST_ROOM_LIST event
-        _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
-    });
-
     _roomListMenu->SetOnBack([this]() {
         if (_roomListMenu)
             _roomListMenu->Hide();

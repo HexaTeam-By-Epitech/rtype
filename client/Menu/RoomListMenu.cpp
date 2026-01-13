@@ -22,10 +22,6 @@ namespace Game {
         _onCreateRoom = std::move(onCreateRoom);
     }
 
-    void RoomListMenu::SetOnRefresh(std::function<void()> onRefresh) {
-        _onRefresh = std::move(onRefresh);
-    }
-
     void RoomListMenu::SetOnBack(std::function<void()> onBack) {
         _onBack = std::move(onBack);
     }
@@ -73,21 +69,6 @@ namespace Game {
 
         _createRoomButton = std::move(createRoomPtr);
         _menu->AddButton(_createRoomButton);
-
-        // Add "Refresh" button at bottom right
-        const float rightMargin = 20.0f;
-        auto refreshPtr = _uiFactory.CreateButton();
-        refreshPtr->SetSize(150.0f, 45.0f);
-        float screenWidth = static_cast<float>(_graphics.GetScreenWidth());
-        refreshPtr->SetPosition(screenWidth - rightMargin - 150.0f, screenHeight - bottomMargin);
-        refreshPtr->SetText("Refresh");
-        refreshPtr->SetBackgroundColor(0xFF2196F3);  // Blue
-        refreshPtr->SetHoverColor(0xFF64B5F6);
-        refreshPtr->SetTextColor(0xFFFFFFFF);
-        refreshPtr->SetCallback([this]() { OnRefreshClicked(); });
-
-        _refreshButton = std::move(refreshPtr);
-        _menu->AddButton(_refreshButton);
 
         // Add "Back" button at bottom left
         const float leftMargin = 20.0f;
@@ -216,9 +197,6 @@ namespace Game {
         if (_createRoomButton) {
             _menu->AddButton(_createRoomButton);
         }
-        if (_refreshButton) {
-            _menu->AddButton(_refreshButton);
-        }
         if (_backButton) {
             _menu->AddButton(_backButton);
         }
@@ -242,13 +220,6 @@ namespace Game {
         LOG_INFO("[RoomListMenu] Create Room button clicked");
         if (_onCreateRoom) {
             _onCreateRoom();
-        }
-    }
-
-    void RoomListMenu::OnRefreshClicked() {
-        LOG_INFO("[RoomListMenu] Refresh button clicked");
-        if (_onRefresh) {
-            _onRefresh();
         }
     }
 

@@ -190,6 +190,9 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
 
         // Broadcast updated room state to remaining players
         _broadcastRoomState(playerRoom);
+
+        // Broadcast updated room list to all players in lobby (player count changed)
+        _broadcastRoomList();
     }
 
     _eventBus->publish(server::PlayerLeftEvent(playerId));
@@ -468,33 +471,8 @@ void Server::_handleListRooms(HostNetworkEvent &event) {
 
     LOG_INFO("Sending room list...");
 
-    auto publicRooms = _roomManager->getPublicRooms();
-
-    S2C::RoomList roomList;
-    for (const auto &room : publicRooms) {
-        S2C::RoomInfoData info;
-        info.roomId = room->getId();
-        info.roomName = room->getName();
-        info.playerCount = static_cast<uint32_t>(room->getPlayerCount());
-        info.maxPlayers = static_cast<uint32_t>(room->getMaxPlayers());
-        info.isPrivate = room->isPrivate();
-
-        auto state = room->getState();
-        if (state == server::RoomState::WAITING)
-            info.state = 0;
-        else if (state == server::RoomState::STARTING)
-            info.state = 1;
-        else if (state == server::RoomState::IN_PROGRESS)
-            info.state = 2;
-        else if (state == server::RoomState::FINISHED)
-            info.state = 3;
-        else
-            info.state = 0;
-
-        roomList.rooms.push_back(info);
-    }
-
-    _sendPacket(event.peer, NetworkMessages::MessageType::S2C_ROOM_LIST, roomList.serialize());
+    // Send initial room list to the requesting player
+    _broadcastRoomList({event.peer});
 }
 
 void Server::_handleCreateRoom(HostNetworkEvent &event) {
@@ -554,6 +532,9 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
 
     // Broadcast room state to the creator (now only player in room)
     _broadcastRoomState(room);
+
+    // Broadcast updated room list to all players in lobby (real-time update)
+    _broadcastRoomList();
 }
 
 void Server::_handleJoinRoom(HostNetworkEvent &event) {
@@ -622,6 +603,9 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
 
     // Broadcast updated room state to all players in the room
     _broadcastRoomState(room);
+
+    // Broadcast updated room list to all players in lobby (player count changed)
+    _broadcastRoomList();
 }
 
 void Server::_handleStartGame(HostNetworkEvent &event) {
@@ -684,6 +668,9 @@ void Server::_handleLeaveRoom(HostNetworkEvent &event) {
 
     // Broadcast updated room state to remaining players
     _broadcastRoomState(playerRoom);
+
+    // Broadcast updated room list to all players in lobby (player count changed)
+    _broadcastRoomList();
 }
 
 void Server::run() {
@@ -716,6 +703,9 @@ void Server::run() {
             for (const auto &room : rooms) {
                 if (room->getState() == server::RoomState::IN_PROGRESS && room->tryMarkGameStartSent()) {
                     _sendGameStartToRoom(room);
+
+                    // Broadcast updated room list since state changed to IN_PROGRESS
+                    _broadcastRoomList();
                 }
             }
         }
@@ -1099,4 +1089,75 @@ std::vector<RType::Messages::S2C::EntityState> Server::_serializeEntities(
         }
     }
     return entities;
+}
+
+void Server::_broadcastRoomList() {
+    _broadcastRoomList({});
+}
+
+void Server::_broadcastRoomList(const std::vector<IPeer *> &specificPeers) {
+    using namespace RType::Messages;
+
+    auto publicRooms = _roomManager->getPublicRooms();
+
+    S2C::RoomList roomList;
+    for (const auto &room : publicRooms) {
+        S2C::RoomInfoData info;
+        info.roomId = room->getId();
+        info.roomName = room->getName();
+        info.playerCount = static_cast<uint32_t>(room->getPlayerCount());
+        info.maxPlayers = static_cast<uint32_t>(room->getMaxPlayers());
+        info.isPrivate = room->isPrivate();
+
+        auto state = room->getState();
+        if (state == server::RoomState::WAITING)
+            info.state = 0;
+        else if (state == server::RoomState::STARTING)
+            info.state = 1;
+        else if (state == server::RoomState::IN_PROGRESS)
+            info.state = 2;
+        else if (state == server::RoomState::FINISHED)
+            info.state = 3;
+        else
+            info.state = 0;
+
+        roomList.rooms.push_back(info);
+    }
+
+    std::vector<uint8_t> payload = roomList.serialize();
+
+    // If specific peers provided, send only to them
+    if (!specificPeers.empty()) {
+        for (IPeer *peer : specificPeers) {
+            if (peer) {
+                _sendPacket(peer, NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
+            }
+        }
+        return;
+    }
+
+    // Otherwise, broadcast to all players in the lobby
+    auto lobbyPlayers = _lobby->getAllPlayers();
+
+    for (const auto &lobbyPlayer : lobbyPlayers) {
+        uint32_t playerId = lobbyPlayer.playerId;
+
+        auto sessionIt = _playerIdToSessionId.find(playerId);
+        if (sessionIt == _playerIdToSessionId.end()) {
+            continue;
+        }
+
+        const std::string &sessionId = sessionIt->second;
+        auto peerIt = _sessionPeers.find(sessionId);
+
+        if (peerIt != _sessionPeers.end() && peerIt->second) {
+            _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
+        }
+    }
+
+    if (!specificPeers.empty()) {
+        LOG_INFO("✓ Sent RoomList to ", specificPeers.size(), " specific peer(s)");
+    } else {
+        LOG_INFO("✓ Broadcast RoomList to ", lobbyPlayers.size(), " players in lobby");
+    }
 }

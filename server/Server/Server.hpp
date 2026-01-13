@@ -179,6 +179,17 @@ class Server {
     void _broadcastRoomState(std::shared_ptr<server::Room> room);
 
     /**
+     * @brief Broadcast room list to all players in the lobby
+     */
+    void _broadcastRoomList();
+
+    /**
+     * @brief Broadcast room list to specific peers (or all lobby players if empty)
+     * @param specificPeers Vector of peers to send to (empty = all lobby players)
+     */
+    void _broadcastRoomList(const std::vector<IPeer *> &specificPeers);
+
+    /**
      * @brief Serialize a single entity to network format
      * @param entity The entity to serialize
      * @return EntityState structure ready for network transmission

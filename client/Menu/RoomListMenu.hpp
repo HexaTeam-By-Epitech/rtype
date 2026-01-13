@@ -54,11 +54,6 @@ namespace Game {
         void SetOnCreateRoom(std::function<void()> onCreateRoom);
 
         /**
-         * @brief Set callback triggered when "Refresh" button is clicked
-         */
-        void SetOnRefresh(std::function<void()> onRefresh);
-
-        /**
          * @brief Set callback triggered when Back button is clicked
          */
         void SetOnBack(std::function<void()> onBack);
@@ -80,13 +75,11 @@ namespace Game {
        private:
         void OnRoomClicked(size_t index);
         void OnCreateRoomClicked();
-        void OnRefreshClicked();
         void OnBackClicked();
         void RebuildRoomList();
 
         std::function<void(const std::string &)> _onRoomSelected{};
         std::function<void()> _onCreateRoom{};
-        std::function<void()> _onRefresh{};
         std::function<void()> _onBack{};
 
         Graphics::IGraphics &_graphics;
@@ -95,7 +88,6 @@ namespace Game {
         std::vector<std::shared_ptr<UI::IButton>> _roomButtons;
 
         std::shared_ptr<UI::IButton> _createRoomButton;
-        std::shared_ptr<UI::IButton> _refreshButton;
         std::shared_ptr<UI::IButton> _backButton;
 
         static constexpr float ROOM_BUTTON_WIDTH = 500.0f;

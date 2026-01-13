@@ -121,7 +121,7 @@ namespace server {
         return _rooms.size();
     }
 
-    void RoomManager::update(float deltaTime) {
+    bool RoomManager::update(float deltaTime) {
         if (_matchmaking) {
             _matchmaking->tick();
         }
@@ -145,7 +145,10 @@ namespace server {
 
         if (!roomsToRemove.empty()) {
             LOG_INFO("Cleaned up ", roomsToRemove.size(), " finished room(s)");
+            return true;
         }
+
+        return false;
     }
 
     std::shared_ptr<Room> RoomManager::getRoomByPlayer(uint32_t playerId) {

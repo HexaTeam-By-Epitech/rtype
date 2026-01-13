@@ -670,8 +670,15 @@ void Server::_handleLeaveRoom(HostNetworkEvent &event) {
     // Player stays in lobby (never removed), no need to re-add
     // Player name is stored in lobby/session, not in room
 
-    // Broadcast updated room state to remaining players in the room
-    _broadcastRoomState(playerRoom);
+    // Check if room is now empty (no players, no spectators)
+    if (playerRoom->getPlayerCount() == 0 && playerRoom->getSpectators().empty()) {
+        std::string roomId = playerRoom->getId();
+        _roomManager->removeRoom(roomId);
+        LOG_INFO("✓ Room '", roomId, "' deleted (empty)");
+    } else {
+        // Broadcast updated room state to remaining players in the room
+        _broadcastRoomState(playerRoom);
+    }
 
     // Broadcast updated room list to ALL connected players
     _broadcastRoomListToAll();

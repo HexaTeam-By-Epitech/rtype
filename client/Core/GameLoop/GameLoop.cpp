@@ -10,8 +10,8 @@
 #include "../ClientGameRules.hpp"
 #include "GameruleKeys.hpp"
 
-GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator)
-    : _eventBus(&eventBus), _replicator(&replicator) {}
+GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator, const std::string &playerName)
+    : _eventBus(&eventBus), _replicator(&replicator), _playerName(playerName) {}
 
 GameLoop::~GameLoop() {
     shutdown();
@@ -144,6 +144,11 @@ void GameLoop::run() {
     _running = true;
 
     while (_running) {
+        // Get player ID from replicator (once authenticated)
+        if (_myPlayerId == 0 && _replicator) {
+            _myPlayerId = _replicator->getMyPlayerId();
+        }
+
         // Calculate delta time
         float deltaTime = calculateDeltaTime();
         _accumulator += deltaTime;
@@ -423,6 +428,12 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
                 _myEntityId = entity.entityId;
                 _entityInitialized = true;
                 LOG_INFO("✓ Stored local player entity ID: ", entity.entityId);
+
+                // Set the entity ID in the rendering system
+                if (_rendering) {
+                    _rendering->SetMyEntityId(entity.entityId);
+                    LOG_INFO("✓ SetMyEntityId called with ID: ", entity.entityId);
+                }
             }
 
             if (_rendering) {
@@ -479,26 +490,25 @@ void GameLoop::handleRoomState(const std::vector<uint8_t> &payload) {
         std::vector<Game::PlayerInfo> players;
         bool isHost = false;
 
-        // If we just created the room, we're the host
-        // Keep the flag until we leave the room, so it works for multiple RoomState updates
-        if (_justCreatedRoom) {
-            isHost = true;
-            LOG_INFO("  - Detected as host (just created room)");
-        } else {
-            // Otherwise, don't assume anything - all players are not hosts from our perspective
-            // unless the server sends us our player ID (which it should)
-            isHost = false;
-            LOG_INFO("  - Not host (didn't create this room)");
-        }
-
+        // Determine if we are the host by checking if our playerId matches a player with isHost=true
         for (const auto &playerData : roomState.players) {
             Game::PlayerInfo playerInfo(playerData.playerId, playerData.playerName, playerData.isHost,
                                         playerData.isSpectator);
             players.push_back(playerInfo);
 
-            LOG_INFO("  - Player: ", playerData.playerName, (playerData.isHost ? " (HOST)" : ""),
-                     (playerData.isSpectator ? " [SPECTATOR]" : ""));
+            LOG_INFO("  - Player: '", playerData.playerName, "' (ID:", playerData.playerId,
+                     ") | isHost=", playerData.isHost);
+
+            // Check if this is us and if we're the host
+            if (playerData.playerId == _myPlayerId && playerData.isHost) {
+                isHost = true;
+                LOG_INFO("    -> MATCH! This is ME and I'm the HOST");
+            } else if (playerData.playerId == _myPlayerId) {
+                LOG_INFO("    -> This is ME but I'm NOT the host");
+            }
         }
+
+        LOG_INFO("  Final isHost value: ", isHost);
 
         // Update waiting room with player list
         if (_rendering) {

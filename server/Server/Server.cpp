@@ -314,10 +314,19 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     LOG_INFO("✓ Player '", playerName, "' (", username, ") authenticated (Session: ", sessionId,
              ", Player ID: ", newPlayerId, ")");
 
-    std::vector<uint8_t> responseData = NetworkMessages::createConnectResponse(
-        "✓ Authentication successful! Welcome to R-Type, " + playerName + "!");
-    std::unique_ptr<IPacket> responsePacket =
-        createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
+    // Send authentication response with playerId
+    RType::Messages::Connection::HandshakeResponse response;
+    response.accepted = true;
+    response.sessionId = sessionId;
+    response.serverId = "r-type-server";
+    response.message = "✓ Authentication successful! Welcome to R-Type, " + playerName + "!";
+    response.serverVersion = "1.0.0";
+    response.playerId = newPlayerId;
+
+    std::vector<uint8_t> responseData = response.serialize();
+    std::vector<uint8_t> packet =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::HANDSHAKE_RESPONSE, responseData);
+    std::unique_ptr<IPacket> responsePacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(responsePacket), 0);
 
     // Send server constants (game rules) early so client can configure itself before gameplay.

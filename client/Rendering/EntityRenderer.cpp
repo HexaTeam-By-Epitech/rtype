@@ -47,18 +47,20 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.x = x;
             it->second.y = y;
         }
-        // Always update type, health, and sprite coords
+        // Always update type, health, sprite coords, and animation
         it->second.type = type;
         it->second.health = health;
+        it->second.currentAnimation = currentAnimation;
         it->second.startPixelX = srcX;
         it->second.startPixelY = srcY;
         it->second.spriteSizeX = srcW;
         it->second.spriteSizeY = srcH;
     } else {
         // Create new entity with sprite values from server
-        _entities[id] = {id, type, x, y, health, x, y, x, y, 1.0f, srcX, srcY, srcW, srcH, 0, 0, 3.0f, {}, 0};
+        _entities[id] = {id,   type, x, y,    health,           x,  y, x, y, 1.0f, srcX, srcY, srcW,
+                         srcH, 0,    0, 3.0f, currentAnimation, {}, 0};
         LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y,
-                  ") sprite(", srcX, ",", srcY, ",", srcW, ",", srcH, ")");
+                  ") sprite(", srcX, ",", srcY, ",", srcW, ",", srcH, ") anim=", currentAnimation);
     }
 }
 
@@ -135,12 +137,6 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
     // Visual differentiation: tint green for local player
     uint32_t tint = isLocalPlayer ? 0xAAFFAAFF : 0xFFFFFFFF;
 
-    // DEBUG: Log once per second
-    static int frameCount = 0;
-    if (++frameCount % 60 == 0) {
-        LOG_DEBUG("Rendering player: sprite(", srcX, ",", srcY, ",", srcWidth, ",", srcHeight,
-                  ") scale=", scale, " at (", entity.x, ",", entity.y, ")");
-    }
     _graphics.DrawTextureEx("r-typesheet1.gif", srcX, srcY, srcWidth, srcHeight,
                             entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
                             scale, tint);

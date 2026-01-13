@@ -61,6 +61,7 @@ class EntityRenderer {
         int offsetX;                               ///< Sprite offset X for rendering
         int offsetY;                               ///< Sprite offset Y for rendering
         float scale;                               ///< Sprite scale multiplier
+        std::string currentAnimation;              ///< Current animation name from server
         std::vector<int>
             animationFrameIndices;  ///< Animation frame sequence (sprite indices to allow freedom of picking frames manually)
         int currentFrame;  ///< Current animation frame

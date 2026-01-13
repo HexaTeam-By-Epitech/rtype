@@ -16,7 +16,6 @@
 #include "Systems/BoundarySystem/BoundarySystem.hpp"
 #include "Systems/HealthSystem/HealthSystem.hpp"
 #include "Systems/MovementSystem/MovementSystem.hpp"
-#include "Systems/ProjectileSystem/ProjectileSystem.hpp"
 #include "Systems/WeaponSystem/WeaponSystem.hpp"
 
 // ========== MovementSystem Tests ==========
@@ -205,54 +204,6 @@ TEST(WeaponSystemTest, NoCooldownWhenZero) {
     EXPECT_FLOAT_EQ(weapon.getCooldown(), 0.0f);
 }
 
-// ========== ProjectileSystem Tests ==========
-
-TEST(ProjectileSystemTest, LifetimeDecreases) {
-    ecs::Registry registry;
-    ecs::ProjectileSystem projectileSystem;
-
-    auto entity = registry.newEntity();
-    registry.setComponent(entity, ecs::Projectile(10, 3.0f, 1, true));  // 3 seconds lifetime
-
-    projectileSystem.update(registry, 0.5f);
-
-    auto &projectile = registry.getComponent<ecs::Projectile>(entity);
-    EXPECT_FLOAT_EQ(projectile.getLifetime(), 2.5f);
-}
-
-TEST(ProjectileSystemTest, ExpiredProjectilesDestroyed) {
-    ecs::Registry registry;
-    ecs::ProjectileSystem projectileSystem;
-
-    auto entity = registry.newEntity();
-    registry.setComponent(entity, ecs::Projectile(10, 0.5f, 1, true));
-
-    projectileSystem.update(registry, 1.0f);  // Lifetime expired
-
-    // Entity should be destroyed
-    EXPECT_FALSE(registry.hasComponent<ecs::Projectile>(entity));
-}
-
-TEST(ProjectileSystemTest, MultipleProjectilesIndependent) {
-    ecs::Registry registry;
-    ecs::ProjectileSystem projectileSystem;
-
-    auto projectile1 = registry.newEntity();
-    registry.setComponent(projectile1, ecs::Projectile(10, 2.0f, 1, true));
-
-    auto projectile2 = registry.newEntity();
-    registry.setComponent(projectile2, ecs::Projectile(10, 5.0f, 1, true));
-
-    projectileSystem.update(registry, 3.0f);
-
-    // Projectile1 should be destroyed, projectile2 should remain
-    EXPECT_FALSE(registry.hasComponent<ecs::Projectile>(projectile1));
-    EXPECT_TRUE(registry.hasComponent<ecs::Projectile>(projectile2));
-
-    auto &remaining = registry.getComponent<ecs::Projectile>(projectile2);
-    EXPECT_FLOAT_EQ(remaining.getLifetime(), 2.0f);
-}
-
 // ========== BoundarySystem Tests ==========
 
 TEST(BoundarySystemTest, EntitiesWithinBoundaryNotDestroyed) {
@@ -338,7 +289,6 @@ TEST(SystemsIntegrationTest, MovementAndBoundary) {
 TEST(SystemsIntegrationTest, ProjectileMovementAndLifetime) {
     ecs::Registry registry;
     ecs::MovementSystem moveSystem;
-    ecs::ProjectileSystem projectileSystem;
 
     auto projectile = registry.newEntity();
     registry.setComponent(projectile, ecs::Transform(100.0f, 100.0f));
@@ -348,7 +298,6 @@ TEST(SystemsIntegrationTest, ProjectileMovementAndLifetime) {
     // Update for 3 seconds
     for (int i = 0; i < 180; i++) {
         moveSystem.update(registry, 1.0f / 60.0f);
-        projectileSystem.update(registry, 1.0f / 60.0f);
     }
 
     // Projectile should be destroyed after lifetime expires

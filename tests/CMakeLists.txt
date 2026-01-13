@@ -36,7 +36,6 @@ add_executable(ecs_tests
         ../common/ECS/Systems/MovementSystem/MovementSystem.cpp
         ../common/ECS/Systems/HealthSystem/HealthSystem.cpp
         ../common/ECS/Systems/WeaponSystem/WeaponSystem.cpp
-        ../common/ECS/Systems/ProjectileSystem/ProjectileSystem.cpp
         ../common/ECS/Systems/BoundarySystem/BoundarySystem.cpp
 )
 

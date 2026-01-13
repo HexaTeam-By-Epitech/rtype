@@ -31,7 +31,6 @@
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
 #include "common/ECS/Systems/ISystem.hpp"
 #include "common/ECS/Systems/MovementSystem/MovementSystem.hpp"
-#include "common/ECS/Systems/ProjectileSystem/ProjectileSystem.hpp"
 #include "common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
@@ -93,7 +92,6 @@ namespace server {
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
             _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
             _world->createSystem<ecs::AISystem>("AISystem");
-            _world->createSystem<ecs::ProjectileSystem>("ProjectileSystem");
             _world->createSystem<ecs::BoundarySystem>("BoundarySystem");
             _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
 
@@ -350,10 +348,10 @@ namespace server {
         std::vector<std::string> group2 = {"CollisionSystem", "BoundarySystem"};
 
         // Group 3: Depends on collision results
-        std::vector<std::string> group3 = {"HealthSystem", "ProjectileSystem"};
+        std::vector<std::string> group3 = {"HealthSystem", "WeaponSystem"};
 
         // Group 4: AI, spawning, and weapons (can run in parallel)
-        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem"};
+        std::vector<std::string> group4 = {"AISystem", "SpawnSystem"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {

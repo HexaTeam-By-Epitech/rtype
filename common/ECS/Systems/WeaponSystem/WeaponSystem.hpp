@@ -7,7 +7,10 @@
 
 #pragma once
 
+#include <cstdint>
+#include "../../Components/Projectile.hpp"
 #include "../../Components/Transform.hpp"
+#include "../../Components/Velocity.hpp"
 #include "../../Components/Weapon.hpp"
 #include "../ISystem.hpp"
 
@@ -16,8 +19,9 @@ namespace ecs {
      * @class WeaponSystem
      * @brief System managing weapon firing and cooldowns.
      * 
-     * Handles weapon cooldown timers and projectile spawning.
+     * Handles weapon cooldown timers, projectile spawning, and weapon mechanics.
      * Requires Weapon and Transform components.
+     * Optionally uses Velocity for weapon direction.
      */
     class WeaponSystem : public ISystem {
        public:
@@ -44,10 +48,59 @@ namespace ecs {
         void update(Registry &registry, float deltaTime) override;
 
         /**
+         * @brief Fire a weapon from an entity, spawning a projectile.
+         * 
+         * Creates a new projectile entity with appropriate components.
+         * Resets the weapon cooldown timer based on fire rate.
+         * 
+         * @param registry Reference to the ECS registry
+         * @param ownerId Entity ID of the weapon owner
+         * @param isFriendly Whether this is a friendly projectile
+         * @return Address ID of the spawned projectile entity
+         */
+        std::uint32_t fireWeapon(Registry &registry, std::uint32_t ownerId, bool isFriendly);
+
+        /**
+         * @brief Fire a charged shot if charge is sufficient, otherwise fire normal shot.
+         * 
+         * If the provided charge level meets the minimum threshold (0.5f or 50%),
+         * fires a charged projectile with increased damage and speed.
+         * Otherwise, fires a normal projectile.
+         * 
+         * @param registry Reference to the ECS registry
+         * @param ownerId Entity ID of the weapon owner
+         * @param chargeLevel Current charge level (0.0f to 1.0f)
+         * @param isFriendly Whether this is a friendly projectile
+         * @return Address ID of the spawned projectile entity
+         */
+        std::uint32_t fireChargedShot(Registry &registry, std::uint32_t ownerId, float chargeLevel,
+                                      bool isFriendly);
+
+        /**
          * @brief Gets the component mask for this system.
          * 
          * @return ComponentMask requiring Weapon and Transform components
          */
         ComponentMask getComponentMask() const override;
+
+       private:
+        /**
+         * @brief Calculate projectile initial velocity based on owner's velocity.
+         * 
+         * @param registry Reference to the ECS registry
+         * @param ownerId Entity ID of the weapon owner
+         * @param baseSpeed Base projectile speed from weapon
+         * @return Velocity component for the projectile
+         */
+        Velocity calculateProjectileVelocity(Registry &registry, std::uint32_t ownerId, float baseSpeed);
+
+        /**
+         * @brief Calculate projectile spawn position based on owner position.
+         * 
+         * @param registry Reference to the ECS registry
+         * @param ownerId Entity ID of the weapon owner
+         * @return Transform component for the projectile initial position
+         */
+        Transform calculateProjectileTransform(Registry &registry, std::uint32_t ownerId);
     };
-}
+}  // namespace ecs

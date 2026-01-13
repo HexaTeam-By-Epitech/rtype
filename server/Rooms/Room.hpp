@@ -100,6 +100,27 @@ namespace server {
          * @brief Check if GameStart has been sent
          * @return true if GameStart has been sent to players
          */
+        bool hasGameStarted() const { return _gameStartSent; };
+
+        /**
+         * @brief Broadcast a chat message to all players in the room
+         * @param senderId ID of the player sending the message
+         * @param senderName Name of the player sending the message
+         * @param message The message text
+         */
+        void broadcastChatMessage(uint32_t senderId, const std::string &senderName,
+                                  const std::string &message);
+
+        /**
+         * @brief Check if room is private
+         * @return true if room is private
+         */
+        bool isPrivate() const { return _isPrivate; }
+
+        /**
+         * @brief Check if GameStart has been sent
+         * @return true if GameStart has been sent to players
+         */
         bool isGameStartSent() const { return _gameStartSent; }
 
         /**
@@ -113,12 +134,7 @@ namespace server {
          */
         bool tryMarkGameStartSent();
 
-        /**
-         * @brief Check if room is private
-         * @return true if room is private
-         */
-        bool isPrivate() const { return _isPrivate; }
-
+       private:
        private:
         std::string _id;
         std::string _name;

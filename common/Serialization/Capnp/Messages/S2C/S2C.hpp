@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "ChatMessage.hpp"
 #include "EntityDestroyed.hpp"
 #include "EntityState.hpp"
 #include "GameOver.hpp"

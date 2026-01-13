@@ -59,8 +59,9 @@ namespace Game {
         if (_isHost) {
             auto startGamePtr = _uiFactory.CreateButton();
             startGamePtr->SetSize(buttonWidth, buttonHeight);
-            startGamePtr->SetPosition(screenWidth - margin - buttonWidth,
-                                      screenHeight - margin - buttonHeight);
+            // Center the button horizontally to avoid chat widget conflict
+            float centerX = (screenWidth - buttonWidth) / 2.0f;
+            startGamePtr->SetPosition(centerX, screenHeight - margin - buttonHeight);
             startGamePtr->SetText("START GAME");
             startGamePtr->SetBackgroundColor(0xFF4CAF50);  // Green
             startGamePtr->SetHoverColor(0xFF66BB6A);

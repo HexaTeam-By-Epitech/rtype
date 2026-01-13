@@ -162,6 +162,12 @@ class Server {
     void _handleStartGame(HostNetworkEvent &event);
 
     /**
+     * @brief Handle chat message from client
+     * @param event Network event with packet data
+     */
+    void _handleChatMessage(HostNetworkEvent &event);
+
+    /**
      * @brief Broadcast game state to all connected clients
      */
     void _broadcastGameState();

@@ -99,3 +99,10 @@ struct GamerulePacket {
   gamerules @0 :List(Gamerule);
 }
 
+struct S2CChatMessage {
+  playerId @0 :UInt32;
+  playerName @1 :Text;
+  message @2 :Text;
+  timestamp @3 :UInt64;
+}
+

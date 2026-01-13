@@ -6,6 +6,7 @@
 */
 
 #include "server/Server/Server.hpp"
+#include <chrono>
 #include <thread>
 #include "Capnp/ConnectionMessages.hpp"
 #include "Capnp/Messages/Messages.hpp"
@@ -149,6 +150,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
 
             case NetworkMessages::MessageType::C2S_START_GAME:
                 _handleStartGame(event);
+                break;
+
+            case NetworkMessages::MessageType::C2S_CHAT_MESSAGE:
+                _handleChatMessage(event);
                 break;
 
             default:
@@ -673,6 +678,85 @@ void Server::_handleLeaveRoom(HostNetworkEvent &event) {
 
     // Broadcast updated room list to all players in lobby (player count changed)
     _broadcastRoomList();
+}
+
+void Server::_handleChatMessage(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    LOG_DEBUG("[Server] _handleChatMessage called");
+
+    auto session = _getSessionFromPeer(event.peer);
+    uint32_t playerId = 0;
+    std::string playerName = "Unknown";
+
+    if (session) {
+        playerId = session->getPlayerId();
+
+        // Get player name from lobby
+        const server::LobbyPlayer *lobbyPlayer = _lobby->getPlayer(playerId);
+        playerName = lobbyPlayer ? lobbyPlayer->playerName : ("Player" + std::to_string(playerId));
+    }
+
+    LOG_DEBUG("[Server] Chat message from player ", playerId, " (", playerName, ")");
+
+    if (playerId == 0) {
+        LOG_WARNING("❌ Chat message from unknown session");
+        return;
+    }
+
+    // Get player's room
+    std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
+    if (!playerRoom) {
+        LOG_WARNING("Player ", playerId, " is not in any room");
+        return;
+    }
+
+    // Deserialize chat message
+    auto payload = NetworkMessages::getPayload(event.packet->getData());
+    try {
+        auto chatMsg = C2S::C2SChatMessage::deserialize(payload);
+
+        // Check if message is a command (starts with "/")
+        if (!chatMsg.message.empty() && chatMsg.message[0] == '/') {
+            // Command - log on server but don't broadcast
+            LOG_INFO("[COMMAND] Player ", playerName, " (", playerId, "): ", chatMsg.message);
+            return;
+        }
+
+        LOG_INFO("[CHAT] Player ", playerName, " in room '", playerRoom->getId(), "': ", chatMsg.message);
+
+        // Call room method (for logging)
+        playerRoom->broadcastChatMessage(playerId, playerName, chatMsg.message);
+
+        // Create S2C ChatMessage
+        auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
+
+        S2C::S2CChatMessage chatResponse(playerId, playerName, chatMsg.message, timestamp);
+        auto responsePayload = chatResponse.serialize();
+        auto responsePacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_CHAT_MESSAGE, responsePayload);
+
+        // Broadcast to all players in the room
+        std::vector<uint32_t> players = playerRoom->getPlayers();
+        for (uint32_t targetPlayerId : players) {
+            auto it = _playerIdToSessionId.find(targetPlayerId);
+            if (it != _playerIdToSessionId.end()) {
+                std::string sessionId = it->second;
+                auto peerIt = _sessionPeers.find(sessionId);
+                if (peerIt != _sessionPeers.end()) {
+                    _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_CHAT_MESSAGE,
+                                responsePayload, true);
+                }
+            }
+        }
+
+        LOG_INFO("✓ Chat message broadcast to ", players.size(), " players");
+
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse ChatMessage: ", e.what());
+    }
 }
 
 void Server::run() {

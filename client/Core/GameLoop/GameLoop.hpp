@@ -233,6 +233,7 @@ class GameLoop {
     void handleGameruleUpdate(const std::vector<uint8_t> &payload);
     void handleRoomList(const std::vector<uint8_t> &payload);
     void handleRoomState(const std::vector<uint8_t> &payload);
+    void handleChatMessage(const std::vector<uint8_t> &payload);
 
     // Helpers
     void processServerReconciliation(const RType::Messages::S2C::EntityState &entity);

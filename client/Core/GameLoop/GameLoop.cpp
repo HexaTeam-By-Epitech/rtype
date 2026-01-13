@@ -143,6 +143,24 @@ void GameLoop::run() {
 
     _running = true;
 
+    // Setup chat message callback NOW that Rendering is fully initialized
+    LOG_INFO("[GameLoop] Setting up chat message callback...");
+    if (_rendering) {
+        _rendering->SetOnChatMessageSent([this](const std::string &message) {
+            LOG_INFO("[GameLoop] Chat callback triggered with message: '", message, "'");
+            if (_replicator) {
+                LOG_INFO("[GameLoop] Calling replicator->sendChatMessage()");
+                bool sent = _replicator->sendChatMessage(message);
+                LOG_INFO("[GameLoop] Message send result: ", (sent ? "SUCCESS" : "FAILED"));
+            } else {
+                LOG_ERROR("[GameLoop] Replicator is NULL!");
+            }
+        });
+        LOG_INFO("[GameLoop] ✓ Chat message callback configured");
+    } else {
+        LOG_ERROR("[GameLoop] Rendering is NULL!");
+    }
+
     while (_running) {
         // Calculate delta time
         float deltaTime = calculateDeltaTime();
@@ -401,6 +419,9 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
         case NetworkMessages::MessageType::S2C_ROOM_STATE:
             handleRoomState(payload);
             break;
+        case NetworkMessages::MessageType::S2C_CHAT_MESSAGE:
+            handleChatMessage(payload);
+            break;
         default:
             break;
     }
@@ -594,11 +615,29 @@ void GameLoop::handleGameruleUpdate(const std::vector<uint8_t> &payload) {
 
         LOG_INFO("✓ Gamerule update received: ", gamerulePacket.size(), " rules updated");
 
-        if (gamerulePacket.hasGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED))) {
-            _playerSpeed = gamerulePacket.getGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED));
+        // Apply player speed from gamerules
+        float speed = clientRules.get(GameruleKey::PLAYER_SPEED, _playerSpeed);
+        if (speed != _playerSpeed) {
+            _playerSpeed = speed;
             LOG_INFO("  - Player speed updated to: ", _playerSpeed);
         }
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse GamerulePacket: ", e.what());
+    }
+}
+
+void GameLoop::handleChatMessage(const std::vector<uint8_t> &payload) {
+    try {
+        auto chatMsg = RType::Messages::S2C::S2CChatMessage::deserialize(payload);
+
+        LOG_INFO("✓ ChatMessage from ", chatMsg.playerName, ": ", chatMsg.message);
+
+        // Forward to rendering for display
+        if (_rendering) {
+            _rendering->AddChatMessage(chatMsg.playerId, chatMsg.playerName, chatMsg.message,
+                                       chatMsg.timestamp);
+        }
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse ChatMessage: ", e.what());
     }
 }

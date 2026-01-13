@@ -30,6 +30,7 @@
 #include "Menu/ServerListMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
 #include "Menu/WaitingRoomMenu.hpp"
+#include "UI/ChatWidget.hpp"
 #include "UI/IButton.hpp"
 #include "UI/IMenu.hpp"
 #include "UI/Raylib/RaylibUIFactory.hpp"
@@ -301,6 +302,27 @@ class Rendering {
                            bool isHost);
 
     /**
+     * @brief Add a chat message to the chat widget
+     * @param playerId ID of the player who sent the message
+     * @param playerName Name of the player
+     * @param message The message text
+     * @param timestamp Message timestamp
+     */
+    void AddChatMessage(uint32_t playerId, const std::string &playerName, const std::string &message,
+                        uint64_t timestamp);
+
+    /**
+     * @brief Set callback for when a chat message is sent
+     * @param callback Function to call when user sends a message
+     */
+    void SetOnChatMessageSent(std::function<void(const std::string &)> callback);
+
+    /**
+     * @brief Update chat widget visibility based on current scene
+     */
+    void UpdateChatVisibility();
+
+    /**
      * @brief Enable or disable client-side prediction for local player
      * @param enabled true to enable prediction (instant movement), false for interpolation
      * 
@@ -409,6 +431,9 @@ class Rendering {
     // Entity rendering subsystem
     std::unique_ptr<EntityRenderer> _entityRenderer;
 
+    // Chat widget
+    std::unique_ptr<Game::ChatWidget> _chatWidget;
+
     // Network stats display (updated once per second for optimization)
     uint32_t _currentPing = 0;
     uint32_t _displayedPing = 0;                         // The ping value currently displayed
@@ -446,6 +471,7 @@ class Rendering {
     void InitializeCreateRoomMenu();
     void InitializeWaitingRoomMenu();
     void InitializeConnectionMenu();
+    void InitializeChatWidget();
     void SubscribeToConnectionEvents();
 
     // ===== Helper methods for Render() to reduce cognitive complexity =====

@@ -26,6 +26,17 @@ target_link_libraries(client_tests PRIVATE
 
 add_test(NAME client_tests COMMAND client_tests)
 
+# Copy DLLs for client_tests
+if(WIN32)
+    add_custom_command(TARGET client_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for client_tests..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin" "$<TARGET_FILE_DIR:client_tests>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_networking>" "$<TARGET_FILE_DIR:client_tests>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_serialization>" "$<TARGET_FILE_DIR:client_tests>/"
+        COMMAND_EXPAND_LISTS
+    )
+endif()
+
 # ECS tests
 add_executable(ecs_tests
         ecs_tests/IComponentTest.cpp
@@ -74,6 +85,17 @@ target_link_libraries(server_tests PRIVATE GTest::gtest_main rtype_server_lib)
 
 add_test(NAME server_tests COMMAND server_tests)
 
+# Copy DLLs for server_tests
+if(WIN32)
+    add_custom_command(TARGET server_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for server_tests..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin" "$<TARGET_FILE_DIR:server_tests>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_networking>" "$<TARGET_FILE_DIR:server_tests>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_serialization>" "$<TARGET_FILE_DIR:server_tests>/"
+        COMMAND_EXPAND_LISTS
+    )
+endif()
+
 # Networking tests
 add_executable(networking_tests
     networking_tests/NetworkingTest.cpp
@@ -90,6 +112,16 @@ target_link_libraries(networking_tests PRIVATE
 
 add_test(NAME networking_tests COMMAND networking_tests)
 
+# Copy DLLs for networking_tests
+if(WIN32)
+    add_custom_command(TARGET networking_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for networking_tests..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin" "$<TARGET_FILE_DIR:networking_tests>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_networking>" "$<TARGET_FILE_DIR:networking_tests>/"
+        COMMAND_EXPAND_LISTS
+    )
+endif()
+
 # Serialization tests
 add_executable(serialization_tests
     serialization_tests/SerializationTest.cpp
@@ -99,6 +131,16 @@ add_executable(serialization_tests
 )
 
 target_include_directories(serialization_tests PRIVATE 
+
+# Copy DLLs for serialization_tests
+if(WIN32)
+    add_custom_command(TARGET serialization_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for serialization_tests..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin" "$<TARGET_FILE_DIR:serialization_tests>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_serialization>" "$<TARGET_FILE_DIR:serialization_tests>/"
+        COMMAND_EXPAND_LISTS
+    )
+endif()
     ${CMAKE_SOURCE_DIR}/common/Serialization
     ${CMAKE_BINARY_DIR}/common/Serialization
 )
@@ -135,6 +177,17 @@ add_executable(scripting_tests
 target_include_directories(scripting_tests PRIVATE 
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/server
+
+# Copy DLLs for scripting_tests
+if(WIN32)
+    add_custom_command(TARGET scripting_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for scripting_tests..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin" "$<TARGET_FILE_DIR:scripting_tests>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_networking>" "$<TARGET_FILE_DIR:scripting_tests>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_serialization>" "$<TARGET_FILE_DIR:scripting_tests>/"
+        COMMAND_EXPAND_LISTS
+    )
+endif()
     ${CMAKE_SOURCE_DIR}/server/Scripting
     ${CMAKE_SOURCE_DIR}/common
 )
@@ -145,25 +198,3 @@ target_link_libraries(scripting_tests PRIVATE
 )
 
 add_test(NAME scripting_tests COMMAND scripting_tests)
-
-# On Windows, copy required DLLs next to test executables
-if(WIN32)
-    # Get the vcpkg_installed directory
-    get_filename_component(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed" ABSOLUTE)
-    
-    # Function to copy vcpkg DLLs for a test target using CMake's native file operations
-    function(copy_test_dlls target_name)
-        add_custom_command(TARGET ${target_name} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "Copying DLLs for ${target_name}..."
-            COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/copy_dlls.cmake" "$<TARGET_FILE_DIR:${target_name}>" "${VCPKG_INSTALLED_DIR}" "${CMAKE_BINARY_DIR}"
-        )
-    endfunction()
-
-    # Copy DLLs for each test that needs them
-    copy_test_dlls(server_tests)
-    copy_test_dlls(networking_tests)
-    copy_test_dlls(serialization_tests)
-    copy_test_dlls(scripting_tests)
-    copy_test_dlls(client_tests)
-endif()
-

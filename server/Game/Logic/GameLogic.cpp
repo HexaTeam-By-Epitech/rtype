@@ -10,6 +10,9 @@
 #include <atomic>
 #include <cmath>
 #include <thread>
+#include "common/Animation/AnimationDatabase.hpp"
+#include "common/ECS/Components/Animation.hpp"
+#include "common/ECS/Components/AnimationSet.hpp"
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
@@ -17,10 +20,12 @@
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Spawner.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"
 #include "common/ECS/Systems/AISystem/AISystem.hpp"
+#include "common/ECS/Systems/AnimationSystem/AnimationSystem.hpp"
 #include "common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
 #include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
@@ -83,6 +88,7 @@ namespace server {
 
             // Create and register all systems with ECSWorld in execution order
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
+            _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
             _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
@@ -114,7 +120,9 @@ namespace server {
             }
 
             // Start in InGame state (skip lobby for dev)
+
             _stateManager->changeState(1);
+
             LOG_INFO("✓ GameStateManager initialized with 3 states");
 
             // 🧪 TEST: Spawn a test enemy with Lua script
@@ -132,18 +140,14 @@ namespace server {
         }
     }
 
-    void GameLogic::update(float deltaTime, uint32_t currentTick) {
+    void GameLogic::update(float deltaTime, uint32_t lcurrentTick) {
+        (void)lcurrentTick;  // Unused for now
         if (!_gameActive) {
             return;
         }
 
         // 1. Process accumulated player input
         _processInput();
-
-        // Periodic tick summary (once per second at 60 FPS)
-        // if (currentTick % 60 == 0) {
-        //     LOG_DEBUG("Tick ", currentTick, " | Players: ", _playerMap.size());
-        // }
 
         if (_stateManager) {
             _stateManager->update(deltaTime);
@@ -167,6 +171,7 @@ namespace server {
             }
 
             // Create new player entity using the wrapper API
+            ecs::AnimationSet playerAnimations = AnimDB::createPlayerAnimations();
             ecs::wrapper::Entity playerEntity =
                 _world->createEntity()
                     .with(ecs::Transform(_gameRules.getPlayerSpawnX(), _gameRules.getPlayerSpawnY()))
@@ -176,7 +181,10 @@ namespace server {
                     .with(ecs::Player(0, 3, playerId))  // score=0, lives=3
                     .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
                     .with(ecs::Weapon(_gameRules.getDefaultPlayerFireRate(), 0.0f, 0,
-                                      _gameRules.getDefaultPlayerDamage()));
+                                      _gameRules.getDefaultPlayerDamage()))
+                    .with(ecs::Sprite("r-typesheet1.gif", {1, 69, 32, 14}, 3.0f, 0.0f, false, false, 0))
+                    .with(playerAnimations)
+                    .with(ecs::Animation("idle"));
             ecs::Address entityAddress = playerEntity.getAddress();
 
             // Register player (protected by mutex for thread safety)
@@ -221,64 +229,107 @@ namespace server {
         }
     }
 
-    void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting) {
+    void GameLogic::processPlayerInput(uint32_t playerId, int inputX, int inputY, bool isShooting,
+                                       uint32_t sequenceId) {
         std::scoped_lock lock(_inputMutex);
-        _pendingInput.push_back({playerId, inputX, inputY, isShooting});
+
+        // Filter duplicates (redundant inputs)
+        // If we have already processed this sequence ID or a newer one, ignore it.
+        auto it = _lastProcessedSequenceId.find(playerId);
+        if (it != _lastProcessedSequenceId.end()) {
+            if (sequenceId <= it->second) {
+                return;  // Already processed
+            }
+        }
+        _lastProcessedSequenceId[playerId] = sequenceId;
+
+        // Add to queue
+        _pendingInput[playerId].push_back({playerId, inputX, inputY, isShooting, sequenceId});
     }
 
     void GameLogic::_processInput() {
-        // Move pending input to local copy under lock to minimize lock time
-        std::vector<PlayerInput> inputCopy;
-        {
-            std::scoped_lock lock(_inputMutex);
-            inputCopy = std::move(_pendingInput);
-            // _pendingInput is now in a valid but unspecified state (typically empty)
-            // No need to explicitly clear after move
+        std::scoped_lock lock(_inputMutex);
+
+        for (auto &[playerId, inputs] : _pendingInput) {
+            if (inputs.empty()) {
+                continue;
+            }
+
+            // SMART JITTER BUFFER
+            // Target buffer size: 2-3 frames (~33-50ms buffer)
+            // Strategy:
+            // - If buffer > 5: Speed up (process 2 inputs) -> Catch up lag
+            // - If buffer < 1: Slow down (process 0 inputs) -> Build up buffer (handled by empty check)
+            // - Normal: Process 1 input
+
+            size_t inputsToProcess = 1;
+            if (inputs.size() > 5) {
+                inputsToProcess = 2;  // Catch up
+                LOG_DEBUG("[JITTER] Player ", playerId, " buffer high (", inputs.size(),
+                          "), processing 2 inputs");
+            }
+
+            for (size_t i = 0; i < inputsToProcess && !inputs.empty(); ++i) {
+                const auto &input = inputs.front();
+                _applyPlayerInput(playerId, input);
+                inputs.pop_front();
+            }
+        }
+    }
+
+    void GameLogic::_applyPlayerInput(uint32_t playerId, const PlayerInput &input) {
+        auto it = _playerMap.find(playerId);
+        if (it == _playerMap.end()) {
+            return;
         }
 
-        for (const auto &input : inputCopy) {
-            auto it = _playerMap.find(input.playerId);
-            if (it == _playerMap.end()) {
-                continue;  // Player not found, skip
+        ecs::Address playerEntity = it->second;
+        try {
+            // Get entity wrapper and check if it still exists
+            ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
+
+            // Check if entity has Velocity component (entity might be destroyed)
+            if (!entity.has<ecs::Velocity>()) {
+                LOG_WARNING("Player ", playerId, " entity has no Velocity component (entity destroyed?)");
+                return;
             }
 
-            ecs::Address playerEntity = it->second;
-            try {
-                // Get entity wrapper and update velocity
-                ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
-                ecs::Velocity &vel = entity.get<ecs::Velocity>();
+            ecs::Velocity &vel = entity.get<ecs::Velocity>();
 
-                // If no input (0, 0), stop the player completely
-                if (input.inputX == 0 && input.inputY == 0) {
-                    vel.setDirection(0.0f, 0.0f);
-                } else {
-                    // Normalize diagonal movement
-                    float dirX = static_cast<float>(input.inputX);
-                    float dirY = static_cast<float>(input.inputY);
+            // If no input (0, 0), stop the player completely
+            if (input.inputX == 0 && input.inputY == 0) {
+                vel.setDirection(0.0f, 0.0f);
+                // Debug log throttled (thread-local to avoid races)
+                thread_local uint32_t stopLogCount = 0;
+                if (++stopLogCount % 60 == 0) {
+                    LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
+                }
+            } else {
+                // Normalize diagonal movement
+                float dirX = static_cast<float>(input.inputX);
+                float dirY = static_cast<float>(input.inputY);
 
-                    // Normalize if diagonal
-                    if (dirX != 0.0f && dirY != 0.0f) {
-                        float length = std::sqrt(dirX * dirX + dirY * dirY);
-                        dirX /= length;
-                        dirY /= length;
-                    }
-
-                    vel.setDirection(dirX, dirY);
+                // Normalize if diagonal
+                if (dirX != 0.0f && dirY != 0.0f) {
+                    float length = std::sqrt(dirX * dirX + dirY * dirY);
+                    dirX /= length;
+                    dirY /= length;
                 }
 
-                // Debug: log processed input once per message (only when there's movement)
-                // if (input.inputX != 0 || input.inputY != 0) {
-                //     LOG_DEBUG("Input processed | player=", input.playerId, " dir=(", input.inputX, ", ",
-                //               input.inputY, ")", " shooting=", (input.isShooting ? "true" : "false"));
-                // }
-
-                // Handle shooting
-                if (input.isShooting) {
-                    // Weapon system will handle actual projectile creation
+                vel.setDirection(dirX, dirY);
+                // Debug log throttled
+                thread_local uint32_t moveLogCount = 0;
+                if (++moveLogCount % 60 == 0) {
+                    LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ")");
                 }
-            } catch (const std::exception &e) {
-                LOG_ERROR("Error processing input for player ", input.playerId, ": ", e.what());
             }
+
+            // Handle shooting
+            if (input.isShooting) {
+                // Weapon system will handle actual projectile creation
+            }
+        } catch (const std::exception &e) {
+            LOG_ERROR("Error applying input for player ", playerId, ": ", e.what());
         }
     }
 

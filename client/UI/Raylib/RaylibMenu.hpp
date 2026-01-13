@@ -63,8 +63,8 @@ namespace UI {
         [[nodiscard]] bool IsVisible() const override;
 
        private:
-        Graphics::IGraphics &_graphics;                  ///< Graphics dependency
-        std::vector<std::shared_ptr<IButton>> _buttons;  ///< Collection of buttons
-        bool _visible{true};                             ///< Menu visibility state
+        [[maybe_unused]] Graphics::IGraphics &_graphics;  ///< Graphics dependency
+        std::vector<std::shared_ptr<IButton>> _buttons;   ///< Collection of buttons
+        bool _visible{true};                              ///< Menu visibility state
     };
 }  // namespace UI

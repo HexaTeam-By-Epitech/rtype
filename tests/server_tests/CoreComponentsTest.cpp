@@ -57,9 +57,9 @@ TEST_F(EventBusTest, SubscribeAndPublish) {
 TEST_F(EventBusTest, MultipleSubscribers) {
     int callCount = 0;
 
-    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent &event) { callCount++; });
-    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent &event) { callCount++; });
-    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent &event) { callCount++; });
+    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent & /*event*/) { callCount++; });
+    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent & /*event*/) { callCount++; });
+    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent & /*event*/) { callCount++; });
 
     PlayerJoinedEvent event(1, "Player");
     eventBus->publish(event);
@@ -72,9 +72,9 @@ TEST_F(EventBusTest, DifferentEventTypes) {
     bool leftReceived = false;
     bool startReceived = false;
 
-    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent &event) { joinReceived = true; });
-    eventBus->subscribe<PlayerLeftEvent>([&](const PlayerLeftEvent &event) { leftReceived = true; });
-    eventBus->subscribe<GameStartedEvent>([&](const GameStartedEvent &event) { startReceived = true; });
+    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent & /*event*/) { joinReceived = true; });
+    eventBus->subscribe<PlayerLeftEvent>([&](const PlayerLeftEvent & /*event*/) { leftReceived = true; });
+    eventBus->subscribe<GameStartedEvent>([&](const GameStartedEvent & /*event*/) { startReceived = true; });
 
     PlayerJoinedEvent joinEvent(1, "Player");
     eventBus->publish(joinEvent);
@@ -376,7 +376,7 @@ TEST(CoreIntegrationTest, EventBusWithThreadPool) {
 
     std::atomic<int> eventCount{0};
 
-    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent &event) { eventCount++; });
+    eventBus->subscribe<PlayerJoinedEvent>([&](const PlayerJoinedEvent & /*event*/) { eventCount++; });
 
     // Publish events from multiple threads
     for (int i = 0; i < 10; ++i) {

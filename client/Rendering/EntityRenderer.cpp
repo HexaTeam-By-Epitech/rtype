@@ -14,26 +14,47 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 }
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                                  int health) {
+                                  int health, const std::string &currentAnimation, int srcX, int srcY,
+                                  int srcW, int srcH) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
 
+        // Always update type and health first (critical data)
+        it->second.type = type;
+        it->second.health = health;
+
         if (isLocalPlayer && _clientSidePredictionEnabled) {
-            // CLIENT-SIDE PREDICTION for local player
+            // CLIENT-SIDE PREDICTION for local player (pro-style dead reckoning)
             float errorX = x - it->second.x;
             float errorY = y - it->second.y;
             float errorDistance = std::sqrt(errorX * errorX + errorY * errorY);
 
-            // If server correction is significant, reconcile smoothly
+            // MICRO-JITTER FILTERING
+            // If the correction is tiny (floating point error from Replay), ignore it completely.
+            // This stops the ship from "shivering" 1 pixel back and forth.
+            if (errorDistance < 2.0f) {
+                return;  // Visually perfect, don't touch position
+            }
+
+            // Only reconcile when error exceeds threshold (use same threshold regardless of movement state)
             if (errorDistance > _reconciliationThreshold) {
+                // Significant desync detected - smooth correction needed
+                // ALWAYS interpolate corrections to avoid visible snapping
                 it->second.prevX = it->second.x;
                 it->second.prevY = it->second.y;
-                it->second.targetX = x;
-                it->second.targetY = y;
+
+                it->second.targetX = x;  // Server says X
+                it->second.targetY = y;  // Server says Y
+
+                // We keep interpolationFactor low to allow the slide to happen
                 it->second.interpolationFactor = 0.0f;
+
+                // Log ALL corrections for debugging
+                LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px threshold=", _reconciliationThreshold,
+                          ")");
             }
-            // Otherwise keep predicted position (no snap)
+            // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled) {
             // INTERPOLATION for other entities
             it->second.prevX = it->second.x;
@@ -46,24 +67,20 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.x = x;
             it->second.y = y;
         }
-        // Always update type and health
+        // Always update type, health, sprite coords, and animation
         it->second.type = type;
         it->second.health = health;
+        it->second.currentAnimation = currentAnimation;
+        it->second.startPixelX = srcX;
+        it->second.startPixelY = srcY;
+        it->second.spriteSizeX = srcW;
+        it->second.spriteSizeY = srcH;
     } else {
-        // Create new entity - initialize with immediate position (no interpolation for first frame)
-        _entities[id] = {
-            id,      // entityId
-            type,    // type
-            x,       // x (display position)
-            y,       // y (display position)
-            health,  // health
-            x,       // prevX (same as current for first frame)
-            y,       // prevY
-            x,       // targetX
-            y,       // targetY
-            1.0f     // interpolationFactor (fully arrived)
-        };
-        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y, ")");
+        // Create new entity with sprite values from server
+        _entities[id] = {id,   type, x, y,    health,           x,  y, x, y, 1.0f, srcX, srcY, srcW,
+                         srcH, 0,    0, 3.0f, currentAnimation, {}, 0};
+        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y,
+                  ") sprite(", srcX, ",", srcY, ",", srcW, ",", srcH, ") anim=", currentAnimation);
     }
 }
 
@@ -119,18 +136,24 @@ void EntityRenderer::render() {
 }
 
 void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPlayer) {
-    // Visual differentiation: local player is green, others are blue
-    // TODO: Replace with actual sprite loading when assets are ready
-    // Example: _graphics.DrawTextureEx("player_ship", ...)
+    // Draw player sprite with animation
+    // R-Type player ship sprites are in the top-left area of r-typesheet1
 
-    // Placeholder: Draw colored rectangle
-    // Green for local player (0x00FF00FF), Blue for others (0x0080FFFF)
-    uint32_t color = isLocalPlayer ? 0x00FF00FF : 0x0080FFFF;
+    // Source rectangle on the sprite sheet (frame from animation)
+    int srcX = entity.startPixelX;
+    int srcY = entity.startPixelY;
+    int srcWidth = entity.spriteSizeX > 0 ? entity.spriteSizeX : 33;
+    int srcHeight = entity.spriteSizeY > 0 ? entity.spriteSizeY : 17;
 
-    // Draw a 32x32 rectangle centered on entity position
-    float halfSize = 16.0f;
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 32,
-                             32, color);
+    // Scale up 3x for better visibility
+    float scale = entity.scale > 0.0f ? entity.scale : 3.0f;
+
+    // Visual differentiation: tint green for local player
+    uint32_t tint = isLocalPlayer ? 0xAAFFAAFF : 0xFFFFFFFF;
+
+    _graphics.DrawTextureEx("r-typesheet1.gif", srcX, srcY, srcWidth, srcHeight,
+                            entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
+                            scale, tint);
 
     // Render health bar if entity has health
     if (entity.health > 0) {
@@ -259,14 +282,14 @@ void EntityRenderer::moveEntityLocally(uint32_t entityId, float deltaX, float de
         return;  // Entity doesn't exist
     }
 
-    // Apply movement immediately
+    // Apply movement immediately to current position (prediction)
     it->second.x += deltaX;
     it->second.y += deltaY;
 
-    // Update target to match (no interpolation for predicted movement)
-    it->second.targetX = it->second.x;
-    it->second.targetY = it->second.y;
-    it->second.interpolationFactor = 1.0f;  // Already at target
+    it->second.targetX += deltaX;
+    it->second.targetY += deltaY;
+    it->second.prevX += deltaX;
+    it->second.prevY += deltaY;
 }
 
 float EntityRenderer::lerp(float start, float end, float t) const {

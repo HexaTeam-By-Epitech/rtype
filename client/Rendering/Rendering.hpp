@@ -16,13 +16,20 @@
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Core/EventBus/EventBus.hpp"
 #include "EntityRenderer.hpp"
+#include "Events/UIEvent.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
 // UI library
+#include "Menu/AddServerMenu.hpp"
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
+#include "Menu/CreateRoomMenu.hpp"
+#include "Menu/LoginMenu.hpp"
 #include "Menu/MainMenu.hpp"
+#include "Menu/RoomListMenu.hpp"
+#include "Menu/ServerListMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
+#include "Menu/WaitingRoomMenu.hpp"
 #include "UI/IButton.hpp"
 #include "UI/IMenu.hpp"
 #include "UI/Raylib/RaylibUIFactory.hpp"
@@ -114,6 +121,19 @@ class Rendering {
      * @note Returns false if user closes the window
      */
     [[nodiscard]] bool IsWindowOpen() const;
+
+    /**
+     * @brief Switch immediately to the game scene
+     * 
+     * Forces the rendering system to enter the game mode:
+     * - Hides all menus
+     * - Enables entity rendering
+     * - Sets scene to IN_GAME
+     * 
+     * Useful when the game state is already active (e.g. after login flow).
+     */
+    void StartGame();
+
     /**
      * @brief Load a texture from file
      * 
@@ -185,16 +205,22 @@ class Rendering {
     // ═══════════════════════════════════════════════════════════
 
     /**
-     * @brief Update or create an entity for rendering
+     * @brief Update or create an entity for rendering with animation
      * @param id Entity unique identifier
      * @param type Entity type (Player, Enemy, Bullet)
      * @param x World position X
      * @param y World position Y
      * @param health Current health (-1 if not applicable)
+     * @param currentAnimation Current animation clip name
+     * @param srcX Sprite source X on spritesheet
+     * @param srcY Sprite source Y on spritesheet  
+     * @param srcW Sprite width
+     * @param srcH Sprite height
      * 
      * Delegates to EntityRenderer. Call when receiving GameState updates.
      */
-    void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health);
+    void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
 
     /**
      * @brief Remove an entity from rendering
@@ -258,6 +284,21 @@ class Rendering {
      * Provides instant (0ms) input response for the local player.
      */
     void MoveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
+
+    /**
+     * @brief Update room list from server data
+     * @param rooms Vector of room information
+     */
+    void UpdateRoomList(const std::vector<RoomData> &rooms);
+
+    /**
+     * @brief Update waiting room with player list
+     * @param players Vector of players in the room
+     * @param roomName Name of the room
+     * @param isHost Whether local player is the host
+     */
+    void UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, const std::string &roomName,
+                           bool isHost);
 
     /**
      * @brief Enable or disable client-side prediction for local player
@@ -332,7 +373,7 @@ class Rendering {
 
     Scene _scene = Scene::MENU;
 
-    EventBus _eventBus;
+    EventBus &_eventBus;
     bool _initialized = false;
     bool _quitRequested = false;
     uint32_t _width = 0;
@@ -342,12 +383,28 @@ class Rendering {
     // ===== Menu UI (business) =====
     std::unique_ptr<UI::RaylibUIFactory> _uiFactory;
     std::unique_ptr<Game::MainMenu> _mainMenu;
+    std::unique_ptr<Game::ServerListMenu> _serverListMenu;
+    std::unique_ptr<Game::AddServerMenu> _addServerMenu;
+    std::unique_ptr<Game::RoomListMenu> _roomListMenu;
+    std::unique_ptr<Game::CreateRoomMenu> _createRoomMenu;
+    std::unique_ptr<Game::WaitingRoomMenu> _waitingRoomMenu;
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
+    std::unique_ptr<Game::LoginMenu> _loginMenu;
 
     bool _settingsOverlay = false;
     bool _confirmQuitOverlay = false;
+    bool _loginOverlay = false;
+
+    // Selected server for connection
+    std::string _selectedServerIp = "127.0.0.1";
+    uint16_t _selectedServerPort = 4242;
+    bool _isConnecting = false;
+    std::string _connectingServerName;
+
+    // Selected room for joining
+    std::string _selectedRoomId;
 
     // Entity rendering subsystem
     std::unique_ptr<EntityRenderer> _entityRenderer;
@@ -377,6 +434,19 @@ class Rendering {
      * @brief Apply runtime settings affecting rendering (target FPS, HUD visibility...).
      */
     void ApplyInitialMenuSettings();
+
+    // ===== Menu initialization helpers (SOLID: Single Responsibility) =====
+    void InitializeConfirmQuitMenu();
+    void InitializeSettingsMenu();
+    void InitializeMainMenu();
+    void InitializeLoginMenu();
+    void InitializeServerListMenu();
+    void InitializeAddServerMenu();
+    void InitializeRoomListMenu();
+    void InitializeCreateRoomMenu();
+    void InitializeWaitingRoomMenu();
+    void InitializeConnectionMenu();
+    void SubscribeToConnectionEvents();
 
     // ===== Helper methods for Render() to reduce cognitive complexity =====
 

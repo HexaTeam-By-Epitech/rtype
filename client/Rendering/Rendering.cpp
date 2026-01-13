@@ -6,9 +6,16 @@
 */
 
 #include "Rendering.hpp"
+#include <chrono>
+#include <thread>
+#include "Events/UIEvent.hpp"
 #include "UI/TextUtils.hpp"
 
-Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {}
+Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {
+    // Note: Window creation is deferred to Initialize()
+    // This allows GameLoop to control initialization timing
+    _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+}
 
 Rendering::~Rendering() {
     Shutdown();
@@ -37,7 +44,7 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
     InitializeMenus();
     ApplyInitialMenuSettings();
 
-    // Start in menu: disable entity renderer until Play
+    // Start with server selection menu
     _entityRenderer.reset();
 
     _initialized = true;
@@ -48,9 +55,39 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
 void Rendering::InitializeMenus() {
     _uiFactory = std::make_unique<UI::RaylibUIFactory>(_graphics);
 
-    // ===== Confirm quit dialog =====
+    InitializeConfirmQuitMenu();
+    InitializeSettingsMenu();
+    InitializeMainMenu();
+    InitializeLoginMenu();
+    InitializeServerListMenu();
+    InitializeAddServerMenu();
+    InitializeRoomListMenu();
+    InitializeCreateRoomMenu();
+    InitializeWaitingRoomMenu();
+    InitializeConnectionMenu();
+    SubscribeToConnectionEvents();
+}
+
+void Rendering::ApplyInitialMenuSettings() {
+    // Default: 60 FPS cap at startup
+    _graphics.SetTargetFPS(60);
+
+    // Keep menu button state consistent with renderer state (silent sync)
+    if (_settingsMenu) {
+        _settingsMenu->SetTargetFpsSilent(60);
+        _settingsMenu->SetShowPingSilent(_showPing);
+        _settingsMenu->SetShowFpsSilent(_showFps);
+        _settingsMenu->RefreshVisuals();
+    }
+}
+
+// ===== Menu Initialization Functions (SOLID: Single Responsibility) =====
+
+void Rendering::InitializeConfirmQuitMenu() {
     _confirmQuitMenu = std::make_unique<Game::ConfirmQuitMenu>(*_uiFactory);
+
     _confirmQuitMenu->SetOnConfirm([this]() { _quitRequested = true; });
+
     _confirmQuitMenu->SetOnCancel([this]() {
         if (_confirmQuitMenu) {
             _confirmQuitMenu->Hide();
@@ -64,15 +101,19 @@ void Rendering::InitializeMenus() {
             }
         }
     });
+
     _confirmQuitMenu->Initialize();
     _confirmQuitMenu->Hide();
+}
 
-    // ===== Settings menu =====
+void Rendering::InitializeSettingsMenu() {
     _settingsMenu = std::make_unique<Game::SettingsMenu>(*_uiFactory, _graphics);
     _settingsMenu->SetMode(Game::SettingsMenu::Mode::FULLSCREEN);
 
     _settingsMenu->SetOnShowPingChanged([this](bool enabled) { SetShowPing(enabled); });
+
     _settingsMenu->SetOnShowFpsChanged([this](bool enabled) { SetShowFps(enabled); });
+
     _settingsMenu->SetOnTargetFpsChanged(
         [this](uint32_t fps) { _graphics.SetTargetFPS(static_cast<int>(fps)); });
 
@@ -92,6 +133,7 @@ void Rendering::InitializeMenus() {
         // Return to main menu while in-game
         _scene = Scene::MENU;
         _settingsOverlay = false;
+
         if (_settingsMenu) {
             _settingsMenu->Hide();
             if (_settingsMenu->GetMode() != Game::SettingsMenu::Mode::FULLSCREEN) {
@@ -101,10 +143,12 @@ void Rendering::InitializeMenus() {
                 _settingsMenu->RefreshVisuals();
             }
         }
+
         if (_entityRenderer) {
             _entityRenderer->clearAllEntities();
         }
         _entityRenderer.reset();
+
         if (_mainMenu) {
             _mainMenu->Show();
         }
@@ -112,33 +156,25 @@ void Rendering::InitializeMenus() {
 
     _settingsMenu->Initialize();
     _settingsMenu->Hide();
+}
 
-    // ===== Main menu =====
+void Rendering::InitializeMainMenu() {
     _mainMenu = std::make_unique<Game::MainMenu>(*_uiFactory);
-    _mainMenu->SetOnQuit([this]() {
-        // Don't quit immediately: ask confirmation
-        if (_mainMenu) {
-            _mainMenu->Hide();
-        }
-        if (_settingsMenu) {
-            _settingsMenu->Hide();
-        }
-        _settingsOverlay = false;
 
-        if (_confirmQuitMenu) {
-            _confirmQuitOverlay = (_scene == Scene::IN_GAME);
-            _confirmQuitMenu->Show();
-        }
-    });
     _mainMenu->SetOnPlay([this]() {
-        // Show connection menu instead of starting game directly
-        if (_mainMenu) {
+        if (_mainMenu)
             _mainMenu->Hide();
-        }
-        if (_connectionMenu) {
-            _connectionMenu->Show();
-        }
+
+        // Show room selection menu
+        if (_roomListMenu)
+            _roomListMenu->Show();
+
+        // Request room list from server
+        _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
     });
+
+    _mainMenu->SetOnQuit([this]() { _quitRequested = true; });
+
     _mainMenu->SetOnSettings([this]() {
         if (_mainMenu) {
             _mainMenu->Hide();
@@ -149,51 +185,286 @@ void Rendering::InitializeMenus() {
         }
         _settingsOverlay = false;
     });
-    _mainMenu->Initialize();
-    _mainMenu->Show();
 
-    // ===== Connection menu =====
+    _mainMenu->SetOnProfile([this]() {
+        if (_mainMenu)
+            _mainMenu->Hide();
+        if (_loginMenu)
+            _loginMenu->Show();
+        _loginOverlay = true;
+    });
+
+    _mainMenu->SetOnSelectServer([this]() {
+        if (_mainMenu)
+            _mainMenu->Hide();
+        if (_serverListMenu)
+            _serverListMenu->Show();
+    });
+
+    // Pass screen dimensions for responsive layout (profile button)
+    _mainMenu->SetScreenSize(static_cast<float>(_width), static_cast<float>(_height));
+
+    _mainMenu->Initialize();
+    _mainMenu->Hide();  // Start hidden, show after server selection
+}
+
+void Rendering::InitializeLoginMenu() {
+    _loginMenu = std::make_unique<Game::LoginMenu>(*_uiFactory, _graphics);
+
+    _loginMenu->SetOnBack([this]() {
+        if (_loginMenu)
+            _loginMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+        _loginOverlay = false;
+    });
+
+    _loginMenu->Initialize();
+    _loginMenu->Hide();
+}
+
+void Rendering::InitializeServerListMenu() {
+    _serverListMenu = std::make_unique<Game::ServerListMenu>(*_uiFactory, _graphics);
+
+    _serverListMenu->SetOnBack([this]() {
+        // Back from server selection = quit game
+        _quitRequested = true;
+    });
+
+    _serverListMenu->SetOnServerSelected([this](const std::string &ip, uint16_t port) {
+        // Get server name for display
+        _connectingServerName = "Unknown";
+        for (const auto &server : _serverListMenu->GetServers()) {
+            if (server.ip == ip && server.port == port) {
+                _connectingServerName = server.name;
+                break;
+            }
+        }
+
+        // Store the selected server info
+        _selectedServerIp = ip;
+        _selectedServerPort = port;
+        LOG_INFO("[Rendering] Connecting to server: ", ip, ":", port, "...");
+
+        // Set connecting state in ServerListMenu
+        if (_serverListMenu)
+            _serverListMenu->SetConnecting(true, _connectingServerName);
+
+        // Set connecting state
+        _isConnecting = true;
+
+        // Publish Server Connect event to trigger connection (async)
+        std::string serverInfo = ip + ":" + std::to_string(port);
+        _eventBus.publish(UIEvent(UIEventType::SERVER_CONNECT, serverInfo));
+
+        // Don't block here - let the CONNECTION_FAILED or connection success handle UI updates
+    });
+
+    _serverListMenu->SetOnAddServer([this]() {
+        if (_serverListMenu)
+            _serverListMenu->Hide();
+        if (_addServerMenu)
+            _addServerMenu->Show();
+    });
+
+    _serverListMenu->Initialize();
+    _serverListMenu->Show();  // Show at startup
+}
+
+void Rendering::InitializeAddServerMenu() {
+    _addServerMenu = std::make_unique<Game::AddServerMenu>(*_uiFactory, _graphics);
+
+    _addServerMenu->SetOnCancel([this]() {
+        if (_addServerMenu)
+            _addServerMenu->Hide();
+        if (_serverListMenu)
+            _serverListMenu->Show();
+    });
+
+    _addServerMenu->SetOnAdd([this](const std::string &name, const std::string &ip, const std::string &port) {
+        LOG_INFO("[Rendering] Adding server: ", name, " - ", ip, ":", port);
+
+        // Add server to list
+        if (_serverListMenu) {
+            try {
+                uint16_t portNum = static_cast<uint16_t>(std::stoi(port));
+                _serverListMenu->AddServer(name, ip, portNum);
+            } catch (...) {
+                LOG_ERROR("[Rendering] Failed to parse port: ", port);
+            }
+        }
+
+        // Hide add server menu and show server list
+        if (_addServerMenu)
+            _addServerMenu->Hide();
+        if (_serverListMenu)
+            _serverListMenu->Show();
+    });
+
+    _addServerMenu->Initialize();
+    _addServerMenu->Hide();
+}
+
+void Rendering::InitializeConnectionMenu() {
     _connectionMenu = std::make_unique<Game::ConnectionMenu>(*_uiFactory, _graphics);
+
+    _connectionMenu->SetOnBack([this]() {
+        if (_connectionMenu)
+            _connectionMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+    });
+
     _connectionMenu->SetOnJoin(
         [this](const std::string &nickname, const std::string &ip, const std::string &port) {
-            // Start the game: switch scene and enable entity rendering
-            _scene = Scene::IN_GAME;
-            if (_connectionMenu) {
-                _connectionMenu->Hide();
-            }
-            if (_settingsMenu) {
-                _settingsMenu->Hide();
-            }
-            _settingsOverlay = false;
+            (void)nickname;
+            (void)ip;
+            (void)port;
 
-            if (!_entityRenderer) {
-                _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
-            }
+            // Publish Join Game event
+            _eventBus.publish(UIEvent(UIEventType::JOIN_GAME));
+
+            if (_connectionMenu)
+                _connectionMenu->Hide();
+            StartGame();
         });
-    _connectionMenu->SetOnBack([this]() {
-        if (_connectionMenu) {
-            _connectionMenu->Hide();
-        }
-        if (_mainMenu) {
-            _mainMenu->Show();
-        }
-    });
+
     _connectionMenu->Initialize();
     _connectionMenu->Hide();
 }
 
-void Rendering::ApplyInitialMenuSettings() {
-    // Default: 60 FPS cap at startup
-    _graphics.SetTargetFPS(60);
+void Rendering::InitializeRoomListMenu() {
+    _roomListMenu = std::make_unique<Game::RoomListMenu>(*_uiFactory, _graphics);
 
-    // Keep menu button state consistent with renderer state (silent sync)
-    if (_settingsMenu) {
-        _settingsMenu->SetTargetFpsSilent(60);
-        _settingsMenu->SetShowPingSilent(_showPing);
-        _settingsMenu->SetShowFpsSilent(_showFps);
-        _settingsMenu->RefreshVisuals();
-    }
+    _roomListMenu->SetOnRoomSelected([this](const std::string &roomId) {
+        LOG_INFO("[Rendering] Room selected: ", roomId);
+        _selectedRoomId = roomId;
+
+        // Hide room list and show waiting room
+        if (_roomListMenu)
+            _roomListMenu->Hide();
+        if (_waitingRoomMenu)
+            _waitingRoomMenu->Show();
+
+        // Send JOIN_GAME event with room ID (but don't start game yet)
+        _eventBus.publish(UIEvent(UIEventType::JOIN_GAME, _selectedRoomId));
+    });
+
+    _roomListMenu->SetOnCreateRoom([this]() {
+        if (_roomListMenu)
+            _roomListMenu->Hide();
+        if (_createRoomMenu)
+            _createRoomMenu->Show();
+    });
+
+    _roomListMenu->SetOnBack([this]() {
+        if (_roomListMenu)
+            _roomListMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+    });
+
+    _roomListMenu->Initialize();
+    _roomListMenu->Hide();
 }
+
+void Rendering::InitializeCreateRoomMenu() {
+    _createRoomMenu = std::make_unique<Game::CreateRoomMenu>(*_uiFactory, _graphics);
+
+    _createRoomMenu->SetOnCreate([this](const std::string &roomName, uint32_t maxPlayers, bool isPrivate) {
+        LOG_INFO("[Rendering] Creating room: ", roomName, " (Max: ", maxPlayers, ", Private: ", isPrivate,
+                 ")");
+
+        // Publish CREATE_ROOM event (format: "roomName|maxPlayers|isPrivate")
+        std::string roomData = roomName + "|" + std::to_string(maxPlayers) + "|" + (isPrivate ? "1" : "0");
+        _eventBus.publish(UIEvent(UIEventType::CREATE_ROOM, roomData));
+
+        if (_createRoomMenu)
+            _createRoomMenu->Hide();
+
+        // Show WaitingRoom instead of RoomListMenu (creator becomes host automatically)
+        if (_waitingRoomMenu)
+            _waitingRoomMenu->Show();
+    });
+
+    _createRoomMenu->SetOnCancel([this]() {
+        if (_createRoomMenu)
+            _createRoomMenu->Hide();
+        if (_roomListMenu)
+            _roomListMenu->Show();
+    });
+
+    _createRoomMenu->Initialize();
+    _createRoomMenu->Hide();
+}
+
+void Rendering::InitializeWaitingRoomMenu() {
+    _waitingRoomMenu = std::make_unique<Game::WaitingRoomMenu>(*_uiFactory, _graphics);
+
+    _waitingRoomMenu->SetOnStartGame([this]() {
+        LOG_INFO("[Rendering] Start Game button clicked");
+        // Publish START_GAME_REQUEST event
+        _eventBus.publish(UIEvent(UIEventType::START_GAME_REQUEST));
+    });
+
+    _waitingRoomMenu->SetOnBack([this]() {
+        LOG_INFO("[Rendering] Back to room list - leaving room");
+        if (_waitingRoomMenu)
+            _waitingRoomMenu->Hide();
+
+        // Notify server that player is leaving the room
+        _eventBus.publish(UIEvent(UIEventType::LEAVE_ROOM));
+
+        if (_roomListMenu)
+            _roomListMenu->Show();
+    });
+
+    _waitingRoomMenu->Initialize();
+    _waitingRoomMenu->Hide();
+}
+
+void Rendering::SubscribeToConnectionEvents() {
+    _eventBus.subscribe<UIEvent>([this](const UIEvent &event) {
+        if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
+            LOG_INFO("[Rendering] Connection successful!");
+
+            // Clear connecting state
+            _isConnecting = false;
+            if (_serverListMenu)
+                _serverListMenu->SetConnecting(false);
+
+            // Request room list from server
+            _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
+
+            // Hide server list and show main menu (room selection happens on PLAY click)
+            if (_serverListMenu)
+                _serverListMenu->Hide();
+            if (_mainMenu)
+                _mainMenu->Show();
+
+        } else if (event.getType() == UIEventType::CONNECTION_FAILED) {
+            LOG_ERROR("[Rendering] Connection failed: ", event.getData());
+
+            // Clear connecting state
+            _isConnecting = false;
+            if (_serverListMenu)
+                _serverListMenu->SetConnecting(false);
+
+            // Set error message in server list (it's already visible)
+            if (_serverListMenu) {
+                _serverListMenu->SetConnectionError("Connection failed: Server unreachable");
+            }
+
+            // Make sure we're back to menu scene
+            _scene = Scene::MENU;
+        } else if (event.getType() == UIEventType::ROOM_LIST_RECEIVED) {
+            LOG_INFO("[Rendering] Room list received");
+            // Room list will be updated by GameLoop parsing the network message
+        }
+    });
+}
+
+// ===== End of Menu Initialization Functions =====
 
 void Rendering::Shutdown() {
     if (!_initialized) {
@@ -228,6 +499,39 @@ bool Rendering::GetShowFps() const {
     return _showFps;
 }
 
+void Rendering::StartGame() {
+    if (!_initialized)
+        return;
+
+    LOG_INFO("Rendering: Force switching to Game Scene");
+    _scene = Scene::IN_GAME;
+
+    // Hide all menus
+    if (_mainMenu)
+        _mainMenu->Hide();
+    if (_serverListMenu)
+        _serverListMenu->Hide();
+    if (_addServerMenu)
+        _addServerMenu->Hide();
+    if (_roomListMenu)
+        _roomListMenu->Hide();
+    if (_createRoomMenu)
+        _createRoomMenu->Hide();
+    if (_waitingRoomMenu)
+        _waitingRoomMenu->Hide();
+    if (_connectionMenu)
+        _connectionMenu->Hide();
+    if (_settingsMenu)
+        _settingsMenu->Hide();
+
+    _settingsOverlay = false;
+
+    // Enable entity renderer
+    if (!_entityRenderer) {
+        _entityRenderer = std::make_unique<EntityRenderer>(_graphics);
+    }
+}
+
 void Rendering::Render() {
     if (!_initialized) {
         return;
@@ -251,6 +555,12 @@ void Rendering::Render() {
     RenderHUD();
 
     _graphics.DisplayWindow();
+
+    // Check if user wants to close the window and stop the game loop
+    if (_graphics.WindowShouldClose()) {
+        // Trigger game loop shutdown
+        // This will be detected by the GameLoop and initiate clean shutdown
+    }
 }
 
 void Rendering::UpdateFpsCounter() {
@@ -296,11 +606,54 @@ void Rendering::UpdateUI() {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Update();
         }
+        if (_serverListMenu && _serverListMenu->IsVisible()) {
+            _serverListMenu->Update();
+        }
+        if (_addServerMenu && _addServerMenu->IsVisible()) {
+            _addServerMenu->Update();
+        }
+        if (_roomListMenu && _roomListMenu->IsVisible()) {
+            _roomListMenu->Update();
+        }
+        if (_createRoomMenu && _createRoomMenu->IsVisible()) {
+            _createRoomMenu->Update();
+        }
+        if (_waitingRoomMenu && _waitingRoomMenu->IsVisible()) {
+            _waitingRoomMenu->Update();
+        }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Update();
         }
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Update();
+        }
+        if (_loginMenu && _loginMenu->IsVisible()) {
+            _loginMenu->Update();
+
+            // Check for submission
+            if (_loginMenu->IsLoginSubmitted() || _loginMenu->IsRegisterSubmitted() ||
+                _loginMenu->IsGuestSubmitted()) {
+                std::string username;
+                if (_loginMenu->IsGuestSubmitted()) {
+                    username = "Guest";
+                } else {
+                    username = _loginMenu->GetUsername();
+                }
+
+                // Update MainMenu profile button
+                if (_mainMenu) {
+                    _mainMenu->SetProfileName(username);
+                }
+
+                LOG_INFO("[Rendering] User logged in as: " + username);
+
+                // Close menu
+                _loginMenu->Hide();
+                if (_mainMenu)
+                    _mainMenu->Show();
+                _loginOverlay = false;
+                _loginMenu->Reset();
+            }
         }
     } else {
         // In-game: only overlay settings gets updates
@@ -329,11 +682,29 @@ void Rendering::RenderUI() {
         if (_mainMenu && _mainMenu->IsVisible()) {
             _mainMenu->Render();
         }
+        if (_serverListMenu && _serverListMenu->IsVisible()) {
+            _serverListMenu->Render();
+        }
+        if (_addServerMenu && _addServerMenu->IsVisible()) {
+            _addServerMenu->Render();
+        }
+        if (_roomListMenu && _roomListMenu->IsVisible()) {
+            _roomListMenu->Render();
+        }
+        if (_createRoomMenu && _createRoomMenu->IsVisible()) {
+            _createRoomMenu->Render();
+        }
+        if (_waitingRoomMenu && _waitingRoomMenu->IsVisible()) {
+            _waitingRoomMenu->Render();
+        }
         if (_connectionMenu && _connectionMenu->IsVisible()) {
             _connectionMenu->Render();
         }
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Render();
+        }
+        if (_loginMenu && _loginMenu->IsVisible()) {
+            _loginMenu->Render();
         }
     } else {
         if (_settingsMenu && _settingsMenu->IsVisible() && _settingsOverlay) {
@@ -424,9 +795,10 @@ bool Rendering::WindowShouldClose() const {
 // ═══════════════════════════════════════════════════════════
 
 void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                             int health) {
+                             int health, const std::string &currentAnimation, int srcX, int srcY, int srcW,
+                             int srcH) {
     if (_entityRenderer) {
-        _entityRenderer->updateEntity(id, type, x, y, health);
+        _entityRenderer->updateEntity(id, type, x, y, health, currentAnimation, srcX, srcY, srcW, srcH);
     }
 }
 
@@ -495,4 +867,33 @@ float Rendering::GetReconciliationThreshold() const {
 
 void Rendering::SetPing(uint32_t pingMs) {
     _currentPing = pingMs;
+}
+
+void Rendering::UpdateRoomList(const std::vector<RoomData> &rooms) {
+    if (!_roomListMenu) {
+        return;
+    }
+
+    std::vector<Game::RoomListMenu::RoomInfo> roomInfos;
+    for (const auto &room : rooms) {
+        roomInfos.emplace_back(room.roomId, room.roomName, room.playerCount, room.maxPlayers, room.isPrivate,
+                               room.state);
+    }
+
+    _roomListMenu->UpdateRoomList(roomInfos);
+    LOG_INFO("[Rendering] Room list updated with ", rooms.size(), " rooms");
+}
+
+void Rendering::UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, const std::string &roomName,
+                                  bool isHost) {
+    if (!_waitingRoomMenu) {
+        return;
+    }
+
+    _waitingRoomMenu->UpdatePlayerList(players);
+    _waitingRoomMenu->SetRoomInfo(roomName, static_cast<uint32_t>(players.size()),
+                                  4);  // TODO: get max from server
+    _waitingRoomMenu->SetIsHost(isHost);
+
+    LOG_INFO("[Rendering] Waiting room updated with ", players.size(), " players, isHost=", isHost);
 }

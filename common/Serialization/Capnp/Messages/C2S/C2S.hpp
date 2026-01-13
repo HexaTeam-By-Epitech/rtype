@@ -10,6 +10,7 @@
 #include "CreateRoom.hpp"
 #include "JoinGame.hpp"
 #include "JoinRoom.hpp"
+#include "LeaveRoom.hpp"
 #include "ListRooms.hpp"
 #include "PlayerInput.hpp"
 #include "StartGame.hpp"

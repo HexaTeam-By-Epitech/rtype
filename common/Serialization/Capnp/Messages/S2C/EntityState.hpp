@@ -26,8 +26,21 @@ namespace RType::Messages::S2C {
         Shared::EntityType type;
         Shared::Vec2 position;
         std::optional<int32_t> health;
+        std::string currentAnimation;
+        int32_t spriteX;
+        int32_t spriteY;
+        int32_t spriteW;
+        int32_t spriteH;
+        uint32_t lastProcessedInput = 0;  // 0 if N/A
 
-        EntityState() : entityId(0), type(Shared::EntityType::Player) {}
+        EntityState()
+            : entityId(0),
+              type(Shared::EntityType::Player),
+              currentAnimation("idle"),
+              spriteX(0),
+              spriteY(0),
+              spriteW(33),
+              spriteH(17) {}
 
         void toCapnp(::EntityState::Builder builder) const {
             builder.setEntityId(entityId);
@@ -37,6 +50,12 @@ namespace RType::Messages::S2C {
             position.toCapnp(posBuilder);
 
             builder.setHealth(health.value_or(-1));
+            builder.setCurrentAnimation(currentAnimation);
+            builder.setSpriteX(spriteX);
+            builder.setSpriteY(spriteY);
+            builder.setSpriteW(spriteW);
+            builder.setSpriteH(spriteH);
+            builder.setLastProcessedInput(lastProcessedInput);
         }
 
         static EntityState fromCapnp(::EntityState::Reader reader) {
@@ -44,12 +63,18 @@ namespace RType::Messages::S2C {
             result.entityId = reader.getEntityId();
             result.type = Shared::fromCapnpEntityType(reader.getType());
             result.position = Shared::Vec2::fromCapnp(reader.getPosition());
+            result.lastProcessedInput = reader.getLastProcessedInput();
 
             int32_t healthValue = reader.getHealth();
             if (healthValue >= 0) {
                 result.health = healthValue;
             }
 
+            result.currentAnimation = reader.getCurrentAnimation();
+            result.spriteX = reader.getSpriteX();
+            result.spriteY = reader.getSpriteY();
+            result.spriteW = reader.getSpriteW();
+            result.spriteH = reader.getSpriteH();
             return result;
         }
     };

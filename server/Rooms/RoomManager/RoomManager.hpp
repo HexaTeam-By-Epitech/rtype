@@ -38,7 +38,7 @@ namespace server {
         std::vector<std::shared_ptr<Room>> getAllRooms() override;
         std::vector<std::shared_ptr<Room>> getPublicRooms() override;
         size_t getRoomCount() const override;
-        void update(float deltaTime) override;
+        bool update(float deltaTime) override;
 
         /**
          * @brief Add player to matchmaking queue

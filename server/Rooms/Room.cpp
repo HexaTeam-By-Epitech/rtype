@@ -100,6 +100,14 @@ namespace server {
                 _hostPlayerId = _players[0];
                 LOG_INFO("Player ", _hostPlayerId, " is new host");
             }
+
+            // Reset room to WAITING if all players left
+            if (_players.empty() && (_state == RoomState::IN_PROGRESS || _state == RoomState::STARTING)) {
+                setState(RoomState::WAITING);
+                _gameStartSent = false;
+                LOG_INFO("Room ", _id, " reset to WAITING (no players left)");
+            }
+
             return true;
         }
 
@@ -170,6 +178,12 @@ namespace server {
             if (!_gameLogic->initialize()) {
                 LOG_ERROR("Failed to initialize game logic for room ", _id);
                 return false;
+            }
+
+            // Spawn enemies (Lua scripts) now that game is starting
+            // Cast to GameLogic to access spawnEnemies()
+            if (auto *gameLogic = dynamic_cast<GameLogic *>(_gameLogic.get())) {
+                gameLogic->spawnEnemies();
             }
 
             // Spawn players and validate entity IDs

@@ -90,7 +90,7 @@ TEST_F(MatchmakingTest, MatchCreatedCallback) {
 TEST_F(MatchmakingTest, NoMatchWithInsufficientPlayers) {
     bool callbackCalled = false;
 
-    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> room) { callbackCalled = true; });
+    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> /*room*/) { callbackCalled = true; });
 
     // Add only 1 player (minimum is 2)
     matchmaking->addPlayer(1);
@@ -125,7 +125,7 @@ TEST_F(MatchmakingTest, MatchWithMaxPlayers) {
 TEST_F(MatchmakingTest, PartialMatch) {
     bool callbackCalled = false;
 
-    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> room) { callbackCalled = true; });
+    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> /*room*/) { callbackCalled = true; });
 
     // Add 5 players (max is 4)
     for (uint32_t i = 1; i <= 5; ++i) {
@@ -141,7 +141,7 @@ TEST_F(MatchmakingTest, PartialMatch) {
 TEST_F(MatchmakingTest, MultipleMatches) {
     int matchCount = 0;
 
-    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> room) { matchCount++; });
+    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> /*room*/) { matchCount++; });
 
     // Add 8 players (should create 2 matches of 4)
     for (uint32_t i = 1; i <= 8; ++i) {
@@ -162,7 +162,7 @@ TEST_F(MatchmakingTest, SetMinPlayers) {
     matchmaking->addPlayer(2);
 
     bool callbackCalled = false;
-    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> room) { callbackCalled = true; });
+    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> /*room*/) { callbackCalled = true; });
 
     matchmaking->tick();
     EXPECT_FALSE(callbackCalled);  // Not enough players
@@ -285,7 +285,7 @@ TEST_F(MatchmakingTest, LargeNumberOfPlayers) {
     EXPECT_EQ(matchmaking->getQueueSize(), 100);
 
     int matchCount = 0;
-    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> room) { matchCount++; });
+    matchmaking->setMatchCreatedCallback([&](std::shared_ptr<Room> /*room*/) { matchCount++; });
 
     matchmaking->tick();
 

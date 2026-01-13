@@ -23,6 +23,25 @@ namespace Game {
         _onPlay = std::move(onPlay);
     }
 
+    void MainMenu::SetOnProfile(std::function<void()> onProfile) {
+        _onProfile = std::move(onProfile);
+    }
+
+    void MainMenu::SetOnSelectServer(std::function<void()> onSelectServer) {
+        _onSelectServer = std::move(onSelectServer);
+    }
+
+    void MainMenu::SetProfileName(const std::string &name) {
+        if (_profileButton) {
+            _profileButton->SetText(name);
+        }
+    }
+
+    void MainMenu::SetScreenSize(float width, float height) {
+        _screenWidth = width;
+        _screenHeight = height;
+    }
+
     void MainMenu::Initialize() {
         if (!_menu) {
             return;
@@ -32,18 +51,40 @@ namespace Game {
         const float buttonHeight = 50.0f;
         const float spacing = 20.0f;
 
-        // 3 buttons stack
-        const float totalHeight = (buttonHeight * 3.0f) + (spacing * 2.0f);
-        const float offsets[3] = {-(totalHeight / 2.0f) + (buttonHeight / 2.0f), 0.0f,
-                                  (totalHeight / 2.0f) - (buttonHeight / 2.0f)};
+        // 4 buttons stack (Play, Settings, Select Server, Quit)
+        const float totalHeight = (buttonHeight * 4.0f) + (spacing * 3.0f);
+        const float offsets[4] = {
+            -(totalHeight / 2.0f) + (buttonHeight / 2.0f),                           // Play
+            -(totalHeight / 2.0f) + (buttonHeight / 2.0f) + buttonHeight + spacing,  // Settings
+            (totalHeight / 2.0f) - (buttonHeight / 2.0f) - buttonHeight - spacing,   // Select Server
+            (totalHeight / 2.0f) - (buttonHeight / 2.0f)                             // Quit
+        };
 
         _menu->Clear();
         _menu->AddButton(CreateCenteredButton("PLAY", offsets[0], buttonWidth, buttonHeight, 0xFF4CAF50,
                                               0xFF66BB6A, [this]() { OnPlayClicked(); }));
         _menu->AddButton(CreateCenteredButton("SETTINGS", offsets[1], buttonWidth, buttonHeight, 0xFF424242,
                                               0xFF616161, [this]() { OnSettingsClicked(); }));
-        _menu->AddButton(CreateCenteredButton("QUIT", offsets[2], buttonWidth, buttonHeight, 0xFFF44336,
+        _menu->AddButton(CreateCenteredButton("SELECT SERVER", offsets[2], buttonWidth, buttonHeight,
+                                              0xFF2196F3, 0xFF64B5F6, [this]() { OnSelectServerClicked(); }));
+        _menu->AddButton(CreateCenteredButton("QUIT", offsets[3], buttonWidth, buttonHeight, 0xFFF44336,
                                               0xFFE57373, [this]() { OnQuitClicked(); }));
+
+        // Profile Button (Top Left)
+        const float profileBtnWidth = 120.0f;
+        const float profileBtnHeight = 40.0f;
+        const float margin = 20.0f;
+
+        _profileButton = _uiFactory.CreateButton();
+        _profileButton->SetSize(profileBtnWidth, profileBtnHeight);
+        _profileButton->SetPosition(margin, margin);
+        _profileButton->SetText("GUEST");                // Default
+        _profileButton->SetBackgroundColor(0xFF2196F3);  // Blue
+        _profileButton->SetHoverColor(0xFF64B5F6);
+        _profileButton->SetTextColor(0xFFFFFFFF);
+        _profileButton->SetCallback([this]() { OnProfileClicked(); });
+
+        _menu->AddButton(_profileButton);
     }
 
     void MainMenu::OnPlayClicked() {
@@ -67,6 +108,20 @@ namespace Game {
             _onQuit();
         } else {
             LOG_WARNING("[MainMenu] Quit requested but no onQuit callback was set");
+        }
+    }
+
+    void MainMenu::OnProfileClicked() {
+        LOG_INFO("[MainMenu] Profile button clicked!");
+        if (_onProfile) {
+            _onProfile();
+        }
+    }
+
+    void MainMenu::OnSelectServerClicked() {
+        LOG_INFO("[MainMenu] Select Server button clicked!");
+        if (_onSelectServer) {
+            _onSelectServer();
         }
     }
 }  // namespace Game

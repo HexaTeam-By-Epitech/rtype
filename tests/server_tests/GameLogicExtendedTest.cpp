@@ -54,42 +54,42 @@ TEST_F(GameLogicExtendedTest, DespawnNonExistentPlayer) {
 
 TEST_F(GameLogicExtendedTest, ProcessPlayerInputRight) {
     gameLogic->spawnPlayer(1, "TestPlayer");
-    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 1, 0, false));
+    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 1, 0, false, 0));
     EXPECT_NO_THROW(gameLogic->update(1.0f / 60.0f, 0));
 }
 
 TEST_F(GameLogicExtendedTest, ProcessPlayerInputLeft) {
     gameLogic->spawnPlayer(1, "TestPlayer");
-    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, -1, 0, false));
+    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, -1, 0, false, 0));
     EXPECT_NO_THROW(gameLogic->update(1.0f / 60.0f, 0));
 }
 
 TEST_F(GameLogicExtendedTest, ProcessPlayerInputUp) {
     gameLogic->spawnPlayer(1, "TestPlayer");
-    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 0, -1, false));
+    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 0, -1, false, 0));
     EXPECT_NO_THROW(gameLogic->update(1.0f / 60.0f, 0));
 }
 
 TEST_F(GameLogicExtendedTest, ProcessPlayerInputDown) {
     gameLogic->spawnPlayer(1, "TestPlayer");
-    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 0, 1, false));
+    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 0, 1, false, 0));
     EXPECT_NO_THROW(gameLogic->update(1.0f / 60.0f, 0));
 }
 
 TEST_F(GameLogicExtendedTest, ProcessPlayerInputShoot) {
     gameLogic->spawnPlayer(1, "TestPlayer");
-    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 0, 0, true));
+    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 0, 0, true, 0));
     EXPECT_NO_THROW(gameLogic->update(1.0f / 60.0f, 0));
 }
 
 TEST_F(GameLogicExtendedTest, ProcessPlayerInputDiagonal) {
     gameLogic->spawnPlayer(1, "TestPlayer");
-    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 1, 1, false));
+    EXPECT_NO_THROW(gameLogic->processPlayerInput(1, 1, 1, false, 0));
     EXPECT_NO_THROW(gameLogic->update(1.0f / 60.0f, 0));
 }
 
 TEST_F(GameLogicExtendedTest, ProcessInputForNonExistentPlayer) {
-    EXPECT_NO_THROW(gameLogic->processPlayerInput(999, 1, 0, false));
+    EXPECT_NO_THROW(gameLogic->processPlayerInput(999, 1, 0, false, 0));
     EXPECT_NO_THROW(gameLogic->update(1.0f / 60.0f, 0));
 }
 
@@ -133,8 +133,8 @@ TEST_F(GameLogicExtendedTest, CompleteGameScenario) {
 
     for (int frame = 0; frame < 100; ++frame) {
         if (frame % 10 == 0) {
-            gameLogic->processPlayerInput(1, 1, 0, frame % 20 == 0);
-            gameLogic->processPlayerInput(2, -1, 0, frame % 20 == 10);
+            gameLogic->processPlayerInput(1, 1, 0, frame % 20 == 0, frame);
+            gameLogic->processPlayerInput(2, -1, 0, frame % 20 == 10, frame);
         }
         gameLogic->update(1.0f / 60.0f, frame);
     }
@@ -173,7 +173,7 @@ TEST_F(GameLogicExtendedTest, ContinuousInput) {
     gameLogic->spawnPlayer(1, "Player");
 
     for (int i = 0; i < 60; ++i) {
-        gameLogic->processPlayerInput(1, 1, 0, i % 5 == 0);
+        gameLogic->processPlayerInput(1, 1, 0, i % 5 == 0, i);
         gameLogic->update(1.0f / 60.0f, i);
     }
 }
@@ -181,16 +181,16 @@ TEST_F(GameLogicExtendedTest, ContinuousInput) {
 TEST_F(GameLogicExtendedTest, AllDirections) {
     gameLogic->spawnPlayer(1, "Player");
 
-    gameLogic->processPlayerInput(1, 1, 0, false);  // Right
+    gameLogic->processPlayerInput(1, 1, 0, false, 1);  // Right
     gameLogic->update(1.0f / 60.0f, 0);
 
-    gameLogic->processPlayerInput(1, -1, 0, false);  // Left
+    gameLogic->processPlayerInput(1, -1, 0, false, 2);  // Left
     gameLogic->update(1.0f / 60.0f, 1);
 
-    gameLogic->processPlayerInput(1, 0, 1, false);  // Down
+    gameLogic->processPlayerInput(1, 0, 1, false, 3);  // Down
     gameLogic->update(1.0f / 60.0f, 2);
 
-    gameLogic->processPlayerInput(1, 0, -1, false);  // Up
+    gameLogic->processPlayerInput(1, 0, -1, false, 4);  // Up
     gameLogic->update(1.0f / 60.0f, 3);
 }
 
@@ -198,7 +198,7 @@ TEST_F(GameLogicExtendedTest, ShootingPattern) {
     gameLogic->spawnPlayer(1, "Player");
 
     for (int i = 0; i < 20; ++i) {
-        gameLogic->processPlayerInput(1, 0, 0, true);
+        gameLogic->processPlayerInput(1, 0, 0, true, i);
         gameLogic->update(1.0f / 60.0f, i);
     }
 }
@@ -209,8 +209,8 @@ TEST_F(GameLogicExtendedTest, LongRunningSession) {
 
     for (int i = 0; i < 300; ++i) {
         if (i % 5 == 0) {
-            gameLogic->processPlayerInput(1, (i % 2) ? 1 : -1, 0, i % 10 == 0);
-            gameLogic->processPlayerInput(2, (i % 2) ? -1 : 1, 0, i % 15 == 0);
+            gameLogic->processPlayerInput(1, (i % 2) ? 1 : -1, 0, i % 10 == 0, i);
+            gameLogic->processPlayerInput(2, (i % 2) ? -1 : 1, 0, i % 15 == 0, i);
         }
         gameLogic->update(1.0f / 60.0f, i);
     }

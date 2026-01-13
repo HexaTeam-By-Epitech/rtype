@@ -16,6 +16,7 @@
 #include "JoinedRoom.hpp"
 #include "RoomCreated.hpp"
 #include "RoomList.hpp"
+#include "RoomState.hpp"
 
 /**
  * @namespace RType::Messages::S2C

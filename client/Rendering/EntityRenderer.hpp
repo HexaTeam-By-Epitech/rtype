@@ -54,11 +54,17 @@ class EntityRenderer {
         float targetX;                             ///< Target position X (from server)
         float targetY;                             ///< Target position Y (from server)
         float interpolationFactor;                 ///< Progress from 0.0 (prev) to 1.0 (target)
-
-        // Future fields for enhanced rendering:
-        // float rotation;        ///< Rotation angle in degrees
-        // float scale;           ///< Uniform scale factor
-        // uint8_t animFrame;     ///< Current animation frame
+        int startPixelX;                           ///< Sprite sheet start pixel X
+        int startPixelY;                           ///< Sprite sheet start pixel Y
+        int spriteSizeX;                           ///< Sprite sheet size X
+        int spriteSizeY;                           ///< Sprite sheet size Y
+        int offsetX;                               ///< Sprite offset X for rendering
+        int offsetY;                               ///< Sprite offset Y for rendering
+        float scale;                               ///< Sprite scale multiplier
+        std::string currentAnimation;              ///< Current animation name from server
+        std::vector<int>
+            animationFrameIndices;  ///< Animation frame sequence (sprite indices to allow freedom of picking frames manually)
+        int currentFrame;  ///< Current animation frame
     };
 
     /**
@@ -82,6 +88,7 @@ class EntityRenderer {
          * @param x World position X
          * @param y World position Y
          * @param health Current health (-1 if not applicable)
+         * @param currentAnimation Current animation clip name (e.g., "idle", "shoot")
          * 
          * If the entity already exists, its state is updated.
          * If it's a new entity, it's added to the cache.
@@ -89,8 +96,10 @@ class EntityRenderer {
          * This method should be called whenever a GameState or GameStart
          * message is received from the server.
          */
-    void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                      int health); /**
+    void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
+
+    /**
          * @brief Remove an entity from the rendering cache
          * @param id Entity unique identifier to remove
          * 
@@ -299,11 +308,16 @@ class EntityRenderer {
     bool _interpolationEnabled = true;
 
     /// Interpolation speed multiplier (higher = faster convergence)
+    /// Set to 10.0 for smooth corrections over ~100ms (6 frames at 60 FPS)
+    /// This allows client prediction to feel responsive while still correcting server authority
     float _interpolationSpeed = 10.0f;
 
     /// Client-side prediction enabled flag (for local player only)
     bool _clientSidePredictionEnabled = true;
 
     /// Reconciliation threshold in pixels (corrections smaller than this are ignored)
-    float _reconciliationThreshold = 5.0f;
+    /// Set to 15.0px to tolerate natural client prediction being ahead of server
+    /// With 100px/s speed at 60Hz, each frame is ~1.67px, so 15px = ~9 frames (150ms) tolerance
+    /// This prevents constant micro-corrections while client prediction is working normally
+    float _reconciliationThreshold = 15.0f;
 };

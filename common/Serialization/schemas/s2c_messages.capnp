@@ -12,6 +12,12 @@ struct EntityState {
   type @1 :EntityType;
   position @2 :Vec2;
   health @3 :Int32;           # Use -1 for "no health" (bullets, etc.)
+  currentAnimation @4 :Text;  # Current animation clip name (e.g., "idle", "shoot")
+  spriteX @5 :Int32;          # Sprite source X on spritesheet
+  spriteY @6 :Int32;          # Sprite source Y on spritesheet
+  spriteW @7 :Int32;          # Sprite width
+  spriteH @8 :Int32;          # Sprite height
+  lastProcessedInput @9 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
 }
 
 struct GameState {
@@ -57,6 +63,22 @@ struct JoinedRoom {
   roomId @0 :Text;
   success @1 :Bool;
   errorMessage @2 :Text;
+}
+
+struct PlayerData {
+  playerId @0 :UInt32;
+  playerName @1 :Text;
+  isHost @2 :Bool;
+  isSpectator @3 :Bool;
+}
+
+struct RoomState {
+  roomId @0 :Text;
+  roomName @1 :Text;
+  currentPlayers @2 :UInt32;
+  maxPlayers @3 :UInt32;
+  players @4 :List(PlayerData);
+  state @5 :UInt8;  # 0=WAITING, 1=STARTING, 2=IN_PROGRESS, 3=FINISHED
 }
 
 struct MatchmakingStarted {

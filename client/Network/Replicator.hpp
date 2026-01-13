@@ -119,6 +119,13 @@ class Replicator {
     bool isConnected() const;
 
     /**
+     * @brief Check if authenticated with server
+     * 
+     * @return true if authentication succeeded, false otherwise
+     */
+    bool isAuthenticated() const;
+
+    /**
      * @brief Process incoming network messages
      * 
      * Processes messages from the network thread queue and publishes them
@@ -204,7 +211,8 @@ class Replicator {
      * @param playerName The player's name/pseudo
      * @return true if the packet was sent successfully
      */
-    bool sendConnectRequest(const std::string &playerName);
+    bool sendConnectRequest(const std::string &playerName, const std::string &username,
+                            const std::string &password);
 
     /**
      * @brief Send list rooms request to server.
@@ -239,6 +247,18 @@ class Replicator {
      */
     bool sendStartGame();
 
+    /**
+     * @brief Request the list of available rooms from server
+     * @return true if the packet was sent successfully
+     */
+    bool sendRequestRoomList();
+
+    /**
+     * @brief Send request to leave current room
+     * @return true if the packet was sent successfully
+     */
+    bool sendLeaveRoom();
+
    private:
     /**
      * @brief Network thread main loop
@@ -261,6 +281,7 @@ class Replicator {
 
     EventBus &_eventBus;
     std::atomic<bool> _connected{false};
+    std::atomic<bool> _authenticated{false};
     bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;

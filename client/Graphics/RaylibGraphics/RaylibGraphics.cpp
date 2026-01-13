@@ -18,17 +18,22 @@ namespace Graphics {
         for (const auto &[name, texture] : _textures) {
             ::UnloadTexture(texture);
         }
-        if (_windowInitialized) {
-            ::CloseWindow();
-            _windowInitialized = false;
-        }
     }
 
     // Window management
     void RaylibGraphics::InitWindow(int width, int height, const char *title) {
-        ::InitWindow(width, height, title);
-        // Disable default ESC exit behavior to allow custom window/menu handling
-        ::SetExitKey(0);
+        if (!::IsWindowReady()) {
+            // Create new window
+            ::InitWindow(width, height, title);
+            // Disable default ESC exit behavior to allow custom window/menu handling
+            ::SetExitKey(0);
+        } else {
+            // Window already exists (from login), reconfigure it
+            ::SetWindowTitle(title);
+            ::SetWindowSize(width, height);
+            // Ensure this is set even if reused
+            ::SetExitKey(0);
+        }
         _windowInitialized = true;
     }
 
@@ -239,6 +244,11 @@ namespace Graphics {
             Vector2 origin = {0, 0};
 
             ::DrawTexturePro(iter->second, source, dest, origin, rotation, clr);
+        } else {
+            // DEBUG: Texture not found - fallback to colored rectangle
+            TraceLog(LOG_WARNING, "DrawTextureEx: Texture '%s' not found! Drawing fallback rectangle",
+                     textureName);
+            ::DrawRectangle((int)destX, (int)destY, (int)(srcW * scale), (int)(srcH * scale), BLUE);
         }
     }
 

@@ -196,6 +196,23 @@ class Server {
      */
     void _actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot);
 
+    /**
+     * @brief Helper to get session from peer
+     */
+    std::shared_ptr<server::Session> _getSessionFromPeer(IPeer *peer);
+
+    /**
+     * @brief Helper to send a packet to a peer
+     */
+    void _sendPacket(IPeer *peer, RType::Messages::NetworkMessages::MessageType type,
+                     const std::vector<uint8_t> &payload, bool reliable = true);
+
+    /**
+     * @brief Helper to serialize all entities in a world
+     */
+    std::vector<RType::Messages::S2C::EntityState> _serializeEntities(
+        std::shared_ptr<ecs::wrapper::ECSWorld> world, server::IGameLogic *gameLogic = nullptr);
+
     uint16_t _port;
     size_t _maxClients;
 

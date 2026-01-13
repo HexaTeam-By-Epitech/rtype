@@ -10,16 +10,21 @@
 #include <atomic>
 #include <cmath>
 #include <thread>
+#include "common/Animation/AnimationDatabase.hpp"
+#include "common/ECS/Components/Animation.hpp"
+#include "common/ECS/Components/AnimationSet.hpp"
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"
 #include "common/ECS/Systems/AISystem/AISystem.hpp"
+#include "common/ECS/Systems/AnimationSystem/AnimationSystem.hpp"
 #include "common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
 #include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
@@ -82,6 +87,7 @@ namespace server {
 
             // Create and register all systems with ECSWorld in execution order
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
+            _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
             _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
@@ -142,7 +148,8 @@ namespace server {
         }
     }
 
-    void GameLogic::update(float deltaTime, uint32_t currentTick) {
+    void GameLogic::update(float deltaTime, uint32_t lcurrentTick) {
+        (void)lcurrentTick;  // Unused for now
         if (!_gameActive) {
             return;
         }
@@ -172,6 +179,7 @@ namespace server {
             }
 
             // Create new player entity using the wrapper API
+            ecs::AnimationSet playerAnimations = AnimDB::createPlayerAnimations();
             ecs::wrapper::Entity playerEntity =
                 _world->createEntity()
                     .with(ecs::Transform(_gameRules.getPlayerSpawnX(), _gameRules.getPlayerSpawnY()))
@@ -181,7 +189,10 @@ namespace server {
                     .with(ecs::Player(0, 3, playerId))  // score=0, lives=3
                     .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
                     .with(ecs::Weapon(_gameRules.getDefaultPlayerFireRate(), 0.0f, 0,
-                                      _gameRules.getDefaultPlayerDamage()));
+                                      _gameRules.getDefaultPlayerDamage()))
+                    .with(ecs::Sprite("r-typesheet1.gif", {1, 69, 32, 14}, 3.0f, 0.0f, false, false, 0))
+                    .with(playerAnimations)
+                    .with(ecs::Animation("idle"));
             ecs::Address entityAddress = playerEntity.getAddress();
 
             // Register player (protected by mutex for thread safety)

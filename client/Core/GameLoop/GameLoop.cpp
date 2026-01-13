@@ -76,6 +76,19 @@ void GameLoop::run() {
 
     _rendering->Initialize(800, 600, "R-Type Client");
 
+    // Load sprite sheets
+    LOG_INFO("Loading sprite sheets...");
+    if (!_rendering->LoadTexture("r-typesheet1.gif", "assets/sprites/r-typesheet1.gif")) {
+        LOG_WARNING("Failed to load r-typesheet1.gif");
+    } else {
+        LOG_INFO("✓ Loaded r-typesheet1.gif (player ship)");
+    }
+    if (!_rendering->LoadTexture("r-typesheet2.gif", "assets/sprites/r-typesheet2.gif")) {
+        LOG_WARNING("Failed to load r-typesheet2.gif");
+    } else {
+        LOG_INFO("✓ Loaded r-typesheet2.gif (enemies)");
+    }
+
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {
         LOG_INFO("Applying stored local player entity ID: ", _myEntityId.value());
@@ -352,15 +365,12 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
                 _myEntityId = entity.entityId;
                 _entityInitialized = true;
                 LOG_INFO("✓ Stored local player entity ID: ", entity.entityId);
-
-                if (_rendering) {
-                    _rendering->SetMyEntityId(entity.entityId);
-                }
             }
 
             if (_rendering) {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1), false);
+                                         entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
+                                         entity.spriteY, entity.spriteW, entity.spriteH);
             }
         }
         LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");
@@ -374,13 +384,12 @@ void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
         auto gameState = RType::Messages::S2C::GameState::deserialize(payload);
 
         for (const auto &entity : gameState.entities) {
-            bool entityIsMoving = (entity.entityId == _myEntityId.value_or(0)) ? _isMoving : false;
-
             if (entity.entityId == _myEntityId.value_or(0) && _clientSidePredictionEnabled) {
-                processServerReconciliation(entity, entityIsMoving);
+                processServerReconciliation(entity);
             } else {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1), entityIsMoving);
+                                         entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
+                                         entity.spriteY, entity.spriteW, entity.spriteH);
             }
         }
 
@@ -393,7 +402,7 @@ void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
     }
 }
 
-void GameLoop::processServerReconciliation(const RType::Messages::S2C::EntityState &entity, bool isMoving) {
+void GameLoop::processServerReconciliation(const RType::Messages::S2C::EntityState &entity) {
     // 1. Prune history: Remove inputs already processed by server
     while (!_inputHistory.empty() && _inputHistory.back().sequenceId <= entity.lastProcessedInput) {
         _inputHistory.pop_back();
@@ -407,7 +416,8 @@ void GameLoop::processServerReconciliation(const RType::Messages::S2C::EntitySta
 
     if (_rendering) {
         _rendering->UpdateEntity(entity.entityId, entity.type, predictedX, predictedY,
-                                 entity.health.value_or(-1), isMoving);
+                                 entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
+                                 entity.spriteY, entity.spriteW, entity.spriteH);
     }
 }
 

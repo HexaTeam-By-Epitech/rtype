@@ -244,6 +244,11 @@ namespace Graphics {
             Vector2 origin = {0, 0};
 
             ::DrawTexturePro(iter->second, source, dest, origin, rotation, clr);
+        } else {
+            // DEBUG: Texture not found - fallback to colored rectangle
+            TraceLog(LOG_WARNING, "DrawTextureEx: Texture '%s' not found! Drawing fallback rectangle",
+                     textureName);
+            ::DrawRectangle((int)destX, (int)destY, (int)(srcW * scale), (int)(srcH * scale), BLUE);
         }
     }
 

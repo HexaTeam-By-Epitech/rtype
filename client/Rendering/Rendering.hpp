@@ -199,17 +199,22 @@ class Rendering {
     // ═══════════════════════════════════════════════════════════
 
     /**
-     * @brief Update or create an entity for rendering
+     * @brief Update or create an entity for rendering with animation
      * @param id Entity unique identifier
      * @param type Entity type (Player, Enemy, Bullet)
      * @param x World position X
      * @param y World position Y
      * @param health Current health (-1 if not applicable)
+     * @param currentAnimation Current animation clip name
+     * @param srcX Sprite source X on spritesheet
+     * @param srcY Sprite source Y on spritesheet  
+     * @param srcW Sprite width
+     * @param srcH Sprite height
      * 
      * Delegates to EntityRenderer. Call when receiving GameState updates.
      */
     void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
-                      bool isMoving = false);
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
 
     /**
      * @brief Remove an entity from rendering

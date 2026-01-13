@@ -12,7 +12,12 @@ struct EntityState {
   type @1 :EntityType;
   position @2 :Vec2;
   health @3 :Int32;           # Use -1 for "no health" (bullets, etc.)
-  lastProcessedInput @4 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
+  currentAnimation @4 :Text;  # Current animation clip name (e.g., "idle", "shoot")
+  spriteX @5 :Int32;          # Sprite source X on spritesheet
+  spriteY @6 :Int32;          # Sprite source Y on spritesheet
+  spriteW @7 :Int32;          # Sprite width
+  spriteH @8 :Int32;          # Sprite height
+  lastProcessedInput @9 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
 }
 
 struct GameState {

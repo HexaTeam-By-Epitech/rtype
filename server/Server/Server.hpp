@@ -173,6 +173,13 @@ class Server {
     void _sendGameStartToRoom(std::shared_ptr<server::Room> room);
 
     /**
+     * @brief Send GameStart message to a spectator joining an in-progress game
+     * @param spectatorId ID of the spectator
+     * @param room Room to get current game state from
+     */
+    void _sendGameStartToSpectator(uint32_t spectatorId, std::shared_ptr<server::Room> room);
+
+    /**
      * @brief Broadcast room state (player list) to all players in a room
      * @param room Room to broadcast state for
      */

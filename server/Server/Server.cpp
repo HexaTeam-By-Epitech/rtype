@@ -567,8 +567,14 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
     std::string modeStr = (isSpectator || autoSpectator) ? " as spectator" : "";
     LOG_INFO("Player ", playerId, " joined room '", request.roomId, "'", modeStr);
 
-    S2C::JoinedRoom response(request.roomId, true);
+    S2C::JoinedRoom response(request.roomId, true, "", (isSpectator || autoSpectator));
     _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+
+    // If player joined as spectator to an in-progress game, send them the current game state
+    if ((isSpectator || autoSpectator) && room->getState() == server::RoomState::IN_PROGRESS) {
+        LOG_INFO("Sending current game state to spectator ", playerId);
+        _sendGameStartToSpectator(playerId, room);
+    }
 
     // Broadcast updated room state to all players in the room
     _broadcastRoomState(room);
@@ -871,6 +877,64 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
     for (uint32_t spectatorId : spectators) {
         sendGameStart(spectatorId, 0);
     }
+}
+
+void Server::_sendGameStartToSpectator(uint32_t spectatorId, std::shared_ptr<server::Room> room) {
+    using namespace RType::Messages;
+
+    if (!room || room->getState() != server::RoomState::IN_PROGRESS) {
+        LOG_ERROR("Cannot send game start to spectator: room not in progress");
+        return;
+    }
+
+    server::ServerLoop *roomLoop = room->getServerLoop();
+    if (!roomLoop) {
+        LOG_ERROR("ServerLoop not available for room ", room->getId());
+        return;
+    }
+
+    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = roomLoop->getECSWorld();
+    if (!ecsWorld) {
+        LOG_ERROR("ECSWorld not available for room ", room->getId());
+        return;
+    }
+
+    std::shared_ptr<server::IGameLogic> gameLogic = room->getGameLogic();
+    if (!gameLogic) {
+        LOG_ERROR("GameLogic not available for room ", room->getId());
+        return;
+    }
+
+    // Get the peer for this spectator
+    auto sessionIt = _playerIdToSessionId.find(spectatorId);
+    if (sessionIt == _playerIdToSessionId.end()) {
+        LOG_ERROR("Cannot find session for spectator ", spectatorId);
+        return;
+    }
+
+    const std::string &sessionId = sessionIt->second;
+    auto peerIt = _sessionPeers.find(sessionId);
+    if (peerIt == _sessionPeers.end() || !peerIt->second) {
+        LOG_ERROR("Cannot find peer for spectator ", spectatorId);
+        return;
+    }
+
+    // Send game rules first
+    server::GameruleBroadcaster::sendAllGamerules(peerIt->second, gameLogic->getGameRules());
+
+    // Serialize all entities
+    auto entities = _serializeEntities(ecsWorld);
+
+    // Send GameStart with entityId = 0 (spectator has no controllable entity)
+    S2C::GameStart gameStart;
+    gameStart.yourEntityId = 0;
+    gameStart.initialState.serverTick = roomLoop->getCurrentTick();
+    gameStart.initialState.entities = entities;
+
+    _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_GAME_START, gameStart.serialize());
+
+    LOG_INFO("✓ Sent GameStart to spectator ", spectatorId, " (room: ", room->getId(),
+             ", entities: ", entities.size(), ")");
 }
 
 void Server::_broadcastRoomState(std::shared_ptr<server::Room> room) {

@@ -183,7 +183,8 @@ namespace server {
             // Spawn enemies (Lua scripts) now that game is starting
             // Cast to GameLogic to access spawnEnemies()
             if (auto *gameLogic = dynamic_cast<GameLogic *>(_gameLogic.get())) {
-                gameLogic->spawnEnemies();
+                // gameLogic->spawnEnemies();
+                // [FOR KILLIAN] To be replaced by the spawn enemies from the wave system
             }
 
             // Spawn players and validate entity IDs

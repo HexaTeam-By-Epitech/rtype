@@ -94,6 +94,12 @@ namespace server {
          */
         const GameRules &getGameRules() const override { return _gameRules; }
 
+        /**
+         * @brief Notify Lua scripts that the game has started
+         * @param roomId The ID of the room where the game started
+         */
+        void notifyGameStarted(const std::string &roomId) override;
+
        private:
         /**
          * @brief Execute all systems in order

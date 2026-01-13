@@ -126,15 +126,21 @@ function waveSystem:spawnEnemy(spawnerEntity, config)
 	)
 end
 
--- Track if initialized
-local initialized = false
+-- Track if game has started
+local gameStarted = false
+
+-- Register callback for when the game starts
+onGameStart(function(roomId)
+	log("=== Game Started in Room: " .. roomId .. " ===")
+	gameStarted = true
+	waveSystem:startWave(1)
+end)
 
 -- Main update function called by LuaSystemAdapter
 function onUpdate(entity, deltaTime)
-	-- Auto-start wave 1 on first update
-	if not initialized then
-		initialized = true
-		waveSystem:startWave(1)
+	-- Only process waves after game has started
+	if not gameStarted then
+		return
 	end
 
 	waveSystem:onUpdate(entity, deltaTime)

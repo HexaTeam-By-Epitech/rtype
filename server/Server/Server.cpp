@@ -87,8 +87,13 @@ bool Server::initialize() {
         LOG_INFO("[EVENT] Player left (ID: ", event.getPlayerId(), ")");
     });
 
-    _eventBus->subscribe<server::GameStartedEvent>(
-        [](const server::GameStartedEvent &) { LOG_INFO("[EVENT] Game started!"); });
+    _eventBus->subscribe<server::GameStartedEvent>([](const server::GameStartedEvent &event) {
+        if (event.getRoomId().empty()) {
+            LOG_INFO("[EVENT] Server started!");
+        } else {
+            LOG_INFO("[EVENT] Game started in room: ", event.getRoomId());
+        }
+    });
 
     _eventBus->subscribe<server::GameEndedEvent>([](const server::GameEndedEvent &event) {
         LOG_INFO("[EVENT] Game ended. Reason: ", event.getReason());
@@ -572,6 +577,12 @@ void Server::run() {
             for (const auto &room : rooms) {
                 if (room->getState() == server::RoomState::IN_PROGRESS && room->tryMarkGameStartSent()) {
                     _sendGameStartToRoom(room);
+                    _eventBus->publish(server::GameStartedEvent(room->getId()));
+
+                    // Notify Lua scripts in this room that the game has started
+                    if (auto gameLogic = room->getGameLogic()) {
+                        gameLogic->notifyGameStarted(room->getId());
+                    }
                 }
             }
         }

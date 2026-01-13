@@ -414,4 +414,13 @@ namespace server {
         LOG_INFO("✓ Game reset");
     }
 
+    void GameLogic::notifyGameStarted(const std::string &roomId) {
+        if (_luaEngine) {
+            LOG_INFO("Notifying Lua scripts that game started in room: ", roomId);
+            _luaEngine->fireGameStartCallbacks(roomId);
+        } else {
+            LOG_WARNING("Cannot notify Lua of game start: LuaEngine is null");
+        }
+    }
+
 }  // namespace server

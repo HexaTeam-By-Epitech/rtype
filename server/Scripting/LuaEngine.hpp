@@ -7,11 +7,13 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <sol/sol.hpp>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "common/ECSWrapper/ECSWorld.hpp"
 
 namespace scripting {
@@ -72,6 +74,18 @@ namespace scripting {
          */
         sol::state &getLuaState() { return _lua; };
 
+        /**
+         * @brief Register a Lua callback to be called when the game starts.
+         * @param callback Lua function to call
+         */
+        void registerGameStartCallback(sol::function callback);
+
+        /**
+         * @brief Fire all registered game start callbacks.
+         * @param roomId The ID of the room where the game started
+         */
+        void fireGameStartCallbacks(const std::string &roomId);
+
        private:
         sol::state _lua;
         std::string _scriptPath;
@@ -82,6 +96,9 @@ namespace scripting {
 
         void initializeBindings();
         //void bindComponents();
+
+        // Game start callbacks registered via onGameStart()
+        std::vector<sol::function> _gameStartCallbacks;
     };
 
 }  // namespace scripting

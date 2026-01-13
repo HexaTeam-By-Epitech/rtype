@@ -313,7 +313,11 @@ namespace ecs::wrapper {
          */
         const Registry &getRegistry() const;
 
-        // World State
+        /**
+         * @brief World state (for accessing from Lua scripts)d
+         * 0 = not running, 1 = starting event, 2 = running
+         */
+        bool startingEvent = false;
 
         /**
          * @brief Clear all entities from the world.

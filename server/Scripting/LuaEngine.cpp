@@ -54,7 +54,7 @@ namespace scripting {
         // Bindings globaux (world, createEntity, etc.)
         bindings::bindWorld(_lua, _world);
         // Bindings spécifiques au serveur (spawn, random, etc.)
-        bindings::bindServerGame(_lua, _world);
+        bindings::bindServerGame(_lua, _world, this);
     }
 
     bool LuaEngine::loadScript(const std::string &scriptPath) {
@@ -202,4 +202,38 @@ namespace scripting {
             LOG_ERROR("Lua error calling " + functionName + ": " + std::string(e.what()));
         }
     }
+
+    void LuaEngine::registerGameStartCallback(sol::function callback) {
+        std::scoped_lock lock(_luaMutex);
+        _gameStartCallbacks.push_back(callback);
+        LOG_DEBUG("Registered game start callback (total: " + std::to_string(_gameStartCallbacks.size()) +
+                  ")");
+    }
+
+    void LuaEngine::fireGameStartCallbacks(const std::string &roomId) {
+        std::scoped_lock lock(_luaMutex);
+
+        if (_gameStartCallbacks.empty()) {
+            LOG_DEBUG("No game start callbacks registered");
+            return;
+        }
+
+        LOG_INFO("Firing " + std::to_string(_gameStartCallbacks.size()) +
+                 " game start callback(s) for room: " + roomId);
+
+        for (auto &callback : _gameStartCallbacks) {
+            try {
+                sol::protected_function_result result = callback(roomId);
+                if (!result.valid()) {
+                    sol::error err = result;
+                    LOG_ERROR("Lua error in game start callback: " + std::string(err.what()));
+                }
+            } catch (const sol::error &e) {
+                LOG_ERROR("Lua exception in game start callback: " + std::string(e.what()));
+            } catch (const std::exception &e) {
+                LOG_ERROR("C++ exception in game start callback: " + std::string(e.what()));
+            }
+        }
+    }
+
 };  // namespace scripting

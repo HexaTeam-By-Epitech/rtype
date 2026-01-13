@@ -15,12 +15,17 @@
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Scripting/LuaEngine.hpp"
 
 namespace scripting::bindings {
 
-    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world) {
+    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world, LuaEngine *engine) {
         if (!world) {
             LOG_ERROR("Cannot bind server game functions: world is null");
+            return;
+        }
+        if (!engine) {
+            LOG_ERROR("Cannot bind server game functions: engine is null");
             return;
         }
 
@@ -125,6 +130,17 @@ namespace scripting::bindings {
             } catch (const std::exception &e) {
                 LOG_ERROR("[LUA] queueSpawn exception: ", e.what());
             }
+        });
+
+        // Register a callback to be called when the game starts
+        // Usage: onGameStart(function(roomId) ... end)
+        lua.set_function("onGameStart", [engine](sol::function callback) {
+            if (!callback.valid()) {
+                LOG_WARNING("[LUA] onGameStart: invalid callback function");
+                return;
+            }
+            engine->registerGameStartCallback(callback);
+            LOG_DEBUG("[LUA] Registered onGameStart callback");
         });
 
         LOG_INFO("Server game bindings initialized");

@@ -242,9 +242,6 @@ class Server {
     std::shared_ptr<server::SessionManager> _sessionManager;
     std::shared_ptr<server::RoomManager> _roomManager;
     std::shared_ptr<server::Lobby> _lobby;
-
-    // Default room for development mode
-    std::shared_ptr<server::Room> _defaultRoom;
     // NOTE: No global _gameLoop anymore - each Room has its own
 
     // Track session ID to peer mapping for network communication

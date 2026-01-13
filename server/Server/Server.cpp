@@ -38,9 +38,6 @@
 #include "server/Game/Rules/GameruleBroadcaster.hpp"
 #include "server/Sessions/Session/Session.hpp"
 
-// CONFIGURATION: Set to true to bypass matchmaking and use default room
-constexpr bool DEV_MODE_SKIP_MATCHMAKING = false;
-
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 
 Server::~Server() {
@@ -73,13 +70,6 @@ bool Server::initialize() {
     _sessionManager = std::make_shared<server::SessionManager>();
     _roomManager = std::make_shared<server::RoomManager>();
     _lobby = std::make_shared<server::Lobby>(_roomManager);
-
-    _defaultRoom = _roomManager->createRoom("default");
-    if (!_defaultRoom) {
-        LOG_ERROR("Failed to create default room");
-        return false;
-    }
-    LOG_INFO("✓ Default room created");
 
     // Subscribe to game events on global EventBus
     _eventBus->subscribe<server::PlayerJoinedEvent>([](const server::PlayerJoinedEvent &event) {
@@ -337,38 +327,7 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
         server::GameruleBroadcaster::sendAllGamerules(event.peer, defaultRules);
     }
 
-    // DELETE ME - START
-    // DEV MODE: Auto-join default room and start game
-    if (DEV_MODE_SKIP_MATCHMAKING && _defaultRoom) {
-        LOG_INFO("[DEV MODE] Auto-joining player ", newPlayerId, " to default room");
-
-        if (_defaultRoom->join(newPlayerId)) {
-            LOG_INFO("✓ Player ", newPlayerId, " auto-joined default room");
-
-            // Send JoinedRoom response
-            S2C::JoinedRoom joinedResponse;
-            joinedResponse.success = true;
-            joinedResponse.roomId = _defaultRoom->getId();
-            joinedResponse.errorMessage = "";
-
-            _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM,
-                        joinedResponse.serialize());
-
-            // Auto-start the game
-            if (_defaultRoom->getState() == server::RoomState::WAITING) {
-                LOG_INFO("[DEV MODE] Auto-starting game in default room");
-                // NOTE: Don't call _sendGameStartToRoom() here.
-                // The main server loop will detect IN_PROGRESS and call it exactly once
-                // using room->tryMarkGameStartSent(). Calling it here causes double GameStart.
-                _defaultRoom->startGame();
-            }
-        } else {
-            LOG_ERROR("Failed to auto-join player ", newPlayerId, " to default room");
-        }
-    } else {
-        LOG_INFO("  Player is now in lobby - waiting for room selection");
-    }
-    // DELETE ME - END
+    LOG_INFO("  Player is now in lobby - waiting for room selection");
 }
 
 void Server::_handleRegisterRequest(HostNetworkEvent &event) {

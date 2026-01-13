@@ -18,6 +18,16 @@
 #include "EntityRenderer.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
+// UI library
+#include "Menu/ConfirmQuitMenu.hpp"
+#include "Menu/ConnectionMenu.hpp"
+#include "Menu/LoginMenu.hpp"
+#include "Menu/MainMenu.hpp"
+#include "Menu/SettingsMenu.hpp"
+#include "UI/IButton.hpp"
+#include "UI/IMenu.hpp"
+#include "UI/Raylib/RaylibUIFactory.hpp"
+
 /**
  * @class Rendering
  * @brief Graphical rendering system using Raylib
@@ -105,6 +115,19 @@ class Rendering {
      * @note Returns false if user closes the window
      */
     [[nodiscard]] bool IsWindowOpen() const;
+
+    /**
+     * @brief Switch immediately to the game scene
+     * 
+     * Forces the rendering system to enter the game mode:
+     * - Hides all menus
+     * - Enables entity rendering
+     * - Sets scene to IN_GAME
+     * 
+     * Useful when the game state is already active (e.g. after login flow).
+     */
+    void StartGame();
+
     /**
      * @brief Load a texture from file
      * 
@@ -185,7 +208,8 @@ class Rendering {
      * 
      * Delegates to EntityRenderer. Call when receiving GameState updates.
      */
-    void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health);
+    void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
+                      bool isMoving = false);
 
     /**
      * @brief Update or create an entity for rendering with animation
@@ -316,12 +340,49 @@ class Rendering {
      */
     void SetPing(uint32_t pingMs);
 
+    /**
+     * @brief Enable/disable ping display.
+     */
+    void SetShowPing(bool enabled);
+
+    /**
+     * @brief Get ping display state.
+     */
+    [[nodiscard]] bool GetShowPing() const;
+
+    /**
+     * @brief Enable/disable FPS display.
+     */
+    void SetShowFps(bool enabled);
+
+    /**
+     * @brief Get FPS display state.
+     */
+    [[nodiscard]] bool GetShowFps() const;
+
    private:
-    EventBus _eventBus;
+    enum class Scene { MENU, IN_GAME };
+
+    Scene _scene = Scene::MENU;
+
+    EventBus &_eventBus;
     bool _initialized = false;
+    bool _quitRequested = false;
     uint32_t _width = 0;
     uint32_t _height = 0;
     Graphics::RaylibGraphics _graphics;
+
+    // ===== Menu UI (business) =====
+    std::unique_ptr<UI::RaylibUIFactory> _uiFactory;
+    std::unique_ptr<Game::MainMenu> _mainMenu;
+    std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
+    std::unique_ptr<Game::SettingsMenu> _settingsMenu;
+    std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
+    std::unique_ptr<Game::LoginMenu> _loginMenu;
+
+    bool _settingsOverlay = false;
+    bool _confirmQuitOverlay = false;
+    bool _loginOverlay = false;
 
     // Entity rendering subsystem
     std::unique_ptr<EntityRenderer> _entityRenderer;
@@ -331,5 +392,57 @@ class Rendering {
     uint32_t _displayedPing = 0;                         // The ping value currently displayed
     float _pingUpdateTimer = 0.0f;                       // Timer for ping update throttling
     static constexpr float PING_UPDATE_INTERVAL = 1.0f;  // Update every 1 second
+
+    bool _showPing = true;
+    bool _showFps = true;
+
+    // ===== HUD stats =====
+    uint32_t _fps = 0;
+    float _fpsAccumulator = 0.0f;
+    uint32_t _fpsFrameCount = 0;
+
+    /**
+     * @brief Initialize UI factory, menus and all related callbacks.
+     *
+     * Keeps Rendering::Initialize() small and focused.
+     */
+    void InitializeMenus();
+
+    /**
+     * @brief Apply runtime settings affecting rendering (target FPS, HUD visibility...).
+     */
+    void ApplyInitialMenuSettings();
+
+    // ===== Helper methods for Render() to reduce cognitive complexity =====
+
+    /**
+     * @brief Update FPS counter based on delta time.
+     */
+    void UpdateFpsCounter();
+
+    /**
+     * @brief Handle ESC key input to toggle settings overlay in-game.
+     */
+    void HandleEscapeKeyInput();
+
+    /**
+     * @brief Update all UI elements based on current scene.
+     */
+    void UpdateUI();
+
+    /**
+     * @brief Render the game scene (entities).
+     */
+    void RenderGameScene();
+
+    /**
+     * @brief Render all UI menus based on current scene and overlay state.
+     */
+    void RenderUI();
+
+    /**
+     * @brief Render HUD elements (ping, FPS).
+     */
+    void RenderHUD();
 };
 #endif

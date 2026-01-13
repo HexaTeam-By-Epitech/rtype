@@ -10,6 +10,7 @@
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include "../Shared/SharedTypes.hpp"
 #include "schemas/c2s_messages.capnp.h"
@@ -18,24 +19,28 @@ namespace RType::Messages::C2S {
 
     /**
      * @class PlayerInput
-     * @brief Player input message sent from client to server
+     * @brief Player input message sent from client to server (with redundancy)
      * 
-     * Contains the sequence ID for input ordering and the list of actions.
-     * 
-     * Usage:
-     *   PlayerInput input(123, {Action::MoveUp, Action::Shoot});
-     *   auto bytes = input.serialize();
-     *   // Send bytes over network...
+     * Contains a history of recent inputs to handle packet loss.
      */
     class PlayerInput {
        public:
-        uint32_t _sequenceId;
-        std::vector<Shared::Action> actions{};
+        struct InputSnapshot {
+            uint32_t sequenceId;
+            std::vector<Shared::Action> actions;
+        };
 
-        PlayerInput() : _sequenceId(0) {}
+        std::vector<InputSnapshot> inputs;
 
-        PlayerInput(uint32_t seqId, const std::vector<Shared::Action> &acts)
-            : _sequenceId(seqId), actions(acts) {}
+        PlayerInput() = default;
+
+        // Constructor for a single input (legacy support, wraps in list)
+        PlayerInput(uint32_t seqId, const std::vector<Shared::Action> &acts) {
+            inputs.push_back({seqId, acts});
+        }
+
+        // Constructor for full history
+        explicit PlayerInput(const std::vector<InputSnapshot> &history) : inputs(history) {}
 
         /**
          * @brief Serialize to byte vector
@@ -44,11 +49,18 @@ namespace RType::Messages::C2S {
             capnp::MallocMessageBuilder message;
             auto builder = message.initRoot<::PlayerInput>();
 
-            builder.setSequenceId(_sequenceId);
+            auto inputsBuilder = builder.initInputs(static_cast<unsigned int>(inputs.size()));
 
-            auto actionsBuilder = builder.initActions(static_cast<unsigned int>(actions.size()));
-            for (size_t i = 0; i < actions.size(); ++i) {
-                actionsBuilder.set(static_cast<unsigned int>(i), Shared::toCapnpAction(actions[i]));
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                auto snapshotBuilder = inputsBuilder[i];
+                snapshotBuilder.setSequenceId(inputs[i].sequenceId);
+
+                auto actionsBuilder =
+                    snapshotBuilder.initActions(static_cast<unsigned int>(inputs[i].actions.size()));
+                for (size_t j = 0; j < inputs[i].actions.size(); ++j) {
+                    actionsBuilder.set(static_cast<unsigned int>(j),
+                                       Shared::toCapnpAction(inputs[i].actions[j]));
+                }
             }
 
             auto bytes = capnp::messageToFlatArray(message);
@@ -60,7 +72,6 @@ namespace RType::Messages::C2S {
          * @brief Deserialize from byte vector
          */
         static PlayerInput deserialize(const std::vector<uint8_t> &data) {
-            // Ensure buffer is word-aligned for Cap'n Proto (undefined behavior if not)
             KJ_REQUIRE(data.size() % sizeof(capnp::word) == 0,
                        "Serialized data size must be a multiple of capnp::word");
             auto aligned = kj::heapArray<uint8_t>(data.size());
@@ -72,16 +83,26 @@ namespace RType::Messages::C2S {
             auto reader = message.getRoot<::PlayerInput>();
 
             PlayerInput result;
-            result._sequenceId = reader.getSequenceId();
+            auto inputsReader = reader.getInputs();
 
-            static constexpr size_t MAX_ACTIONS_PER_INPUT = 32;
-            auto actionsReader = reader.getActions();
-            if (actionsReader.size() > MAX_ACTIONS_PER_INPUT) {
-                throw std::runtime_error("Too many actions in PlayerInput message");
+            static constexpr size_t MAX_INPUTS_PER_PACKET = 64;  // Safety limit
+            if (inputsReader.size() > MAX_INPUTS_PER_PACKET) {
+                throw std::runtime_error("Too many inputs in PlayerInput message");
             }
-            result.actions.reserve(actionsReader.size());
-            for (auto action : actionsReader) {
-                result.actions.push_back(Shared::fromCapnpAction(action));
+
+            result.inputs.reserve(inputsReader.size());
+
+            for (auto snapshotReader : inputsReader) {
+                InputSnapshot snapshot;
+                snapshot.sequenceId = snapshotReader.getSequenceId();
+
+                auto actionsReader = snapshotReader.getActions();
+                snapshot.actions.reserve(actionsReader.size());
+
+                for (auto action : actionsReader) {
+                    snapshot.actions.push_back(Shared::fromCapnpAction(action));
+                }
+                result.inputs.push_back(snapshot);
             }
 
             return result;

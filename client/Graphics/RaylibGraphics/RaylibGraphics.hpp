@@ -37,6 +37,8 @@ namespace Graphics {
         void DisplayWindow() override;
         bool IsWindowOpen() const override;
         void CloseWindow() override;
+        [[nodiscard]] int GetWindowWidth() const override;
+        [[nodiscard]] int GetWindowHeight() const override;
         void SetWindowTitle(const char *title) override;
         void SetWindowSize(int width, int height) override;
         void ToggleFullScreen() override;
@@ -79,6 +81,14 @@ namespace Graphics {
         bool IsMouseButtonDown(int button) const override;
         void GetMousePosition(float &x, float &y) const override;
         bool WindowShouldClose() const override;
+        int GetMouseX() const override;
+        int GetMouseY() const override;
+        int GetCharPressed() const override;
+        int GetScreenWidth() const override;
+        int GetScreenHeight() const override;
+        void DrawRectangle(int x, int y, int width, int height, unsigned int color) override;
+        void DrawRectangleLines(int x, int y, int width, int height, unsigned int color) override;
+        void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) override;
 
        private:
         std::vector<Font> _fonts;

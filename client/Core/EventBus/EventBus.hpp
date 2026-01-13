@@ -13,6 +13,7 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
+#include "../../common/Logger/Logger.hpp"
 #include "Events/IEvent.hpp"
 
 /**
@@ -106,6 +107,7 @@ class EventBus {
 template <typename T>
 size_t EventBus::subscribe(EventCallback<T> callback) {
     auto &vec = _subscribers[std::type_index(typeid(T))];
+    LOG_DEBUG("[EventBus] Subscribe to type: ", typeid(T).name(), " (Total: ", vec.size() + 1, ")");
     vec.push_back([callback = std::move(callback)](const IEvent &e) { callback(static_cast<const T &>(e)); });
     return vec.size() - 1;
 }
@@ -117,6 +119,8 @@ void EventBus::publish(const T &event) {
         for (const auto &callback : it->second) {
             callback(event);
         }
+    } else {
+        LOG_DEBUG("[EventBus] No subscribers for event: ", typeid(T).name());
     }
 }
 

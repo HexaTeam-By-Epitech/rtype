@@ -7,83 +7,176 @@
 
 #include "server/Rooms/Matchmaking/MatchmakingService.hpp"
 #include <algorithm>
+#include <sstream>
 #include "common/Logger/Logger.hpp"
+#include "server/Rooms/Room.hpp"
 
 namespace server {
 
-    void MatchmakingService::addPlayer(int playerId) {
+    MatchmakingService::MatchmakingService(size_t minPlayers, size_t maxPlayers)
+        : _minPlayers(minPlayers), _maxPlayers(maxPlayers) {
+        if (_minPlayers < 1) {
+            _minPlayers = 1;
+        }
+        if (_maxPlayers < _minPlayers) {
+            _maxPlayers = _minPlayers;
+        }
+        LOG_INFO("MatchmakingService created (min: ", _minPlayers, ", max: ", _maxPlayers, " players)");
+    }
+
+    void MatchmakingService::addPlayer(uint32_t playerId) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         // Check if player is already in queue
-        auto it = std::find(_waitingPlayers.begin(), _waitingPlayers.end(), playerId);
+        auto it = std::find_if(_waitingPlayers.begin(), _waitingPlayers.end(),
+                               [playerId](const PlayerQueueInfo &info) { return info.playerId == playerId; });
+
         if (it != _waitingPlayers.end()) {
             LOG_WARNING("Player ", playerId, " is already in matchmaking queue");
             return;
         }
 
-        _waitingPlayers.push_back(playerId);
-        LOG_INFO("Player ", playerId, " added to matchmaking queue (", _waitingPlayers.size(),
-                 " players waiting)");
+        PlayerQueueInfo info;
+        info.playerId = playerId;
+        info.joinTime = std::chrono::steady_clock::now();
 
-        // Auto-start match if we have enough players
-        if (_waitingPlayers.size() >= PLAYERS_PER_MATCH) {
-            startMatch();
-        }
+        _waitingPlayers.push_back(info);
+        LOG_INFO("✓ Player ", playerId, " added to matchmaking queue (", _waitingPlayers.size(),
+                 " players waiting)");
     }
 
-    void MatchmakingService::removePlayer(int playerId) {
-        auto it = std::find(_waitingPlayers.begin(), _waitingPlayers.end(), playerId);
+    void MatchmakingService::removePlayer(uint32_t playerId) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        auto it = std::find_if(_waitingPlayers.begin(), _waitingPlayers.end(),
+                               [playerId](const PlayerQueueInfo &info) { return info.playerId == playerId; });
+
         if (it != _waitingPlayers.end()) {
             _waitingPlayers.erase(it);
-            LOG_INFO("Player ", playerId, " removed from matchmaking queue (", _waitingPlayers.size(),
+            LOG_INFO("✓ Player ", playerId, " removed from matchmaking queue (", _waitingPlayers.size(),
                      " players remaining)");
         } else {
             LOG_WARNING("Player ", playerId, " not found in matchmaking queue");
         }
     }
 
-    void MatchmakingService::startMatch() {
-        if (_waitingPlayers.empty()) {
-            LOG_WARNING("Cannot start match: no players in queue");
-            return;
+    void MatchmakingService::tick() {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        // Try to create matches while we have enough players
+        while (_waitingPlayers.size() >= _minPlayers) {
+            if (!_tryCreateMatch()) {
+                break;  // Could not create match, stop trying
+            }
+        }
+    }
+
+    bool MatchmakingService::_tryCreateMatch() {
+        if (_waitingPlayers.size() < _minPlayers) {
+            return false;
         }
 
-        // Take up to PLAYERS_PER_MATCH players for a match
-        size_t matchSize = std::min(_waitingPlayers.size(), PLAYERS_PER_MATCH);
-        std::vector matchPlayers(_waitingPlayers.begin(), _waitingPlayers.begin() + matchSize);
+        // Determine match size (up to maxPlayers)
+        size_t matchSize = std::min(_waitingPlayers.size(), _maxPlayers);
+
+        // Extract players for this match
+        std::vector<uint32_t> matchedPlayers;
+        matchedPlayers.reserve(matchSize);
+
+        for (size_t i = 0; i < matchSize; ++i) {
+            matchedPlayers.push_back(_waitingPlayers[i].playerId);
+        }
 
         // Remove matched players from queue
         _waitingPlayers.erase(_waitingPlayers.begin(), _waitingPlayers.begin() + matchSize);
 
-        // Create and store the match
-        int matchId = _nextMatchId++;
-        _activeMatches[matchId] = matchPlayers;
+        // Create room for the match
+        std::string roomId = _generateRoomId();
+        std::shared_ptr<Room> room;
 
-        LOG_INFO("Match ", matchId, " created with ", matchPlayers.size(), " players");
-        LOG_INFO("  Players: ", [&matchPlayers]() {
-            std::string playerList;
-            for (size_t i = 0; i < matchPlayers.size(); ++i) {
-                if (i > 0)
-                    playerList += ", ";
-                playerList += std::to_string(matchPlayers[i]);
+        try {
+            room = std::make_shared<Room>(roomId, "Match #" + std::to_string(_totalMatchesCreated + 1),
+                                          _maxPlayers, false);
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create match room: ", e.what());
+            // Re-add players to waiting queue
+            for (uint32_t playerId : matchedPlayers) {
+                _waitingPlayers.push_back({playerId, std::chrono::steady_clock::now()});
             }
-            return playerList;
-        }());
+            return false;
+        }
 
-        // In a complete implementation, this would:
-        // 1. Create a Room instance
-        // 2. Notify players that a match was found
-        // 3. Transfer players to the game room
+        // Add all matched players to the room
+        for (uint32_t playerId : matchedPlayers) {
+            room->join(playerId);
+        }
+
+        // Update statistics
+        _totalMatchesCreated++;
+        _totalPlayersMatched += matchedPlayers.size();
+
+        LOG_INFO("✓ Match created: Room '", roomId, "' with ", matchedPlayers.size(), " players");
+
+        // Log player list
+        std::ostringstream playerList;
+        for (size_t i = 0; i < matchedPlayers.size(); ++i) {
+            if (i > 0)
+                playerList << ", ";
+            playerList << matchedPlayers[i];
+        }
+        LOG_INFO("  Players: ", playerList.str());
+
+        // Notify via callback if set
+        if (_matchCreatedCallback) {
+            _matchCreatedCallback(room);
+        }
+
+        return true;
     }
 
-    std::vector<int> MatchmakingService::getWaitingPlayers() const {
-        return _waitingPlayers;
+    std::string MatchmakingService::_generateRoomId() {
+        return "match_" + std::to_string(_totalMatchesCreated);
     }
 
     size_t MatchmakingService::getQueueSize() const {
+        std::lock_guard<std::mutex> lock(_mutex);
         return _waitingPlayers.size();
     }
 
-    const std::unordered_map<int, std::vector<int>> &MatchmakingService::getActiveMatches() const {
-        return _activeMatches;
+    void MatchmakingService::setMatchCreatedCallback(MatchCreatedCallback callback) {
+        _matchCreatedCallback = callback;
+    }
+
+    std::vector<PlayerQueueInfo> MatchmakingService::getWaitingPlayers() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _waitingPlayers;
+    }
+
+    void MatchmakingService::setMinPlayers(size_t min) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (min >= 1 && min <= _maxPlayers) {
+            _minPlayers = min;
+            LOG_INFO("Matchmaking min players set to ", min);
+        }
+    }
+
+    void MatchmakingService::setMaxPlayers(size_t max) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (max >= _minPlayers) {
+            _maxPlayers = max;
+            LOG_INFO("Matchmaking max players set to ", max);
+        }
+    }
+
+    std::string MatchmakingService::getStatistics() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        std::ostringstream oss;
+        oss << "Matchmaking Statistics:\n";
+        oss << "  Players in queue: " << _waitingPlayers.size() << "\n";
+        oss << "  Total matches created: " << _totalMatchesCreated << "\n";
+        oss << "  Total players matched: " << _totalPlayersMatched << "\n";
+        oss << "  Min/Max players per match: " << _minPlayers << "/" << _maxPlayers;
+        return oss.str();
     }
 
 }  // namespace server

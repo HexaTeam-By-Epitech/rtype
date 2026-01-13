@@ -42,76 +42,17 @@ namespace Game {
         _menu->Clear();
 
         // --- Server Name Input ---
-        _nameInput = _uiFactory.CreateTextInput();
-        _nameInput->SetSize(inputWidth, inputHeight);
-        _nameInput->SetAlign(UI::Align::CENTER_HORIZONTAL);
-        _nameInput->ApplyAlignment();
-
-        float x, y;
-        _nameInput->GetPosition(x, y);
-        _nameInput->SetPosition(x, startY);
-
-        _nameInput->SetPlaceholder("Server name (e.g., My Server)");
-        _nameInput->SetMaxLength(30);
-        _nameInput->SetValidationRegex("[a-zA-Z0-9_ -]+");
-        _nameInput->SetTextSize(18);
-        _nameInput->SetBackgroundColor(0xFF2A2A2A);
-        _nameInput->SetBorderColor(0xFF505050);
-        _nameInput->SetActiveBorderColor(0xFF4CAF50);
-        _nameInput->SetTextColor(0xFFFFFFFF);
-        _nameInput->SetPlaceholderColor(0xFF808080);
-        _nameInput->SetOnTextChanged([this](const std::string &text) {
-            LOG_INFO("[AddServerMenu] Name: " + text);
-            ClearError();
-        });
+        _nameInput = CreateInput(inputWidth, inputHeight, startY, "Server name (e.g., My Server)", 30,
+                                 "[a-zA-Z0-9_ -]+", "Name");
 
         // --- IP Input ---
-        _ipInput = _uiFactory.CreateTextInput();
-        _ipInput->SetSize(inputWidth, inputHeight);
-        _ipInput->SetAlign(UI::Align::CENTER_HORIZONTAL);
-        _ipInput->ApplyAlignment();
-
-        _ipInput->GetPosition(x, y);
         float ipY = startY + inputHeight + spacing;
-        _ipInput->SetPosition(x, ipY);
-
-        _ipInput->SetPlaceholder("IP Address (e.g., 127.0.0.1)");
-        _ipInput->SetMaxLength(15);
-        _ipInput->SetValidationRegex("[0-9.]+");
-        _ipInput->SetTextSize(18);
-        _ipInput->SetBackgroundColor(0xFF2A2A2A);
-        _ipInput->SetBorderColor(0xFF505050);
-        _ipInput->SetActiveBorderColor(0xFF4CAF50);
-        _ipInput->SetTextColor(0xFFFFFFFF);
-        _ipInput->SetPlaceholderColor(0xFF808080);
-        _ipInput->SetOnTextChanged([this](const std::string &text) {
-            LOG_INFO("[AddServerMenu] IP: " + text);
-            ClearError();
-        });
+        _ipInput =
+            CreateInput(inputWidth, inputHeight, ipY, "IP Address (e.g., 127.0.0.1)", 15, "[0-9.]+", "IP");
 
         // --- Port Input ---
-        _portInput = _uiFactory.CreateTextInput();
-        _portInput->SetSize(inputWidth, inputHeight);
-        _portInput->SetAlign(UI::Align::CENTER_HORIZONTAL);
-        _portInput->ApplyAlignment();
-
-        _portInput->GetPosition(x, y);
         float portY = ipY + inputHeight + spacing;
-        _portInput->SetPosition(x, portY);
-
-        _portInput->SetPlaceholder("Port (e.g., 4242)");
-        _portInput->SetMaxLength(5);
-        _portInput->SetValidationRegex("[0-9]+");
-        _portInput->SetTextSize(18);
-        _portInput->SetBackgroundColor(0xFF2A2A2A);
-        _portInput->SetBorderColor(0xFF505050);
-        _portInput->SetActiveBorderColor(0xFF4CAF50);
-        _portInput->SetTextColor(0xFFFFFFFF);
-        _portInput->SetPlaceholderColor(0xFF808080);
-        _portInput->SetOnTextChanged([this](const std::string &text) {
-            LOG_INFO("[AddServerMenu] Port: " + text);
-            ClearError();
-        });
+        _portInput = CreateInput(inputWidth, inputHeight, portY, "Port (e.g., 4242)", 5, "[0-9]+", "Port");
 
         // --- Buttons (Add and Cancel) ---
         _buttonsY = portY + inputHeight + spacing * 2;
@@ -240,19 +181,51 @@ namespace Game {
         }
 
         // Clear inputs for next time
-        if (_nameInput)
-            _nameInput->SetText("");
-        if (_ipInput)
-            _ipInput->SetText("");
-        if (_portInput)
-            _portInput->SetText("");
-        ClearError();
+        ClearInputs();
     }
 
     void AddServerMenu::OnCancelClicked() {
         LOG_INFO("[AddServerMenu] Cancel button clicked");
 
         // Clear inputs
+        ClearInputs();
+
+        if (_onCancel) {
+            _onCancel();
+        }
+    }
+
+    std::unique_ptr<UI::ITextInput> AddServerMenu::CreateInput(float width, float height, float yPos,
+                                                               const std::string &placeholder, int maxLength,
+                                                               const std::string &regex,
+                                                               const std::string &logName) {
+        auto input = _uiFactory.CreateTextInput();
+        input->SetSize(width, height);
+        input->SetAlign(UI::Align::CENTER_HORIZONTAL);
+        input->ApplyAlignment();
+
+        float x, y;
+        input->GetPosition(x, y);
+        input->SetPosition(x, yPos);
+
+        input->SetPlaceholder(placeholder);
+        input->SetMaxLength(maxLength);
+        input->SetValidationRegex(regex);
+        input->SetTextSize(18);
+        input->SetBackgroundColor(0xFF2A2A2A);
+        input->SetBorderColor(0xFF505050);
+        input->SetActiveBorderColor(0xFF4CAF50);
+        input->SetTextColor(0xFFFFFFFF);
+        input->SetPlaceholderColor(0xFF808080);
+        input->SetOnTextChanged([this, logName](const std::string &text) {
+            LOG_INFO("[AddServerMenu] " + logName + ": " + text);
+            ClearError();
+        });
+
+        return input;
+    }
+
+    void AddServerMenu::ClearInputs() {
         if (_nameInput)
             _nameInput->SetText("");
         if (_ipInput)
@@ -260,10 +233,6 @@ namespace Game {
         if (_portInput)
             _portInput->SetText("");
         ClearError();
-
-        if (_onCancel) {
-            _onCancel();
-        }
     }
 
     bool AddServerMenu::ValidateName(const std::string &name, std::string &errorMsg) {

@@ -50,6 +50,12 @@ namespace Game {
         void OnAddClicked();
         void OnCancelClicked();
 
+        // Helper methods to reduce duplication
+        std::unique_ptr<UI::ITextInput> CreateInput(float width, float height, float yPos,
+                                                    const std::string &placeholder, int maxLength,
+                                                    const std::string &regex, const std::string &logName);
+        void ClearInputs();
+
         // Validation helpers
         bool ValidateName(const std::string &name, std::string &errorMsg);
         bool ValidateIP(const std::string &ip, std::string &errorMsg);

@@ -100,7 +100,19 @@ namespace server {
          * @brief Get the game rules
          * @return Reference to game rules
          */
+        GameRules &getGameRules() { return _gameRules; }
+
+        /**
+         * @brief Get the game rules (const version)
+         * @return Const reference to game rules
+         */
         const GameRules &getGameRules() const override { return _gameRules; }
+
+        /**
+         * @brief Spawn initial enemies with Lua scripts
+         * Called when the game actually starts (not at initialization)
+         */
+        void spawnEnemies();
 
        private:
         /**

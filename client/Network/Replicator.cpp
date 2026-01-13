@@ -220,6 +220,33 @@ void Replicator::processMessages() {
             } catch (const std::exception &e) {
                 LOG_ERROR("Error decoding GameStart: ", e.what());
             }
+        } else if (messageType == NetworkMessages::MessageType::S2C_ROOM_LIST) {
+            // Decode RoomList message
+            auto payload = NetworkMessages::getPayload(netEvent.getData());
+            try {
+                auto roomList = S2C::RoomList::deserialize(payload);
+
+                LOG_INFO("✓ RoomList received with ", roomList.rooms.size(), " rooms");
+
+                // The NetworkEvent will be published on EventBus with the room list data
+                // GameLoop will handle it and update Rendering
+            } catch (const std::exception &e) {
+                LOG_ERROR("Error decoding RoomList: ", e.what());
+            }
+        } else if (messageType == NetworkMessages::MessageType::S2C_ROOM_STATE) {
+            // Decode RoomState message
+            auto payload = NetworkMessages::getPayload(netEvent.getData());
+            try {
+                auto roomState = S2C::RoomState::deserialize(payload);
+
+                LOG_INFO("✓ RoomState received: ", roomState.roomName, " with ", roomState.players.size(),
+                         " players");
+
+                // NetworkEvent will be published on EventBus
+                // GameLoop will handle it and update WaitingRoom
+            } catch (const std::exception &e) {
+                LOG_ERROR("Error decoding RoomState: ", e.what());
+            }
         } else if (!netEvent.getMessageContent().empty()) {
             LOG_DEBUG("Received from server: ", netEvent.getMessageContent());
         }
@@ -359,6 +386,32 @@ uint32_t Replicator::getPacketLoss() const {
 
 bool Replicator::isSpectator() const {
     return _isSpectator;
+}
+
+bool Replicator::sendRequestRoomList() {
+    LOG_INFO("[Replicator] Requesting room list from server");
+    return sendListRooms();
+}
+
+bool Replicator::sendLeaveRoom() {
+    if (!_serverPeer || !_connected.load()) {
+        return false;
+    }
+
+    using namespace RType::Messages;
+
+    LOG_INFO("[Replicator] Leaving current room");
+
+    // Create LeaveRoom message
+    C2S::LeaveRoom request;
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData = NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_LEAVE_ROOM, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
 }
 
 void Replicator::onInputEvent(const InputEvent &event) {

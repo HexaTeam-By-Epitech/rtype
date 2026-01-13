@@ -247,6 +247,18 @@ class Replicator {
      */
     bool sendStartGame();
 
+    /**
+     * @brief Request the list of available rooms from server
+     * @return true if the packet was sent successfully
+     */
+    bool sendRequestRoomList();
+
+    /**
+     * @brief Send request to leave current room
+     * @return true if the packet was sent successfully
+     */
+    bool sendLeaveRoom();
+
    private:
     /**
      * @brief Network thread main loop

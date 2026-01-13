@@ -231,6 +231,8 @@ class GameLoop {
     void handleGameStart(const std::vector<uint8_t> &payload);
     void handleGameState(const std::vector<uint8_t> &payload);
     void handleGameruleUpdate(const std::vector<uint8_t> &payload);
+    void handleRoomList(const std::vector<uint8_t> &payload);
+    void handleRoomState(const std::vector<uint8_t> &payload);
 
     // Helpers
     void processServerReconciliation(const RType::Messages::S2C::EntityState &entity);
@@ -256,13 +258,13 @@ class GameLoop {
     std::deque<RType::Messages::C2S::PlayerInput::InputSnapshot> _inputHistory;
 
     // Player entity tracking
-    std::optional<uint32_t> _myEntityId;       // Local player's entity ID (std::nullopt if not yet assigned)
-    bool _entityInitialized = false;           // True after first server update received
+    std::optional<uint32_t> _myEntityId;  // Local player's entity ID (std::nullopt if not yet assigned)
+    bool _entityInitialized = false;
+    bool _justCreatedRoom =
+        false;  // Flag to track if we just created the current room           // True after first server update received
     bool _isMoving = false;                    // True when player is actively moving
     float _playerSpeed = 100.0f;               // pixels per second (MUST MATCH SERVER!)
     bool _clientSidePredictionEnabled = true;  // Client-side prediction for smooth movement
-
-    GameScene _currentScene = GameScene::LOBBY;
 };
 
 #endif

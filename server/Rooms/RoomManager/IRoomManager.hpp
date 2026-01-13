@@ -68,8 +68,9 @@ namespace server {
         /**
          * @brief Update all rooms (called by server loop)
          * @param deltaTime Time since last update
+         * @return true if room list changed (e.g. room removed)
          */
-        virtual void update(float deltaTime) = 0;
+        virtual bool update(float deltaTime) = 0;
     };
 
 }  // namespace server

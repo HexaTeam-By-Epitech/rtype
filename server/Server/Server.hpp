@@ -34,6 +34,10 @@ namespace RType::Messages::S2C {
     class EntityState;
 }
 
+namespace NetworkMessages {
+    enum class MessageType : uint16_t;
+}
+
 /**
  * @class Server
  * @brief R-Type server application
@@ -146,6 +150,12 @@ class Server {
     void _handleJoinRoom(HostNetworkEvent &event);
 
     /**
+     * @brief Handle leave room request
+     * @param event Network event with packet data
+     */
+    void _handleLeaveRoom(HostNetworkEvent &event);
+
+    /**
      * @brief Handle start game request (from room host)
      * @param event Network event with packet data
      */
@@ -161,6 +171,23 @@ class Server {
      * @param room Room that just started
      */
     void _sendGameStartToRoom(std::shared_ptr<server::Room> room);
+
+    /**
+     * @brief Broadcast room state (player list) to all players in a room
+     * @param room Room to broadcast state for
+     */
+    void _broadcastRoomState(std::shared_ptr<server::Room> room);
+
+    /**
+     * @brief Broadcast room list to all players in the lobby
+     */
+    void _broadcastRoomList();
+
+    /**
+     * @brief Broadcast room list to specific peers (or all lobby players if empty)
+     * @param specificPeers Vector of peers to send to (empty = all lobby players)
+     */
+    void _broadcastRoomList(const std::vector<IPeer *> &specificPeers);
 
     /**
      * @brief Serialize a single entity to network format
@@ -183,6 +210,23 @@ class Server {
      * @param shoot Output: true if shooting
      */
     void _actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot);
+
+    /**
+     * @brief Helper to get session from peer
+     */
+    std::shared_ptr<server::Session> _getSessionFromPeer(IPeer *peer);
+
+    /**
+     * @brief Helper to send a packet to a peer
+     */
+    void _sendPacket(IPeer *peer, NetworkMessages::MessageType type, const std::vector<uint8_t> &payload,
+                     bool reliable = true);
+
+    /**
+     * @brief Helper to serialize all entities in a world
+     */
+    std::vector<RType::Messages::S2C::EntityState> _serializeEntities(
+        std::shared_ptr<ecs::wrapper::ECSWorld> world, server::IGameLogic *gameLogic = nullptr);
 
     uint16_t _port;
     size_t _maxClients;

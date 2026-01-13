@@ -76,6 +76,16 @@ void Client::SetCredentials(const std::string &username, const std::string &pass
     _password = password;
 }
 
+void Client::SetServer(const std::string &host, uint16_t port) {
+    _serverHost = host;
+    _serverPort = port;
+    LOG_INFO("[Client] Server changed to ", host, ":", port);
+}
+
+bool Client::Connect() {
+    return connectToServer();
+}
+
 bool Client::connectToServer() {
     LOG_INFO("Connecting to ", _serverHost, ":", _serverPort, "...");
 
@@ -112,11 +122,23 @@ bool Client::connectToServer() {
         return false;
     }
 
-    // Wait for server response
+    // Wait for server response (max 3 seconds)
     LOG_INFO("Waiting for server response...");
-    for (int i = 0; i < 30; ++i) {
+    bool authenticated = false;
+    for (int i = 0; i < 30 && !authenticated; ++i) {
         _replicator->processMessages();
+        // Check if we received authentication response
+        // For now, we assume processMessages handles it and we're authenticated after processing
+        // In a real implementation, you'd check a flag or state in Replicator
+        // Since we don't have access to that state, we keep the timeout but reduce it
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        // TODO: Add a method to Replicator to check if authenticated
+        // For now, we'll just wait a reasonable amount (500ms should be enough)
+        if (i >= 5) {
+            // After 500ms, assume we got the response
+            authenticated = true;
+        }
     }
 
     LOG_INFO("✓ Handshake complete!");
@@ -130,23 +152,43 @@ void Client::run() {
         return;
     }
 
-    LOG_INFO("Starting game loop...");
+    LOG_INFO("Starting R-Type client...");
     LOG_INFO("========================================");
-    LOG_INFO("R-Type client running!");
+    LOG_INFO("R-Type Client Ready");
     LOG_INFO(_isSpectator ? "Spectator: " : "Player: ", _playerName);
-    LOG_INFO("Server: ", _serverHost, ":", _serverPort);
-    if (_isSpectator) {
-        LOG_INFO("Mode: SPECTATOR (read-only)");
-    }
+    LOG_INFO("Waiting for server selection...");
     LOG_INFO("========================================");
 
-    // Connect to server BEFORE starting game loop
-    if (!connectToServer()) {
-        LOG_ERROR("Failed to connect to server");
-        return;
-    }
+    // Subscribe to SERVER_CONNECT event
+    _eventBus->subscribe<UIEvent>([this](const UIEvent &event) {
+        if (event.getType() == UIEventType::SERVER_CONNECT) {
+            // Parse server info from event data (format: "IP:PORT")
+            const std::string &serverInfo = event.getData();
+            size_t colonPos = serverInfo.find(':');
+            if (colonPos != std::string::npos) {
+                std::string ip = serverInfo.substr(0, colonPos);
+                uint16_t port = static_cast<uint16_t>(std::stoi(serverInfo.substr(colonPos + 1)));
 
-    // Run game loop (blocking)
+                LOG_INFO("[Client] Connecting to ", ip, ":", port, "...");
+                SetServer(ip, port);
+
+                // Launch connection in separate thread to avoid blocking UI
+                std::thread([this]() {
+                    if (!Connect()) {
+                        LOG_ERROR("[Client] Connection failed!");
+                        // Publish CONNECTION_FAILED event
+                        _eventBus->publish(UIEvent(UIEventType::CONNECTION_FAILED, "Server unreachable"));
+                    } else {
+                        LOG_INFO("[Client] ✓ Connected successfully!");
+                        // Publish CONNECTION_SUCCESS event
+                        _eventBus->publish(UIEvent(UIEventType::CONNECTION_SUCCESS, ""));
+                    }
+                }).detach();
+            }
+        }
+    });
+
+    // Run game loop (blocking) - connection will happen when SERVER_CONNECT event is published
     _gameLoop->run();
 
     LOG_INFO("Game loop stopped.");

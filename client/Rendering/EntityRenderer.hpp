@@ -54,11 +54,17 @@ class EntityRenderer {
         float targetX;                             ///< Target position X (from server)
         float targetY;                             ///< Target position Y (from server)
         float interpolationFactor;                 ///< Progress from 0.0 (prev) to 1.0 (target)
-
-        // Future fields for enhanced rendering:
-        // float rotation;        ///< Rotation angle in degrees
-        // float scale;           ///< Uniform scale factor
-        // uint8_t animFrame;     ///< Current animation frame
+        int startPixelX;                           ///< Sprite sheet start pixel X
+        int startPixelY;                           ///< Sprite sheet start pixel Y
+        int spriteSizeX;                           ///< Sprite sheet size X
+        int spriteSizeY;                           ///< Sprite sheet size Y
+        int offsetX;                               ///< Sprite offset X for rendering
+        int offsetY;                               ///< Sprite offset Y for rendering
+        float scale;                               ///< Sprite scale multiplier
+        std::string currentAnimation;              ///< Current animation name from server
+        std::vector<int>
+            animationFrameIndices;  ///< Animation frame sequence (sprite indices to allow freedom of picking frames manually)
+        int currentFrame;  ///< Current animation frame
     };
 
     /**
@@ -82,6 +88,7 @@ class EntityRenderer {
          * @param x World position X
          * @param y World position Y
          * @param health Current health (-1 if not applicable)
+         * @param currentAnimation Current animation clip name (e.g., "idle", "shoot")
          * 
          * If the entity already exists, its state is updated.
          * If it's a new entity, it's added to the cache.
@@ -90,7 +97,7 @@ class EntityRenderer {
          * message is received from the server.
          */
     void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
-                      bool isMoving = false);
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
 
     /**
          * @brief Remove an entity from the rendering cache

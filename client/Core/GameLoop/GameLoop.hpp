@@ -235,7 +235,7 @@ class GameLoop {
     void handleRoomState(const std::vector<uint8_t> &payload);
 
     // Helpers
-    void processServerReconciliation(const RType::Messages::S2C::EntityState &entity, bool isMoving);
+    void processServerReconciliation(const RType::Messages::S2C::EntityState &entity);
     void simulateInputHistory(float &x, float &y);
 
     EventBus *_eventBus;  // Non-owning pointer (owned by Client)

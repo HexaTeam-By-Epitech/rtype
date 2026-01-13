@@ -149,27 +149,24 @@ TEST(PlayerTest, HasUniqueComponentType) {
 // Enemy Component Tests
 // ========================================
 TEST(EnemyTest, ConstructorInitializesCorrectly) {
-    ecs::Enemy enemy(1, 500, 2);
+    ecs::Enemy enemy(1, 500);
 
     EXPECT_EQ(enemy.getEnemyType(), 1);
     EXPECT_EQ(enemy.getScoreValue(), 500);
-    EXPECT_EQ(enemy.getAttackPattern(), 2);
 }
 
 TEST(EnemyTest, SettersWorkCorrectly) {
-    ecs::Enemy enemy(0, 0, 0);
+    ecs::Enemy enemy(0, 0);
 
     enemy.setEnemyType(5);
     enemy.setScoreValue(1000);
-    enemy.setAttackPattern(3);
 
     EXPECT_EQ(enemy.getEnemyType(), 5);
     EXPECT_EQ(enemy.getScoreValue(), 1000);
-    EXPECT_EQ(enemy.getAttackPattern(), 3);
 }
 
 TEST(EnemyTest, HasUniqueComponentType) {
-    ecs::Enemy enemy(0, 0, 0);
+    ecs::Enemy enemy(0, 0);
 
     EXPECT_EQ(enemy.getType(), ecs::getComponentType<ecs::Enemy>());
 }

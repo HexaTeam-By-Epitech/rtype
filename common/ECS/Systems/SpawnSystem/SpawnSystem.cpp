@@ -62,7 +62,7 @@ namespace ecs {
             registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, 200.0f));
             registry.setComponent<Health>(
                 enemy, Health(static_cast<int>(request.health), static_cast<int>(request.health)));
-            registry.setComponent<Enemy>(enemy, Enemy(0, request.scoreValue, 0));
+            registry.setComponent<Enemy>(enemy, Enemy(0, request.scoreValue));
 
             if (!request.scriptPath.empty()) {
                 registry.setComponent<LuaScript>(enemy, LuaScript(request.scriptPath));

@@ -293,14 +293,14 @@ class PrefabFactoryTest : public ::testing::Test {
 };
 
 TEST_F(PrefabFactoryTest, CreatePlayer) {
-    uint32_t entityId = PrefabFactory::createPlayer(*world, 1, "TestPlayer");
+    uint32_t entityId = PrefabFactory::createPlayer(world->getRegistry(), 1);
     EXPECT_GT(entityId, 0);
 }
 
 TEST_F(PrefabFactoryTest, CreateMultiplePlayers) {
-    uint32_t player1 = PrefabFactory::createPlayer(*world, 1, "Alice");
-    uint32_t player2 = PrefabFactory::createPlayer(*world, 2, "Bob");
-    uint32_t player3 = PrefabFactory::createPlayer(*world, 3, "Charlie");
+    uint32_t player1 = PrefabFactory::createPlayer(world->getRegistry(), 1);
+    uint32_t player2 = PrefabFactory::createPlayer(world->getRegistry(), 2);
+    uint32_t player3 = PrefabFactory::createPlayer(world->getRegistry(), 3);
 
     EXPECT_GT(player1, 0);
     EXPECT_GT(player2, 0);
@@ -311,14 +311,14 @@ TEST_F(PrefabFactoryTest, CreateMultiplePlayers) {
 }
 
 TEST_F(PrefabFactoryTest, CreateEnemy) {
-    uint32_t enemyId = PrefabFactory::createEnemy(*world, 0, 300.0f, 400.0f);
+    uint32_t enemyId = PrefabFactory::createEnemy(world->getRegistry(), 0, 300.0f, 400.0f);
     EXPECT_GT(enemyId, 0);
 }
 
 TEST_F(PrefabFactoryTest, CreateMultipleEnemyTypes) {
-    uint32_t enemy0 = PrefabFactory::createEnemy(*world, 0, 100.0f, 100.0f);  // Basic
-    uint32_t enemy1 = PrefabFactory::createEnemy(*world, 1, 200.0f, 200.0f);  // Heavy
-    uint32_t enemy2 = PrefabFactory::createEnemy(*world, 2, 300.0f, 300.0f);  // Fast
+    uint32_t enemy0 = PrefabFactory::createEnemy(world->getRegistry(), 0, 100.0f, 100.0f);  // Basic
+    uint32_t enemy1 = PrefabFactory::createEnemy(world->getRegistry(), 1, 200.0f, 200.0f);  // Heavy
+    uint32_t enemy2 = PrefabFactory::createEnemy(world->getRegistry(), 2, 300.0f, 300.0f);  // Fast
 
     EXPECT_GT(enemy0, 0);
     EXPECT_GT(enemy1, 0);
@@ -329,30 +329,30 @@ TEST_F(PrefabFactoryTest, CreateMultipleEnemyTypes) {
 
 TEST_F(PrefabFactoryTest, CreateProjectile) {
     uint32_t projectileId =
-        PrefabFactory::createProjectile(*world, 1, 100.0f, 200.0f, 1.0f, 0.0f, 10.0f, 10, true);
+        PrefabFactory::createProjectile(world->getRegistry(), 1, 100.0f, 200.0f, 1.0f, 0.0f, 10.0f, 10, true);
     EXPECT_GT(projectileId, 0);
 }
 
 TEST_F(PrefabFactoryTest, CreatePlayerProjectile) {
     uint32_t bulletId =
-        PrefabFactory::createProjectile(*world, 1, 100.0f, 100.0f, 1.0f, 0.0f, 15.0f, 20, true);
+        PrefabFactory::createProjectile(world->getRegistry(), 1, 100.0f, 100.0f, 1.0f, 0.0f, 15.0f, 20, true);
     EXPECT_GT(bulletId, 0);
 }
 
 TEST_F(PrefabFactoryTest, CreateEnemyProjectile) {
-    uint32_t bulletId =
-        PrefabFactory::createProjectile(*world, 100, 200.0f, 200.0f, 0.0f, 1.0f, 8.0f, 5, false);
+    uint32_t bulletId = PrefabFactory::createProjectile(world->getRegistry(), 100, 200.0f, 200.0f, 0.0f, 1.0f,
+                                                        8.0f, 5, false);
     EXPECT_GT(bulletId, 0);
 }
 
 TEST_F(PrefabFactoryTest, MixedEntityCreation) {
     // Create various entities
-    uint32_t player = PrefabFactory::createPlayer(*world, 1, "Player1");
-    uint32_t enemy = PrefabFactory::createEnemy(*world, 0, 200.0f, 200.0f);
-    uint32_t playerBullet =
-        PrefabFactory::createProjectile(*world, player, 150.0f, 150.0f, 1.0f, 0.0f, 10.0f, 20, true);
-    uint32_t enemyBullet =
-        PrefabFactory::createProjectile(*world, enemy, 250.0f, 250.0f, 0.0f, 1.0f, 8.0f, 10, false);
+    uint32_t player = PrefabFactory::createPlayer(world->getRegistry(), 1);
+    uint32_t enemy = PrefabFactory::createEnemy(world->getRegistry(), 0, 200.0f, 200.0f);
+    uint32_t playerBullet = PrefabFactory::createProjectile(world->getRegistry(), player, 150.0f, 150.0f,
+                                                            1.0f, 0.0f, 10.0f, 20, true);
+    uint32_t enemyBullet = PrefabFactory::createProjectile(world->getRegistry(), enemy, 250.0f, 250.0f, 0.0f,
+                                                           1.0f, 8.0f, 10, false);
 
     // All should be valid and different
     EXPECT_GT(player, 0);

@@ -6,75 +6,60 @@
 */
 
 #include "server/Game/Prefabs/PrefabFactory.hpp"
-#include <stdexcept>
-#include "common/ECS/Components/Collider.hpp"
-#include "common/ECS/Components/Enemy.hpp"
-#include "common/ECS/Components/Health.hpp"
-#include "common/ECS/Components/Player.hpp"
-#include "common/ECS/Components/Projectile.hpp"
-#include "common/ECS/Components/Transform.hpp"
-#include "common/ECS/Components/Velocity.hpp"
-#include "common/ECS/Components/Weapon.hpp"
-#include "common/ECSWrapper/ECSWorld.hpp"
-#include "common/Logger/Logger.hpp"
 
 namespace server {
 
-    ecs::Address PrefabFactory::createPlayer(ecs::wrapper::ECSWorld &world, uint32_t playerId,
-                                             const std::string &playerName) {
+    ecs::Address PrefabFactory::createPlayer(ecs::Registry &registry, uint32_t playerId) {
         try {
-            ecs::wrapper::Entity player =
-                world.createEntity()
-                    .with(ecs::Player(0, 3, playerId))  // score=0, lives=3
-                    .with(ecs::Transform(50.0f, 300.0f))
-                    .with(ecs::Velocity(0.0f, 0.0f, 200.0f))  // 200 units/sec max speed
-                    .with(ecs::Health(100, 100))
-                    .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
-                    .with(ecs::Weapon(10.0f, 0.0f, 0, 25));  // fire rate: 10 shots/sec, type 0, 25 damage
+            ecs::Address player = registry.newEntity();
 
-            LOG_INFO("✓ Player created: ", playerName, " (ID: ", playerId, ")");
-            return player.getAddress();
+            registry.setComponent(player, ecs::Player(0, 3, playerId));
+            registry.setComponent(player, ecs::Transform(100.0F, 300.0F));
+            registry.setComponent(player, ecs::Velocity(0.0F, 0.0F, 200.0F));
+            registry.setComponent(player, ecs::Health(100, 100));
+            registry.setComponent(player, ecs::Collider(50.0F, 50.0F, 0.0F, 0.0F, 1, 0xFFFFFFFF, false));
+            registry.setComponent(
+                player, ecs::Weapon(10.0F, 0.0F, 0, 25));  // fire rate: 10 shots/sec, type 0, 25 damage
+            LOG_INFO("✓ Player created with ID: ", playerId);
+
+            return player;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create player: ", e.what());
             return 0;
         }
     }
 
-    ecs::Address PrefabFactory::createEnemy(ecs::wrapper::ECSWorld &world, int enemyType, float posX,
-                                            float posY) {
+    ecs::Address PrefabFactory::createEnemy(ecs::Registry &registry, int enemyType, float posX, float posY) {
         try {
             EnemySpawnData spawnData = _getEnemySpawnData(enemyType);
-
-            ecs::wrapper::Entity enemy =
-                world.createEntity()
-                    .with(ecs::Enemy(enemyType, spawnData.scoreValue, 0))
-                    .with(ecs::Transform(posX, posY))
-                    .with(ecs::Velocity(-1.0f, 0.0f, spawnData.speed))
-                    .with(ecs::Health(spawnData.health, spawnData.health))
-                    .with(ecs::Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f, 0.0f, 2,
-                                        0xFFFFFFFF, false))
-                    .with(ecs::Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, less damage
-
-            LOG_INFO("✓ Enemy spawned: Type ", enemyType, " at (", posX, ", ", posY, ")");
-            return enemy.getAddress();
+            ecs::Address enemy = registry.newEntity();
+            registry.setComponent(enemy, ecs::Enemy(enemyType, spawnData.scoreValue));
+            registry.setComponent(enemy, ecs::Transform(posX, posY));
+            registry.setComponent(enemy, ecs::Velocity(-spawnData.speed, 0.0f, 0.0f));
+            registry.setComponent(enemy, ecs::Health(spawnData.health, spawnData.health));
+            registry.setComponent(enemy, ecs::Collider(spawnData.colliderWidth, spawnData.colliderHeight,
+                                                       0.0f, 0.0f, 2, 0xFFFFFFFF, false));
+            registry.setComponent(enemy, ecs::Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, less damage
+            LOG_INFO("✓ Enemy created of type: ", enemyType);
+            return enemy;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create enemy: ", e.what());
             return 0;
         }
     }
 
-    ecs::Address PrefabFactory::createProjectile(ecs::wrapper::ECSWorld &world, uint32_t ownerId, float posX,
+    ecs::Address PrefabFactory::createProjectile(ecs::Registry &registry, uint32_t ownerId, float posX,
                                                  float posY, float dirX, float dirY, float speed, int damage,
                                                  bool friendly) {
         try {
-            ecs::wrapper::Entity projectile =
-                world.createEntity()
-                    .with(ecs::Projectile(damage, 10.0f, ownerId, friendly))
-                    .with(ecs::Transform(posX, posY))
-                    .with(ecs::Velocity(dirX, dirY, speed))
-                    .with(ecs::Collider(10.0f, 10.0f, 0.0f, 0.0f, 4, 0xFFFFFFFF, true));
+            ecs::Address projectile = registry.newEntity();
 
-            return projectile.getAddress();
+            registry.setComponent(projectile, ecs::Projectile(damage, 10.0f, ownerId, friendly));
+            registry.setComponent(projectile, ecs::Transform(posX, posY));
+            registry.setComponent(projectile, ecs::Velocity(dirX, dirY, speed));
+            registry.setComponent(projectile, ecs::Collider(10.0f, 10.0f, 0.0f, 0.0f, 4, 0xFFFFFFFF, true));
+
+            return projectile;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create projectile: ", e.what());
             return 0;

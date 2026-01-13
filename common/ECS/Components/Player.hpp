@@ -25,7 +25,7 @@ namespace ecs {
          * @param lives Number of lives
          * @param playerId Unique player identifier (for multiplayer)
          */
-        Player(int score, int lives, int playerId) : _score(score), _lives(lives), _playerId(playerId) {}
+        Player(int score, int lives, uint32_t playerId) : _score(score), _lives(lives), _playerId(playerId) {}
         ~Player() override = default;
 
         /**

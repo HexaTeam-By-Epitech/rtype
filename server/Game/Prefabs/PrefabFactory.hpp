@@ -9,7 +9,18 @@
 
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include "common/ECS/Components/Collider.hpp"
+#include "common/ECS/Components/Enemy.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/Player.hpp"
+#include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Transform.hpp"
+#include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Weapon.hpp"
+#include "common/ECS/Registry.hpp"
+#include "common/Logger/Logger.hpp"
 
 namespace ecs::wrapper {
     class ECSWorld;
@@ -36,22 +47,21 @@ namespace server {
          * @param playerName Display name
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createPlayer(ecs::wrapper::ECSWorld &world, uint32_t playerId,
-                                         const std::string &playerName);
+        static ecs::Address createPlayer(ecs::Registry &registry, uint32_t playerId);
 
         /**
          * @brief Create an enemy entity
-         * @param world ECS world wrapper
+         * @param registry ECS registry
          * @param enemyType Type of enemy (0=basic, 1=heavy, 2=fast, etc.)
          * @param posX Starting X position
          * @param posY Starting Y position
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createEnemy(ecs::wrapper::ECSWorld &world, int enemyType, float posX, float posY);
+        static ecs::Address createEnemy(ecs::Registry &registry, int enemyType, float posX, float posY);
 
         /**
          * @brief Create a projectile entity
-         * @param world ECS world wrapper
+         * @param registry ECS registry
          * @param ownerId Owner entity ID (shooter)
          * @param posX Starting X position
          * @param posY Starting Y position
@@ -62,7 +72,7 @@ namespace server {
          * @param friendly True for player projectile, false for enemy
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createProjectile(ecs::wrapper::ECSWorld &world, uint32_t ownerId, float posX,
+        static ecs::Address createProjectile(ecs::Registry &registry, uint32_t ownerId, float posX,
                                              float posY, float dirX, float dirY, float speed, int damage,
                                              bool friendly);
 

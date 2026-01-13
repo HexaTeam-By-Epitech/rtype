@@ -500,15 +500,8 @@ bool Rendering::WindowShouldClose() const {
 // ═══════════════════════════════════════════════════════════
 
 void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                             int health, bool isMoving) {
-    if (_entityRenderer) {
-        _entityRenderer->updateEntity(id, type, x, y, health);  // Calls version with default sprite
-    }
-}
-
-void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                             int health, bool isMoving, const std::string &currentAnimation, int srcX,
-                             int srcY, int srcW, int srcH) {
+                             int health, const std::string &currentAnimation, int srcX, int srcY, int srcW,
+                             int srcH) {
     if (_entityRenderer) {
         _entityRenderer->updateEntity(id, type, x, y, health, currentAnimation, srcX, srcY, srcW, srcH);
     }

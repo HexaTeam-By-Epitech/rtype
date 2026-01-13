@@ -84,12 +84,6 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
     }
 }
 
-void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                                  int health) {
-    // Backwards compatibility - call with default animation and sprite
-    updateEntity(id, type, x, y, health, "idle", 0, 0, 33, 17);
-}
-
 void EntityRenderer::removeEntity(uint32_t id) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {

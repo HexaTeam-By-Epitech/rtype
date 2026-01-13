@@ -100,15 +100,6 @@ class EntityRenderer {
                       const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
 
     /**
-         * @brief Update or create an entity without animation (backwards compatibility)
-         * @param id Entity unique identifier
-         * @param type Entity type (Player, Enemy, Bullet)
-         * @param x World position X
-         * @param y World position Y
-         * @param health Current health (-1 if not applicable)
-         */
-    void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                      int health); /**
          * @brief Remove an entity from the rendering cache
          * @param id Entity unique identifier to remove
          * 

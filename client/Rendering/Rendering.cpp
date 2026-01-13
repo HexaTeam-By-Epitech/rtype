@@ -131,8 +131,12 @@ void Rendering::InitializeSettingsMenu() {
 
     _settingsMenu->SetOnMainMenu([this]() {
         // Return to main menu while in-game
+        LOG_INFO("[Rendering] Back to main menu - leaving room");
         _scene = Scene::MENU;
         _settingsOverlay = false;
+
+        // Notify server that player is leaving the room
+        _eventBus.publish(UIEvent(UIEventType::LEAVE_ROOM));
 
         if (_settingsMenu) {
             _settingsMenu->Hide();

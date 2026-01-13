@@ -72,8 +72,8 @@ ifeq ($(DETECTED_OS),Windows)
 	@if exist "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" mklink "r-type_client.lnk" "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" >nul 2>&1 || true
 else
 	@ln -sf $(BUILD_DIR)/$(PRESET_DEBUG)/compile_commands.json .
-	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ./r-type_server; fi
-	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ./r-type_client; fi
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ]; then ln -sf "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ./r-type_server; fi
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ]; then ln -sf "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ./r-type_client; fi
 endif
 
 release: setup_hooks vcpkg-bootstrap
@@ -96,7 +96,7 @@ ifeq ($(DETECTED_OS),Windows)
 	@if exist "r-type_server.lnk" del /F /Q "r-type_server.lnk" >nul 2>&1 || true
 	@if exist "$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe" mklink "r-type_server.lnk" "$(BUILD_DIR)\$(PRESET_DEBUG)\server\Debug\r-type_server.exe" >nul 2>&1 || true
 else
-	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ./r-type_server; fi
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ]; then ln -sf "$(BUILD_DIR)/$(PRESET_DEBUG)/server/r-type_server" ./r-type_server; fi
 endif
 
 client: setup_hooks vcpkg-bootstrap
@@ -106,7 +106,7 @@ ifeq ($(DETECTED_OS),Windows)
 	@if exist "r-type_client.lnk" del /F /Q "r-type_client.lnk" >nul 2>&1 || true
 	@if exist "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" mklink "r-type_client.lnk" "$(BUILD_DIR)\$(PRESET_DEBUG)\client\Debug\r-type_client.exe" >nul 2>&1 || true
 else
-	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ]; then cp "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ./r-type_client; fi
+	@if [ -f "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ]; then ln -sf "$(BUILD_DIR)/$(PRESET_DEBUG)/client/r-type_client" ./r-type_client; fi
 endif
 
 run-server: server

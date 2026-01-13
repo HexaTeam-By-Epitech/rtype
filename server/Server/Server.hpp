@@ -34,6 +34,10 @@ namespace RType::Messages::S2C {
     class EntityState;
 }
 
+namespace NetworkMessages {
+    enum class MessageType : uint16_t;
+}
+
 /**
  * @class Server
  * @brief R-Type server application
@@ -204,8 +208,8 @@ class Server {
     /**
      * @brief Helper to send a packet to a peer
      */
-    void _sendPacket(IPeer *peer, RType::Messages::NetworkMessages::MessageType type,
-                     const std::vector<uint8_t> &payload, bool reliable = true);
+    void _sendPacket(IPeer *peer, NetworkMessages::MessageType type, const std::vector<uint8_t> &payload,
+                     bool reliable = true);
 
     /**
      * @brief Helper to serialize all entities in a world

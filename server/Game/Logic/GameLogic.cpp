@@ -132,6 +132,7 @@ namespace server {
     }
 
     void GameLogic::update(float deltaTime, uint32_t currentTick) {
+        (void)currentTick;  // Parameter reserved for future use
         if (!_gameActive) {
             return;
         }

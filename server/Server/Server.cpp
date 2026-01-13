@@ -1072,8 +1072,8 @@ std::shared_ptr<server::Session> Server::_getSessionFromPeer(IPeer *peer) {
     return _sessionManager->getSession(it->second);
 }
 
-void Server::_sendPacket(IPeer *peer, RType::Messages::NetworkMessages::MessageType type,
-                         const std::vector<uint8_t> &payload, bool reliable) {
+void Server::_sendPacket(IPeer *peer, NetworkMessages::MessageType type, const std::vector<uint8_t> &payload,
+                         bool reliable) {
     using namespace RType::Messages;
     if (!peer)
         return;

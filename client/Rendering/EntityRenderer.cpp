@@ -14,7 +14,7 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 }
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                                  int health, bool isMoving, const std::string &currentAnimation, int srcX, int srcY,
+                                  int health, const std::string &currentAnimation, int srcX, int srcY,
                                   int srcW, int srcH) {
     auto it = _entities.find(id);
     if (it != _entities.end()) {
@@ -51,8 +51,8 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                 it->second.interpolationFactor = 0.0f;
 
                 // Log ALL corrections for debugging
-                LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px (moving=", isMoving,
-                          " threshold=", _reconciliationThreshold, ")");
+                LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px threshold=", _reconciliationThreshold,
+                          ")");
             }
             // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled) {

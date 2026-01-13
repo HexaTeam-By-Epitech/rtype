@@ -17,7 +17,7 @@ struct EntityState {
   spriteY @6 :Int32;          # Sprite source Y on spritesheet
   spriteW @7 :Int32;          # Sprite width
   spriteH @8 :Int32;          # Sprite height
-  lastProcessedInput @4 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
+  lastProcessedInput @9 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
 }
 
 struct GameState {

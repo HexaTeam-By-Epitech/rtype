@@ -507,10 +507,10 @@ void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType ty
 }
 
 void Rendering::UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
-                             int health, const std::string &currentAnimation, int srcX, int srcY, int srcW,
-                             int srcH) {
+                             int health, bool isMoving, const std::string &currentAnimation, int srcX,
+                             int srcY, int srcW, int srcH) {
     if (_entityRenderer) {
-        _entityRenderer->updateEntity(id, type, x, y, health, isMoving, currentAnimation, srcX, srcY, srcW, srcH);
+        _entityRenderer->updateEntity(id, type, x, y, health, currentAnimation, srcX, srcY, srcW, srcH);
     }
 }
 

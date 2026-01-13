@@ -361,6 +361,8 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
         LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
 
         for (const auto &entity : gameStart.initialState.entities) {
+            bool entityIsMoving = (entity.entityId == gameStart.yourEntityId) ? _isMoving : false;
+
             if (entity.entityId == gameStart.yourEntityId) {
                 _myEntityId = entity.entityId;
                 _entityInitialized = true;
@@ -368,7 +370,7 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
 
                 if (_rendering) {
                     _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x,
-                                             entity.position.y, entity.health.value_or(-1),
+                                             entity.position.y, entity.health.value_or(-1), entityIsMoving,
                                              entity.currentAnimation, entity.spriteX, entity.spriteY,
                                              entity.spriteW, entity.spriteH);
                 }
@@ -396,8 +398,8 @@ void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
                 processServerReconciliation(entity, entityIsMoving);
             } else {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
-                                         entity.health.value_or(-1), entityIsMoving, entity.currentAnimation, entity.spriteX,
-                                         entity.spriteY, entity.spriteW, entity.spriteH);
+                                         entity.health.value_or(-1), entityIsMoving, entity.currentAnimation,
+                                         entity.spriteX, entity.spriteY, entity.spriteW, entity.spriteH);
             }
         }
 

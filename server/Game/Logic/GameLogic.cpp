@@ -148,7 +148,8 @@ namespace server {
         }
     }
 
-    void GameLogic::update(float deltaTime, uint32_t currentTick) {
+    void GameLogic::update(float deltaTime, uint32_t lcurrentTick) {
+        (void)lcurrentTick;  // Unused for now
         if (!_gameActive) {
             return;
         }

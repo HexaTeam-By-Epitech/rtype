@@ -56,8 +56,8 @@ bool Client::initialize() {
     _replicator = std::make_unique<Replicator>(*_eventBus, _isSpectator);
     LOG_INFO("✓ Replicator created", _isSpectator ? " (Spectator mode)" : "");
 
-    // Create GameLoop (pass shared EventBus and Replicator)
-    _gameLoop = std::make_unique<GameLoop>(*_eventBus, *_replicator);
+    // Create GameLoop (pass shared EventBus, Replicator, and player name)
+    _gameLoop = std::make_unique<GameLoop>(*_eventBus, *_replicator, _playerName);
 
     if (!_gameLoop->initialize()) {
         LOG_ERROR("Failed to initialize GameLoop");

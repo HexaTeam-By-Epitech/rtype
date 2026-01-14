@@ -70,6 +70,7 @@ namespace RType::Messages::Connection {
         std::string serverId;
         std::string message;
         std::string serverVersion;
+        uint32_t playerId{0};  // Player ID assigned by server
 
         HandshakeResponse() = default;
 
@@ -81,6 +82,7 @@ namespace RType::Messages::Connection {
             builder.setServerId(serverId);
             builder.setMessage(message);
             builder.setServerVersion(serverVersion);
+            builder.setPlayerId(playerId);
 
             auto bytes = capnp::messageToFlatArray(msg);
             auto byteArray = bytes.asBytes();
@@ -104,6 +106,7 @@ namespace RType::Messages::Connection {
             result.serverId = reader.getServerId().cStr();
             result.message = reader.getMessage().cStr();
             result.serverVersion = reader.getServerVersion().cStr();
+            result.playerId = reader.getPlayerId();
             return result;
         }
     };

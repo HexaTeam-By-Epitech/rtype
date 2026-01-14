@@ -40,6 +40,10 @@ namespace Game {
         Initialize();
     }
 
+    void WaitingRoomMenu::SetIsSpectator(bool isSpectator) {
+        _isSpectator = isSpectator;
+    }
+
     void WaitingRoomMenu::Initialize() {
         if (!_menu) {
             return;

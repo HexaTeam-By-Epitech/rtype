@@ -63,6 +63,7 @@ struct JoinedRoom {
   roomId @0 :Text;
   success @1 :Bool;
   errorMessage @2 :Text;
+  isSpectator @3 :Bool;  # True if joined as spectator (auto-spectator for IN_PROGRESS games)
 }
 
 struct PlayerData {

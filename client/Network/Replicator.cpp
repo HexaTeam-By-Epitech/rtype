@@ -133,12 +133,24 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
 
                     // Parse based on message type
                     if (messageType == NetworkMessages::MessageType::HANDSHAKE_RESPONSE) {
-                        messageContent = NetworkMessages::parseConnectResponse(event.packet->getData());
+                        // Parse using proper HandshakeResponse wrapper
+                        auto payload = NetworkMessages::getPayload(event.packet->getData());
+                        try {
+                            auto handshakeResp =
+                                RType::Messages::Connection::HandshakeResponse::deserialize(payload);
+                            messageContent = handshakeResp.message;
 
-                        // Check if authentication succeeded
-                        if (messageContent.find("Authentication successful") != std::string::npos) {
-                            _authenticated.store(true);
-                        } else {
+                            if (handshakeResp.accepted) {
+                                _authenticated.store(true);
+                                _myPlayerId.store(handshakeResp.playerId);
+                                LOG_INFO("✓ Authenticated! Player ID: ", handshakeResp.playerId);
+                            } else {
+                                _authenticated.store(false);
+                                LOG_ERROR("✗ Authentication failed: ", handshakeResp.message);
+                            }
+                        } catch (const std::exception &e) {
+                            LOG_ERROR("Failed to parse HandshakeResponse: ", e.what());
+                            messageContent = "Authentication error";
                             _authenticated.store(false);
                         }
                     } else if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {

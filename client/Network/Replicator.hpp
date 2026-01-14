@@ -126,6 +126,13 @@ class Replicator {
     bool isAuthenticated() const;
 
     /**
+     * @brief Get the player ID assigned by server
+     * 
+     * @return Player ID (0 if not yet authenticated)
+     */
+    uint32_t getMyPlayerId() const { return _myPlayerId.load(); }
+
+    /**
      * @brief Process incoming network messages
      * 
      * Processes messages from the network thread queue and publishes them
@@ -293,6 +300,7 @@ class Replicator {
     EventBus &_eventBus;
     std::atomic<bool> _connected{false};
     std::atomic<bool> _authenticated{false};
+    std::atomic<uint32_t> _myPlayerId{0};  // Player ID assigned by server
     bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;

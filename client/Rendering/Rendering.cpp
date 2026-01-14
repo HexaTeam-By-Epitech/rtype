@@ -132,8 +132,12 @@ void Rendering::InitializeSettingsMenu() {
 
     _settingsMenu->SetOnMainMenu([this]() {
         // Return to main menu while in-game
+        LOG_INFO("[Rendering] Back to main menu - leaving room");
         _scene = Scene::MENU;
         _settingsOverlay = false;
+
+        // Notify server that player is leaving the room
+        _eventBus.publish(UIEvent(UIEventType::LEAVE_ROOM));
 
         if (_settingsMenu) {
             _settingsMenu->Hide();
@@ -552,7 +556,7 @@ void Rendering::Render() {
     UpdateFpsCounter();
 
     if (_quitRequested) {
-        Shutdown();
+        _initialized = false;
         return;
     }
 
@@ -910,7 +914,7 @@ void Rendering::UpdateRoomList(const std::vector<RoomData> &rooms) {
 }
 
 void Rendering::UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, const std::string &roomName,
-                                  bool isHost) {
+                                  bool isHost, bool isSpectator) {
     if (!_waitingRoomMenu) {
         return;
     }
@@ -919,8 +923,10 @@ void Rendering::UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, 
     _waitingRoomMenu->SetRoomInfo(roomName, static_cast<uint32_t>(players.size()),
                                   4);  // TODO: get max from server
     _waitingRoomMenu->SetIsHost(isHost);
+    _waitingRoomMenu->SetIsSpectator(isSpectator);
 
-    LOG_INFO("[Rendering] Waiting room updated with ", players.size(), " players, isHost=", isHost);
+    LOG_INFO("[Rendering] Waiting room updated with ", players.size(), " players, isHost=", isHost,
+             ", isSpectator=", isSpectator);
 }
 
 void Rendering::InitializeChatWidget() {

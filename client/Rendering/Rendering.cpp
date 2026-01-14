@@ -544,7 +544,7 @@ void Rendering::Render() {
     UpdateFpsCounter();
 
     if (_quitRequested) {
-        Shutdown();
+        _initialized = false;
         return;
     }
 

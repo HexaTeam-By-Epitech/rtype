@@ -55,6 +55,12 @@ namespace ecs {
         [[nodiscard]] float getDamage() const { return _damage; }
 
         /**
+         * @brief Check if the weapon should shoot.
+         * @return bool True if the weapon is set to shoot, false otherwise.
+         */
+        [[nodiscard]] bool shouldShoot() const { return _shouldShoot; }
+
+        /**
          * @brief Set fire rate.
          * @param fireRate New shots per second
          */
@@ -79,15 +85,22 @@ namespace ecs {
         void setDamage(float damage) { _damage = damage; }
 
         /**
+         * @brief Set whether the weapon should shoot.
+         * @param shouldShoot True to enable shooting, false to disable
+         */
+        void setShouldShoot(bool shouldShoot) { _shouldShoot = shouldShoot; }
+
+        /**
          * @brief Get the component type ID.
          * @return ComponentType Unique ID for Weapon component.
          */
         ComponentType getType() const override { return getComponentType<Weapon>(); }
 
        private:
-        float _fireRate;      ///< Shots per second
-        float _cooldown;      ///< Current cooldown timer in seconds
-        int _projectileType;  ///< Type of projectile spawned
-        float _damage;        ///< Base damage dealt
+        float _fireRate;            ///< Shots per second
+        float _cooldown;            ///< Current cooldown timer in seconds
+        int _projectileType;        ///< Type of projectile spawned
+        float _damage;              ///< Base damage dealt
+        bool _shouldShoot = false;  ///< Whether the weapon is currently set to shoot
     };
 }  // namespace ecs

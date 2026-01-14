@@ -27,10 +27,7 @@ namespace ecs::wrapper {
 }
 
 namespace ecs {
-    typedef uint32_t Address;
-}  // namespace ecs
-
-namespace server {
+    using Address = std::uint32_t;
 
     /**
      * @class PrefabFactory
@@ -88,4 +85,4 @@ namespace server {
         static EnemySpawnData _getEnemySpawnData(int enemyType);
     };
 
-}  // namespace server
+}  // namespace ecs

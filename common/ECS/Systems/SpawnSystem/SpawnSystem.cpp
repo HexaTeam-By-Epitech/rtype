@@ -12,8 +12,8 @@
 #include "common/ECS/Components/Spawner.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Prefabs/PrefabFactory.hpp"
 #include "common/Logger/Logger.hpp"
-#include "server/Game/Prefabs/PrefabFactory.hpp"
 
 namespace ecs {
     SpawnSystem::SpawnSystem()

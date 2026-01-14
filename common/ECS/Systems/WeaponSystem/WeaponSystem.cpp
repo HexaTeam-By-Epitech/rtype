@@ -6,7 +6,9 @@
 */
 
 #include "WeaponSystem.hpp"
-#include "../../Components/IComponent.hpp"
+#include "common/ECS/Components/IComponent.hpp"
+#include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Prefabs/PrefabFactory.hpp"
 
 namespace ecs {
     /**
@@ -18,10 +20,15 @@ namespace ecs {
         for (auto entityId : entities) {
             auto &weapon = registry.getComponent<Weapon>(entityId);
 
-            float cooldown = weapon.getCooldown();
-            if (cooldown > 0.0F) {
-                weapon.setCooldown(cooldown - deltaTime);
+            if (weapon.getCooldown() > 0.0F) {
+                continue;
             }
+            if (!weapon.shouldShoot()) {
+                continue;
+            }
+
+            PrefabFactory::createProjectile(registry, entityId, 0.0F, 0.0F, 1.0F, 0.0F, 300.0F,
+                                            static_cast<int>(weapon.getDamage()), true);
         }
     }
 

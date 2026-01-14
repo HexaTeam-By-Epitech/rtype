@@ -324,7 +324,7 @@ namespace server {
 
             // Handle shooting
             if (input.isShooting) {
-                // Weapon system will handle actual projectile creation
+                //WIPswan
             }
         } catch (const std::exception &e) {
             LOG_ERROR("Error applying input for player ", playerId, ": ", e.what());

@@ -10,6 +10,7 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#include "common/ECS/Prefabs/PrefabFactory.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
@@ -17,7 +18,6 @@
 #include "server/Events/GameEvent/GameStartedEvent.hpp"
 #include "server/Events/GameEvent/PlayerJoinedEvent.hpp"
 #include "server/Events/GameEvent/PlayerLeftEvent.hpp"
-#include "server/Game/Prefabs/PrefabFactory.hpp"
 
 using namespace server;
 

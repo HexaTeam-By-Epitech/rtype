@@ -97,12 +97,6 @@ namespace server {
         uint32_t getHost() const { return _hostPlayerId; };
 
         /**
-         * @brief Check if GameStart has been sent
-         * @return true if GameStart has been sent to players
-         */
-        bool hasGameStarted() const { return _gameStartSent; };
-
-        /**
          * @brief Broadcast a chat message to all players in the room
          * @param senderId ID of the player sending the message
          * @param senderName Name of the player sending the message
@@ -134,7 +128,6 @@ namespace server {
          */
         bool tryMarkGameStartSent();
 
-       private:
        private:
         std::string _id;
         std::string _name;

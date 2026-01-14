@@ -41,9 +41,6 @@
 #include "server/Game/Rules/GameruleBroadcaster.hpp"
 #include "server/Sessions/Session/Session.hpp"
 
-// CONFIGURATION: Set to true to bypass matchmaking and use default room
-constexpr bool DEV_MODE_SKIP_MATCHMAKING = false;
-
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 
 Server::~Server() {

@@ -669,7 +669,7 @@ void GameLoop::handleLeftRoom(const std::vector<uint8_t> &payload) {
         // For now, we'll assume if we receive this message, it's for us
         // (Server should only send it to the player who left)
 
-        if (leftRoomMsg.reason == S2C::LeftRoomReason::KICKED) {
+        if (leftRoomMsg.reason == S2C::LeftRoomReason::KICKED && _myPlayerId == leftRoomMsg.playerId) {
             LOG_INFO("You were kicked from the room: ", leftRoomMsg.message);
 
             // Show the message to the user via chat if available
@@ -678,10 +678,10 @@ void GameLoop::handleLeftRoom(const std::vector<uint8_t> &payload) {
             }
         }
 
-        // Return to room list by publishing a UI event
-        _eventBus->publish(UIEvent{UIEventType::BACK_TO_ROOM_LIST});
-
-        LOG_INFO("✓ Returning to room list");
+        if (_myPlayerId == leftRoomMsg.playerId) {
+            LOG_INFO("✓ You have left the room, returning to room list");
+            _eventBus->publish(UIEvent{UIEventType::BACK_TO_ROOM_LIST});
+        }
 
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse LeftRoom: ", e.what());

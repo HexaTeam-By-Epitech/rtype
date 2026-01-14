@@ -17,7 +17,7 @@ namespace server {
      * @class KickCommand
      * @brief Kicks a player from the current room
      * 
-     * Usage: /kick <playername>
+     * Usage: /kick <player_id>
      * Only the room host can kick players.
      * Spectators cannot be kicked.
      * Works both in waiting room and during game.

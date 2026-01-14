@@ -132,10 +132,10 @@ namespace Game {
         std::string message = _textInput->GetText();
 
         // Trim whitespace
-        while (!message.empty() && std::isspace(message.front())) {
+        while (!message.empty() && std::isspace(static_cast<unsigned char>(message.front()))) {
             message.erase(message.begin());
         }
-        while (!message.empty() && std::isspace(message.back())) {
+        while (!message.empty() && std::isspace(static_cast<unsigned char>(message.back()))) {
             message.pop_back();
         }
 

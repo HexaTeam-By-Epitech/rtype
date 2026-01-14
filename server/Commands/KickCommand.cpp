@@ -33,7 +33,7 @@ namespace server {
         // Get target id from args[0] and cast it to uint32_t
         uint32_t targetId = std::stoul(args[0]);
 
-        // Find target player by name
+        // Find target player by id
         uint32_t targetPlayerId = 0;
         for (uint32_t playerId : players) {
             if (playerId == targetId) {

@@ -54,18 +54,6 @@ namespace ecs {
          */
         ComponentMask getComponentMask() const override;
 
-        /**
-         * @brief Configures wave parameters.
-         * 
-         * Allows customization of spawn behavior for different wave configurations.
-         * Resets spawn timer and enemy count.
-         * 
-         * @param waveNumber Current wave number
-         * @param enemiesPerWave Number of enemies to spawn in this wave
-         * @param spawnInterval Time in seconds between each enemy spawn
-         */
-        void setWaveConfig(int waveNumber, int enemiesPerWave, float spawnInterval);
-
        private:
         /**
          * @brief Internal method to spawn an enemy from a request
@@ -73,11 +61,5 @@ namespace ecs {
          * @param request The spawn request with all parameters
          */
         void _spawnEnemy(Registry &registry, const SpawnRequest &request);
-
-        int _waveNumber;
-        int _enemiesSpawned;
-        int _enemiesPerWave;
-        float _spawnTimer;
-        float _spawnInterval;
     };
 }  // namespace ecs

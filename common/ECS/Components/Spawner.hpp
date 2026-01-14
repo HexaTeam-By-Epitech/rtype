@@ -25,6 +25,16 @@ namespace ecs {
         int scoreValue;
     };
 
+    struct WaveConfig {
+        std::vector<SpawnRequest> enemies;
+        float spawnInterval;  // Time between spawns in this wave
+    };
+
+    struct SpawnerConfig {
+        std::vector<WaveConfig> waves;
+        std::vector<int> wavesIntervals;  // Time between waves
+    };
+
     /**
      * @class Spawner
      * @brief Component that holds spawn requests to be processed by SpawnSystem
@@ -67,8 +77,17 @@ namespace ecs {
          */
         ComponentType getType() const override { return getComponentType<Spawner>(); }
 
+        void setConfig(const SpawnerConfig &config) { _config = config; }
+        const SpawnerConfig &getConfig() const { return _config; }
+
+        int spawnerTime = 0;
+        int currentWaveIndex = 0;
+
+        bool isActive = true;
+
        private:
         std::vector<SpawnRequest> _spawnRequests;
+        SpawnerConfig _config = {};
     };
 
 }  // namespace ecs

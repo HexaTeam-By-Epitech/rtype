@@ -127,6 +127,67 @@ namespace scripting::bindings {
             }
         });
 
+        lua.set_function("setSpawnerConfig", [world](ecs::wrapper::Entity spawner, sol::table configTable,
+                                                     sol::table waves_intervals) {
+            try {
+                if (!world) {
+                    LOG_ERROR("[LUA] setSpawnerConfig: world is null");
+                    return;
+                }
+
+                if (!spawner.isValid()) {
+                    LOG_WARNING("[LUA] Cannot set spawner config: invalid spawner entity (address: ",
+                                spawner.getAddress(), ")");
+                    return;
+                }
+
+                if (!spawner.has<ecs::Spawner>()) {
+                    LOG_WARNING("[LUA] Entity (", spawner.getAddress(), ") does not have Spawner component");
+                    return;
+                }
+
+                ecs::Spawner &spawnerComp = spawner.get<ecs::Spawner>();
+                ecs::SpawnerConfig config;
+
+                // Parse waves
+                sol::table wavesTable = configTable["waves"];
+                for (auto &wavePair : wavesTable) {
+                    sol::table waveTable = wavePair.second;
+                    ecs::WaveConfig waveConfig;
+
+                    // Parse enemies in wave
+                    sol::table enemiesTable = waveTable["enemies"];
+                    for (auto &enemyPair : enemiesTable) {
+                        sol::table enemyTable = enemyPair.second;
+                        ecs::SpawnRequest request;
+                        request.x = enemyTable["x"];
+                        request.y = enemyTable["y"];
+                        request.enemyType = enemyTable["enemyType"];
+                        request.scriptPath = enemyTable["scriptPath"];
+                        request.health = enemyTable["health"];
+                        request.scoreValue = enemyTable["scoreValue"];
+                        waveConfig.enemies.push_back(request);
+                    }
+
+                    waveConfig.spawnInterval = waveTable["spawnInterval"];
+                    config.waves.push_back(waveConfig);
+                }
+
+                // Parse wave intervals
+                sol::table intervalsTable = configTable["wavesIntervals"];
+                for (auto &intervalPair : intervalsTable) {
+                    int interval = intervalPair.second.as<int>();
+                    config.wavesIntervals.push_back(interval);
+                }
+
+                spawnerComp.setConfig(config);
+
+                LOG_DEBUG("[LUA] Set spawner config for entity ", spawner.getAddress());
+            } catch (const std::exception &e) {
+                LOG_ERROR("[LUA] setSpawnerConfig exception: ", e.what());
+            }
+        });
+
         LOG_INFO("Server game bindings initialized");
     }
 

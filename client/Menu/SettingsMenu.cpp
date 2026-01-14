@@ -78,13 +78,17 @@ namespace Game {
         _menu->AddButton(CreateCenteredButton("FPS: ON", offsetForIndex(1), buttonWidth, buttonHeight,
                                               0xFF424242, 0xFF616161, [this]() { SetShowFps(!_showFps); }));
 
+        // Toggle Chat button
+        _menu->AddButton(CreateCenteredButton("CHAT: ON", offsetForIndex(2), buttonWidth, buttonHeight,
+                                              0xFF424242, 0xFF616161, [this]() { SetShowChat(!_showChat); }));
+
         // Target FPS selection button (cycles)
-        _menu->AddButton(CreateCenteredButton("TARGET FPS: 60", offsetForIndex(2), buttonWidth, buttonHeight,
+        _menu->AddButton(CreateCenteredButton("TARGET FPS: 60", offsetForIndex(3), buttonWidth, buttonHeight,
                                               0xFF424242, 0xFF616161,
                                               [this]() { SetTargetFps(NextTargetFps(_targetFps)); }));
 
         // Back (closes settings)
-        _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(3), buttonWidth, buttonHeight,
+        _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(4), buttonWidth, buttonHeight,
                                               0xFF1976D2, 0xFF1E88E5, [this]() {
                                                   if (_onBack) {
                                                       _onBack();
@@ -95,7 +99,7 @@ namespace Game {
 
         // Main menu (only in overlay)
         if (showMainMenuButton) {
-            _menu->AddButton(CreateCenteredButton("MAIN MENU", offsetForIndex(4), buttonWidth, buttonHeight,
+            _menu->AddButton(CreateCenteredButton("MAIN MENU", offsetForIndex(5), buttonWidth, buttonHeight,
                                                   0xFF5D4037, 0xFF6D4C41, [this]() {
                                                       if (_onMainMenu) {
                                                           _onMainMenu();
@@ -240,6 +244,7 @@ namespace Game {
     void SettingsMenu::RefreshVisuals() {
         UpdateToggleVisuals();
         UpdateFpsToggleVisuals();
+        UpdateChatToggleVisuals();
         UpdateTargetFpsVisuals();
     }
 
@@ -369,5 +374,48 @@ namespace Game {
         if (_volumeSlider) {
             _volumeSlider->SetValue(_volume);
         }
+    }
+
+    void SettingsMenu::SetShowChat(bool enabled) {
+        _showChat = enabled;
+        UpdateChatToggleVisuals();
+        if (_onShowChatChanged) {
+            _onShowChatChanged(_showChat);
+        }
+        LOG_INFO("[SettingsMenu] showChat=", _showChat ? "true" : "false");
+    }
+
+    bool SettingsMenu::GetShowChat() const {
+        return _showChat;
+    }
+
+    void SettingsMenu::SetOnShowChatChanged(std::function<void(bool)> cb) {
+        _onShowChatChanged = std::move(cb);
+    }
+
+    void SettingsMenu::SetShowChatSilent(bool enabled) {
+        _showChat = enabled;
+        UpdateChatToggleVisuals();
+    }
+
+    void SettingsMenu::UpdateChatToggleVisuals() {
+        if (!_menu) {
+            return;
+        }
+        auto toggleBtn = _menu->GetButton(TOGGLE_CHAT_INDEX);
+        if (!toggleBtn) {
+            return;
+        }
+
+        if (_showChat) {
+            toggleBtn->SetText("CHAT: ON");
+            toggleBtn->SetBackgroundColor(0xFF2E7D32);
+            toggleBtn->SetHoverColor(0xFF388E3C);
+        } else {
+            toggleBtn->SetText("CHAT: OFF");
+            toggleBtn->SetBackgroundColor(0xFFB71C1C);
+            toggleBtn->SetHoverColor(0xFFD32F2F);
+        }
+        toggleBtn->SetTextColor(0xFFFFFFFF);
     }
 }  // namespace Game

@@ -115,6 +115,12 @@ void Rendering::InitializeSettingsMenu() {
 
     _settingsMenu->SetOnShowFpsChanged([this](bool enabled) { SetShowFps(enabled); });
 
+    _settingsMenu->SetOnShowChatChanged([this](bool enabled) {
+        if (_chatWidget) {
+            _chatWidget->SetVisible(enabled);
+        }
+    });
+
     _settingsMenu->SetOnTargetFpsChanged(
         [this](uint32_t fps) { _graphics.SetTargetFPS(static_cast<int>(fps)); });
 
@@ -965,8 +971,13 @@ void Rendering::UpdateChatVisibility() {
         return;
     }
 
-    // Show chat in waiting room or in-game
+    // Show chat in waiting room or in-game, but only if enabled in settings
     bool shouldBeVisible = (_scene == Scene::IN_GAME) || (_waitingRoomMenu && _waitingRoomMenu->IsVisible());
+
+    // Check if chat is enabled in settings
+    if (_settingsMenu && !_settingsMenu->GetShowChat()) {
+        shouldBeVisible = false;
+    }
 
     _chatWidget->SetVisible(shouldBeVisible);
 }

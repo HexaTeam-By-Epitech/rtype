@@ -38,8 +38,6 @@ namespace ecs {
                 // auto-inactivate when a config is finished
             }
 
-            spawnerComp.spawnerTime += (deltaTime * 1000);  // to milliseconds
-
             // check if we need to move to the next wave, using wave intervals
             if (spawnerComp.currentWaveIndex < wavesCount) {
                 int waveInterval = config.wavesIntervals[spawnerComp.currentWaveIndex];
@@ -65,6 +63,8 @@ namespace ecs {
                 LOG_INFO("[SpawnSystem] Queued ", currentWave.enemies.size(), " enemies for wave ",
                          spawnerComp.currentWaveIndex + 1);
             }
+
+            spawnerComp.spawnerTime += (deltaTime * 1000);  // to milliseconds
         }
 
         // Process spawn requests from Spawner components

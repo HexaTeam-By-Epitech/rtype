@@ -81,6 +81,7 @@ namespace ecs {
         const SpawnerConfig &getConfig() const { return _config; }
 
         int spawnerTime = 0;
+        int spawnerTicks = 0;  // 6 ticks per second
         int currentWaveIndex = 0;
 
         bool isActive = true;

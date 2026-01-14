@@ -13,6 +13,7 @@ local waveSystem = {
 	totalEnemiesInWave = 0,
 	spawnerEntity = nil,
 	waves = {},
+	isWaveSetup = false,
 }
 
 -- Define waves with spawn timings and enemy configurations
@@ -23,8 +24,6 @@ waveSystem.waves[1] = {
 		{ delay = 0.0, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
 		{ delay = 0.0, type = "basic", x = 1200, y = 400, health = 50, script = "enemy_basic.lua" },
 		{ delay = 0.0, type = "basic", x = 1200, y = 600, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 400, health = 50, script = "enemy_basic.lua" },
 	},
 }
 
@@ -41,14 +40,36 @@ waveSystem.waves[2] = {
 	},
 }
 
+-- Wave 3 for testing purposes
+waveSystem.waves[3] = {
+	name = "Wave 3: Challenge",
+	duration = 20,
+	enemyConfigs = {
+		{ delay = 0.3, type = "advanced", x = 1200, y = 100, health = 100, script = "enemy_advanced.lua" },
+		{ delay = 0.6, type = "advanced", x = 1200, y = 300, health = 100, script = "enemy_advanced.lua" },
+		{ delay = 0.9, type = "basic", x = 1200, y = 500, health = 50, script = "enemy_basic.lua" },
+		{ delay = 1.2, type = "advanced", x = 1200, y = 700, health = 100, script = "enemy_advanced.lua" }
+	},
+}
+
 -- Waves intervals configuration
 waveSystem.wavesIntervals = {
 	5,  -- Interval after Wave 1
 	7,  -- Interval after Wave 2
+	20, -- Interval after Wave 3
 }
 
 -- Submit the configured waves to the spawner component
-setSpawnerConfig(waveSystem.spawnerEntity, {
-	waves = waveSystem.waves,
-	wavesIntervals = waveSystem.wavesIntervals,
-})
+
+log "AAA"
+
+function onUpdate(entity, deltaTime)
+	log "BBB"
+	if waveSystem.isWaveSetup == false then
+		setSpawnerConfig(entity, {
+		waves = waveSystem.waves,
+		wavesIntervals = waveSystem.wavesIntervals})
+		log "CCC"
+		waveSystem.isWaveSetup = true
+	end
+end

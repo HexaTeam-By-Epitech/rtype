@@ -64,7 +64,7 @@ class GameLoop {
      * @param eventBus Shared EventBus instance
      * @param replicator Shared Replicator instance
      */
-    GameLoop(EventBus &eventBus, Replicator &replicator);
+    GameLoop(EventBus &eventBus, Replicator &replicator, const std::string &playerName);
 
     /**
      * @brief Destructor
@@ -262,6 +262,7 @@ class GameLoop {
     bool _entityInitialized = false;
     bool _justCreatedRoom =
         false;  // Flag to track if we just created the current room           // True after first server update received
+    std::string _myPlayerName;                 // Local player's name for host detection
     bool _isMoving = false;                    // True when player is actively moving
     float _playerSpeed = 100.0f;               // pixels per second (MUST MATCH SERVER!)
     bool _clientSidePredictionEnabled = true;  // Client-side prediction for smooth movement

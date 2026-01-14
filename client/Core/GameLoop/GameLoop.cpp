@@ -10,8 +10,8 @@
 #include "../ClientGameRules.hpp"
 #include "GameruleKeys.hpp"
 
-GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator)
-    : _eventBus(&eventBus), _replicator(&replicator) {}
+GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator, const std::string &playerName)
+    : _eventBus(&eventBus), _replicator(&replicator), _myPlayerName(playerName) {}
 
 GameLoop::~GameLoop() {
     shutdown();
@@ -479,16 +479,10 @@ void GameLoop::handleRoomState(const std::vector<uint8_t> &payload) {
         std::vector<Game::PlayerInfo> players;
         bool isHost = false;
 
-        // If we just created the room, we're the host
-        // Keep the flag until we leave the room, so it works for multiple RoomState updates
+        // Fallback: if we just created the room, we're definitely the host
         if (_justCreatedRoom) {
             isHost = true;
-            LOG_INFO("  - Detected as host (just created room)");
-        } else {
-            // Otherwise, don't assume anything - all players are not hosts from our perspective
-            // unless the server sends us our player ID (which it should)
-            isHost = false;
-            LOG_INFO("  - Not host (didn't create this room)");
+            LOG_INFO("  - Detected as host (we created this room)");
         }
 
         for (const auto &playerData : roomState.players) {
@@ -496,9 +490,18 @@ void GameLoop::handleRoomState(const std::vector<uint8_t> &payload) {
                                         playerData.isSpectator);
             players.push_back(playerInfo);
 
-            LOG_INFO("  - Player: ", playerData.playerName, (playerData.isHost ? " (HOST)" : ""),
-                     (playerData.isSpectator ? " [SPECTATOR]" : ""));
+            // Check if this player is us and is the host (by name match)
+            if (playerData.isHost && playerData.playerName == _myPlayerName) {
+                isHost = true;
+                LOG_INFO("  - Player: ", playerData.playerName, " (HOST) <-- That's us!");
+            } else {
+                LOG_INFO("  - Player: ", playerData.playerName, (playerData.isHost ? " (HOST)" : ""),
+                         (playerData.isSpectator ? " [SPECTATOR]" : ""),
+                         (playerData.playerName == _myPlayerName ? " <-- That's us" : ""));
+            }
         }
+
+        LOG_INFO("  -> isHost = ", isHost, ", _myPlayerName = '", _myPlayerName, "'");
 
         // Update waiting room with player list
         if (_rendering) {

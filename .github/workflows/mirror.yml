@@ -11,11 +11,14 @@ permissions:
 jobs:
   push_to_mirror:
     if: ${{ github.actor != 'github-actions[bot]' && startsWith(github.repository, 'HexaTeam-By-Epitech')}}
-    runs-on: [self-hosted, gcp-spot]
+    runs-on: [ self-hosted, gcp-spot ]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Clean git state
+        run: |
+          git remote remove mirror || true
       - uses: pixta-dev/repository-mirroring-action@v1
         with:
           target_repo_url: ${{ vars.MIRROR_URL }}

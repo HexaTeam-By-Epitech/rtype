@@ -6,6 +6,7 @@
 */
 
 #include "server/Server/Server.hpp"
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include "Capnp/ConnectionMessages.hpp"
@@ -703,6 +704,22 @@ void Server::_handleChatMessage(HostNetworkEvent &event) {
     auto payload = NetworkMessages::getPayload(event.packet->getData());
     try {
         auto chatMsg = C2S::C2SChatMessage::deserialize(payload);
+
+        // Validate message length (prevent abuse from malicious clients)
+        static constexpr size_t MAX_CHAT_MESSAGE_LENGTH = 256;
+        if (chatMsg.message.length() > MAX_CHAT_MESSAGE_LENGTH) {
+            LOG_WARNING("Player ", playerId, " sent a message exceeding the maximum length (",
+                        chatMsg.message.length(), " > ", MAX_CHAT_MESSAGE_LENGTH, ")");
+            _sendSystemMessage(playerId, "Error: Message too long. Maximum length is 256 characters.");
+            return;
+        }
+
+        // Validate message is not empty (after trimming whitespace)
+        if (chatMsg.message.empty() || std::all_of(chatMsg.message.begin(), chatMsg.message.end(),
+                                                   [](unsigned char c) { return std::isspace(c) != 0; })) {
+            LOG_DEBUG("Player ", playerId, " sent an empty or whitespace-only message");
+            return;  // Silently ignore empty messages
+        }
 
         // Check if message is a command (starts with "/")
         if (!chatMsg.message.empty() && chatMsg.message[0] == '/') {

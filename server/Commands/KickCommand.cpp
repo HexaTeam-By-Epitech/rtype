@@ -26,7 +26,11 @@ namespace server {
         // Get all players in the room
         std::vector<uint32_t> players = context.room->getPlayers();
 
-        if (args[0].empty() || std::stoul(args[0]) == 0) {
+        try {
+            if (args[0].empty() || std::stoul(args[0]) == 0) {
+                return "Error: Invalid player id.";
+            }
+        } catch (std::invalid_argument &) {
             return "Error: Invalid player id.";
         }
 

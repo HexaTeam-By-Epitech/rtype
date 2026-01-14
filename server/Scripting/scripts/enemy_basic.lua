@@ -5,7 +5,7 @@
 ** enemy_basic.lua - Basic enemy behavior (linear left movement)
 ]]
 
-local speed = 250 -- pixels per second
+local speed = 20 -- pixels per second
 
 function onUpdate(entity, deltaTime)
 	if not entity:isValid() or not entity:hasTransform() then

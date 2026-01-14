@@ -89,6 +89,7 @@ namespace NetworkMessages {
         S2C_MATCH_FOUND = 0x0404,
         S2C_ROOM_STATE = 0x0405,
         S2C_CHAT_MESSAGE = 0x0406,
+        S2C_LEFT_ROOM = 0x0407,
 
         UNKNOWN = 0xFFFF
     };

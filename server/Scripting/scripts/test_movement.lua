@@ -24,10 +24,4 @@ function onUpdate(entity, deltaTime)
     -- Circular movement
     transform.x = centerX + math.cos(time * speed) * radius
     transform.y = centerY + math.sin(time * speed) * radius
-    
-    -- Log position every second (at 60 FPS)
-    local tick = math.floor(time * 60)
-    if tick % 60 == 0 then
-        log("Enemy rotating at (" .. string.format("%.1f", transform.x) .. ", " .. string.format("%.1f", transform.y) .. ")")
-    end
 end

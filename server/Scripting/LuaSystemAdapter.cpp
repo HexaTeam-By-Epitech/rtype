@@ -31,8 +31,8 @@ namespace scripting {
 
         static int logCounter = 0;
         if (++logCounter % 60 == 0) {
-            LOG_INFO("LuaSystemAdapter: Processing " + std::to_string(entities.size()) +
-                     " entities with LuaScript component");
+            //LOG_INFO("LuaSystemAdapter: Processing " + std::to_string(entities.size()) +
+            //        " entities with LuaScript component");
         }
 
         for (const auto &entityAddr : entities) {

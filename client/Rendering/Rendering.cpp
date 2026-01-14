@@ -461,6 +461,17 @@ void Rendering::SubscribeToConnectionEvents() {
         } else if (event.getType() == UIEventType::ROOM_LIST_RECEIVED) {
             LOG_INFO("[Rendering] Room list received");
             // Room list will be updated by GameLoop parsing the network message
+        } else if (event.getType() == UIEventType::BACK_TO_ROOM_LIST) {
+            LOG_INFO("[Rendering] Returning to room list");
+
+            // Hide waiting room and show room list
+            if (_waitingRoomMenu)
+                _waitingRoomMenu->Hide();
+            if (_roomListMenu)
+                _roomListMenu->Show();
+
+            // Ensure we're in menu scene
+            _scene = Scene::MENU;
         }
     });
 }

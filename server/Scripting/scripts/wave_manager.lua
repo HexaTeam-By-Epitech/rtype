@@ -61,6 +61,10 @@ waveSystem.wavesIntervals = {
 
 -- Submit the configured waves to the spawner component
 
+-- TODO: Remove onUpdate function content (see GameLogic.cpp)
+-- onUpdate is a special function called every frame by the engine, but this is setup code
+-- remove the log statements
+
 log "AAA"
 
 function onUpdate(entity, deltaTime)

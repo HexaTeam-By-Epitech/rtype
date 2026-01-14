@@ -468,6 +468,9 @@ namespace server {
     void GameLogic::spawnEnemies() {
         LOG_INFO("Spawning enemies with Lua scripts...");
 
+        // TODO: Fire an entrypoint to wave_manager.lua from here, and remove the content of the onUpdate function in wave_manager.lua
+        // removing the function completly will trigger a warning in the console
+
         LOG_INFO("✓ Spawned 3 enemies with Lua scripts");
     }
 

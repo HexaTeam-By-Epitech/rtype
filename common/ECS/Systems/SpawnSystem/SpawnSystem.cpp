@@ -64,6 +64,8 @@ namespace ecs {
                          spawnerComp.currentWaveIndex + 1);
             }
 
+            // TODO : Better handling of time counting, as deltaTime depends on framerate
+            // and even like that, this is too fast
             spawnerComp.spawnerTime += (deltaTime * 1000);  // to milliseconds
         }
 

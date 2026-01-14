@@ -116,7 +116,7 @@ namespace ecs {
         // Set components with charge-boosted damage
         registry.setComponent(projectileId, projectileTransform);
         registry.setComponent(projectileId, projectileVelocity);
-        int chargedDamage = static_cast<int>(weapon.getDamage() * damageMultiplier);
+        float chargedDamage = weapon.getDamage() * damageMultiplier;
         registry.setComponent(projectileId, Projectile(chargedDamage, 10.0F, ownerId, isFriendly));
 
         // Reset weapon cooldown

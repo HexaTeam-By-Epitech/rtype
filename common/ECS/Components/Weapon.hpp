@@ -26,7 +26,7 @@ namespace ecs {
          * @param projectileType Type of projectile spawned
          * @param damage Base damage dealt by this weapon
          */
-        Weapon(float fireRate, float cooldown, int projectileType, int damage)
+        Weapon(float fireRate, float cooldown, int projectileType, float damage)
             : _fireRate(fireRate), _cooldown(cooldown), _projectileType(projectileType), _damage(damage) {}
         ~Weapon() override = default;
 
@@ -34,25 +34,25 @@ namespace ecs {
          * @brief Get fire rate.
          * @return float Shots per second.
          */
-        float getFireRate() const { return _fireRate; }
+        [[nodiscard]] float getFireRate() const { return _fireRate; }
 
         /**
          * @brief Get current cooldown.
          * @return float Remaining cooldown in seconds.
          */
-        float getCooldown() const { return _cooldown; }
+        [[nodiscard]] float getCooldown() const { return _cooldown; }
 
         /**
          * @brief Get projectile type.
          * @return int Type of projectile spawned.
          */
-        int getProjectileType() const { return _projectileType; }
+        [[nodiscard]] int getProjectileType() const { return _projectileType; }
 
         /**
          * @brief Get damage value.
-         * @return int Base damage dealt.
+         * @return float Base damage dealt.
          */
-        int getDamage() const { return _damage; }
+        [[nodiscard]] float getDamage() const { return _damage; }
 
         /**
          * @brief Set fire rate.
@@ -76,7 +76,7 @@ namespace ecs {
          * @brief Set damage value.
          * @param damage New damage value
          */
-        void setDamage(int damage) { _damage = damage; }
+        void setDamage(float damage) { _damage = damage; }
 
         /**
          * @brief Get the component type ID.
@@ -88,6 +88,6 @@ namespace ecs {
         float _fireRate;      ///< Shots per second
         float _cooldown;      ///< Current cooldown timer in seconds
         int _projectileType;  ///< Type of projectile spawned
-        int _damage;          ///< Base damage dealt
+        float _damage;        ///< Base damage dealt
     };
 }  // namespace ecs

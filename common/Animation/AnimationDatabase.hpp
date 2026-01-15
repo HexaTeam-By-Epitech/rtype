@@ -48,32 +48,31 @@ namespace AnimDB {
     }
 
     /**
-     * @brief Create projectile animations.
-     * 
-     * @return ecs::AnimationSet Complete animation set for projectile
-     */
-    inline ecs::AnimationSet createProjectileAnimations() {
-        ecs::AnimationSet animSet("Projectiles");
-
-        animSet.addClip("projectile_fly",
-                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.1f, true));
-
-        return animSet;
-    }
-
-    /**
      * @brief Create basic enemy animations.
      * 
      * @return ecs::AnimationSet Complete animation set for basic enemy
      */
     inline ecs::AnimationSet createEnemyBasicAnimations() {
-        ecs::AnimationSet animSet("r-typesheet2");
+        ecs::AnimationSet animSet("BasicEnemy");
 
-        // Simple flying animation
-        animSet.addClip("fly", makeClip({{0, 0, 24, 24}, {24, 0, 24, 24}}, 0.15f, true));
-
-        // Death animation - plays once
-        animSet.addClip("death", makeClip({{48, 0, 24, 24}, {72, 0, 24, 24}}, 0.1f, false));
+        // Simple 16 frames flying animation
+        animSet.addClip("enemy_fly", makeClip({{0, 0, 33, 34},
+                                               {33, 0, 33, 34},
+                                               {66, 0, 33, 34},
+                                               {99, 0, 33, 34},
+                                               {132, 0, 33, 34},
+                                               {165, 0, 33, 34},
+                                               {198, 0, 33, 34},
+                                               {231, 0, 33, 34},
+                                               {0, 34, 33, 34},
+                                               {33, 34, 33, 34},
+                                               {66, 34, 33, 34},
+                                               {99, 34, 33, 34},
+                                               {132, 34, 33, 34},
+                                               {165, 34, 33, 34},
+                                               {198, 34, 33, 34},
+                                               {231, 34, 33, 34}},
+                                              0.1f, true));
 
         return animSet;
     }
@@ -123,11 +122,10 @@ namespace AnimDB {
      * @return ecs::AnimationSet Complete animation set for player projectile
      */
     inline ecs::AnimationSet createPlayerBulletAnimations() {
-        ecs::AnimationSet animSet("r-typesheet1");
+        ecs::AnimationSet animSet("Projectiles");
 
-        // Simple spinning animation
-        animSet.addClip(
-            "fly", makeClip({{0, 64, 8, 8}, {8, 64, 8, 8}, {16, 64, 8, 8}, {24, 64, 8, 8}}, 0.05f, true));
+        animSet.addClip("projectile_fly",
+                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.1f, true));
 
         return animSet;
     }

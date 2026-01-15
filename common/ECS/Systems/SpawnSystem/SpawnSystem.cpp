@@ -66,12 +66,23 @@ namespace ecs {
 
             // TODO : Better handling of time counting, as deltaTime depends on framerate
             // and even like that, this is too fast
-            spawnerComp.spawnerTime += (deltaTime * 1000);  // to milliseconds
+            // deltaTime depends on framerate, (0.16667 for 60 FPS)
+            // spawnerComp.spawnerTime is in seconds
+            spawnerComp.spawnerTicks += 1;
+            if (spawnerComp.spawnerTicks >= static_cast<int>(1.0f / deltaTime)) {
+                spawnerComp.spawnerTime += 1;
+                spawnerComp.spawnerTicks = 0;
+            }
         }
 
         // Process spawn requests from Spawner components
         for (auto entity : spawners) {
             Spawner &spawner = registry.getComponent<Spawner>(entity);
+
+            if (spawner.lastTimeRan == spawner.spawnerTime) {
+                continue;  // Already processed this time tick
+            }
+            spawner.lastTimeRan = spawner.spawnerTime;
 
             if (!spawner.hasPendingSpawns()) {
                 continue;

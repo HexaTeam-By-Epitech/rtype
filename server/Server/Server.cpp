@@ -38,9 +38,6 @@
 #include "server/Game/Rules/GameruleBroadcaster.hpp"
 #include "server/Sessions/Session/Session.hpp"
 
-// CONFIGURATION: Set to true to bypass matchmaking and use default room
-constexpr bool DEV_MODE_SKIP_MATCHMAKING = false;
-
 Server::Server(uint16_t port, size_t maxClients) : _port(port), _maxClients(maxClients) {}
 
 Server::~Server() {
@@ -73,13 +70,6 @@ bool Server::initialize() {
     _sessionManager = std::make_shared<server::SessionManager>();
     _roomManager = std::make_shared<server::RoomManager>();
     _lobby = std::make_shared<server::Lobby>(_roomManager);
-
-    _defaultRoom = _roomManager->createRoom("default");
-    if (!_defaultRoom) {
-        LOG_ERROR("Failed to create default room");
-        return false;
-    }
-    LOG_INFO("✓ Default room created");
 
     // Subscribe to game events on global EventBus
     _eventBus->subscribe<server::PlayerJoinedEvent>([](const server::PlayerJoinedEvent &event) {
@@ -198,8 +188,8 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
         // Broadcast updated room state to remaining players
         _broadcastRoomState(playerRoom);
 
-        // Broadcast updated room list to all players in lobby (player count changed)
-        _broadcastRoomList();
+        // Broadcast updated room list to ALL connected players (player count changed)
+        _broadcastRoomListToAll();
     }
 
     _eventBus->publish(server::PlayerLeftEvent(playerId));
@@ -329,10 +319,19 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     LOG_INFO("✓ Player '", playerName, "' (", username, ") authenticated (Session: ", sessionId,
              ", Player ID: ", newPlayerId, ")");
 
-    std::vector<uint8_t> responseData = NetworkMessages::createConnectResponse(
-        "✓ Authentication successful! Welcome to R-Type, " + playerName + "!");
-    std::unique_ptr<IPacket> responsePacket =
-        createPacket(responseData, static_cast<int>(PacketFlag::RELIABLE));
+    // Send authentication response with playerId
+    RType::Messages::Connection::HandshakeResponse response;
+    response.accepted = true;
+    response.sessionId = sessionId;
+    response.serverId = "r-type-server";
+    response.message = "✓ Authentication successful! Welcome to R-Type, " + playerName + "!";
+    response.serverVersion = "1.0.0";
+    response.playerId = newPlayerId;
+
+    std::vector<uint8_t> responseData = response.serialize();
+    std::vector<uint8_t> packet =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::HANDSHAKE_RESPONSE, responseData);
+    std::unique_ptr<IPacket> responsePacket = createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
     event.peer->send(std::move(responsePacket), 0);
 
     // Send server constants (game rules) early so client can configure itself before gameplay.
@@ -342,38 +341,7 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
         server::GameruleBroadcaster::sendAllGamerules(event.peer, defaultRules);
     }
 
-    // DELETE ME - START
-    // DEV MODE: Auto-join default room and start game
-    if (DEV_MODE_SKIP_MATCHMAKING && _defaultRoom) {
-        LOG_INFO("[DEV MODE] Auto-joining player ", newPlayerId, " to default room");
-
-        if (_defaultRoom->join(newPlayerId)) {
-            LOG_INFO("✓ Player ", newPlayerId, " auto-joined default room");
-
-            // Send JoinedRoom response
-            S2C::JoinedRoom joinedResponse;
-            joinedResponse.success = true;
-            joinedResponse.roomId = _defaultRoom->getId();
-            joinedResponse.errorMessage = "";
-
-            _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM,
-                        joinedResponse.serialize());
-
-            // Auto-start the game
-            if (_defaultRoom->getState() == server::RoomState::WAITING) {
-                LOG_INFO("[DEV MODE] Auto-starting game in default room");
-                // NOTE: Don't call _sendGameStartToRoom() here.
-                // The main server loop will detect IN_PROGRESS and call it exactly once
-                // using room->tryMarkGameStartSent(). Calling it here causes double GameStart.
-                _defaultRoom->startGame();
-            }
-        } else {
-            LOG_ERROR("Failed to auto-join player ", newPlayerId, " to default room");
-        }
-    } else {
-        LOG_INFO("  Player is now in lobby - waiting for room selection");
-    }
-    // DELETE ME - END
+    LOG_INFO("  Player is now in lobby - waiting for room selection");
 }
 
 void Server::_handleRegisterRequest(HostNetworkEvent &event) {
@@ -529,8 +497,8 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
         return;
     }
 
-    // Only remove from lobby after successfully joining the room
-    _lobby->removePlayer(playerId);
+    // Player stays in lobby - room membership is tracked separately
+    // This allows all players to see all rooms at all times
 
     LOG_INFO("Room '", request.roomName, "' created by player ", playerId);
 
@@ -540,8 +508,8 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
     // Broadcast room state to the creator (now only player in room)
     _broadcastRoomState(room);
 
-    // Broadcast updated room list to all players in lobby (real-time update)
-    _broadcastRoomList();
+    // Broadcast updated room list to ALL connected players
+    _broadcastRoomListToAll();
 }
 
 void Server::_handleJoinRoom(HostNetworkEvent &event) {
@@ -599,20 +567,25 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
         return;
     }
 
-    // Only remove from lobby after successfully joining the room
-    _lobby->removePlayer(playerId);
+    // Player stays in lobby - room membership is tracked separately in RoomManager
 
     std::string modeStr = (isSpectator || autoSpectator) ? " as spectator" : "";
     LOG_INFO("Player ", playerId, " joined room '", request.roomId, "'", modeStr);
 
-    S2C::JoinedRoom response(request.roomId, true);
+    S2C::JoinedRoom response(request.roomId, true, "", (isSpectator || autoSpectator));
     _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+
+    // If player joined as spectator to an in-progress game, send them the current game state
+    if ((isSpectator || autoSpectator) && room->getState() == server::RoomState::IN_PROGRESS) {
+        LOG_INFO("Sending current game state to spectator ", playerId);
+        _sendGameStartToSpectator(playerId, room);
+    }
 
     // Broadcast updated room state to all players in the room
     _broadcastRoomState(room);
 
-    // Broadcast updated room list to all players in lobby (player count changed)
-    _broadcastRoomList();
+    // Broadcast updated room list to ALL connected players (player count changed)
+    _broadcastRoomListToAll();
 }
 
 void Server::_handleStartGame(HostNetworkEvent &event) {
@@ -673,11 +646,21 @@ void Server::_handleLeaveRoom(HostNetworkEvent &event) {
     playerRoom->leave(playerId);
     LOG_INFO("✓ Player ", playerId, " left room '", playerRoom->getId(), "'");
 
-    // Broadcast updated room state to remaining players
-    _broadcastRoomState(playerRoom);
+    // Player stays in lobby (never removed), no need to re-add
+    // Player name is stored in lobby/session, not in room
 
-    // Broadcast updated room list to all players in lobby (player count changed)
-    _broadcastRoomList();
+    // Check if room is now empty (no players, no spectators)
+    if (playerRoom->getPlayerCount() == 0 && playerRoom->getSpectators().empty()) {
+        std::string roomId = playerRoom->getId();
+        _roomManager->removeRoom(roomId);
+        LOG_INFO("✓ Room '", roomId, "' deleted (empty)");
+    } else {
+        // Broadcast updated room state to remaining players in the room
+        _broadcastRoomState(playerRoom);
+    }
+
+    // Broadcast updated room list to ALL connected players
+    _broadcastRoomListToAll();
 }
 
 void Server::run() {
@@ -712,13 +695,7 @@ void Server::run() {
                     _sendGameStartToRoom(room);
 
                     // Broadcast updated room list since state changed to IN_PROGRESS
-                    _broadcastRoomList();
-                    _eventBus->publish(server::GameStartedEvent(room->getId()));
-
-                    // Notify Lua scripts in this room that the game has started
-                    if (auto gameLogic = room->getGameLogic()) {
-                        gameLogic->notifyGameStarted(room->getId());
-                    }
+                    _broadcastRoomListToAll();
                 }
             }
         }
@@ -916,6 +893,64 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
     for (uint32_t spectatorId : spectators) {
         sendGameStart(spectatorId, 0);
     }
+}
+
+void Server::_sendGameStartToSpectator(uint32_t spectatorId, std::shared_ptr<server::Room> room) {
+    using namespace RType::Messages;
+
+    if (!room || room->getState() != server::RoomState::IN_PROGRESS) {
+        LOG_ERROR("Cannot send game start to spectator: room not in progress");
+        return;
+    }
+
+    server::ServerLoop *roomLoop = room->getServerLoop();
+    if (!roomLoop) {
+        LOG_ERROR("ServerLoop not available for room ", room->getId());
+        return;
+    }
+
+    std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = roomLoop->getECSWorld();
+    if (!ecsWorld) {
+        LOG_ERROR("ECSWorld not available for room ", room->getId());
+        return;
+    }
+
+    std::shared_ptr<server::IGameLogic> gameLogic = room->getGameLogic();
+    if (!gameLogic) {
+        LOG_ERROR("GameLogic not available for room ", room->getId());
+        return;
+    }
+
+    // Get the peer for this spectator
+    auto sessionIt = _playerIdToSessionId.find(spectatorId);
+    if (sessionIt == _playerIdToSessionId.end()) {
+        LOG_ERROR("Cannot find session for spectator ", spectatorId);
+        return;
+    }
+
+    const std::string &sessionId = sessionIt->second;
+    auto peerIt = _sessionPeers.find(sessionId);
+    if (peerIt == _sessionPeers.end() || !peerIt->second) {
+        LOG_ERROR("Cannot find peer for spectator ", spectatorId);
+        return;
+    }
+
+    // Send game rules first
+    server::GameruleBroadcaster::sendAllGamerules(peerIt->second, gameLogic->getGameRules());
+
+    // Serialize all entities
+    auto entities = _serializeEntities(ecsWorld);
+
+    // Send GameStart with entityId = 0 (spectator has no controllable entity)
+    S2C::GameStart gameStart;
+    gameStart.yourEntityId = 0;
+    gameStart.initialState.serverTick = roomLoop->getCurrentTick();
+    gameStart.initialState.entities = entities;
+
+    _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_GAME_START, gameStart.serialize());
+
+    LOG_INFO("✓ Sent GameStart to spectator ", spectatorId, " (room: ", room->getId(),
+             ", entities: ", entities.size(), ")");
 }
 
 void Server::_broadcastRoomState(std::shared_ptr<server::Room> room) {
@@ -1138,10 +1173,6 @@ std::vector<RType::Messages::S2C::EntityState> Server::_serializeEntities(
     return entities;
 }
 
-void Server::_broadcastRoomList() {
-    _broadcastRoomList({});
-}
-
 void Server::_broadcastRoomList(const std::vector<IPeer *> &specificPeers) {
     using namespace RType::Messages;
 
@@ -1173,38 +1204,58 @@ void Server::_broadcastRoomList(const std::vector<IPeer *> &specificPeers) {
 
     std::vector<uint8_t> payload = roomList.serialize();
 
-    // If specific peers provided, send only to them
-    if (!specificPeers.empty()) {
-        for (IPeer *peer : specificPeers) {
-            if (peer) {
-                _sendPacket(peer, NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
-            }
-        }
-        return;
-    }
-
-    // Otherwise, broadcast to all players in the lobby
-    auto lobbyPlayers = _lobby->getAllPlayers();
-
-    for (const auto &lobbyPlayer : lobbyPlayers) {
-        uint32_t playerId = lobbyPlayer.playerId;
-
-        auto sessionIt = _playerIdToSessionId.find(playerId);
-        if (sessionIt == _playerIdToSessionId.end()) {
-            continue;
-        }
-
-        const std::string &sessionId = sessionIt->second;
-        auto peerIt = _sessionPeers.find(sessionId);
-
-        if (peerIt != _sessionPeers.end() && peerIt->second) {
-            _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
+    // Send to specific peers (used when a player requests the list explicitly)
+    for (IPeer *peer : specificPeers) {
+        if (peer) {
+            _sendPacket(peer, NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
         }
     }
 
     if (!specificPeers.empty()) {
         LOG_INFO("✓ Sent RoomList to ", specificPeers.size(), " specific peer(s)");
-    } else {
-        LOG_INFO("✓ Broadcast RoomList to ", lobbyPlayers.size(), " players in lobby");
     }
+}
+
+void Server::_broadcastRoomListToAll() {
+    using namespace RType::Messages;
+
+    auto publicRooms = _roomManager->getPublicRooms();
+
+    S2C::RoomList roomList;
+    for (const auto &room : publicRooms) {
+        S2C::RoomInfoData info;
+        info.roomId = room->getId();
+        info.roomName = room->getName();
+        info.playerCount = static_cast<uint32_t>(room->getPlayerCount());
+        info.maxPlayers = static_cast<uint32_t>(room->getMaxPlayers());
+        info.isPrivate = room->isPrivate();
+
+        auto state = room->getState();
+        if (state == server::RoomState::WAITING)
+            info.state = 0;
+        else if (state == server::RoomState::STARTING)
+            info.state = 1;
+        else if (state == server::RoomState::IN_PROGRESS)
+            info.state = 2;
+        else if (state == server::RoomState::FINISHED)
+            info.state = 3;
+        else
+            info.state = 0;
+
+        roomList.rooms.push_back(info);
+    }
+
+    std::vector<uint8_t> payload = roomList.serialize();
+
+    // Broadcast to ALL connected players (everyone on the server sees all public rooms)
+    // Players can be in lobby OR in a room, they still see the full room list
+    size_t sentCount = 0;
+    for (const auto &[sessionId, peer] : _sessionPeers) {
+        if (peer) {
+            _sendPacket(peer, NetworkMessages::MessageType::S2C_ROOM_LIST, payload);
+            sentCount++;
+        }
+    }
+
+    LOG_INFO("✓ Broadcast RoomList to ", sentCount, " connected player(s)");
 }

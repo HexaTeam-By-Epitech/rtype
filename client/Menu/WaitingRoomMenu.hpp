@@ -63,6 +63,11 @@ namespace Game {
          */
         void SetIsHost(bool isHost);
 
+        /**
+         * @brief Set whether current player is spectator (shows spectator banner)
+         */
+        void SetIsSpectator(bool isSpectator);
+
         void Initialize() override;
         void Update() override;
         void Render() override;
@@ -81,6 +86,7 @@ namespace Game {
         uint32_t _currentPlayers = 0;
         uint32_t _maxPlayers = 4;
         bool _isHost = false;
+        bool _isSpectator = false;  // True if player is in spectator mode
 
         std::vector<PlayerInfo> _players;
         std::shared_ptr<UI::IButton> _startGameButton;

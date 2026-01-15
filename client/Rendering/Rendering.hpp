@@ -296,9 +296,10 @@ class Rendering {
      * @param players Vector of players in the room
      * @param roomName Name of the room
      * @param isHost Whether local player is the host
+     * @param isSpectator Whether local player is a spectator
      */
     void UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, const std::string &roomName,
-                           bool isHost);
+                           bool isHost, bool isSpectator = false);
 
     /**
      * @brief Enable or disable client-side prediction for local player

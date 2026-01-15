@@ -19,10 +19,11 @@ namespace RType::Messages::S2C {
         std::string roomId;
         bool success;
         std::string errorMessage;
+        bool isSpectator{false};
 
         JoinedRoom() = default;
-        JoinedRoom(const std::string &id, bool succ, const std::string &err = "")
-            : roomId(id), success(succ), errorMessage(err) {}
+        JoinedRoom(const std::string &id, bool succ, const std::string &err = "", bool spectator = false)
+            : roomId(id), success(succ), errorMessage(err), isSpectator(spectator) {}
 
         [[nodiscard]] std::vector<uint8_t> serialize() const {
             capnp::MallocMessageBuilder message;
@@ -30,6 +31,7 @@ namespace RType::Messages::S2C {
             builder.setRoomId(roomId);
             builder.setSuccess(success);
             builder.setErrorMessage(errorMessage);
+            builder.setIsSpectator(isSpectator);
 
             auto bytes = capnp::messageToFlatArray(message);
             auto byteArray = bytes.asBytes();
@@ -51,6 +53,7 @@ namespace RType::Messages::S2C {
             result.roomId = msg.getRoomId().cStr();
             result.success = msg.getSuccess();
             result.errorMessage = msg.getErrorMessage().cStr();
+            result.isSpectator = msg.getIsSpectator();
             return result;
         }
     };

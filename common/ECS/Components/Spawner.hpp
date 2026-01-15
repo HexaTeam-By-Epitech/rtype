@@ -23,6 +23,8 @@ namespace ecs {
         std::string scriptPath;  // Lua script for behavior
         float health;
         int scoreValue;
+        float spawnDelay;         // Delay in seconds from wave start
+        bool hasSpawned = false;  // Track if this request has been spawned
     };
 
     struct WaveConfig {
@@ -79,11 +81,10 @@ namespace ecs {
 
         void setConfig(const SpawnerConfig &config) { _config = config; }
         const SpawnerConfig &getConfig() const { return _config; }
+        SpawnerConfig &getConfigMutable() { return _config; }
 
-        int spawnerTime = 0;
-        int spawnerTicks = 0;
+        float waveElapsedTime = 0.0f;  // Time elapsed within current wave
         int currentWaveIndex = 0;
-        int lastTimeRan = 0;
 
         bool isActive = true;
 

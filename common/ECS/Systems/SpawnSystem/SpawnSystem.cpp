@@ -25,18 +25,13 @@ namespace ecs {
         // Process wave timing and spawning logic
         for (auto spawner : spawners) {
             Spawner &spawnerComp = registry.getComponent<Spawner>(spawner);
-            // handle the case there is not config set -- ""SpawnerConfig _config = {};"" in the relevant component
-            if (spawnerComp.getConfig().waves.empty()) {
-                continue;
-            }
 
-            SpawnerConfig const &config = spawnerComp.getConfig();
-            int wavesCount = static_cast<int>(config.waves.size());
-
-            if (config.waves.empty() || !spawnerComp.isActive) {
+            if (spawnerComp.getConfig().waves.empty() || !spawnerComp.isActive) {
                 continue;  // No waves configured or spawner inactive
-                // auto-inactivate when a config is finished
             }
+
+            SpawnerConfig &config = spawnerComp.getConfigMutable();
+            int wavesCount = static_cast<int>(config.waves.size());
 
             // Check if wavesIntervals is properly configured
             if (config.wavesIntervals.empty() ||
@@ -45,60 +40,48 @@ namespace ecs {
                 continue;
             }
 
-            // check if we need to move to the next wave, using wave intervals
-            if (spawnerComp.currentWaveIndex < wavesCount) {
-                int waveInterval = config.wavesIntervals[spawnerComp.currentWaveIndex];
+            if (spawnerComp.currentWaveIndex >= wavesCount) {
+                spawnerComp.isActive = false;
+                continue;
+            }
 
-                if (spawnerComp.spawnerTime >= waveInterval) {
-                    spawnerComp.spawnerTime = 0;
+            // Get current wave
+            WaveConfig &currentWave = config.waves[spawnerComp.currentWaveIndex];
+            float waveInterval = static_cast<float>(config.wavesIntervals[spawnerComp.currentWaveIndex]);
+
+            // Update wave elapsed time
+            spawnerComp.waveElapsedTime += deltaTime;
+
+            // Check if it's time to advance to next wave
+            if (spawnerComp.waveElapsedTime >= waveInterval) {
+                // Check if all enemies in current wave have spawned
+                bool allSpawned = true;
+                for (const auto &enemy : currentWave.enemies) {
+                    if (!enemy.hasSpawned) {
+                        allSpawned = false;
+                        break;
+                    }
+                }
+
+                if (allSpawned) {
                     spawnerComp.currentWaveIndex++;
-                    LOG_INFO("[SpawnSystem] Moving to wave ", spawnerComp.currentWaveIndex);
+                    spawnerComp.waveElapsedTime = 0.0f;
+                    LOG_INFO("[SpawnSystem] Moving to wave ", spawnerComp.currentWaveIndex + 1);
 
                     if (spawnerComp.currentWaveIndex >= wavesCount) {
-                        spawnerComp.isActive = false;  // No more waves
+                        spawnerComp.isActive = false;
                         LOG_INFO("[SpawnSystem] All waves completed for this spawner.");
                     }
                 }
             }
 
-            // Spawn enemies for the current wave (only once when wave starts)
-            if (spawnerComp.spawnerTime == 0 && spawnerComp.spawnerTicks == 0 &&
-                spawnerComp.currentWaveIndex < wavesCount) {
-                const WaveConfig &currentWave = config.waves[spawnerComp.currentWaveIndex];
-                for (const auto &request : currentWave.enemies) {
-                    spawnerComp.queueSpawn(request);
+            // Spawn enemies based on their individual delay within the wave
+            for (auto &enemy : currentWave.enemies) {
+                if (!enemy.hasSpawned && spawnerComp.waveElapsedTime >= enemy.spawnDelay) {
+                    _spawnEnemy(registry, enemy);
+                    enemy.hasSpawned = true;
                 }
-                LOG_INFO("[SpawnSystem] Queued ", currentWave.enemies.size(), " enemies for wave ",
-                         spawnerComp.currentWaveIndex + 1);
             }
-
-            // Update spawner time
-            spawnerComp.spawnerTicks += 1;
-            if (spawnerComp.spawnerTicks >= static_cast<int>(1.0f / deltaTime)) {
-                spawnerComp.spawnerTime += 1;
-                spawnerComp.spawnerTicks = 0;
-            }
-        }
-
-        // Process spawn requests from Spawner components
-        for (auto entity : spawners) {
-            Spawner &spawner = registry.getComponent<Spawner>(entity);
-
-            if (spawner.lastTimeRan == spawner.spawnerTime) {
-                continue;  // Already processed this time tick
-            }
-            spawner.lastTimeRan = spawner.spawnerTime;
-
-            if (!spawner.hasPendingSpawns()) {
-                continue;
-            }
-
-            const auto &requests = spawner.getSpawnRequests();
-            for (const auto &request : requests) {
-                _spawnEnemy(registry, request);
-            }
-
-            spawner.clearSpawnRequests();
         }
     }
 

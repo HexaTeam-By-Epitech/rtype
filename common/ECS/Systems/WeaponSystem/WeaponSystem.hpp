@@ -8,6 +8,8 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include "../../Components/Projectile.hpp"
 #include "../../Components/Transform.hpp"
 #include "../../Components/Velocity.hpp"
@@ -26,14 +28,37 @@ namespace ecs {
     class WeaponSystem : public ISystem {
        public:
         /**
+         * @brief Callback for projectile creation events
+         * Parameters: projectileId, ownerId, posX, posY, dirX, dirY, speed, damage, friendly
+         */
+        using ProjectileCreatedCallback =
+            std::function<void(uint32_t, uint32_t, float, float, float, float, float, int, bool)>;
+
+        /**
          * @brief Default constructor.
          */
         WeaponSystem() = default;
 
         /**
+         * @brief Constructor with callback for projectile creation events.
+         * 
+         * @param callback Function to call when a projectile is created
+         */
+        explicit WeaponSystem(ProjectileCreatedCallback callback) : _projectileCreatedCallback(callback) {}
+
+        /**
          * @brief Default destructor.
          */
         ~WeaponSystem() override = default;
+
+        /**
+         * @brief Set the callback for projectile creation events.
+         * 
+         * @param callback Function to call when a projectile is created
+         */
+        void setProjectileCreatedCallback(ProjectileCreatedCallback callback) {
+            _projectileCreatedCallback = callback;
+        }
 
         /**
          * @brief Manages weapon cooldowns for all entities.
@@ -102,5 +127,7 @@ namespace ecs {
          * @return Transform component for the projectile initial position
          */
         Transform calculateProjectileTransform(Registry &registry, std::uint32_t ownerId);
+
+        ProjectileCreatedCallback _projectileCreatedCallback;
     };
 }  // namespace ecs

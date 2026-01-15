@@ -6,7 +6,11 @@
 */
 
 #include "CollisionSystem.hpp"
-#include "../../Components/IComponent.hpp"
+#include <vector>
+#include "common/ECS/Components/Enemy.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/IComponent.hpp"
+#include "common/ECS/Components/Projectile.hpp"
 
 namespace ecs {
     /**
@@ -15,6 +19,7 @@ namespace ecs {
     void CollisionSystem::update(Registry &registry, [[maybe_unused]] float deltaTime) {
         auto entities = registry.getEntitiesWithMask(this->getComponentMask());
         std::vector<std::uint32_t> entitiesVec(entities.begin(), entities.end());
+        std::vector<std::uint32_t> projectilesToDestroy;
 
         for (size_t i = 0; i < entitiesVec.size(); ++i) {
             for (size_t j = i + 1; j < entitiesVec.size(); ++j) {
@@ -33,10 +38,51 @@ namespace ecs {
 
                 if (checkAABB(transform1.getPosition(), collider1.getSize(), collider1.getOffset(),
                               transform2.getPosition(), collider2.getSize(), collider2.getOffset())) {
-                    // TODO: Handle collision response (events, physics, etc.)
+                    // Handle projectile hitting enemy
+                    handleProjectileCollision(registry, entity1, entity2, projectilesToDestroy);
+                    handleProjectileCollision(registry, entity2, entity1, projectilesToDestroy);
                 }
             }
         }
+
+        // Destroy projectiles that hit targets
+        for (auto projectileId : projectilesToDestroy) {
+            if (registry.hasComponent<Projectile>(projectileId)) {
+                registry.destroyEntity(projectileId);
+            }
+        }
+    }
+
+    void CollisionSystem::handleProjectileCollision(Registry &registry, std::uint32_t entity1,
+                                                    std::uint32_t entity2,
+                                                    std::vector<std::uint32_t> &projectilesToDestroy) {
+        // Check if entity1 is a projectile and entity2 is an enemy
+        if (!registry.hasComponent<Projectile>(entity1)) {
+            return;
+        }
+
+        auto &projectile = registry.getComponent<Projectile>(entity1);
+
+        // Check if entity2 is an enemy
+        if (!registry.hasComponent<Enemy>(entity2)) {
+            return;
+        }
+
+        // Check if projectile is friendly and entity2 is an enemy (should hit it)
+        if (!projectile.isFriendly()) {
+            return;  // Enemy projectiles don't hit enemies
+        }
+
+        // Apply damage to enemy if it has health
+        if (registry.hasComponent<Health>(entity2)) {
+            auto &health = registry.getComponent<Health>(entity2);
+            int currentHealth = health.getCurrentHealth();
+            int newHealth = currentHealth - static_cast<int>(projectile.getDamage());
+            health.setCurrentHealth(newHealth);
+        }
+
+        // Mark projectile for destruction
+        projectilesToDestroy.push_back(entity1);
     }
 
     /**

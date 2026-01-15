@@ -151,7 +151,7 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
     // Visual differentiation: tint green for local player
     uint32_t tint = isLocalPlayer ? 0xAAFFAAFF : 0xFFFFFFFF;
 
-    _graphics.DrawTextureEx("r-typesheet1.gif", srcX, srcY, srcWidth, srcHeight,
+    _graphics.DrawTextureEx("PlayerShips.gif", srcX, srcY, srcWidth, srcHeight,
                             entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
                             scale, tint);
 
@@ -185,18 +185,20 @@ void EntityRenderer::renderEnemy(const RenderableEntity &entity) {
 }
 
 void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
-    // Small bullet visualization
+    // Projectile as a filled rectangle
 
     uint32_t color;
     if (entity.type == RType::Messages::Shared::EntityType::PlayerBullet) {
         color = 0xFFFF00FF;  // Yellow
     } else {
         color = 0xFF00FFFF;  // Magenta
-    }  // Placeholder: Small 8x8 rectangle
-    float halfSize = 4.0f;
+    }
+    // Render as a 16x16 rectangle
+    int size = 16;
+    int halfSize = size / 2;
 
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 8,
-                             8, color);
+    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize),
+                             size, size, color);
 
     // Projectiles typically don't have health bars
 }

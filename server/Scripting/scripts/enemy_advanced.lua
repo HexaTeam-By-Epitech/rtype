@@ -5,7 +5,7 @@
 ** enemy_advanced.lua - Advanced enemy with sinusoidal movement pattern
 ]]
 
-local baseSpeed = 180 -- horizontal movement speed
+local baseSpeed = 80 -- horizontal movement speed
 local sineSpeed = 2.5 -- oscillation frequency
 local sineAmplitude = 100 -- oscillation amplitude
 local time = 0

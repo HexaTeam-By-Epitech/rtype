@@ -180,7 +180,7 @@ namespace server {
                     .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
                     .with(ecs::Weapon(_gameRules.getDefaultPlayerFireRate(), 0.0f, 0,
                                       _gameRules.getDefaultPlayerDamage()))
-                    .with(ecs::Sprite("r-typesheet1.gif", {1, 69, 32, 14}, 3.0f, 0.0f, false, false, 0))
+                    .with(ecs::Sprite("PlayerShips.gif", {1, 69, 32, 14}, 3.0f, 0.0f, false, false, 0))
                     .with(playerAnimations)
                     .with(ecs::Animation("idle"));
             ecs::Address entityAddress = playerEntity.getAddress();
@@ -323,8 +323,16 @@ namespace server {
             }
 
             // Handle shooting
+            auto &weapon = entity.get<ecs::Weapon>();
+
             if (input.isShooting) {
-                //WIPswan
+                if (entity.has<ecs::Weapon>()) {
+                    weapon.setShouldShoot(true);
+                }
+            } else {
+                if (entity.has<ecs::Weapon>()) {
+                    weapon.setShouldShoot(false);
+                }
             }
         } catch (const std::exception &e) {
             LOG_ERROR("Error applying input for player ", playerId, ": ", e.what());

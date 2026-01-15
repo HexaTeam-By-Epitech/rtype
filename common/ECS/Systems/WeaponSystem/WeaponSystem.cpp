@@ -20,6 +20,7 @@ namespace ecs {
         for (auto entityId : entities) {
             auto &weapon = registry.getComponent<Weapon>(entityId);
 
+            weapon.setCooldown(std::max(0.0F, weapon.getCooldown() - deltaTime));
             if (weapon.getCooldown() > 0.0F) {
                 continue;
             }
@@ -27,8 +28,23 @@ namespace ecs {
                 continue;
             }
 
-            PrefabFactory::createProjectile(registry, entityId, 0.0F, 0.0F, 1.0F, 0.0F, 300.0F,
-                                            static_cast<int>(weapon.getDamage()), true);
+            weapon.setCooldown(0.4F);
+
+            // Calculate projectile properties using same logic as fireWeapon
+            Transform projectileTransform = calculateProjectileTransform(registry, entityId);
+            Velocity projectileVelocity = calculateProjectileVelocity(registry, entityId, 300.0F);
+            auto pos = projectileTransform.getPosition();
+            auto dir = projectileVelocity.getDirection();
+
+            uint32_t projectileId =
+                PrefabFactory::createProjectile(registry, entityId, pos.x, pos.y, dir.x, dir.y, 300.0F,
+                                                static_cast<int>(weapon.getDamage()), true);
+
+            // Invoke callback if set and projectile was created
+            if (_projectileCreatedCallback && projectileId != 0) {
+                _projectileCreatedCallback(projectileId, entityId, pos.x, pos.y, dir.x, dir.y, 300.0f,
+                                           static_cast<int>(weapon.getDamage()), true);
+            }
         }
     }
 
@@ -57,22 +73,24 @@ namespace ecs {
             weapon.setCooldown(1.0F / fireRate);  // Convert fire rate (shots/sec) to cooldown (sec/shot)
         }
 
+        // Invoke callback if set and projectile was created
+        if (_projectileCreatedCallback && projectileId != 0) {
+            auto &transform = registry.getComponent<Transform>(projectileId);
+            auto &velocity = registry.getComponent<Velocity>(projectileId);
+            auto pos = transform.getPosition();
+            auto dir = velocity.getDirection();
+            LOG_DEBUG("[WEAPON] Projectile fired: ID=", projectileId, " Pos=(", pos.x, ",", pos.y, ") Dir=(",
+                      dir.x, ",", dir.y, ") Speed=300.0");
+            _projectileCreatedCallback(projectileId, ownerId, pos.x, pos.y, dir.x, dir.y, 300.0f,
+                                       static_cast<int>(weapon.getDamage()), isFriendly);
+        }
+
         return projectileId;
     }
 
     Velocity WeaponSystem::calculateProjectileVelocity(Registry &registry, std::uint32_t ownerId,
                                                        float baseSpeed) {
-        // Default: projectile moves right (standard R-Type behavior)
-        Velocity defaultVelocity(1.0F, 0.0F, baseSpeed);
-
-        // If owner has velocity, inherit its direction
-        if (registry.hasComponent<Velocity>(ownerId)) {
-            auto &ownerVelocity = registry.getComponent<Velocity>(ownerId);
-            auto ownerDir = ownerVelocity.getDirection();
-            return Velocity(ownerDir.x, ownerDir.y, baseSpeed);
-        }
-
-        return defaultVelocity;
+        return Velocity(1.0F, 0.0F, baseSpeed);
     }
 
     Transform WeaponSystem::calculateProjectileTransform(Registry &registry, std::uint32_t ownerId) {
@@ -83,9 +101,8 @@ namespace ecs {
             auto &ownerTransform = registry.getComponent<Transform>(ownerId);
             auto ownerPos = ownerTransform.getPosition();
 
-            // Offset projectile slightly from owner to avoid immediate collision
-            float offsetX = 10.0F;  // Small offset in front of the shooter
-            return Transform(ownerPos.x + offsetX, ownerPos.y);
+            // Projectile spawns at the same position as the owner
+            return Transform(ownerPos.x, ownerPos.y);
         }
 
         return defaultTransform;
@@ -130,6 +147,16 @@ namespace ecs {
         float fireRate = weapon.getFireRate();
         if (fireRate > 0.0F) {
             weapon.setCooldown(1.0F / fireRate);
+        }
+
+        // Invoke callback if set and projectile was created
+        if (_projectileCreatedCallback && projectileId != 0) {
+            auto &transform = registry.getComponent<Transform>(projectileId);
+            auto &velocity = registry.getComponent<Velocity>(projectileId);
+            auto pos = transform.getPosition();
+            auto dir = velocity.getDirection();
+            _projectileCreatedCallback(projectileId, ownerId, pos.x, pos.y, dir.x, dir.y, chargedSpeed,
+                                       static_cast<int>(chargedDamage), isFriendly);
         }
 
         return projectileId;

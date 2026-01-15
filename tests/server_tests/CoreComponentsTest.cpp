@@ -20,6 +20,7 @@
 #include "server/Events/GameEvent/PlayerLeftEvent.hpp"
 
 using namespace server;
+using namespace ecs;
 
 // ============================================================================
 // EventBus Tests

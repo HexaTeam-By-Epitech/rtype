@@ -44,6 +44,7 @@ add_executable(ecs_tests
         ecs_tests/RegistryTest.cpp
         ecs_tests/SystemsTest.cpp
         ../common/ECS/Registry.cpp
+        ../common/ECS/Prefabs/PrefabFactory.cpp
         ../common/ECS/Systems/MovementSystem/MovementSystem.cpp
         ../common/ECS/Systems/HealthSystem/HealthSystem.cpp
         ../common/ECS/Systems/WeaponSystem/WeaponSystem.cpp
@@ -51,6 +52,7 @@ add_executable(ecs_tests
 )
 
 target_include_directories(ecs_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/common/ECS
         ${CMAKE_SOURCE_DIR}/common/ECS/Components
         ${CMAKE_SOURCE_DIR}/common/ECS/Systems

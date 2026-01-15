@@ -24,6 +24,10 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
         it->second.type = type;
         it->second.health = health;
 
+        // Check if entity is a projectile (bullets should NOT be interpolated)
+        bool isProjectile = (type == RType::Messages::Shared::EntityType::PlayerBullet ||
+                             type == RType::Messages::Shared::EntityType::EnemyBullet);
+
         if (isLocalPlayer && _clientSidePredictionEnabled) {
             // CLIENT-SIDE PREDICTION for local player (pro-style dead reckoning)
             float errorX = x - it->second.x;
@@ -55,15 +59,16 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                           ")");
             }
             // Otherwise keep predicted position - client knows best!
-        } else if (_interpolationEnabled) {
-            // INTERPOLATION for other entities
+        } else if (_interpolationEnabled && !isProjectile) {
+            // INTERPOLATION for other entities (but NOT projectiles)
+            // Projectiles move too fast (300 units/sec) for smooth interpolation
             it->second.prevX = it->second.x;
             it->second.prevY = it->second.y;
             it->second.targetX = x;
             it->second.targetY = y;
             it->second.interpolationFactor = 0.0f;
         } else {
-            // No interpolation - snap directly
+            // No interpolation - snap directly (for projectiles and when disabled)
             it->second.x = x;
             it->second.y = y;
         }
@@ -263,6 +268,13 @@ void EntityRenderer::updateInterpolation(float deltaTime) {
     }
 
     for (auto &[id, entity] : _entities) {
+        // Skip projectiles - they move too fast for interpolation (300 units/sec)
+        // Interpolation would cause visual "sliding" instead of smooth linear movement
+        if (entity.type == RType::Messages::Shared::EntityType::PlayerBullet ||
+            entity.type == RType::Messages::Shared::EntityType::EnemyBullet) {
+            continue;
+        }
+
         // Skip if already at target
         if (entity.interpolationFactor >= 1.0f) {
             continue;

@@ -28,7 +28,15 @@ namespace ecs {
                 continue;
             }
 
-            weapon.setCooldown(0.4F);
+            // Use fireRate from weapon configuration instead of hardcoded value
+            // fireRate is shots per second (e.g., 10.0f = 10 shots/sec)
+            // cooldown is seconds per shot (e.g., 1/10 = 0.1s between shots)
+            float fireRate = weapon.getFireRate();
+            if (fireRate > 0.0F) {
+                weapon.setCooldown(1.0F / fireRate);
+            } else {
+                weapon.setCooldown(0.1F);  // Fallback: 10 shots/sec
+            }
 
             // Calculate projectile properties using same logic as fireWeapon
             Transform projectileTransform = calculateProjectileTransform(registry, entityId);

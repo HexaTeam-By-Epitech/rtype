@@ -21,6 +21,8 @@ file(GLOB_RECURSE ECS_SOURCES
 # Find Lua and sol2
 find_package(lua REQUIRED)
 find_package(sol2 REQUIRED)
+find_package(unofficial-argon2 CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # Librairie serveur
 if (WIN32)
@@ -48,6 +50,8 @@ target_link_libraries(rtype_server_lib PUBLIC
         rtype_threading
         lua
         sol2::sol2
+        unofficial::argon2::libargon2
+        nlohmann_json::nlohmann_json
 )
 
 # Exécutable serveur

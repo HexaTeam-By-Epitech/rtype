@@ -120,6 +120,12 @@ class Server {
     void _handleRegisterRequest(HostNetworkEvent &event);
 
     /**
+     * @brief Handle player login request
+     * @param event Network event with packet data
+     */
+    void _handleLoginRequest(HostNetworkEvent &event);
+
+    /**
      * @brief Handle player input packet
      * @param event Network event with packet data
      */

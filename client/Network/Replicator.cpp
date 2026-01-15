@@ -8,6 +8,7 @@
 #include "Replicator.hpp"
 #include <chrono>
 #include "Capnp/ConnectionMessages.hpp"
+#include "Events/UIEvent.hpp"
 
 Replicator::Replicator(EventBus &eventBus, bool isSpectator)
     : _eventBus(eventBus), _isSpectator(isSpectator), _host(createClientHost()) {}
@@ -143,7 +144,12 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                             if (handshakeResp.accepted) {
                                 _authenticated.store(true);
                                 _myPlayerId.store(handshakeResp.playerId);
-                                LOG_INFO("✓ Authenticated! Player ID: ", handshakeResp.playerId);
+                                LOG_INFO("✓ Authenticated! Player ID: ", handshakeResp.playerId,
+                                         ", Name: ", handshakeResp.playerName);
+
+                                // Publish AUTH_SUCCESS with displayName from server
+                                _eventBus.publish(
+                                    UIEvent(UIEventType::AUTH_SUCCESS, handshakeResp.playerName));
                             } else {
                                 _authenticated.store(false);
                                 LOG_ERROR("✗ Authentication failed: ", handshakeResp.message);
@@ -152,6 +158,47 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                             LOG_ERROR("Failed to parse HandshakeResponse: ", e.what());
                             messageContent = "Authentication error";
                             _authenticated.store(false);
+                        }
+                    } else if (messageType == NetworkMessages::MessageType::REGISTER_RESPONSE) {
+                        // Parse RegisterResponse
+                        auto payload = NetworkMessages::getPayload(event.packet->getData());
+                        try {
+                            auto registerResp = RType::Messages::S2C::RegisterResponse::deserialize(payload);
+                            if (registerResp.success) {
+                                LOG_INFO("✓ Registration successful: ", registerResp.message);
+                                messageContent = "Registration successful: " + registerResp.message;
+                            } else {
+                                LOG_WARNING("✗ Registration failed: ", registerResp.message);
+                                messageContent = "Registration failed: " + registerResp.message;
+                            }
+                        } catch (const std::exception &e) {
+                            LOG_ERROR("Failed to parse RegisterResponse: ", e.what());
+                            messageContent = "Registration error";
+                        }
+                    } else if (messageType == NetworkMessages::MessageType::LOGIN_RESPONSE) {
+                        // Parse LoginResponse
+                        auto payload = NetworkMessages::getPayload(event.packet->getData());
+                        try {
+                            auto loginResp = RType::Messages::S2C::LoginResponse::deserialize(payload);
+                            if (loginResp.success) {
+                                LOG_INFO("✓ Login successful: ", loginResp.message);
+                                messageContent = "Login successful: " + loginResp.message;
+                                // Optionally store session token
+                                // _sessionToken = loginResp.sessionToken;
+
+                                // Publish AUTH_SUCCESS event with username (extract from message or store separately)
+                                // For now, we'll extract it from the stored username during sendLoginAccount
+                                // This is handled by storing _lastLoginUsername in sendLoginAccount
+                                if (!_lastLoginUsername.empty()) {
+                                    _eventBus.publish(UIEvent(UIEventType::AUTH_SUCCESS, _lastLoginUsername));
+                                }
+                            } else {
+                                LOG_WARNING("✗ Login failed: ", loginResp.message);
+                                messageContent = "Login failed: " + loginResp.message;
+                            }
+                        } catch (const std::exception &e) {
+                            LOG_ERROR("Failed to parse LoginResponse: ", e.what());
+                            messageContent = "Login error";
                         }
                     } else if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
                         messageContent = "GameStart received";
@@ -300,6 +347,50 @@ bool Replicator::sendConnectRequest(const std::string &playerName, const std::st
     // Wrap in network protocol
     auto requestData =
         NetworkMessages::createMessage(NetworkMessages::MessageType::HANDSHAKE_REQUEST, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
+bool Replicator::sendRegisterAccount(const std::string &username, const std::string &password) {
+    if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot send RegisterAccount: Not connected");
+        return false;
+    }
+
+    using namespace RType::Messages;
+
+    // Create RegisterAccount message
+    C2S::RegisterAccount request(username, password);
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::REGISTER_REQUEST, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
+bool Replicator::sendLoginAccount(const std::string &username, const std::string &password) {
+    if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot send LoginAccount: Not connected");
+        return false;
+    }
+
+    // Store username for AUTH_SUCCESS event when response arrives
+    _lastLoginUsername = username;
+
+    using namespace RType::Messages;
+
+    // Create LoginAccount message
+    C2S::LoginAccount request(username, password);
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData = NetworkMessages::createMessage(NetworkMessages::MessageType::LOGIN_REQUEST, payload);
 
     // Send via ENet
     auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));

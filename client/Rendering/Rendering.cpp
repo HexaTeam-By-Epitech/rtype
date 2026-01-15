@@ -6,7 +6,6 @@
 */
 
 #include "Rendering.hpp"
-#include <chrono>
 #include <thread>
 #include "Events/UIEvent.hpp"
 #include "UI/TextUtils.hpp"
@@ -429,7 +428,11 @@ void Rendering::InitializeWaitingRoomMenu() {
 
 void Rendering::SubscribeToConnectionEvents() {
     _eventBus.subscribe<UIEvent>([this](const UIEvent &event) {
-        if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
+        if (event.getType() == UIEventType::AUTH_SUCCESS) {
+            // Update player name after authentication
+            const std::string &username = event.getData();
+            SetPlayerName(username);
+        } else if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
             LOG_INFO("[Rendering] Connection successful!");
 
             // Clear connecting state
@@ -501,6 +504,13 @@ void Rendering::SetShowFps(bool enabled) {
 
 bool Rendering::GetShowFps() const {
     return _showFps;
+}
+
+void Rendering::SetPlayerName(const std::string &name) {
+    if (_mainMenu) {
+        _mainMenu->SetProfileName(name);
+    }
+    LOG_INFO("[Rendering] Player name updated to: ", name);
 }
 
 void Rendering::StartGame() {
@@ -635,21 +645,44 @@ void Rendering::UpdateUI() {
             _loginMenu->Update();
 
             // Check for submission
-            if (_loginMenu->IsLoginSubmitted() || _loginMenu->IsRegisterSubmitted() ||
-                _loginMenu->IsGuestSubmitted()) {
-                std::string username;
-                if (_loginMenu->IsGuestSubmitted()) {
-                    username = "Guest";
+            if (_loginMenu->IsRegisterSubmitted()) {
+                // Register: Send RegisterAccount event
+                std::string username = _loginMenu->GetUsername();
+                std::string password = _loginMenu->GetPassword();
+
+                if (!username.empty() && !password.empty()) {
+                    LOG_INFO("[Rendering] Sending register request for user: " + username);
+                    // Publish event with "username:password" format
+                    std::string credentials = username + ":" + password;
+                    _eventBus.publish(UIEvent(UIEventType::REGISTER_ACCOUNT, credentials));
+
+                    // Reset the menu state so it doesn't keep sending
+                    _loginMenu->Reset();
                 } else {
-                    username = _loginMenu->GetUsername();
+                    _loginMenu->SetErrorMessage("Please enter username and password");
                 }
 
-                // Update MainMenu profile button
-                if (_mainMenu) {
-                    _mainMenu->SetProfileName(username);
+            } else if (_loginMenu->IsLoginSubmitted()) {
+                // Login: Send LoginAccount event
+                std::string username = _loginMenu->GetUsername();
+                std::string password = _loginMenu->GetPassword();
+
+                if (!username.empty() && !password.empty()) {
+                    LOG_INFO("[Rendering] Sending login request for user: " + username);
+                    // Publish event with "username:password" format
+                    std::string credentials = username + ":" + password;
+                    _eventBus.publish(UIEvent(UIEventType::LOGIN_ACCOUNT, credentials));
+
+                    // Reset the menu state so it doesn't keep sending
+                    _loginMenu->Reset();
+                } else {
+                    _loginMenu->SetErrorMessage("Please enter username and password");
                 }
 
-                LOG_INFO("[Rendering] User logged in as: " + username);
+            } else if (_loginMenu->IsGuestSubmitted()) {
+                // Guest: Name will be received from server via HANDSHAKE_RESPONSE
+                // Just close the menu, AUTH_SUCCESS event will be published by Replicator
+                LOG_INFO("[Rendering] Guest login selected");
 
                 // Close menu
                 _loginMenu->Hide();

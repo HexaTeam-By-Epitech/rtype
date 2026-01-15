@@ -222,6 +222,24 @@ class Replicator {
                             const std::string &password);
 
     /**
+     * @brief Send register account request to server.
+     * 
+     * @param username Username for new account
+     * @param password Password for new account
+     * @return true if the packet was sent successfully
+     */
+    bool sendRegisterAccount(const std::string &username, const std::string &password);
+
+    /**
+     * @brief Send login request to server.
+     * 
+     * @param username Account username
+     * @param password Account password
+     * @return true if the packet was sent successfully
+     */
+    bool sendLoginAccount(const std::string &username, const std::string &password);
+
+    /**
      * @brief Send list rooms request to server.
      * 
      * @return true if the packet was sent successfully
@@ -289,7 +307,8 @@ class Replicator {
     EventBus &_eventBus;
     std::atomic<bool> _connected{false};
     std::atomic<bool> _authenticated{false};
-    std::atomic<uint32_t> _myPlayerId{0};  // Player ID assigned by server
+    std::atomic<uint32_t> _myPlayerId{0};
+    std::string _lastLoginUsername;  // Track username for AUTH_SUCCESS event  // Player ID assigned by server
     bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;

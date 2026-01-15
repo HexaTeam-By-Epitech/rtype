@@ -14,6 +14,8 @@
 #include "GameState.hpp"
 #include "GamerulePacket.hpp"
 #include "JoinedRoom.hpp"
+#include "LoginResponse.hpp"
+#include "RegisterResponse.hpp"
 #include "RoomCreated.hpp"
 #include "RoomList.hpp"
 #include "RoomState.hpp"

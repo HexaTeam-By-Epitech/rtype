@@ -100,3 +100,14 @@ struct GamerulePacket {
   gamerules @0 :List(Gamerule);
 }
 
+# Authentication responses
+struct RegisterResponse {
+  success @0 :Bool;
+  message @1 :Text;  # Error message if failed
+}
+
+struct LoginResponse {
+  success @0 :Bool;
+  message @1 :Text;  # Error message if failed
+  sessionToken @2 :Text;  # Token if successful
+}

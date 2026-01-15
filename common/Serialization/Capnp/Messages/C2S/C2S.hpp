@@ -12,7 +12,9 @@
 #include "JoinRoom.hpp"
 #include "LeaveRoom.hpp"
 #include "ListRooms.hpp"
+#include "LoginAccount.hpp"
 #include "PlayerInput.hpp"
+#include "RegisterAccount.hpp"
 #include "StartGame.hpp"
 #include "StartMatchmaking.hpp"
 

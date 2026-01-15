@@ -106,6 +106,32 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
         }
     } else if (event.getType() == UIEventType::QUIT_GAME) {
         stop();
+    } else if (event.getType() == UIEventType::REGISTER_ACCOUNT) {
+        LOG_INFO("[GameLoop] Register account requested by UI");
+        if (_replicator) {
+            // Parse credentials (format: "username:password")
+            const std::string &credentials = event.getData();
+            size_t colonPos = credentials.find(':');
+            if (colonPos != std::string::npos) {
+                std::string username = credentials.substr(0, colonPos);
+                std::string password = credentials.substr(colonPos + 1);
+                LOG_INFO("[GameLoop] Registering account: ", username);
+                _replicator->sendRegisterAccount(username, password);
+            }
+        }
+    } else if (event.getType() == UIEventType::LOGIN_ACCOUNT) {
+        LOG_INFO("[GameLoop] Login account requested by UI");
+        if (_replicator) {
+            // Parse credentials (format: "username:password")
+            const std::string &credentials = event.getData();
+            size_t colonPos = credentials.find(':');
+            if (colonPos != std::string::npos) {
+                std::string username = credentials.substr(0, colonPos);
+                std::string password = credentials.substr(colonPos + 1);
+                LOG_INFO("[GameLoop] Logging in with account: ", username);
+                _replicator->sendLoginAccount(username, password);
+            }
+        }
     }
 }
 

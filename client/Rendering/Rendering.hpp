@@ -369,6 +369,12 @@ class Rendering {
      */
     [[nodiscard]] bool GetShowFps() const;
 
+    /**
+     * @brief Update the displayed player name (e.g., after authentication)
+     * @param name The player's username
+     */
+    void SetPlayerName(const std::string &name);
+
    private:
     enum class Scene { MENU, IN_GAME };
 

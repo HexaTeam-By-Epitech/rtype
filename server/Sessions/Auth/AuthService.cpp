@@ -6,40 +6,19 @@
 */
 
 #include "server/Sessions/Auth/AuthService.hpp"
+#include <argon2.h>
 #include <algorithm>
+#include <chrono>
+#include <cstring>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
 #include "common/Logger/Logger.hpp"
 
+using json = nlohmann::json;
+
 namespace server {
-
-    // Constant-time string comparison to prevent timing attacks
-    // Returns true if strings are equal, false otherwise
-    static bool constantTimeCompare(const std::string &a, const std::string &b) {
-        // If lengths differ, still compare to maintain constant time
-        size_t length = a.length();
-        if (b.length() != length) {
-            // Continue comparison with padding to maintain timing
-            length = std::max(a.length(), b.length());
-        }
-
-        volatile uint8_t result = 0;
-
-        for (size_t i = 0; i < length; ++i) {
-            uint8_t aChar = (i < a.length()) ? static_cast<uint8_t>(a[i]) : 0;
-            uint8_t bChar = (i < b.length()) ? static_cast<uint8_t>(b[i]) : 0;
-            result |= aChar ^ bChar;
-        }
-
-        // Also check length equality in constant time
-        volatile uint8_t lengthDiff = 0;
-        if (a.length() != b.length()) {
-            lengthDiff = 1;
-        }
-
-        return (result | lengthDiff) == 0;
-    }
 
     AuthService::AuthService() {
         loadAccounts();
@@ -47,6 +26,50 @@ namespace server {
 
     AuthService::AuthService(const std::string &accountsFile) : _accountsFile(accountsFile) {
         loadAccounts();
+    }
+
+    std::string AuthService::hashPassword(const std::string &password) {
+        // Argon2id parameters (recommended for password hashing)
+        const uint32_t t_cost = 2;       // 2 iterations
+        const uint32_t m_cost = 65536;   // 64 MiB memory
+        const uint32_t parallelism = 1;  // 1 thread
+        const size_t hashlen = 32;       // 32 bytes hash
+        const size_t saltlen = 16;       // 16 bytes salt
+        const size_t encodedlen = 128;   // Encoded string length
+
+        // Generate random salt
+        unsigned char salt[saltlen];
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, 255);
+        for (size_t i = 0; i < saltlen; ++i) {
+            salt[i] = static_cast<unsigned char>(dis(gen));
+        }
+
+        // Allocate buffer for encoded hash
+        char encoded[encodedlen];
+
+        // Hash password using Argon2id
+        int result = argon2id_hash_encoded(t_cost, m_cost, parallelism, password.c_str(), password.length(),
+                                           salt, saltlen, hashlen, encoded, encodedlen);
+
+        if (result != ARGON2_OK) {
+            LOG_ERROR("Failed to hash password: ", argon2_error_message(result));
+            return "";
+        }
+
+        return std::string(encoded);
+    }
+
+    bool AuthService::verifyPassword(const std::string &password, const std::string &hash) {
+        if (hash.empty() || password.empty()) {
+            return false;
+        }
+
+        // Verify password against Argon2 hash
+        int result = argon2id_verify(hash.c_str(), password.c_str(), password.length());
+
+        return result == ARGON2_OK;
     }
 
     bool AuthService::authenticate(const std::string &username, const std::string &password) {
@@ -57,28 +80,40 @@ namespace server {
         }
 
         if (username.empty() || password.empty()) {
+            LOG_WARNING("Authentication failed: empty credentials");
             return false;
         }
 
         // Minimum length requirements
         if (username.length() < 3 || password.length() < 4) {
+            LOG_WARNING("Authentication failed: credentials too short (username: ", username.length(),
+                        ", password: ", password.length(), " chars)");
             return false;
         }
 
         // Check against stored accounts
         auto it = _accounts.find(username);
         if (it == _accounts.end()) {
+            LOG_WARNING("Authentication failed: account '", username, "' doesn't exist");
             return false;  // Account doesn't exist
         }
 
-        // Verify password using constant-time comparison to prevent timing attacks
-        if (!constantTimeCompare(it->second, password)) {
+        // Verify password using Argon2
+        if (!verifyPassword(password, it->second.passwordHash)) {
+            LOG_WARNING("Authentication failed: incorrect password for '", username, "'");
             return false;  // Wrong password
         }
+
+        // Update last login timestamp
+        auto now = std::chrono::system_clock::now();
+        it->second.lastLogin =
+            std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+        saveAccounts();  // Save updated timestamp
 
         // Store authenticated session
         _authenticatedUsers.insert(username);
 
+        LOG_INFO("✓ Authentication successful for user: ", username);
         return true;
     }
 
@@ -127,9 +162,14 @@ namespace server {
             return false;
         }
 
-        if (username.length() < 3 || password.length() < 4) {
-            LOG_WARNING("Registration failed: username '", username, "' (", username.length(),
-                        " chars) or password (", password.length(), " chars) too short");
+        if (username.length() < 3) {
+            LOG_WARNING("Registration failed: username '", username, "' too short (", username.length(),
+                        " chars, minimum 3)");
+            return false;
+        }
+
+        if (password.length() < 4) {
+            LOG_WARNING("Registration failed: password too short (", password.length(), " chars, minimum 4)");
             return false;
         }
 
@@ -139,42 +179,105 @@ namespace server {
             return false;
         }
 
-        // Register new user
-        _accounts[username] = password;
+        // Hash the password
+        std::string passwordHash = hashPassword(password);
+        if (passwordHash.empty()) {
+            LOG_ERROR("Registration failed: password hashing failed for '", username, "'");
+            return false;
+        }
+
+        // Create new account
+        auto now = std::chrono::system_clock::now();
+        uint64_t timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+
+        AccountData account;
+        account.username = username;
+        account.passwordHash = passwordHash;
+        account.email = "";  // Optional, can be added later
+        account.createdAt = timestamp;
+        account.lastLogin = 0;  // Never logged in yet
+
+        _accounts[username] = account;
         saveAccounts();
+
+        LOG_INFO("✓ Registration successful for user: ", username);
         return true;
     }
 
     void AuthService::loadAccounts() {
-        std::ifstream file(_accountsFile, std::ios::binary);
+        std::ifstream file(_accountsFile);
         if (!file.is_open()) {
-            // File doesn't exist, create empty file (no default accounts)
+            LOG_INFO("No accounts file found at '", _accountsFile, "', starting with empty database");
+            // File doesn't exist, start with empty accounts
             // Guest login works without registration
             return;
         }
 
-        std::string line;
-        while (std::getline(file, line)) {
-            size_t pos = line.find(':');
-            if (pos != std::string::npos) {
-                std::string username = line.substr(0, pos);
-                std::string password = line.substr(pos + 1);
-                _accounts[username] = password;
+        try {
+            json j;
+            file >> j;
+            file.close();
+
+            if (!j.contains("accounts") || !j["accounts"].is_array()) {
+                LOG_WARNING("Invalid accounts file format, starting with empty database");
+                return;
             }
+
+            for (const auto &accountJson : j["accounts"]) {
+                if (!accountJson.contains("username") || !accountJson.contains("passwordHash")) {
+                    LOG_WARNING("Skipping invalid account entry (missing username or passwordHash)");
+                    continue;
+                }
+
+                AccountData account;
+                account.username = accountJson["username"].get<std::string>();
+                account.passwordHash = accountJson["passwordHash"].get<std::string>();
+                account.email = accountJson.value("email", "");
+                account.createdAt = accountJson.value("createdAt", 0ULL);
+                account.lastLogin = accountJson.value("lastLogin", 0ULL);
+
+                _accounts[account.username] = account;
+            }
+
+            LOG_INFO("✓ Loaded ", _accounts.size(), " accounts from '", _accountsFile, "'");
+
+        } catch (const json::exception &e) {
+            LOG_ERROR("Failed to parse accounts file: ", e.what());
+            LOG_WARNING("Starting with empty accounts database");
         }
-        file.close();
     }
 
     void AuthService::saveAccounts() {
-        std::ofstream file(_accountsFile, std::ios::binary | std::ios::trunc);
-        if (!file.is_open()) {
-            return;
-        }
+        try {
+            json j;
+            j["version"] = "1.0";
+            j["accounts"] = json::array();
 
-        for (const auto &[username, password] : _accounts) {
-            file << username << ":" << password << "\n";
+            for (const auto &[username, account] : _accounts) {
+                json accountJson;
+                accountJson["username"] = account.username;
+                accountJson["passwordHash"] = account.passwordHash;
+                accountJson["email"] = account.email;
+                accountJson["createdAt"] = account.createdAt;
+                accountJson["lastLogin"] = account.lastLogin;
+
+                j["accounts"].push_back(accountJson);
+            }
+
+            std::ofstream file(_accountsFile);
+            if (!file.is_open()) {
+                LOG_ERROR("Failed to open accounts file '", _accountsFile, "' for writing");
+                return;
+            }
+
+            file << j.dump(2);  // Pretty print with 2 spaces indentation
+            file.close();
+
+            LOG_INFO("✓ Saved ", _accounts.size(), " accounts to '", _accountsFile, "'");
+
+        } catch (const json::exception &e) {
+            LOG_ERROR("Failed to save accounts: ", e.what());
         }
-        file.close();
     }
 
 }  // namespace server

@@ -65,6 +65,14 @@ namespace server {
         bool removePlayer(uint32_t playerId);
 
         /**
+         * @brief Update a player's display name
+         * @param playerId Player ID
+         * @param newName New display name
+         * @return true if player name was updated
+         */
+        bool updatePlayerName(uint32_t playerId, const std::string &newName);
+
+        /**
          * @brief Get player info
          * @param playerId Player ID
          * @return Pointer to LobbyPlayer (nullptr if not found)

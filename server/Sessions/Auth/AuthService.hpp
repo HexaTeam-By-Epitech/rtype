@@ -14,6 +14,14 @@
 
 namespace server {
 
+    struct AccountData {
+        std::string username;
+        std::string passwordHash;  // bcrypt hash
+        std::string email;         // optional
+        uint64_t createdAt;        // timestamp
+        uint64_t lastLogin;        // timestamp
+    };
+
     class AuthService : public IAuthService {
        public:
         AuthService();
@@ -23,7 +31,7 @@ namespace server {
         /**
          * @brief Authenticate a user with username and password.
          * @param username The username
-         * @param password The password
+         * @param password The password (plaintext, will be verified against hash)
          * @return bool True if authentication succeeds
          */
         bool authenticate(const std::string &username, const std::string &password) override;
@@ -58,26 +66,41 @@ namespace server {
         /**
          * @brief Register a new user account
          * @param username The username
-         * @param password The password
+         * @param password The password (plaintext, will be hashed)
          * @return bool True if registration succeeds
          */
         bool registerUser(const std::string &username, const std::string &password);
 
         /**
-         * @brief Load user accounts from file
+         * @brief Load user accounts from JSON file
          */
         void loadAccounts();
 
         /**
-         * @brief Save user accounts to file
+         * @brief Save user accounts to JSON file
          */
         void saveAccounts();
 
        private:
+        /**
+         * @brief Hash a password using bcrypt
+         * @param password Plaintext password
+         * @return std::string Bcrypt hash
+         */
+        std::string hashPassword(const std::string &password);
+
+        /**
+         * @brief Verify a password against a bcrypt hash
+         * @param password Plaintext password
+         * @param hash Bcrypt hash to verify against
+         * @return bool True if password matches
+         */
+        bool verifyPassword(const std::string &password, const std::string &hash);
+
         std::unordered_set<std::string> _authenticatedUsers;         ///< Set of authenticated usernames
         std::unordered_map<std::string, std::string> _activeTokens;  ///< Map of tokens to usernames
-        std::unordered_map<std::string, std::string> _accounts;      ///< Map of username to password
-        std::string _accountsFile = "accounts.dat";                  ///< File to store accounts
+        std::unordered_map<std::string, AccountData> _accounts;      ///< Map of username to account data
+        std::string _accountsFile = "accounts.json";                 ///< JSON file to store accounts
     };
 
 }  // namespace server

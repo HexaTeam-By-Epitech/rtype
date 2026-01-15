@@ -465,13 +465,20 @@ namespace server {
         LOG_INFO("✓ Game reset");
     }
 
-    void GameLogic::spawnEnemies() {
-        LOG_INFO("Spawning enemies with Lua scripts...");
+    void GameLogic::onGameStart() {
+        LOG_INFO("Fire onGameStart");
 
-        // TODO: Fire an entrypoint to wave_manager.lua from here, and remove the content of the onUpdate function in wave_manager.lua
-        // removing the function completly will trigger a warning in the console
-
-        LOG_INFO("✓ Spawned 3 enemies with Lua scripts");
+        // Find the spawner entity with wave_manager.lua script
+        if (_luaEngine) {
+            auto entities = _world->query<ecs::Spawner, ecs::LuaScript>();
+            for (auto &entity : entities) {
+                const ecs::LuaScript &script = entity.get<ecs::LuaScript>();
+                if (script.getScriptPath() == "wave_manager.lua") {
+                    _luaEngine->executeOnGameStart("wave_manager.lua", entity);
+                    break;
+                }
+            }
+        }
     }
 
 }  // namespace server

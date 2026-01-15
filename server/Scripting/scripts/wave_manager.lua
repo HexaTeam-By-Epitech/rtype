@@ -61,19 +61,30 @@ waveSystem.wavesIntervals = {
 
 -- Submit the configured waves to the spawner component
 
--- TODO: Remove onUpdate function content (see GameLogic.cpp)
--- onUpdate is a special function called every frame by the engine, but this is setup code
--- remove the log statements
+-- -- TODO: Remove onUpdate function content (see GameLogic.cpp)
+-- -- onUpdate is a special function called every frame by the engine, but this is setup code
+-- -- remove the log statements
 
-log "AAA"
+-- log "AAA"
+
+-- function onUpdate(entity, deltaTime)
+-- 	log "BBB"
+-- 	if waveSystem.isWaveSetup == false then
+-- 		setSpawnerConfig(entity, {
+-- 		waves = waveSystem.waves,
+-- 		wavesIntervals = waveSystem.wavesIntervals})
+-- 		log "CCC"
+-- 		waveSystem.isWaveSetup = true
+-- 	end
+-- end
 
 function onUpdate(entity, deltaTime)
-	log "BBB"
-	if waveSystem.isWaveSetup == false then
-		setSpawnerConfig(entity, {
-		waves = waveSystem.waves,
-		wavesIntervals = waveSystem.wavesIntervals})
-		log "CCC"
-		waveSystem.isWaveSetup = true
-	end
+end
+
+function onGameStart(entity)
+	log "DDD"
+	setSpawnerConfig(entity, {
+	waves = waveSystem.waves,
+	wavesIntervals = waveSystem.wavesIntervals})
+	log "DDDD"
 end

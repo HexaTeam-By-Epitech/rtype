@@ -38,6 +38,13 @@ namespace ecs {
                 // auto-inactivate when a config is finished
             }
 
+            // Check if wavesIntervals is properly configured
+            if (config.wavesIntervals.empty() ||
+                spawnerComp.currentWaveIndex >= static_cast<int>(config.wavesIntervals.size())) {
+                LOG_WARNING("[SpawnSystem] Invalid wave configuration - missing intervals");
+                continue;
+            }
+
             // check if we need to move to the next wave, using wave intervals
             if (spawnerComp.currentWaveIndex < wavesCount) {
                 int waveInterval = config.wavesIntervals[spawnerComp.currentWaveIndex];
@@ -54,8 +61,9 @@ namespace ecs {
                 }
             }
 
-            // Spawn enemies for the current wave based on spawn interval
-            if (spawnerComp.spawnerTime == 0 && spawnerComp.currentWaveIndex < wavesCount) {
+            // Spawn enemies for the current wave (only once when wave starts)
+            if (spawnerComp.spawnerTime == 0 && spawnerComp.spawnerTicks == 0 &&
+                spawnerComp.currentWaveIndex < wavesCount) {
                 const WaveConfig &currentWave = config.waves[spawnerComp.currentWaveIndex];
                 for (const auto &request : currentWave.enemies) {
                     spawnerComp.queueSpawn(request);
@@ -64,10 +72,7 @@ namespace ecs {
                          spawnerComp.currentWaveIndex + 1);
             }
 
-            // TODO : Better handling of time counting, as deltaTime depends on framerate
-            // and even like that, this is too fast
-            // deltaTime depends on framerate, (0.16667 for 60 FPS)
-            // spawnerComp.spawnerTime is in seconds
+            // Update spawner time
             spawnerComp.spawnerTicks += 1;
             if (spawnerComp.spawnerTicks >= static_cast<int>(1.0f / deltaTime)) {
                 spawnerComp.spawnerTime += 1;

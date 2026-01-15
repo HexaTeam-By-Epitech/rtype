@@ -182,8 +182,9 @@ namespace server {
 
             // Spawn enemies (Lua scripts) now that game is starting
             // Cast to GameLogic to access spawnEnemies()
+            LOG_INFO("Will call onGameStart for room ", _id);
             if (auto *gameLogic = dynamic_cast<GameLogic *>(_gameLogic.get())) {
-                gameLogic->spawnEnemies();
+                gameLogic->onGameStart();
             }
 
             // Spawn players and validate entity IDs

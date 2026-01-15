@@ -78,6 +78,33 @@ namespace AnimDB {
     }
 
     /**
+     * @brief Create walking enemy animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for walking enemy
+     */
+    inline ecs::AnimationSet createEnemyWalkingAnimations() {
+        ecs::AnimationSet animSet("WalkingEnemy");
+
+        // Walking animation left 3 frames
+        animSet.addClip("walk_left",
+                        makeClip({{0, 0, 33, 34}, {33, 0, 33, 34}, {66, 0, 33, 34}}, 0.15f, true));
+
+        // Walking animation right 3 frames
+        animSet.addClip("walk_right",
+                        makeClip({{100, 0, 33, 34}, {133, 0, 33, 34}, {166, 0, 33, 34}}, 0.15f, true));
+
+        // Slightly flying left animation 3 frames
+        animSet.addClip("fly_left",
+                        makeClip({{0, 34, 33, 34}, {33, 34, 33, 34}, {66, 34, 33, 34}}, 0.1f, true));
+
+        // Slightly flying right animation 3 frames
+        animSet.addClip("fly_right",
+                        makeClip({{100, 34, 33, 34}, {133, 34, 33, 34}, {166, 34, 33, 34}}, 0.1f, true));
+
+        return animSet;
+    }
+
+    /**
      * @brief Create boss body animations.
      * 
      * @return ecs::AnimationSet Complete animation set for boss body

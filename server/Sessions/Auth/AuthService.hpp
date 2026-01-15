@@ -17,7 +17,6 @@ namespace server {
     struct AccountData {
         std::string username;
         std::string passwordHash;  // bcrypt hash
-        std::string email;         // optional
         uint64_t createdAt;        // timestamp
         uint64_t lastLogin;        // timestamp
     };

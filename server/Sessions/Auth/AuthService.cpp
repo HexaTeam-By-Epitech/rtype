@@ -193,7 +193,6 @@ namespace server {
         AccountData account;
         account.username = username;
         account.passwordHash = passwordHash;
-        account.email = "";  // Optional, can be added later
         account.createdAt = timestamp;
         account.lastLogin = 0;  // Never logged in yet
 
@@ -232,7 +231,6 @@ namespace server {
                 AccountData account;
                 account.username = accountJson["username"].get<std::string>();
                 account.passwordHash = accountJson["passwordHash"].get<std::string>();
-                account.email = accountJson.value("email", "");
                 account.createdAt = accountJson.value("createdAt", 0ULL);
                 account.lastLogin = accountJson.value("lastLogin", 0ULL);
 
@@ -257,7 +255,6 @@ namespace server {
                 json accountJson;
                 accountJson["username"] = account.username;
                 accountJson["passwordHash"] = account.passwordHash;
-                accountJson["email"] = account.email;
                 accountJson["createdAt"] = account.createdAt;
                 accountJson["lastLogin"] = account.lastLogin;
 

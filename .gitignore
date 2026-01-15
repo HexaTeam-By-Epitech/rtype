@@ -58,3 +58,5 @@ coverage.info
 
 .clangd
 
+# private files
+accounts.json

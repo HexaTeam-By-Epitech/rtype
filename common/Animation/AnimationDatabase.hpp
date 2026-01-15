@@ -33,16 +33,30 @@ namespace AnimDB {
      * @return ecs::AnimationSet Complete animation set for player
      */
     inline ecs::AnimationSet createPlayerAnimations() {
-        ecs::AnimationSet animSet("r-typesheet1");
+        ecs::AnimationSet animSet("PlayerShip");
 
         // Idle animation - single frame
-        animSet.addClip("idle", makeClip({{0, 0, 32, 32}}, 0.1f, true));
+        animSet.addClip("player_idle", makeClip({{0, 0, 32, 32}}, 0.1f, true));
 
-        // Flying animation - 3 frames loop
-        animSet.addClip("fly", makeClip({{0, 0, 32, 32}, {32, 0, 32, 32}, {64, 0, 32, 32}}, 0.1f, true));
+        // Flying animation - 5 frames loop
+        animSet.addClip(
+            "player_movement",
+            makeClip({{0, 0, 32, 32}, {32, 0, 32, 32}, {64, 0, 32, 32}, {96, 0, 32, 32}, {128, 0, 32, 32}},
+                     0.1f, true));
 
-        // Shooting animation - plays once then returns to idle
-        animSet.addClip("shoot", makeClip({{0, 32, 32, 32}, {32, 32, 32, 32}}, 0.05f, false, "idle"));
+        return animSet;
+    }
+
+    /**
+     * @brief Create projectile animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for projectile
+     */
+    inline ecs::AnimationSet createProjectileAnimations() {
+        ecs::AnimationSet animSet("Projectiles");
+
+        animSet.addClip("projectile_fly",
+                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.1f, true));
 
         return animSet;
     }

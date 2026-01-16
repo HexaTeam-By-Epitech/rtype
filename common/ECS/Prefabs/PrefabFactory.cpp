@@ -19,7 +19,7 @@ namespace ecs {
             registry.setComponent(player, Health(100, 100));
             registry.setComponent(player, Collider(50.0F, 50.0F, 0.0F, 0.0F, 1, 0xFFFFFFFF, false));
             registry.setComponent(player,
-                                  Weapon(10.0F, 0.0F, 0, 25));  // fire rate: 10 shots/sec, type 0, 25 damage
+                                  Weapon(7.0F, 0.0F, 0, 25));  // fire rate: 7 shots/sec, type 0, 25 damage
             LOG_INFO("✓ Player created with ID: ", playerId);
 
             return player;
@@ -39,7 +39,7 @@ namespace ecs {
             registry.setComponent(enemy, Health(spawnData.health, spawnData.health));
             registry.setComponent(enemy, Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f,
                                                   0.0f, 2, 0xFFFFFFFF, false));
-            registry.setComponent(enemy, Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, less damage
+            registry.setComponent(enemy, Weapon(3.0f, 0.8f, 1, 15));  // 3 shots/sec, less damage
             LOG_INFO("✓ Enemy created of type: ", enemyType);
             return enemy;
         } catch (const std::exception &e) {

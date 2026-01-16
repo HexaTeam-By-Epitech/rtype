@@ -35,7 +35,7 @@ namespace ecs {
             if (fireRate > 0.0F) {
                 weapon.setCooldown(1.0F / fireRate);
             } else {
-                weapon.setCooldown(0.1F);  // Fallback: 10 shots/sec
+                weapon.setCooldown(1.0F / 7.0F);  // Fallback: 7 shots/sec
             }
 
             // Calculate projectile properties using same logic as fireWeapon
@@ -87,8 +87,6 @@ namespace ecs {
             auto &velocity = registry.getComponent<Velocity>(projectileId);
             auto pos = transform.getPosition();
             auto dir = velocity.getDirection();
-            LOG_DEBUG("[WEAPON] Projectile fired: ID=", projectileId, " Pos=(", pos.x, ",", pos.y, ") Dir=(",
-                      dir.x, ",", dir.y, ") Speed=300.0");
             _projectileCreatedCallback(projectileId, ownerId, pos.x, pos.y, dir.x, dir.y, 300.0f,
                                        static_cast<int>(weapon.getDamage()), isFriendly);
         }
@@ -109,8 +107,8 @@ namespace ecs {
             auto &ownerTransform = registry.getComponent<Transform>(ownerId);
             auto ownerPos = ownerTransform.getPosition();
 
-            // Projectile spawns at the same position as the owner
-            return Transform(ownerPos.x, ownerPos.y);
+            // Projectile spawns 20 pixels offset from the owner (to the right)
+            return Transform(ownerPos.x + 40.0F, ownerPos.y);
         }
 
         return defaultTransform;

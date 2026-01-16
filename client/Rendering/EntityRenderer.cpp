@@ -154,7 +154,7 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
     float scale = entity.scale > 0.0f ? entity.scale : 3.0f;
 
     // Visual differentiation: tint green for local player
-    uint32_t tint = isLocalPlayer ? 0xAAFFAAFF : 0xFFFFFFFF;
+    uint32_t tint = isLocalPlayer ? 0xFFFFAAFF : 0xFFFFFFFF;
 
     _graphics.DrawTextureEx("PlayerShips.gif", srcX, srcY, srcWidth, srcHeight,
                             entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,

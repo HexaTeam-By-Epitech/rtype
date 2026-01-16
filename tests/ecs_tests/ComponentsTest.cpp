@@ -218,12 +218,12 @@ TEST(WeaponTest, ConstructorInitializesCorrectly) {
 TEST(WeaponTest, SettersWorkCorrectly) {
     ecs::Weapon weapon(0, 0, 0, 0);
 
-    weapon.setFireRate(20);
+    weapon.setFireRate(5);
     weapon.setCooldown(15);
     weapon.setProjectileType(2);
     weapon.setDamage(50);
 
-    EXPECT_EQ(weapon.getFireRate(), 20);
+    EXPECT_EQ(weapon.getFireRate(), 5);
     EXPECT_EQ(weapon.getCooldown(), 15);
     EXPECT_EQ(weapon.getProjectileType(), 2);
     EXPECT_EQ(weapon.getDamage(), 50);

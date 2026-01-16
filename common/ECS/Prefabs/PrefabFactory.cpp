@@ -59,15 +59,10 @@ namespace ecs {
             registry.setComponent(projectile, Collider(10.0f, 10.0f, 0.0f, 0.0f, 4, 0xFFFFFFFF, true));
 
             // Add animation components for projectile rendering
-            ecs::AnimationSet bulletAnimations("Projectiles");
-            ecs::Rectangle projRect = {267, 84, 17, 13};
-            bulletAnimations.addClip(
-                "projectile_fly",
-                AnimationClip(std::vector<Rectangle>{{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}},
-                              0.2f, true));
-            registry.setComponent(projectile, bulletAnimations);
+            registry.setComponent(projectile, AnimDB::createPlayerBulletAnimations());
             registry.setComponent(projectile, Animation("projectile_fly", true, true));
-            registry.setComponent(projectile, Sprite("Projectiles", projRect, 2.0f, 0.0f, false, false, 0));
+            registry.setComponent(projectile,
+                                  Sprite("Projectiles", {267, 84, 17, 13}, 2.0f, 0.0f, false, false, 0));
 
             return projectile;
         } catch (const std::exception &e) {

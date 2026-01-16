@@ -11,6 +11,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include "common/Animation/AnimationDatabase.hpp"
 #include "common/ECS/Components/Animation.hpp"
 #include "common/ECS/Components/AnimationSet.hpp"
 #include "common/ECS/Components/Collider.hpp"

@@ -37,3 +37,21 @@ add_executable(r-type_client
 )
 
 target_link_libraries(r-type_client PRIVATE rtype_client_lib)
+
+# Copy DLLs to the executable directory on Windows
+if(WIN32)
+    add_custom_command(TARGET r-type_client POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying vcpkg DLLs for r-type_client..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin" "$<TARGET_FILE_DIR:r-type_client>"
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying project DLLs for r-type_client..."
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_networking>" "$<TARGET_FILE_DIR:r-type_client>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_serialization>" "$<TARGET_FILE_DIR:r-type_client>/"
+        COMMAND_EXPAND_LISTS
+    )
+else()
+    add_custom_command(TARGET r-type_client POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Creating symlink for r-type_client..."
+        COMMAND ${CMAKE_COMMAND} -E remove -f "${CMAKE_SOURCE_DIR}/r-type_client"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink "$<TARGET_FILE:r-type_client>" "${CMAKE_SOURCE_DIR}/r-type_client"
+    )
+endif()

@@ -33,16 +33,16 @@ namespace AnimDB {
      * @return ecs::AnimationSet Complete animation set for player
      */
     inline ecs::AnimationSet createPlayerAnimations() {
-        ecs::AnimationSet animSet("r-typesheet1");
+        ecs::AnimationSet animSet("PlayerShip");
 
         // Idle animation - single frame
-        animSet.addClip("idle", makeClip({{0, 0, 32, 32}}, 0.1f, true));
+        animSet.addClip("player_idle", makeClip({{0, 0, 32, 32}}, 0.1f, true));
 
-        // Flying animation - 3 frames loop
-        animSet.addClip("fly", makeClip({{0, 0, 32, 32}, {32, 0, 32, 32}, {64, 0, 32, 32}}, 0.1f, true));
-
-        // Shooting animation - plays once then returns to idle
-        animSet.addClip("shoot", makeClip({{0, 32, 32, 32}, {32, 32, 32, 32}}, 0.05f, false, "idle"));
+        // Flying animation - 5 frames loop
+        animSet.addClip(
+            "player_movement",
+            makeClip({{0, 0, 32, 32}, {32, 0, 32, 32}, {64, 0, 32, 32}, {96, 0, 32, 32}, {128, 0, 32, 32}},
+                     0.1f, true));
 
         return animSet;
     }
@@ -53,13 +53,53 @@ namespace AnimDB {
      * @return ecs::AnimationSet Complete animation set for basic enemy
      */
     inline ecs::AnimationSet createEnemyBasicAnimations() {
-        ecs::AnimationSet animSet("r-typesheet2");
+        ecs::AnimationSet animSet("BasicEnemy");
 
-        // Simple flying animation
-        animSet.addClip("fly", makeClip({{0, 0, 24, 24}, {24, 0, 24, 24}}, 0.15f, true));
+        // Simple 16 frames flying animation
+        animSet.addClip("enemy_fly", makeClip({{0, 0, 33, 34},
+                                               {33, 0, 33, 34},
+                                               {66, 0, 33, 34},
+                                               {99, 0, 33, 34},
+                                               {132, 0, 33, 34},
+                                               {165, 0, 33, 34},
+                                               {198, 0, 33, 34},
+                                               {231, 0, 33, 34},
+                                               {0, 34, 33, 34},
+                                               {33, 34, 33, 34},
+                                               {66, 34, 33, 34},
+                                               {99, 34, 33, 34},
+                                               {132, 34, 33, 34},
+                                               {165, 34, 33, 34},
+                                               {198, 34, 33, 34},
+                                               {231, 34, 33, 34}},
+                                              0.1f, true));
 
-        // Death animation - plays once
-        animSet.addClip("death", makeClip({{48, 0, 24, 24}, {72, 0, 24, 24}}, 0.1f, false));
+        return animSet;
+    }
+
+    /**
+     * @brief Create walking enemy animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for walking enemy
+     */
+    inline ecs::AnimationSet createEnemyWalkingAnimations() {
+        ecs::AnimationSet animSet("WalkingEnemy");
+
+        // Walking animation left 3 frames
+        animSet.addClip("walk_left",
+                        makeClip({{0, 0, 33, 34}, {33, 0, 33, 34}, {66, 0, 33, 34}}, 0.15f, true));
+
+        // Walking animation right 3 frames
+        animSet.addClip("walk_right",
+                        makeClip({{100, 0, 33, 34}, {133, 0, 33, 34}, {166, 0, 33, 34}}, 0.15f, true));
+
+        // Slightly flying left animation 3 frames
+        animSet.addClip("fly_left",
+                        makeClip({{0, 34, 33, 34}, {33, 34, 33, 34}, {66, 34, 33, 34}}, 0.1f, true));
+
+        // Slightly flying right animation 3 frames
+        animSet.addClip("fly_right",
+                        makeClip({{100, 34, 33, 34}, {133, 34, 33, 34}, {166, 34, 33, 34}}, 0.1f, true));
 
         return animSet;
     }
@@ -109,11 +149,10 @@ namespace AnimDB {
      * @return ecs::AnimationSet Complete animation set for player projectile
      */
     inline ecs::AnimationSet createPlayerBulletAnimations() {
-        ecs::AnimationSet animSet("r-typesheet1");
+        ecs::AnimationSet animSet("Projectiles");
 
-        // Simple spinning animation
-        animSet.addClip(
-            "fly", makeClip({{0, 64, 8, 8}, {8, 64, 8, 8}, {16, 64, 8, 8}, {24, 64, 8, 8}}, 0.05f, true));
+        animSet.addClip("projectile_fly",
+                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.1f, true));
 
         return animSet;
     }

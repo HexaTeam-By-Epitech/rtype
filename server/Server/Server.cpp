@@ -190,8 +190,6 @@ void Server::_handleDisconnect(HostNetworkEvent &event) {
 
         // Broadcast updated room list to ALL connected players (player count changed)
         _broadcastRoomListToAll();
-        // Broadcast updated room list to ALL connected players (player count changed)
-        _broadcastRoomListToAll();
     }
 
     _eventBus->publish(server::PlayerLeftEvent(playerId));

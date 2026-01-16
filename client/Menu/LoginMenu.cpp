@@ -59,9 +59,8 @@ namespace Game {
 
         _passwordInput->SetPlaceholder("Password");
         _passwordInput->SetMaxLength(20);
-        // Note: ITextInput currently doesn't support password masking (***),
-        // using normal text for now as per interface.
-        _usernameInput->SetValidationRegex("[a-zA-Z0-9_-]+");
+        _passwordInput->SetPasswordMode(true);  // Mask password characters with asterisks
+        _passwordInput->SetValidationRegex("[a-zA-Z0-9_-]+");
 
         _passwordInput->SetBackgroundColor(0xFFFFFFFF);
         _passwordInput->SetBorderColor(0xFF808080);

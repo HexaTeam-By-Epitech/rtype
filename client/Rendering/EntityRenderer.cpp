@@ -190,20 +190,33 @@ void EntityRenderer::renderEnemy(const RenderableEntity &entity) {
 }
 
 void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
-    // Projectile as a filled rectangle
+    // Draw projectile sprite with animation from sprite sheet
 
-    uint32_t color;
-    if (entity.type == RType::Messages::Shared::EntityType::PlayerBullet) {
-        color = 0xFFFF00FF;  // Yellow
-    } else {
-        color = 0xFF00FFFF;  // Magenta
+    // Source rectangle on the sprite sheet (frame from animation)
+    int srcX = entity.startPixelX > 0 ? entity.startPixelX : 267;
+    int srcY = entity.startPixelY > 0 ? entity.startPixelY : 84;
+    int srcWidth = entity.spriteSizeX > 0 ? entity.spriteSizeX : 17;
+    int srcHeight = entity.spriteSizeY > 0 ? entity.spriteSizeY : 13;
+
+    // Debug log (only for first few frames)
+    static int debugCount = 0;
+    if (debugCount < 10) {
+        LOG_DEBUG("Projectile ", entity.entityId, ": sprite(", srcX, ",", srcY, ",", srcWidth, ",", srcHeight,
+                  ") anim=", entity.currentAnimation);
+        debugCount++;
     }
-    // Render as a 16x16 rectangle
-    int size = 16;
-    int halfSize = size / 2;
 
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize),
-                             size, size, color);
+    // Use scale from entity (server sends 2.0f for normal, 2.5f for charged)
+    float scale = entity.scale > 0.0f ? entity.scale : 2.0f;
+
+    // Different tint for enemy bullets
+    uint32_t tint = 0xFFFFFFFF;
+    if (entity.type == RType::Messages::Shared::EntityType::EnemyBullet) {
+        tint = 0xFF5555FF;  // Reddish tint for enemy bullets
+    }
+
+    _graphics.DrawTextureEx("Projectiles", srcX, srcY, srcWidth, srcHeight, entity.x - (srcWidth * scale / 2),
+                            entity.y - (srcHeight * scale / 2), 0.0f, scale, tint);
 
     // Projectiles typically don't have health bars
 }

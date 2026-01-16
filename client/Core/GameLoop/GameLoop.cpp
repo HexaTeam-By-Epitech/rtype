@@ -129,6 +129,11 @@ void GameLoop::run() {
     } else {
         LOG_INFO("✓ Loaded PlayerShips.gif (player ship)");
     }
+    if (!_rendering->LoadTexture("Projectiles", "assets/sprites/Projectiles.gif")) {
+        LOG_WARNING("Failed to load Projectiles.gif");
+    } else {
+        LOG_INFO("✓ Loaded Projectiles.gif (projectiles)");
+    }
     // if (!_rendering->LoadTexture("r-typesheet2.gif", "assets/sprites/r-typesheet2.gif")) {
     //     LOG_WARNING("Failed to load r-typesheet2.gif");
     // } else {

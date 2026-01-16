@@ -11,11 +11,14 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include "common/ECS/Components/Animation.hpp"
+#include "common/ECS/Components/AnimationSet.hpp"
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"

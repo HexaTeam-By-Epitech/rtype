@@ -6,8 +6,12 @@
 */
 
 #include "WeaponSystem.hpp"
+#include "common/Animation/AnimationDatabase.hpp"
+#include "common/ECS/Components/Animation.hpp"
+#include "common/ECS/Components/AnimationSet.hpp"
 #include "common/ECS/Components/IComponent.hpp"
 #include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Prefabs/PrefabFactory.hpp"
 
 namespace ecs {
@@ -74,6 +78,20 @@ namespace ecs {
         registry.setComponent(projectileId, projectileTransform);
         registry.setComponent(projectileId, projectileVelocity);
         registry.setComponent(projectileId, Projectile(weapon.getDamage(), 10.0f, ownerId, isFriendly));
+
+        // Add projectile animations
+        ecs::AnimationSet bulletAnimations = AnimDB::createPlayerBulletAnimations();
+        registry.setComponent(projectileId, bulletAnimations);
+        registry.setComponent(projectileId, ecs::Animation("projectile_fly", true, true));
+
+        // Create sprite with explicit Rectangle
+        ecs::Rectangle projRect = {267, 84, 17, 13};
+        ecs::Sprite projSprite("Projectiles", projRect, 2.0f, 0.0f, false, false, 0);
+        registry.setComponent(projectileId, projSprite);
+
+        // Debug: verify sprite was created correctly
+        LOG_DEBUG("Created projectile ", projectileId, " with Sprite rect(", projRect.x, ",", projRect.y, ",",
+                  projRect.width, ",", projRect.height, ")");
 
         // Reset weapon cooldown
         float fireRate = weapon.getFireRate();
@@ -148,6 +166,18 @@ namespace ecs {
         registry.setComponent(projectileId, projectileVelocity);
         float chargedDamage = weapon.getDamage() * damageMultiplier;
         registry.setComponent(projectileId, Projectile(chargedDamage, 10.0F, ownerId, isFriendly));
+
+        // Add projectile animations (charged shots use same animation for now)
+        ecs::AnimationSet bulletAnimations = AnimDB::createPlayerBulletAnimations();
+        registry.setComponent(projectileId, bulletAnimations);
+        registry.setComponent(projectileId, ecs::Animation("projectile_fly", true, true));
+
+        ecs::Rectangle chargedRect = {267, 84, 17, 13};
+        ecs::Sprite chargedSprite("Projectiles", chargedRect, 2.5f, 0.0f, false, false, 0);
+        registry.setComponent(projectileId, chargedSprite);
+
+        LOG_DEBUG("Created charged projectile ", projectileId, " with Sprite rect(", chargedRect.x, ",",
+                  chargedRect.y, ",", chargedRect.width, ",", chargedRect.height, ")");
 
         // Reset weapon cooldown
         float fireRate = weapon.getFireRate();

@@ -180,9 +180,9 @@ namespace server {
                     .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
                     .with(ecs::Weapon(_gameRules.getDefaultPlayerFireRate(), 0.0f, 0,
                                       _gameRules.getDefaultPlayerDamage()))
-                    .with(ecs::Sprite("PlayerShips.gif", {1, 69, 32, 14}, 3.0f, 0.0f, false, false, 0))
+                    .with(ecs::Sprite("PlayerShips.gif", {1, 69, 33, 14}, 3.0f, 0.0f, false, false, 0))
                     .with(playerAnimations)
-                    .with(ecs::Animation("idle"));
+                    .with(ecs::Animation("player_idle"));
             ecs::Address entityAddress = playerEntity.getAddress();
 
             // Register player (protected by mutex for thread safety)
@@ -294,31 +294,67 @@ namespace server {
 
             ecs::Velocity &vel = entity.get<ecs::Velocity>();
 
-            // If no input (0, 0), stop the player completely
-            if (input.inputX == 0 && input.inputY == 0) {
-                vel.setDirection(0.0f, 0.0f);
-                // Debug log throttled (thread-local to avoid races)
-                thread_local uint32_t stopLogCount = 0;
-                if (++stopLogCount % 60 == 0) {
-                    LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
+            // Update animation based on movement
+            if (entity.has<ecs::Animation>()) {
+                ecs::Animation &anim = entity.get<ecs::Animation>();
+
+                // If no input (0, 0), stop the player and play idle animation
+                if (input.inputX == 0 && input.inputY == 0) {
+                    vel.setDirection(0.0f, 0.0f);
+
+                    // Switch to idle animation if currently moving
+                    if (anim.getCurrentClipName() != "player_idle") {
+                        anim.setCurrentClipName("player_idle");
+                        anim.setCurrentFrameIndex(0);
+                        anim.setTimer(0.0f);
+                    }
+
+                    // Debug log throttled (thread-local to avoid races)
+                    thread_local uint32_t stopLogCount = 0;
+                    if (++stopLogCount % 60 == 0) {
+                        LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED -> idle animation");
+                    }
+                } else {
+                    // Normalize diagonal movement
+                    float dirX = static_cast<float>(input.inputX);
+                    float dirY = static_cast<float>(input.inputY);
+
+                    // Normalize if diagonal
+                    if (dirX != 0.0f && dirY != 0.0f) {
+                        float length = std::sqrt(dirX * dirX + dirY * dirY);
+                        dirX /= length;
+                        dirY /= length;
+                    }
+
+                    vel.setDirection(dirX, dirY);
+
+                    // Switch to movement animation if currently idle
+                    if (anim.getCurrentClipName() != "player_movement") {
+                        anim.setCurrentClipName("player_movement");
+                        anim.setCurrentFrameIndex(0);
+                        anim.setTimer(0.0f);
+                    }
+
+                    // Debug log throttled
+                    thread_local uint32_t moveLogCount = 0;
+                    if (++moveLogCount % 60 == 0) {
+                        LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY,
+                                  ") -> movement animation");
+                    }
                 }
             } else {
-                // Normalize diagonal movement
-                float dirX = static_cast<float>(input.inputX);
-                float dirY = static_cast<float>(input.inputY);
-
-                // Normalize if diagonal
-                if (dirX != 0.0f && dirY != 0.0f) {
-                    float length = std::sqrt(dirX * dirX + dirY * dirY);
-                    dirX /= length;
-                    dirY /= length;
-                }
-
-                vel.setDirection(dirX, dirY);
-                // Debug log throttled
-                thread_local uint32_t moveLogCount = 0;
-                if (++moveLogCount % 60 == 0) {
-                    LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ")");
+                // Fallback if no Animation component (shouldn't happen for players)
+                if (input.inputX == 0 && input.inputY == 0) {
+                    vel.setDirection(0.0f, 0.0f);
+                } else {
+                    float dirX = static_cast<float>(input.inputX);
+                    float dirY = static_cast<float>(input.inputY);
+                    if (dirX != 0.0f && dirY != 0.0f) {
+                        float length = std::sqrt(dirX * dirX + dirY * dirY);
+                        dirX /= length;
+                        dirY /= length;
+                    }
+                    vel.setDirection(dirX, dirY);
                 }
             }
 
@@ -352,14 +388,17 @@ namespace server {
         // Group 1: Independent systems (can run in parallel)
         std::vector<std::string> group1 = {"MovementSystem"};
 
-        // Group 2: Depends on positions (after Movement)
-        std::vector<std::string> group2 = {"CollisionSystem", "BoundarySystem"};
+        // Group 2: Animation must run after Movement to update sprite frames
+        std::vector<std::string> group2 = {"AnimationSystem"};
 
-        // Group 3: Depends on collision results
-        std::vector<std::string> group3 = {"HealthSystem", "WeaponSystem"};
+        // Group 3: Depends on positions (after Movement and Animation)
+        std::vector<std::string> group3 = {"CollisionSystem", "BoundarySystem"};
 
-        // Group 4: AI, spawning, and weapons (can run in parallel)
-        std::vector<std::string> group4 = {"AISystem", "SpawnSystem"};
+        // Group 4: Depends on collision results
+        std::vector<std::string> group4 = {"HealthSystem", "WeaponSystem"};
+
+        // Group 5: AI and spawning (can run in parallel)
+        std::vector<std::string> group5 = {"AISystem", "SpawnSystem"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {
@@ -386,6 +425,7 @@ namespace server {
         executeGroup(group2);
         executeGroup(group3);
         executeGroup(group4);
+        executeGroup(group5);
 
         // Execute Lua system SEQUENTIALLY after all other systems to avoid registry concurrency issues
         _world->updateSystem("Lua", deltaTime);

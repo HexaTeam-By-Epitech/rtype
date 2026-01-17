@@ -17,13 +17,13 @@ namespace ecs {
      * @brief Declarative request for spawning an entity
      */
     struct SpawnRequest {
-        float x;
-        float y;
-        std::string enemyType;   // "basic", "advanced", etc.
-        std::string scriptPath;  // Lua script for behavior
-        float health;
-        int scoreValue;
-        float spawnDelay;         // Delay in seconds from wave start
+        float x = 0.0f;
+        float y = 0.0f;
+        std::string enemyType = "basic";  // "basic", "advanced", etc.
+        std::string scriptPath;           // Lua script for behavior
+        float health = 100.0f;
+        int scoreValue = 100;
+        float spawnDelay = 0.0f;  // Delay in seconds from wave start
         bool hasSpawned = false;  // Track if this request has been spawned
     };
 

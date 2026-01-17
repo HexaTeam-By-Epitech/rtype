@@ -6,14 +6,7 @@
 */
 
 #include "SpawnSystem.hpp"
-#include "common/ECS/Components/Collider.hpp"
-#include "common/ECS/Components/Enemy.hpp"
-#include "common/ECS/Components/Health.hpp"
-#include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Spawner.hpp"
-#include "common/ECS/Components/Transform.hpp"
-#include "common/ECS/Components/Velocity.hpp"
-#include "common/ECS/Components/Weapon.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Game/Prefabs/PrefabFactory.hpp"
 
@@ -21,7 +14,6 @@ namespace ecs {
     SpawnSystem::SpawnSystem() {}
 
     void SpawnSystem::update(Registry &registry, float deltaTime) {
-        LOG_DEBUG("[SpawnSystem] Update function called with deltaTime: ", deltaTime);
         auto spawners = registry.view<Spawner>();
 
         // Process wave timing and spawning logic
@@ -96,55 +88,12 @@ namespace ecs {
     }
 
     void SpawnSystem::_spawnEnemy(Registry &registry, const SpawnRequest &request) {
-        try {
-            Address enemy = registry.newEntity();
+        ecs::Address enemy = server::PrefabFactory::createEnemyFromRegistry(
+            registry, request.enemyType, request.x, request.y, request.health, request.scoreValue,
+            request.scriptPath);
 
-            // Map enemy type string to numeric type
-            int enemyType = 0;  // Default: basic
-            float speed = 150.0f;
-            float colliderWidth = 40.0f;
-            float colliderHeight = 40.0f;
-
-            if (request.enemyType == "basic") {
-                enemyType = 0;
-                speed = 150.0f;
-                colliderWidth = 40.0f;
-                colliderHeight = 40.0f;
-            } else if (request.enemyType == "advanced" || request.enemyType == "heavy") {
-                enemyType = 1;
-                speed = 100.0f;
-                colliderWidth = 60.0f;
-                colliderHeight = 60.0f;
-            } else if (request.enemyType == "fast") {
-                enemyType = 2;
-                speed = 200.0f;
-                colliderWidth = 30.0f;
-                colliderHeight = 30.0f;
-            } else if (request.enemyType == "boss") {
-                enemyType = 3;
-                speed = 120.0f;
-                colliderWidth = 80.0f;
-                colliderHeight = 80.0f;
-            }
-
-            registry.setComponent<Transform>(enemy, Transform(request.x, request.y));
-            registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, speed));
-            registry.setComponent<Health>(
-                enemy, Health(static_cast<int>(request.health), static_cast<int>(request.health)));
-            registry.setComponent<Enemy>(enemy, Enemy(enemyType, request.scoreValue, 0));
-            registry.setComponent<Collider>(
-                enemy, Collider(colliderWidth, colliderHeight, 0.0f, 0.0f, 2, 0xFFFFFFFF, false));
-            registry.setComponent<Weapon>(enemy,
-                                          Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, type 1, 15 damage
-
-            if (!request.scriptPath.empty()) {
-                registry.setComponent<LuaScript>(enemy, LuaScript(request.scriptPath));
-            }
-
-            LOG_INFO("[SpawnSystem] Spawned ", request.enemyType, " (type ", enemyType, ") at (", request.x,
-                     ", ", request.y, ") with entity ID: ", enemy);
-        } catch (const std::exception &e) {
-            LOG_ERROR("[SpawnSystem] Failed to spawn enemy: ", e.what());
+        if (enemy == 0) {
+            LOG_ERROR("[SpawnSystem] Failed to spawn enemy via PrefabFactory");
         }
     }
 

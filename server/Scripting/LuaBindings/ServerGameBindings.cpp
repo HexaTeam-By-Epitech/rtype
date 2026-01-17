@@ -172,6 +172,8 @@ namespace scripting::bindings {
                                 request.scriptPath = enemyTable.get_or<std::string>("script", "");
                                 request.health = enemyTable.get_or("health", 100.0f);
                                 request.scoreValue = enemyTable.get_or("scoreValue", 100);
+                                request.spawnDelay = enemyTable.get_or("delay", 0.0f);
+                                request.hasSpawned = false;
                                 waveConfig.enemies.push_back(request);
                             }
                         }

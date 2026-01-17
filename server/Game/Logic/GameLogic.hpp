@@ -136,6 +136,11 @@ namespace server {
          */
         void _checkGameOverCondition();
 
+        /**
+         * @brief Spawn test enemies and power-ups (for development/testing)
+         */
+        void spawnPowerUps();
+
         // ECS World
         std::shared_ptr<ecs::wrapper::ECSWorld> _world;
 

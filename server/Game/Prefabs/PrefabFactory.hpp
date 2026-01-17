@@ -11,12 +11,14 @@
 #include <memory>
 #include <string>
 
+// Forward declarations
 namespace ecs::wrapper {
     class ECSWorld;
 }
 
 namespace ecs {
     typedef uint32_t Address;
+    enum class BuffType;  // Forward declaration
     class Registry;
 }  // namespace ecs
 
@@ -96,6 +98,30 @@ namespace server {
         static ecs::Address createProjectile(ecs::wrapper::ECSWorld &world, uint32_t ownerId, float posX,
                                              float posY, float dirX, float dirY, float speed, int damage,
                                              bool friendly);
+
+        /**
+         * @brief Create a collectible power-up entity
+         * @param world ECS world wrapper
+         * @param buffType Type of buff to grant
+         * @param duration Duration of buff (0.0f for permanent)
+         * @param value Buff value/multiplier
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createPowerUp(ecs::wrapper::ECSWorld &world, ecs::BuffType buffType,
+                                          float duration, float value, float posX, float posY);
+
+        /**
+         * @brief Create a health pack collectible
+         * @param world ECS world wrapper
+         * @param healthRestore Amount of health to restore
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createHealthPack(ecs::wrapper::ECSWorld &world, int healthRestore, float posX,
+                                             float posY);
 
        private:
         struct EnemySpawnData {

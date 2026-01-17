@@ -32,6 +32,6 @@ function onUpdate(entity, deltaTime)
 	-- Cleanup if entity goes off-screen
 	if transform.x < -100 then
 		entityStates[addr] = nil
-		entity:destroy()
+		-- entity:destroy() -- Entity destruction handled by BoundarySystem
 	end
 end

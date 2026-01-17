@@ -10,7 +10,7 @@ local entityStates = {}
 
 local baseSpeed = 180 -- horizontal movement speed (pixels per second)
 local sineSpeed = 2.5 -- oscillation frequency
-local sineAmplitude = 100 -- oscillation amplitude
+local sineAmplitude = 1 -- oscillation amplitude
 
 function onUpdate(entity, deltaTime)
 	if not entity:isValid() or not entity:hasTransform() then
@@ -41,6 +41,6 @@ function onUpdate(entity, deltaTime)
 	-- Destroy if off-screen (left side) and cleanup state
 	if transform.x < -50 then
 		entityStates[addr] = nil  -- Cleanup state to prevent memory leak
-		entity:destroy()
+		-- entity:destroy() -- Entity destruction handled by BoundarySystem
 	end
 end

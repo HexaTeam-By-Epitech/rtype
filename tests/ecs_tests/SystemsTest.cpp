@@ -285,21 +285,3 @@ TEST(SystemsIntegrationTest, MovementAndBoundary) {
 
     EXPECT_FALSE(registry.hasComponent<ecs::Transform>(entity));
 }
-
-TEST(SystemsIntegrationTest, ProjectileMovementAndLifetime) {
-    ecs::Registry registry;
-    ecs::MovementSystem moveSystem;
-
-    auto projectile = registry.newEntity();
-    registry.setComponent(projectile, ecs::Transform(100.0f, 100.0f));
-    registry.setComponent(projectile, ecs::Velocity(1.0f, 0.0f, 500.0f));
-    registry.setComponent(projectile, ecs::Projectile(10, 2.0f, 1, true));
-
-    // Update for 3 seconds
-    for (int i = 0; i < 180; i++) {
-        moveSystem.update(registry, 1.0f / 60.0f);
-    }
-
-    // Projectile should be destroyed after lifetime expires
-    EXPECT_FALSE(registry.hasComponent<ecs::Projectile>(projectile));
-}

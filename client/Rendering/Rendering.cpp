@@ -56,6 +56,7 @@ void Rendering::InitializeMenus() {
 
     InitializeConfirmQuitMenu();
     InitializeSettingsMenu();
+    InitializeAccessibilityMenu();
     InitializeMainMenu();
     InitializeLoginMenu();
     InitializeServerListMenu();
@@ -164,8 +165,64 @@ void Rendering::InitializeSettingsMenu() {
         }
     });
 
+    _settingsMenu->SetOnAccessibility([this]() {
+        if (_settingsMenu) {
+            _settingsMenu->Hide();
+        }
+        if (_accessibilityMenu) {
+            _accessibilityMenu->Show();
+        }
+    });
+
     _settingsMenu->Initialize();
     _settingsMenu->Hide();
+}
+
+void Rendering::InitializeAccessibilityMenu() {
+    _accessibilityMenu = std::make_unique<Game::AccessibilityMenu>(*_uiFactory, _graphics);
+    _accessibilityMenu->SetMode(Game::AccessibilityMenu::Mode::FULLSCREEN);
+
+    // Colorblind filter changed
+    _accessibilityMenu->SetOnColorblindFilterChanged([this](auto filter) {
+        LOG_INFO("[Rendering] Applying colorblind filter: ", static_cast<int>(filter));
+        // TODO: Implement actual filter application in graphics/renderer
+        // _graphics.SetColorblindFilter(filter);
+    });
+
+    // Visual sound indicators toggled
+    _accessibilityMenu->SetOnVisualSoundIndicatorsChanged([this](bool enabled) {
+        LOG_INFO("[Rendering] Visual sound indicators: ", enabled ? "ON" : "OFF");
+        // TODO: Implement visual sound indicator system
+        // _visualSoundSystem.SetEnabled(enabled);
+    });
+
+    // Game speed changed
+    _accessibilityMenu->SetOnGameSpeedChanged([this](float speed) {
+        LOG_INFO("[Rendering] Game speed changed to: ", static_cast<int>(speed * 100), "%");
+        // TODO: Apply speed multiplier to game logic delta time
+        // This should be propagated to the GameLoop to adjust the fixed timestep
+        // For now, we just log it
+    });
+
+    // Key bindings configuration requested
+    _accessibilityMenu->SetOnConfigureKeyBindings([this]() {
+        LOG_INFO("[Rendering] Opening key bindings configuration");
+        // TODO: Implement key bindings configuration dialog
+        // This could open a separate modal dialog or sub-menu
+    });
+
+    // Back button - return to settings menu
+    _accessibilityMenu->SetOnBack([this]() {
+        if (_accessibilityMenu) {
+            _accessibilityMenu->Hide();
+        }
+        if (_settingsMenu) {
+            _settingsMenu->Show();
+        }
+    });
+
+    _accessibilityMenu->Initialize();
+    _accessibilityMenu->Hide();
 }
 
 void Rendering::InitializeMainMenu() {
@@ -681,6 +738,9 @@ void Rendering::UpdateUI() {
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Update();
         }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            _accessibilityMenu->Update();
+        }
         if (_loginMenu && _loginMenu->IsVisible()) {
             _loginMenu->Update();
 
@@ -736,6 +796,9 @@ void Rendering::UpdateUI() {
         if (_settingsMenu && _settingsMenu->IsVisible() && _settingsOverlay) {
             _settingsMenu->Update();
         }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            _accessibilityMenu->Update();
+        }
     }
 }
 
@@ -779,6 +842,9 @@ void Rendering::RenderUI() {
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Render();
         }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            _accessibilityMenu->Render();
+        }
         if (_loginMenu && _loginMenu->IsVisible()) {
             _loginMenu->Render();
         }
@@ -789,6 +855,13 @@ void Rendering::RenderUI() {
                                          _settingsMenu->GetOverlayDimColor());
             }
             _settingsMenu->Render();
+        }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            if (_accessibilityMenu->ShouldDimBackground()) {
+                _graphics.DrawRectFilled(0, 0, static_cast<int>(_width), static_cast<int>(_height),
+                                         _accessibilityMenu->GetOverlayDimColor());
+            }
+            _accessibilityMenu->Render();
         }
     }
 

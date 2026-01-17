@@ -20,6 +20,7 @@
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
 // UI library
+#include "Menu/AccessibilityMenu.hpp"
 #include "Menu/AddServerMenu.hpp"
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
@@ -419,6 +420,7 @@ class Rendering {
     std::unique_ptr<Game::WaitingRoomMenu> _waitingRoomMenu;
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
+    std::unique_ptr<Game::AccessibilityMenu> _accessibilityMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
     std::unique_ptr<Game::LoginMenu> _loginMenu;
 
@@ -470,6 +472,7 @@ class Rendering {
     // ===== Menu initialization helpers (SOLID: Single Responsibility) =====
     void InitializeConfirmQuitMenu();
     void InitializeSettingsMenu();
+    void InitializeAccessibilityMenu();
     void InitializeMainMenu();
     void InitializeLoginMenu();
     void InitializeServerListMenu();

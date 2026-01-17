@@ -19,6 +19,8 @@ ENetHostWrapper::ENetHostWrapper(size_t maxConnections, size_t maxChannels, uint
     if (!_host) {
         throw std::runtime_error("Failed to create ENet client host");
     }
+    // Enable built-in range coder compression for bandwidth reduction
+    enet_host_compress_with_range_coder(_host);
 }
 
 // Server constructor
@@ -40,6 +42,8 @@ ENetHostWrapper::ENetHostWrapper(const IAddress &address, size_t maxConnections,
             "  - Insufficient permissions (try a port > 1024)\n" + "  - Invalid network configuration";
         throw std::runtime_error(errorMsg);
     }
+    // Enable built-in range coder compression for bandwidth reduction
+    enet_host_compress_with_range_coder(_host);
 }
 
 ENetHostWrapper::~ENetHostWrapper() {

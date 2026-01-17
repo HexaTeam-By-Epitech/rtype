@@ -6,12 +6,14 @@
 */
 
 #include "SpawnSystem.hpp"
+#include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Spawner.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Weapon.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Game/Prefabs/PrefabFactory.hpp"
 
@@ -52,7 +54,15 @@ namespace ecs {
             // Update wave elapsed time
             spawnerComp.waveElapsedTime += deltaTime;
 
-            // Check if it's time to advance to next wave
+            // Spawn enemies FIRST based on their individual delay within the wave
+            for (auto &enemy : currentWave.enemies) {
+                if (!enemy.hasSpawned && spawnerComp.waveElapsedTime >= enemy.spawnDelay) {
+                    _spawnEnemy(registry, enemy);
+                    enemy.hasSpawned = true;
+                }
+            }
+
+            // THEN check if it's time to advance to next wave
             if (spawnerComp.waveElapsedTime >= waveInterval) {
                 // Check if all enemies in current wave have spawned
                 bool allSpawned = true;
@@ -71,15 +81,15 @@ namespace ecs {
                     if (spawnerComp.currentWaveIndex >= wavesCount) {
                         spawnerComp.isActive = false;
                         LOG_INFO("[SpawnSystem] All waves completed for this spawner.");
+                    } else {
+                        // Reset hasSpawned flags for the next wave
+                        WaveConfig &nextWave = config.waves[spawnerComp.currentWaveIndex];
+                        for (auto &enemy : nextWave.enemies) {
+                            enemy.hasSpawned = false;
+                        }
+                        LOG_INFO("[SpawnSystem] Reset spawn flags for wave ",
+                                 spawnerComp.currentWaveIndex + 1);
                     }
-                }
-            }
-
-            // Spawn enemies based on their individual delay within the wave
-            for (auto &enemy : currentWave.enemies) {
-                if (!enemy.hasSpawned && spawnerComp.waveElapsedTime >= enemy.spawnDelay) {
-                    _spawnEnemy(registry, enemy);
-                    enemy.hasSpawned = true;
                 }
             }
         }
@@ -89,17 +99,50 @@ namespace ecs {
         try {
             Address enemy = registry.newEntity();
 
+            // Map enemy type string to numeric type
+            int enemyType = 0;  // Default: basic
+            float speed = 150.0f;
+            float colliderWidth = 40.0f;
+            float colliderHeight = 40.0f;
+
+            if (request.enemyType == "basic") {
+                enemyType = 0;
+                speed = 150.0f;
+                colliderWidth = 40.0f;
+                colliderHeight = 40.0f;
+            } else if (request.enemyType == "advanced" || request.enemyType == "heavy") {
+                enemyType = 1;
+                speed = 100.0f;
+                colliderWidth = 60.0f;
+                colliderHeight = 60.0f;
+            } else if (request.enemyType == "fast") {
+                enemyType = 2;
+                speed = 200.0f;
+                colliderWidth = 30.0f;
+                colliderHeight = 30.0f;
+            } else if (request.enemyType == "boss") {
+                enemyType = 3;
+                speed = 120.0f;
+                colliderWidth = 80.0f;
+                colliderHeight = 80.0f;
+            }
+
             registry.setComponent<Transform>(enemy, Transform(request.x, request.y));
-            registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, 200.0f));
+            registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, speed));
             registry.setComponent<Health>(
                 enemy, Health(static_cast<int>(request.health), static_cast<int>(request.health)));
-            registry.setComponent<Enemy>(enemy, Enemy(0, request.scoreValue, 0));
+            registry.setComponent<Enemy>(enemy, Enemy(enemyType, request.scoreValue, 0));
+            registry.setComponent<Collider>(
+                enemy, Collider(colliderWidth, colliderHeight, 0.0f, 0.0f, 2, 0xFFFFFFFF, false));
+            registry.setComponent<Weapon>(enemy,
+                                          Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, type 1, 15 damage
 
             if (!request.scriptPath.empty()) {
                 registry.setComponent<LuaScript>(enemy, LuaScript(request.scriptPath));
             }
 
-            LOG_INFO("[SpawnSystem] Spawned ", request.enemyType, " at (", request.x, ", ", request.y, ")");
+            LOG_INFO("[SpawnSystem] Spawned ", request.enemyType, " (type ", enemyType, ") at (", request.x,
+                     ", ", request.y, ") with entity ID: ", enemy);
         } catch (const std::exception &e) {
             LOG_ERROR("[SpawnSystem] Failed to spawn enemy: ", e.what());
         }

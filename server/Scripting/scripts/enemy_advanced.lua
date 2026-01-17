@@ -5,35 +5,42 @@
 ** enemy_advanced.lua - Advanced enemy with sinusoidal movement pattern
 ]]
 
-local baseSpeed = 180 -- horizontal movement speed
+-- Per-entity state storage (indexed by entity address)
+local entityStates = {}
+
+local baseSpeed = 180 -- horizontal movement speed (pixels per second)
 local sineSpeed = 2.5 -- oscillation frequency
 local sineAmplitude = 100 -- oscillation amplitude
-local time = 0
-local startY = 0
-local initialized = false
 
 function onUpdate(entity, deltaTime)
 	if not entity:isValid() or not entity:hasTransform() then
 		return
 	end
 
+	local addr = entity:getAddress()
 	local transform = entity:getTransform()
 
-	-- Initialize on first update
-	if not initialized then
-		startY = transform.y
-		initialized = true
+	-- Initialize per-entity state on first update
+	if not entityStates[addr] then
+		entityStates[addr] = {
+			time = 0,
+			startY = transform.y,
+			initialized = true
+		}
 	end
 
-	-- Increment time
-	time = time + deltaTime
+	local state = entityStates[addr]
+
+	-- Increment time for this specific entity
+	state.time = state.time + deltaTime
 
 	-- Move left + oscillate up/down in a sinusoidal pattern
 	transform.x = transform.x - baseSpeed * deltaTime
-	transform.y = startY + math.sin(time * sineSpeed * math.pi) * sineAmplitude
+	transform.y = state.startY + math.sin(state.time * sineSpeed * math.pi) * sineAmplitude
 
-	-- Destroy if off-screen (left side)
+	-- Destroy if off-screen (left side) and cleanup state
 	if transform.x < -50 then
+		entityStates[addr] = nil  -- Cleanup state to prevent memory leak
 		entity:destroy()
 	end
 end

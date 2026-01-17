@@ -79,7 +79,19 @@ namespace ecs {
          */
         ComponentType getType() const override { return getComponentType<Spawner>(); }
 
-        void setConfig(const SpawnerConfig &config) { _config = config; }
+        void setConfig(const SpawnerConfig &config) {
+            _config = config;
+            // Reset spawner state
+            waveElapsedTime = 0.0f;
+            currentWaveIndex = 0;
+            isActive = true;
+            // Ensure all hasSpawned flags are reset
+            for (auto &wave : _config.waves) {
+                for (auto &enemy : wave.enemies) {
+                    enemy.hasSpawned = false;
+                }
+            }
+        }
         const SpawnerConfig &getConfig() const { return _config; }
         SpawnerConfig &getConfigMutable() { return _config; }
 

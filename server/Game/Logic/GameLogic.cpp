@@ -26,6 +26,7 @@
 #include "common/ECS/Systems/AISystem/AISystem.hpp"
 #include "common/ECS/Systems/AnimationSystem/AnimationSystem.hpp"
 #include "common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
+#include "common/ECS/Systems/BuffSystem/BuffSystem.hpp"
 #include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
 #include "common/ECS/Systems/ISystem.hpp"
@@ -89,6 +90,7 @@ namespace server {
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
             _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
+            _world->createSystem<ecs::BuffSystem>("BuffSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
             _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
             _world->createSystem<ecs::AISystem>("AISystem");

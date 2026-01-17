@@ -7,7 +7,11 @@
 
 #pragma once
 
+#include "../../Components/Buff.hpp"
+#include "../../Components/Collectible.hpp"
 #include "../../Components/Collider.hpp"
+#include "../../Components/Health.hpp"
+#include "../../Components/Player.hpp"
 #include "../../Components/Transform.hpp"
 #include "../ISystem.hpp"
 
@@ -69,6 +73,17 @@ namespace ecs {
                        const Collider::Vector2 &size2, const Collider::Vector2 &offset2) const;
 
         /**
+         * @brief Handle collision between player and collectible
+         * 
+         * Applies collectible effects to the player and marks collectible for destruction.
+         * 
+         * @param playerAddr Player entity address
+         * @param collectibleAddr Collectible entity address
+         * @param registry Reference to the ECS registry
+         */
+        void handlePickup(Address playerAddr, Address collectibleAddr, Registry &registry);
+
+        /**
          * @brief Checks if two entities can collide based on layers.
          * 
          * Uses bitwise operations to determine if collision layers are compatible.
@@ -85,4 +100,4 @@ namespace ecs {
         bool canCollide(std::uint32_t layer1, std::uint32_t mask1, std::uint32_t layer2,
                         std::uint32_t mask2) const;
     };
-}
+}  // namespace ecs

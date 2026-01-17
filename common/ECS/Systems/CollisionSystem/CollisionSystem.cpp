@@ -33,10 +33,69 @@ namespace ecs {
 
                 if (checkAABB(transform1.getPosition(), collider1.getSize(), collider1.getOffset(),
                               transform2.getPosition(), collider2.getSize(), collider2.getOffset())) {
-                    // TODO: Handle collision response (events, physics, etc.)
+                    // Handle player-collectible pickup
+                    bool entity1IsPlayer = registry.hasComponent<Player>(entity1);
+                    bool entity2IsPlayer = registry.hasComponent<Player>(entity2);
+                    bool entity1IsCollectible = registry.hasComponent<Collectible>(entity1);
+                    bool entity2IsCollectible = registry.hasComponent<Collectible>(entity2);
+
+                    if (entity1IsPlayer && entity2IsCollectible) {
+                        handlePickup(entity1, entity2, registry);
+                    } else if (entity2IsPlayer && entity1IsCollectible) {
+                        handlePickup(entity2, entity1, registry);
+                    }
+
+                    // TODO: Handle other collision types (projectile hits, etc.)
                 }
             }
         }
+    }
+
+    void CollisionSystem::handlePickup(Address playerAddr, Address collectibleAddr, Registry &registry) {
+        if (!registry.hasComponent<Collectible>(collectibleAddr)) {
+            return;
+        }
+
+        Collectible &collectible = registry.getComponent<Collectible>(collectibleAddr);
+
+        // Apply collectible effects
+        if (collectible.grantsBuff()) {
+            // Add buff to player
+            if (!registry.hasComponent<Buff>(playerAddr)) {
+                registry.setComponent<Buff>(playerAddr, Buff());
+            }
+
+            Buff &buff = registry.getComponent<Buff>(playerAddr);
+            buff.addBuff(collectible.getBuffType(), collectible.getDuration(), collectible.getValue());
+
+            // For permanent max health increase, apply immediately
+            if (collectible.getBuffType() == BuffType::MaxHealthIncrease) {
+                if (registry.hasComponent<Health>(playerAddr)) {
+                    Health &health = registry.getComponent<Health>(playerAddr);
+                    int increase = static_cast<int>(collectible.getValue());
+                    health.setMaxHealth(health.getMaxHealth() + increase);
+                    health.setCurrentHealth(health.getCurrentHealth() + increase);
+                }
+            }
+        }
+
+        if (collectible.restoresHealth()) {
+            if (registry.hasComponent<Health>(playerAddr)) {
+                Health &health = registry.getComponent<Health>(playerAddr);
+                int newHealth = health.getCurrentHealth() + collectible.getHealthRestore();
+                health.setCurrentHealth(std::min(newHealth, health.getMaxHealth()));
+            }
+        }
+
+        if (collectible.awardsScore()) {
+            if (registry.hasComponent<Player>(playerAddr)) {
+                Player &player = registry.getComponent<Player>(playerAddr);
+                player.setScore(player.getScore() + collectible.getScoreValue());
+            }
+        }
+
+        // Destroy the collectible entity
+        registry.destroyEntity(collectibleAddr);
     }
 
     /**

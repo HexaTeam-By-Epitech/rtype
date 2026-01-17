@@ -7,11 +7,14 @@
 
 #include "server/Game/Prefabs/PrefabFactory.hpp"
 #include <stdexcept>
+#include "common/ECS/Components/Buff.hpp"
+#include "common/ECS/Components/Collectible.hpp"
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"
@@ -93,6 +96,44 @@ namespace server {
                 return {120.0f, 200, 500, 80.0f, 80.0f};
             default:  // Default to basic
                 return {150.0f, 50, 100, 40.0f, 40.0f};
+        }
+    }
+
+    ecs::Address PrefabFactory::createPowerUp(ecs::wrapper::ECSWorld &world, ecs::BuffType buffType,
+                                              float duration, float value, float posX, float posY) {
+        try {
+            ecs::wrapper::Entity powerUp =
+                world.createEntity()
+                    .with(ecs::Transform(posX, posY))
+                    .with(ecs::Collectible(buffType, duration, value))
+                    .with(ecs::Collider(20.0f, 20.0f, 0.0f, 0.0f, 8, 0xFFFFFFFF, false))
+                    // TODO: Add appropriate sprite for power-up
+                    .with(ecs::Sprite("powerup.png", {0, 0, 20, 20}, 1.0f, 0.0f, false, false, 0));
+
+            LOG_INFO("✓ Power-up spawned at (", posX, ", ", posY, ")");
+            return powerUp.getAddress();
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create power-up: ", e.what());
+            return 0;
+        }
+    }
+
+    ecs::Address PrefabFactory::createHealthPack(ecs::wrapper::ECSWorld &world, int healthRestore, float posX,
+                                                 float posY) {
+        try {
+            ecs::wrapper::Entity healthPack =
+                world.createEntity()
+                    .with(ecs::Transform(posX, posY))
+                    .with(ecs::Collectible(healthRestore))
+                    .with(ecs::Collider(20.0f, 20.0f, 0.0f, 0.0f, 8, 0xFFFFFFFF, false))
+                    // TODO: Add appropriate sprite for health pack
+                    .with(ecs::Sprite("health.png", {0, 0, 20, 20}, 1.0f, 0.0f, false, false, 0));
+
+            LOG_INFO("✓ Health pack spawned at (", posX, ", ", posY, ")");
+            return healthPack.getAddress();
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create health pack: ", e.what());
+            return 0;
         }
     }
 

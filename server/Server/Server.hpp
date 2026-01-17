@@ -167,6 +167,14 @@ class Server {
     void _broadcastGameState();
 
     /**
+     * @brief Process entities marked with PendingDestroy component
+     * 
+     * Sends EntityDestroyed messages to clients and removes entities from the registry.
+     * This ensures clients properly cleanup entities instead of interpolating to old positions.
+     */
+    void _processPendingDestructions();
+
+    /**
      * @brief Send GameStart message to all players in a room
      * @param room Room that just started
      */

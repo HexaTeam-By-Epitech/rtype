@@ -716,28 +716,66 @@ void Server::_handleAutoMatchmaking(HostNetworkEvent &event) {
     // Get all available public rooms
     auto availableRooms = _roomManager->getPublicRooms();
 
-    // Use MatchmakingService to find a match or add to queue
-    auto matchmakingService = _roomManager->getMatchmaking();
-    if (!matchmakingService) {
-        LOG_ERROR("MatchmakingService not available");
-        S2C::JoinedRoom response("", false, "Matchmaking service unavailable");
-        _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
-        return;
+    std::shared_ptr<server::Room> targetRoom = nullptr;
+    bool joinAsSpectator = false;
+
+    // STRATEGY: If no rooms exist at all, create a new room immediately (like "Create Room")
+    if (availableRooms.empty()) {
+        LOG_INFO("No rooms available, creating new room for auto-matchmaking");
+
+        // Generate room ID
+        static std::atomic<uint32_t> nextAutoRoomId{1};
+        std::string roomId = "auto_" + std::to_string(nextAutoRoomId.fetch_add(1));
+
+        // Get player name for room title
+        std::string playerName = "Player";
+        auto usernameIt = _playerIdToUsername.find(playerId);
+        if (usernameIt != _playerIdToUsername.end()) {
+            playerName = usernameIt->second;
+        }
+
+        std::string roomName = playerName + "'s Room";
+        uint32_t maxPlayers = 4;  // Default max players
+        bool isPrivate = false;   // Public room
+
+        // Create the room via RoomManager (same as Create Room button)
+        targetRoom = _roomManager->createRoom(roomId, roomName, maxPlayers, isPrivate);
+
+        if (!targetRoom) {
+            LOG_ERROR("Failed to create auto-matchmaking room");
+            S2C::JoinedRoom response("", false, "Failed to create room");
+            _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+            return;
+        }
+
+        LOG_INFO("✓ Auto-matchmaking room '", roomName, "' (", roomId, ") created");
+    } else {
+        // Rooms exist - use MatchmakingService to find best match
+        auto matchmakingService = _roomManager->getMatchmaking();
+        if (!matchmakingService) {
+            LOG_ERROR("MatchmakingService not available");
+            S2C::JoinedRoom response("", false, "Matchmaking service unavailable");
+            _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+            return;
+        }
+
+        auto [foundRoom, spectator] =
+            matchmakingService->findOrCreateMatch(playerId, availableRooms, !isSpectator);
+
+        // If no immediate match found, player was added to queue
+        if (!foundRoom) {
+            LOG_INFO("Player ", playerId, " added to matchmaking queue");
+            S2C::JoinedRoom response("", false,
+                                     "Searching for match... You will be notified when a match is found.");
+            _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+            return;
+        }
+
+        targetRoom = foundRoom;
+        joinAsSpectator = spectator;
     }
 
-    auto [targetRoom, joinAsSpectator] =
-        matchmakingService->findOrCreateMatch(playerId, availableRooms, !isSpectator);
-
-    // If no immediate match found, player was added to queue
-    if (!targetRoom) {
-        LOG_INFO("Player ", playerId, " added to matchmaking queue");
-        S2C::JoinedRoom response("", false,
-                                 "Searching for match... You will be notified when a match is found.");
-        _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
-        return;
-    }
-
-    // Immediate match found - join the room
+    // Join the room (either newly created or found)
     bool joinSuccess = false;
     if (joinAsSpectator) {
         joinSuccess = targetRoom->joinAsSpectator(playerId);

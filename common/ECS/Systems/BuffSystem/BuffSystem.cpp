@@ -135,37 +135,32 @@ namespace ecs {
                     break;
 
                 case BuffType::MaxHealthIncrease:
-                    if (registry.hasComponent<Health>(address)) {
-                        Health &health = registry.getComponent<Health>(address);
-                        // Already applied when buff was added
-                        // This is a permanent increase
-                    }
+                    // Already applied when buff was added (permanent increase)
+                    // No per-frame processing needed
                     break;
             }
         }
     }
 
     void BuffSystem::_applySpeedBoost(Velocity &velocity, float multiplier) {
-        // Speed boost is multiplicative
-        // Note: This modifies speed every frame, so base speed should be stored separately
-        // For simplicity, we apply it directly (assumes system order handles this)
-        float currentSpeed = velocity.getSpeed();
-        // Speed already includes buffs from previous frame
-        // To properly handle this, we'd need to store base speed separately
-        // For now, just ensure speed is reasonable
-        (void)multiplier;  // Placeholder - needs proper implementation
+        // Apply speed multiplier to base speed
+        float baseSpeed = velocity.getBaseSpeed();
+        float newSpeed = baseSpeed * multiplier;
+        velocity.setSpeed(newSpeed);
     }
 
     void BuffSystem::_applyDamageBoost(Weapon &weapon, float multiplier) {
-        // Similar issue - needs base damage storage
-        (void)weapon;
-        (void)multiplier;
+        // Apply damage multiplier to base damage
+        int baseDamage = weapon.getBaseDamage();
+        int newDamage = static_cast<int>(baseDamage * multiplier);
+        weapon.setDamage(newDamage);
     }
 
     void BuffSystem::_applyFireRateBoost(Weapon &weapon, float multiplier) {
-        // Similar issue - needs base fire rate storage
-        (void)weapon;
-        (void)multiplier;
+        // Apply fire rate multiplier to base fire rate
+        float baseFireRate = weapon.getBaseFireRate();
+        float newFireRate = baseFireRate * multiplier;
+        weapon.setFireRate(newFireRate);
     }
 
     void BuffSystem::_applyShield(Health &health, float duration) {

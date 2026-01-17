@@ -472,9 +472,10 @@ void Rendering::SubscribeToConnectionEvents() {
             // Apply auto-matchmaking preference from server
             if (_settingsMenu) {
                 bool enabled = (event.getData() == "1");
-                _settingsMenu->SetAutoMatchmaking(enabled);
+                _settingsMenu->ApplyAutoMatchmakingPreference(enabled);
                 LOG_INFO("[Rendering] Applied auto-matchmaking preference from server: ",
                          enabled ? "ON" : "OFF");
+                LOG_INFO("[Rendering] Matchmaking will only trigger when player clicks PLAY button");
             }
         } else if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
             LOG_INFO("[Rendering] Connection successful!");

@@ -61,8 +61,16 @@ namespace Game {
 
         /**
          * @brief Toggle auto-matchmaking feature.
+         * This triggers the callback to notify the server.
          */
         void SetAutoMatchmaking(bool enabled);
+
+        /**
+         * @brief Apply auto-matchmaking preference silently (without triggering callback).
+         * Used when loading preference from server after login.
+         */
+        void ApplyAutoMatchmakingPreference(bool enabled);
+
         [[nodiscard]] bool GetAutoMatchmaking() const;
         void SetOnAutoMatchmakingChanged(std::function<void(bool)> cb);
         [[nodiscard]] bool GetShowPing() const;

@@ -431,7 +431,17 @@ namespace Game {
         if (_onAutoMatchmakingChanged) {
             _onAutoMatchmakingChanged(_autoMatchmaking);
         }
-        LOG_INFO("[SettingsMenu] Auto-matchmaking=", _autoMatchmaking ? "true" : "false");
+        LOG_INFO("[SettingsMenu] Auto-matchmaking=", _autoMatchmaking ? "true" : "false",
+                 " (notifying server)");
+    }
+
+    void SettingsMenu::ApplyAutoMatchmakingPreference(bool enabled) {
+        // Apply preference silently without triggering callback
+        // This is used when loading preference from server after login
+        _autoMatchmaking = enabled;
+        UpdateAutoMatchmakingVisuals();
+        LOG_INFO("[SettingsMenu] Auto-matchmaking preference applied from server: ",
+                 _autoMatchmaking ? "ON" : "OFF", " (no server notification)");
     }
 
     bool SettingsMenu::GetAutoMatchmaking() const {

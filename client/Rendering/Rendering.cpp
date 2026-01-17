@@ -65,6 +65,7 @@ void Rendering::InitializeMenus() {
     InitializeCreateRoomMenu();
     InitializeWaitingRoomMenu();
     InitializeConnectionMenu();
+    InitializeChatWidget();
     SubscribeToConnectionEvents();
 }
 
@@ -113,6 +114,12 @@ void Rendering::InitializeSettingsMenu() {
     _settingsMenu->SetOnShowPingChanged([this](bool enabled) { SetShowPing(enabled); });
 
     _settingsMenu->SetOnShowFpsChanged([this](bool enabled) { SetShowFps(enabled); });
+
+    _settingsMenu->SetOnShowChatChanged([this](bool enabled) {
+        if (_chatWidget) {
+            _chatWidget->SetVisible(enabled);
+        }
+    });
 
     _settingsMenu->SetOnTargetFpsChanged(
         [this](uint32_t fps) { _graphics.SetTargetFPS(static_cast<int>(fps)); });
@@ -464,6 +471,17 @@ void Rendering::SubscribeToConnectionEvents() {
         } else if (event.getType() == UIEventType::ROOM_LIST_RECEIVED) {
             LOG_INFO("[Rendering] Room list received");
             // Room list will be updated by GameLoop parsing the network message
+        } else if (event.getType() == UIEventType::BACK_TO_ROOM_LIST) {
+            LOG_INFO("[Rendering] Returning to room list");
+
+            // Hide waiting room and show room list
+            if (_waitingRoomMenu)
+                _waitingRoomMenu->Hide();
+            if (_roomListMenu)
+                _roomListMenu->Show();
+
+            // Ensure we're in menu scene
+            _scene = Scene::MENU;
         }
     });
 }
@@ -601,6 +619,14 @@ void Rendering::HandleEscapeKeyInput() {
 }
 
 void Rendering::UpdateUI() {
+    // Update chat visibility based on scene
+    UpdateChatVisibility();
+
+    // Update chat widget
+    if (_chatWidget && _chatWidget->IsVisible()) {
+        _chatWidget->Update();
+    }
+
     if (_confirmQuitMenu && _confirmQuitMenu->IsVisible()) {
         _confirmQuitMenu->Update();
         return;
@@ -718,6 +744,11 @@ void Rendering::RenderUI() {
             }
             _settingsMenu->Render();
         }
+    }
+
+    // Render chat widget (on top of everything)
+    if (_chatWidget && _chatWidget->IsVisible()) {
+        _chatWidget->Render();
     }
 }
 
@@ -902,4 +933,51 @@ void Rendering::UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, 
 
     LOG_INFO("[Rendering] Waiting room updated with ", players.size(), " players, isHost=", isHost,
              ", isSpectator=", isSpectator);
+}
+
+void Rendering::InitializeChatWidget() {
+    if (!_uiFactory) {
+        LOG_ERROR("[Rendering] Cannot initialize chat widget: UIFactory not initialized");
+        return;
+    }
+
+    _chatWidget = std::make_unique<Game::ChatWidget>(*_uiFactory, _graphics);
+    _chatWidget->Initialize();
+
+    float x = _width - 300.0f;
+    float y = _height - 240.0f;
+
+    _chatWidget->SetPosition(x, y);
+    _chatWidget->SetVisible(false);  // Will be set by UpdateChatVisibility
+
+    LOG_INFO("[Rendering] Chat widget initialized");
+}
+
+void Rendering::AddChatMessage(uint32_t playerId, const std::string &playerName, const std::string &message,
+                               uint64_t timestamp) {
+    if (_chatWidget) {
+        _chatWidget->AddMessage(playerId, playerName, message, timestamp);
+    }
+}
+
+void Rendering::SetOnChatMessageSent(std::function<void(const std::string &)> callback) {
+    if (_chatWidget) {
+        _chatWidget->SetOnMessageSent(callback);
+    }
+}
+
+void Rendering::UpdateChatVisibility() {
+    if (!_chatWidget) {
+        return;
+    }
+
+    // Show chat in waiting room or in-game, but only if enabled in settings
+    bool shouldBeVisible = (_scene == Scene::IN_GAME) || (_waitingRoomMenu && _waitingRoomMenu->IsVisible());
+
+    // Check if chat is enabled in settings
+    if (_settingsMenu && !_settingsMenu->GetShowChat()) {
+        shouldBeVisible = false;
+    }
+
+    _chatWidget->SetVisible(shouldBeVisible);
 }

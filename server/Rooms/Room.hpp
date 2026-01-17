@@ -97,6 +97,21 @@ namespace server {
         uint32_t getHost() const { return _hostPlayerId; };
 
         /**
+         * @brief Broadcast a chat message to all players in the room
+         * @param senderId ID of the player sending the message
+         * @param senderName Name of the player sending the message
+         * @param message The message text
+         */
+        void broadcastChatMessage(uint32_t senderId, const std::string &senderName,
+                                  const std::string &message);
+
+        /**
+         * @brief Check if room is private
+         * @return true if room is private
+         */
+        bool isPrivate() const { return _isPrivate; }
+
+        /**
          * @brief Check if GameStart has been sent
          * @return true if GameStart has been sent to players
          */
@@ -112,12 +127,6 @@ namespace server {
          * @return true if flag was false and is now set to true, false if already sent
          */
         bool tryMarkGameStartSent();
-
-        /**
-         * @brief Check if room is private
-         * @return true if room is private
-         */
-        bool isPrivate() const { return _isPrivate; }
 
        private:
         std::string _id;

@@ -9,7 +9,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <unordered_map>
 #include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Network/ServerNetworkManager.hpp"
 #include "server/Rooms/Lobby/Lobby.hpp"
@@ -20,6 +19,8 @@
 namespace server {
     class ServerLoop;
     class EventBus;
+    class CommandHandler;
+    struct CommandContext;
 }  // namespace server
 
 namespace ecs::wrapper {
@@ -162,6 +163,12 @@ class Server {
     void _handleStartGame(HostNetworkEvent &event);
 
     /**
+     * @brief Handle chat message from client
+     * @param event Network event with packet data
+     */
+    void _handleChatMessage(HostNetworkEvent &event);
+
+    /**
      * @brief Broadcast game state to all connected clients
      */
     void _broadcastGameState();
@@ -239,6 +246,40 @@ class Server {
     std::vector<RType::Messages::S2C::EntityState> _serializeEntities(
         std::shared_ptr<ecs::wrapper::ECSWorld> world, server::IGameLogic *gameLogic = nullptr);
 
+    /**
+     * @brief Send a system message to a specific player
+     * @param playerId Player ID to send to
+     * @param message Message text
+     */
+    void _sendSystemMessage(uint32_t playerId, const std::string &message);
+
+    /**
+     * @brief Send room list to kicked player to return them to lobby
+     * @param playerId Player ID that was kicked
+     */
+    void _sendKickedNotification(uint32_t playerId);
+
+   public:
+    /**
+     * @brief Get the lobby instance (for commands)
+     * @return Shared pointer to Lobby
+     */
+    std::shared_ptr<server::Lobby> getLobby() const { return _lobby; }
+
+    /**
+     * @brief Notify all players in a room of state changes (for commands)
+     * @param room Room to broadcast state for
+     */
+    void notifyRoomUpdate(std::shared_ptr<server::Room> room);
+
+    /**
+     * @brief Kick a player from their current room (for commands)
+     * @param playerId Player ID to kick
+     * @return true if player was kicked successfully
+     */
+    bool kickPlayer(uint32_t playerId);
+
+   private:
     uint16_t _port;
     size_t _maxClients;
 
@@ -249,6 +290,8 @@ class Server {
     std::shared_ptr<server::SessionManager> _sessionManager;
     std::shared_ptr<server::RoomManager> _roomManager;
     std::shared_ptr<server::Lobby> _lobby;
+    std::unique_ptr<server::CommandHandler> _commandHandler;
+
     // NOTE: No global _gameLoop anymore - each Room has its own
 
     // Track session ID to peer mapping for network communication

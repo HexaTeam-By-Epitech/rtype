@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "ChatMessage.hpp"
 #include "CreateRoom.hpp"
 #include "JoinGame.hpp"
 #include "JoinRoom.hpp"

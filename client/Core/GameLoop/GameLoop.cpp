@@ -143,6 +143,24 @@ void GameLoop::run() {
 
     _running = true;
 
+    // Setup chat message callback NOW that Rendering is fully initialized
+    LOG_INFO("[GameLoop] Setting up chat message callback...");
+    if (_rendering) {
+        _rendering->SetOnChatMessageSent([this](const std::string &message) {
+            LOG_INFO("[GameLoop] Chat callback triggered with message: '", message, "'");
+            if (_replicator) {
+                LOG_INFO("[GameLoop] Calling replicator->sendChatMessage()");
+                bool sent = _replicator->sendChatMessage(message);
+                LOG_INFO("[GameLoop] Message send result: ", (sent ? "SUCCESS" : "FAILED"));
+            } else {
+                LOG_ERROR("[GameLoop] Replicator is NULL!");
+            }
+        });
+        LOG_INFO("[GameLoop] ✓ Chat message callback configured");
+    } else {
+        LOG_ERROR("[GameLoop] Rendering is NULL!");
+    }
+
     while (_running) {
         // Get player ID from replicator (once authenticated)
         if (_myPlayerId == 0 && _replicator) {
@@ -367,13 +385,6 @@ void GameLoop::processInput() {
 
     // Send to server (packet already contains type, so pass empty type)
     _replicator->sendPacket(static_cast<NetworkMessageType>(0), packet);
-
-    // Log ALL inputs for debugging (not just non-empty)
-    static uint32_t logCounter = 0;
-    if (++logCounter % 60 == 0) {
-        LOG_DEBUG("[INPUT] Sent seq=", currentSnapshot.sequenceId, " actions=", actions.size(), " (",
-                  (dx != 0 || dy != 0 ? "MOVING" : "STOPPED"), ") + history=", _inputHistory.size());
-    }
 }
 
 float GameLoop::calculateDeltaTime() {
@@ -405,6 +416,12 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
             break;
         case NetworkMessages::MessageType::S2C_ROOM_STATE:
             handleRoomState(payload);
+            break;
+        case NetworkMessages::MessageType::S2C_CHAT_MESSAGE:
+            handleChatMessage(payload);
+            break;
+        case NetworkMessages::MessageType::S2C_LEFT_ROOM:
+            handleLeftRoom(payload);
             break;
         default:
             break;
@@ -611,11 +628,62 @@ void GameLoop::handleGameruleUpdate(const std::vector<uint8_t> &payload) {
 
         LOG_INFO("✓ Gamerule update received: ", gamerulePacket.size(), " rules updated");
 
-        if (gamerulePacket.hasGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED))) {
-            _playerSpeed = gamerulePacket.getGamerule(GameruleKeys::toString(GameruleKey::PLAYER_SPEED));
+        // Apply player speed from gamerules
+        float speed = clientRules.get(GameruleKey::PLAYER_SPEED, _playerSpeed);
+        if (speed != _playerSpeed) {
+            _playerSpeed = speed;
             LOG_INFO("  - Player speed updated to: ", _playerSpeed);
         }
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse GamerulePacket: ", e.what());
+    }
+}
+
+void GameLoop::handleChatMessage(const std::vector<uint8_t> &payload) {
+    try {
+        auto chatMsg = RType::Messages::S2C::S2CChatMessage::deserialize(payload);
+
+        LOG_INFO("✓ ChatMessage from ", chatMsg.playerName, ": ", chatMsg.message);
+
+        // Forward to rendering for display
+        if (_rendering) {
+            _rendering->AddChatMessage(chatMsg.playerId, chatMsg.playerName, chatMsg.message,
+                                       chatMsg.timestamp);
+        }
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse ChatMessage: ", e.what());
+    }
+}
+
+void GameLoop::handleLeftRoom(const std::vector<uint8_t> &payload) {
+    using namespace RType::Messages;
+
+    try {
+        auto leftRoomMsg = S2C::LeftRoom::deserialize(payload);
+
+        LOG_INFO("✓ LeftRoom received - playerId: ", leftRoomMsg.playerId,
+                 ", reason: ", static_cast<int>(leftRoomMsg.reason), ", message: ", leftRoomMsg.message);
+
+        // If the player who left is ME, return to room list
+        // Note: We need to compare with local player ID which we should track
+        // For now, we'll assume if we receive this message, it's for us
+        // (Server should only send it to the player who left)
+
+        if (leftRoomMsg.reason == S2C::LeftRoomReason::KICKED && _myPlayerId == leftRoomMsg.playerId) {
+            LOG_INFO("You were kicked from the room: ", leftRoomMsg.message);
+
+            // Show the message to the user via chat if available
+            if (_rendering) {
+                _rendering->AddChatMessage(0, "SYSTEM", leftRoomMsg.message, 0);
+            }
+        }
+
+        if (_myPlayerId == leftRoomMsg.playerId) {
+            LOG_INFO("✓ You have left the room, returning to room list");
+            _eventBus->publish(UIEvent{UIEventType::BACK_TO_ROOM_LIST});
+        }
+
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse LeftRoom: ", e.what());
     }
 }

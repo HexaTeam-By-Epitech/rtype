@@ -2,16 +2,13 @@
 ** EPITECH PROJECT, 2025
 ** RTYPE
 ** File description:
-** test_movement.lua - Circular movement test
+** enemy_basic.lua - Basic enemy behavior (linear left movement)
 ]]
 
 -- Per-entity state storage (indexed by entity address)
 local entityStates = {}
 
-local centerX = 400
-local centerY = 300
-local radius = 150
-local speed = 1.0 -- Vitesse de rotation (radians/sec)
+local baseSpeed = 150 -- pixels per second
 
 function onUpdate(entity, deltaTime)
 	if not entity:isValid() or not entity:hasTransform() then
@@ -23,17 +20,18 @@ function onUpdate(entity, deltaTime)
 	-- Initialize per-entity state if needed
 	if not entityStates[addr] then
 		entityStates[addr] = {
-			time = 0
+			initialized = true
 		}
 	end
 
-	local state = entityStates[addr]
 	local transform = entity:getTransform()
 
-	-- Increment time for this specific entity
-	state.time = state.time + deltaTime
+	-- Move left at constant speed
+	transform.x = transform.x - baseSpeed * deltaTime
 
-	-- Circular movement
-	transform.x = centerX + math.cos(state.time * speed) * radius
-	transform.y = centerY + math.sin(state.time * speed) * radius
+	-- Cleanup if entity goes off-screen
+	if transform.x < -100 then
+		entityStates[addr] = nil
+		-- entity:destroy() -- Entity destruction handled by BoundarySystem
+	end
 end

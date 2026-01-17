@@ -112,7 +112,7 @@ namespace server {
          * @brief Spawn initial enemies with Lua scripts
          * Called when the game actually starts (not at initialization)
          */
-        void spawnEnemies();
+        void onGameStart();
 
        private:
         /**

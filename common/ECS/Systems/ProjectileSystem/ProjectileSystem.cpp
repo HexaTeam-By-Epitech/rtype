@@ -8,6 +8,7 @@
 #include "ProjectileSystem.hpp"
 #include <vector>
 #include "../../Components/IComponent.hpp"
+#include "../../Components/PendingDestroy.hpp"
 
 namespace ecs {
     void ProjectileSystem::update(Registry &registry, float deltaTime) {
@@ -26,7 +27,10 @@ namespace ecs {
         }
 
         for (auto entityId : toDestroy) {
-            registry.destroyEntity(entityId);
+            // Mark for destruction with proper client notification
+            if (!registry.hasComponent<PendingDestroy>(entityId)) {
+                registry.setComponent<PendingDestroy>(entityId, PendingDestroy(DestroyReason::Expired));
+            }
         }
     }
 

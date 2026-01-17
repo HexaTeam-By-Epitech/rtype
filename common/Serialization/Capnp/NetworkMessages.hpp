@@ -55,6 +55,8 @@ namespace NetworkMessages {
         HANDSHAKE_RESPONSE = 0x0002,
         REGISTER_REQUEST = 0x0007,
         REGISTER_RESPONSE = 0x0008,
+        LOGIN_REQUEST = 0x0009,
+        LOGIN_RESPONSE = 0x000A,
         DISCONNECT = 0x0003,
         KICK = 0x0004,
         PING = 0x0005,
@@ -72,6 +74,7 @@ namespace NetworkMessages {
         C2S_START_MATCHMAKING = 0x0303,
         C2S_CANCEL_MATCHMAKING = 0x0304,
         C2S_START_GAME = 0x0305,
+        C2S_CHAT_MESSAGE = 0x0307,
 
         // Server to Client gameplay messages (0x02xx)
         S2C_GAME_STATE = 0x0200,
@@ -87,6 +90,8 @@ namespace NetworkMessages {
         S2C_MATCHMAKING_STARTED = 0x0403,
         S2C_MATCH_FOUND = 0x0404,
         S2C_ROOM_STATE = 0x0405,
+        S2C_CHAT_MESSAGE = 0x0406,
+        S2C_LEFT_ROOM = 0x0407,
 
         UNKNOWN = 0xFFFF
     };

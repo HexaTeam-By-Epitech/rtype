@@ -6,7 +6,6 @@
 */
 
 #include "Rendering.hpp"
-#include <chrono>
 #include <thread>
 #include "Events/UIEvent.hpp"
 #include "UI/TextUtils.hpp"
@@ -65,6 +64,7 @@ void Rendering::InitializeMenus() {
     InitializeCreateRoomMenu();
     InitializeWaitingRoomMenu();
     InitializeConnectionMenu();
+    InitializeChatWidget();
     SubscribeToConnectionEvents();
 }
 
@@ -113,6 +113,12 @@ void Rendering::InitializeSettingsMenu() {
     _settingsMenu->SetOnShowPingChanged([this](bool enabled) { SetShowPing(enabled); });
 
     _settingsMenu->SetOnShowFpsChanged([this](bool enabled) { SetShowFps(enabled); });
+
+    _settingsMenu->SetOnShowChatChanged([this](bool enabled) {
+        if (_chatWidget) {
+            _chatWidget->SetVisible(enabled);
+        }
+    });
 
     _settingsMenu->SetOnTargetFpsChanged(
         [this](uint32_t fps) { _graphics.SetTargetFPS(static_cast<int>(fps)); });
@@ -429,7 +435,21 @@ void Rendering::InitializeWaitingRoomMenu() {
 
 void Rendering::SubscribeToConnectionEvents() {
     _eventBus.subscribe<UIEvent>([this](const UIEvent &event) {
-        if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
+        if (event.getType() == UIEventType::AUTH_SUCCESS) {
+            // Update player name after authentication
+            const std::string &username = event.getData();
+            SetPlayerName(username);
+
+            // Hide both login and server list menus, show main menu
+            if (_loginMenu)
+                _loginMenu->Hide();
+            if (_serverListMenu)
+                _serverListMenu->Hide();
+            if (_mainMenu)
+                _mainMenu->Show();
+
+            LOG_INFO("[Rendering] Authentication successful, returning to main menu");
+        } else if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
             LOG_INFO("[Rendering] Connection successful!");
 
             // Clear connecting state
@@ -464,6 +484,21 @@ void Rendering::SubscribeToConnectionEvents() {
         } else if (event.getType() == UIEventType::ROOM_LIST_RECEIVED) {
             LOG_INFO("[Rendering] Room list received");
             // Room list will be updated by GameLoop parsing the network message
+        } else if (event.getType() == UIEventType::REGISTER_SUCCESS) {
+            LOG_INFO("[Rendering] Registration successful: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetSuccessMessage("Registration successful! You can now login.");
+            }
+        } else if (event.getType() == UIEventType::REGISTER_FAILED) {
+            LOG_ERROR("[Rendering] Registration failed: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetErrorMessage(event.getData());
+            }
+        } else if (event.getType() == UIEventType::LOGIN_FAILED) {
+            LOG_ERROR("[Rendering] Login failed: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetErrorMessage(event.getData());
+            }
         }
     });
 }
@@ -501,6 +536,13 @@ void Rendering::SetShowFps(bool enabled) {
 
 bool Rendering::GetShowFps() const {
     return _showFps;
+}
+
+void Rendering::SetPlayerName(const std::string &name) {
+    if (_mainMenu) {
+        _mainMenu->SetProfileName(name);
+    }
+    LOG_INFO("[Rendering] Player name updated to: ", name);
 }
 
 void Rendering::StartGame() {
@@ -601,6 +643,14 @@ void Rendering::HandleEscapeKeyInput() {
 }
 
 void Rendering::UpdateUI() {
+    // Update chat visibility based on scene
+    UpdateChatVisibility();
+
+    // Update chat widget
+    if (_chatWidget && _chatWidget->IsVisible()) {
+        _chatWidget->Update();
+    }
+
     if (_confirmQuitMenu && _confirmQuitMenu->IsVisible()) {
         _confirmQuitMenu->Update();
         return;
@@ -635,27 +685,49 @@ void Rendering::UpdateUI() {
             _loginMenu->Update();
 
             // Check for submission
-            if (_loginMenu->IsLoginSubmitted() || _loginMenu->IsRegisterSubmitted() ||
-                _loginMenu->IsGuestSubmitted()) {
-                std::string username;
-                if (_loginMenu->IsGuestSubmitted()) {
-                    username = "Guest";
+            if (_loginMenu->IsRegisterSubmitted()) {
+                // Register: Send RegisterAccount event
+                std::string username = _loginMenu->GetUsername();
+                std::string password = _loginMenu->GetPassword();
+
+                if (!username.empty() && !password.empty()) {
+                    LOG_INFO("[Rendering] Sending register request for user: " + username);
+                    // Publish event with "username:password" format
+                    std::string credentials = username + ":" + password;
+                    _eventBus.publish(UIEvent(UIEventType::REGISTER_ACCOUNT, credentials));
+
+                    // Reset the menu state so it doesn't keep sending
+                    _loginMenu->Reset();
                 } else {
-                    username = _loginMenu->GetUsername();
+                    _loginMenu->SetErrorMessage("Please enter username and password");
                 }
 
-                // Update MainMenu profile button
-                if (_mainMenu) {
-                    _mainMenu->SetProfileName(username);
+            } else if (_loginMenu->IsLoginSubmitted()) {
+                // Login: Send LoginAccount event
+                std::string username = _loginMenu->GetUsername();
+                std::string password = _loginMenu->GetPassword();
+
+                if (!username.empty() && !password.empty()) {
+                    LOG_INFO("[Rendering] Sending login request for user: " + username);
+                    // Publish event with "username:password" format
+                    std::string credentials = username + ":" + password;
+                    _eventBus.publish(UIEvent(UIEventType::LOGIN_ACCOUNT, credentials));
+
+                    // Reset the menu state so it doesn't keep sending
+                    _loginMenu->Reset();
+                } else {
+                    _loginMenu->SetErrorMessage("Please enter username and password");
                 }
 
-                LOG_INFO("[Rendering] User logged in as: " + username);
+            } else if (_loginMenu->IsGuestSubmitted()) {
+                // Guest login: send guest credentials to re-authenticate as guest
+                LOG_INFO("[Rendering] Guest login selected - sending guest credentials");
 
-                // Close menu
-                _loginMenu->Hide();
-                if (_mainMenu)
-                    _mainMenu->Show();
-                _loginOverlay = false;
+                // Send guest credentials
+                std::string credentials = "guest:guest";
+                _eventBus.publish(UIEvent(UIEventType::LOGIN_ACCOUNT, credentials));
+
+                // Reset the menu state
                 _loginMenu->Reset();
             }
         }
@@ -718,6 +790,11 @@ void Rendering::RenderUI() {
             }
             _settingsMenu->Render();
         }
+    }
+
+    // Render chat widget (on top of everything)
+    if (_chatWidget && _chatWidget->IsVisible()) {
+        _chatWidget->Render();
     }
 }
 
@@ -902,4 +979,51 @@ void Rendering::UpdateWaitingRoom(const std::vector<Game::PlayerInfo> &players, 
 
     LOG_INFO("[Rendering] Waiting room updated with ", players.size(), " players, isHost=", isHost,
              ", isSpectator=", isSpectator);
+}
+
+void Rendering::InitializeChatWidget() {
+    if (!_uiFactory) {
+        LOG_ERROR("[Rendering] Cannot initialize chat widget: UIFactory not initialized");
+        return;
+    }
+
+    _chatWidget = std::make_unique<Game::ChatWidget>(*_uiFactory, _graphics);
+    _chatWidget->Initialize();
+
+    float x = _width - 300.0f;
+    float y = _height - 240.0f;
+
+    _chatWidget->SetPosition(x, y);
+    _chatWidget->SetVisible(false);  // Will be set by UpdateChatVisibility
+
+    LOG_INFO("[Rendering] Chat widget initialized");
+}
+
+void Rendering::AddChatMessage(uint32_t playerId, const std::string &playerName, const std::string &message,
+                               uint64_t timestamp) {
+    if (_chatWidget) {
+        _chatWidget->AddMessage(playerId, playerName, message, timestamp);
+    }
+}
+
+void Rendering::SetOnChatMessageSent(std::function<void(const std::string &)> callback) {
+    if (_chatWidget) {
+        _chatWidget->SetOnMessageSent(callback);
+    }
+}
+
+void Rendering::UpdateChatVisibility() {
+    if (!_chatWidget) {
+        return;
+    }
+
+    // Show chat in waiting room or in-game, but only if enabled in settings
+    bool shouldBeVisible = (_scene == Scene::IN_GAME) || (_waitingRoomMenu && _waitingRoomMenu->IsVisible());
+
+    // Check if chat is enabled in settings
+    if (_settingsMenu && !_settingsMenu->GetShowChat()) {
+        shouldBeVisible = false;
+    }
+
+    _chatWidget->SetVisible(shouldBeVisible);
 }

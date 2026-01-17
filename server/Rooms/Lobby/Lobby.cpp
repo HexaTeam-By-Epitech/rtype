@@ -54,6 +54,21 @@ namespace server {
         return true;
     }
 
+    bool Lobby::updatePlayerName(uint32_t playerId, const std::string &newName) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        auto it = _players.find(playerId);
+        if (it == _players.end()) {
+            LOG_WARNING("Cannot update name - player ", playerId, " not in lobby");
+            return false;
+        }
+
+        std::string oldName = it->second.playerName;
+        it->second.playerName = newName;
+        LOG_INFO("✓ Player ", playerId, " name updated: '", oldName, "' → '", newName, "'");
+        return true;
+    }
+
     const LobbyPlayer *Lobby::getPlayer(uint32_t playerId) const {
         std::lock_guard<std::mutex> lock(_mutex);
 

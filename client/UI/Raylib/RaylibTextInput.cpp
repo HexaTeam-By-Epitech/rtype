@@ -187,9 +187,16 @@ namespace UI {
             _graphics.DrawText(_placeholder.c_str(), static_cast<int>(textX), static_cast<int>(textY),
                                _textSize, _placeholderColor);
         } else if (!_text.empty()) {
-            // Draw actual text
-            _graphics.DrawText(_text.c_str(), static_cast<int>(textX), static_cast<int>(textY), _textSize,
-                               _textColor);
+            // Draw actual text or masked text (password mode)
+            if (_passwordMode) {
+                // Mask password with asterisks
+                std::string maskedText(_text.length(), '*');
+                _graphics.DrawText(maskedText.c_str(), static_cast<int>(textX), static_cast<int>(textY),
+                                   _textSize, _textColor);
+            } else {
+                _graphics.DrawText(_text.c_str(), static_cast<int>(textX), static_cast<int>(textY), _textSize,
+                                   _textColor);
+            }
         }
 
         // Draw blinking cursor when focused
@@ -197,7 +204,13 @@ namespace UI {
             // Use Raylib's MeasureText for accurate positioning
             int textWidth = 0;
             if (!_text.empty()) {
-                textWidth = MeasureText(_text.c_str(), _textSize);
+                if (_passwordMode) {
+                    // Measure masked text width
+                    std::string maskedText(_text.length(), '*');
+                    textWidth = MeasureText(maskedText.c_str(), _textSize);
+                } else {
+                    textWidth = MeasureText(_text.c_str(), _textSize);
+                }
             }
             float cursorX = textX + static_cast<float>(textWidth);
             float cursorY = textY;
@@ -351,6 +364,14 @@ namespace UI {
 
     bool RaylibTextInput::IsEnabled() const {
         return _enabled;
+    }
+
+    void RaylibTextInput::SetPasswordMode(bool passwordMode) {
+        _passwordMode = passwordMode;
+    }
+
+    bool RaylibTextInput::IsPasswordMode() const {
+        return _passwordMode;
     }
 
     bool RaylibTextInput::IsMouseOver() const {

@@ -122,6 +122,12 @@ namespace UI {
         /** @copydoc UI::ITextInput::IsEnabled */
         [[nodiscard]] bool IsEnabled() const override;
 
+        /** @copydoc UI::ITextInput::SetPasswordMode */
+        void SetPasswordMode(bool passwordMode) override;
+
+        /** @copydoc UI::ITextInput::IsPasswordMode */
+        [[nodiscard]] bool IsPasswordMode() const override;
+
        private:
         /**
          * @brief Check whether the mouse cursor is currently over the input rectangle.
@@ -199,6 +205,7 @@ namespace UI {
 
         bool _focused{false};
         bool _enabled{true};
+        bool _passwordMode{false};
         float _cursorBlinkTimer{0.0F};
         bool _cursorVisible{true};
 

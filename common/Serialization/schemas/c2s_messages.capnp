@@ -18,6 +18,17 @@ struct JoinGame {
   playerName @0 :Text;
 }
 
+# Authentication messages
+struct RegisterAccount {
+  username @0 :Text;
+  password @1 :Text;
+}
+
+struct LoginAccount {
+  username @0 :Text;
+  password @1 :Text;
+}
+
 # Lobby messages
 struct ListRooms {
   # Request list of available rooms
@@ -44,3 +55,8 @@ struct StartMatchmaking {
 struct CancelMatchmaking {
   # Request to leave matchmaking queue
 }
+
+struct C2SChatMessage {
+  message @0 :Text;
+}
+

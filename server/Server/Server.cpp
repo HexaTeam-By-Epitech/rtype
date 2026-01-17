@@ -6,6 +6,9 @@
 */
 
 #include "server/Server/Server.hpp"
+#include <algorithm>
+#include <chrono>
+#include <functional>
 #include <thread>
 #include "Capnp/ConnectionMessages.hpp"
 #include "Capnp/Messages/Messages.hpp"
@@ -22,6 +25,8 @@
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Commands/CommandContext.hpp"
+#include "server/Commands/CommandHandler.hpp"
 #include "server/Core/Clock/FrameTimer.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ServerLoop/ServerLoop.hpp"
@@ -70,6 +75,7 @@ bool Server::initialize() {
     _sessionManager = std::make_shared<server::SessionManager>();
     _roomManager = std::make_shared<server::RoomManager>();
     _lobby = std::make_shared<server::Lobby>(_roomManager);
+    _commandHandler = std::make_unique<server::CommandHandler>();
 
     // Subscribe to game events on global EventBus
     _eventBus->subscribe<server::PlayerJoinedEvent>([](const server::PlayerJoinedEvent &event) {
@@ -122,6 +128,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 _handleRegisterRequest(event);
                 break;
 
+            case NetworkMessages::MessageType::LOGIN_REQUEST:
+                _handleLoginRequest(event);
+                break;
+
             case NetworkMessages::MessageType::C2S_PLAYER_INPUT:
                 _handlePlayerInput(event);
                 break;
@@ -144,6 +154,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
 
             case NetworkMessages::MessageType::C2S_START_GAME:
                 _handleStartGame(event);
+                break;
+
+            case NetworkMessages::MessageType::C2S_CHAT_MESSAGE:
+                _handleChatMessage(event);
                 break;
 
             default:
@@ -314,19 +328,31 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     _peerToSession[event.peer] = sessionId;
     _playerIdToSessionId[newPlayerId] = sessionId;
 
-    _lobby->addPlayer(newPlayerId, playerName);
+    // Determine display name based on authentication type
+    std::string displayName;
+    if (username == "guest") {
+        // For guests, generate unique name with first 4 chars of hash
+        std::string hashStr = std::to_string(std::hash<std::string>{}(sessionId));
+        displayName = "guest_" + hashStr.substr(0, 4);
+    } else {
+        // For registered users, use their username
+        displayName = username;
+    }
 
-    LOG_INFO("✓ Player '", playerName, "' (", username, ") authenticated (Session: ", sessionId,
+    _lobby->addPlayer(newPlayerId, displayName);
+
+    LOG_INFO("✓ Player '", displayName, "' (", username, ") authenticated (Session: ", sessionId,
              ", Player ID: ", newPlayerId, ")");
 
-    // Send authentication response with playerId
+    // Send authentication response with playerId and displayName
     RType::Messages::Connection::HandshakeResponse response;
     response.accepted = true;
     response.sessionId = sessionId;
     response.serverId = "r-type-server";
-    response.message = "✓ Authentication successful! Welcome to R-Type, " + playerName + "!";
+    response.message = "✓ Authentication successful! Welcome to R-Type, " + displayName + "!";
     response.serverVersion = "1.0.0";
     response.playerId = newPlayerId;
+    response.playerName = displayName;
 
     std::vector<uint8_t> responseData = response.serialize();
     std::vector<uint8_t> packet =
@@ -346,43 +372,92 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
 
 void Server::_handleRegisterRequest(HostNetworkEvent &event) {
     using namespace RType::Messages;
-    using namespace ConnectionMessages;
 
     std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
-    RegisterRequestData registerData = parseRegisterRequest(payload);
 
-    std::string username = registerData.username;
-    std::string password = registerData.password;
+    // Parse using Cap'n Proto RegisterAccount message
+    C2S::RegisterAccount registerMsg = C2S::RegisterAccount::deserialize(payload);
+    std::string username = registerMsg.username;
+    std::string password = registerMsg.password;
 
     LOG_INFO("Registration attempt - Username: '", username, "'");
 
     // Try to register the user
     bool success = _sessionManager->getAuthService()->registerUser(username, password);
 
-    RegisterResponseData response;
+    // Create response using Cap'n Proto
+    S2C::RegisterResponse response;
     if (success) {
         response.success = true;
-        response.message = "✓ Account created successfully! You can now login.";
-        LOG_INFO("✓ Registration SUCCESS for user: ", username);
+        response.message = "Account created successfully! You can now login.";
+        LOG_INFO("Registration SUCCESS for user: ", username);
     } else {
         response.success = false;
         response.message =
-            "❌ Registration failed! Username may already exist or invalid credentials (min 3 chars "
+            "Registration failed! Username may already exist or invalid credentials (min 3 chars "
             "username, 4 chars password).";
-        LOG_WARNING("❌ Registration FAILED for user: ", username);
+        LOG_WARNING("Registration FAILED for user: ", username);
     }
 
     // Send response
-    std::vector<uint8_t> responsePayload = createRegisterResponse(response);
-    // Again, createRegisterResponse likely returns full message?
-    // NetworkMessages::createMessage(NetworkMessages::MessageType::REGISTER_RESPONSE, responsePayload);
-    // Wait, in original code:
-    // std::vector<uint8_t> responsePayload = createRegisterResponse(response);
-    // std::vector<uint8_t> responseData = NetworkMessages::createMessage(NetworkMessages::MessageType::REGISTER_RESPONSE, responsePayload);
-    // So createRegisterResponse returns PAYLOAD.
-    // Original code was correct.
-
+    std::vector<uint8_t> responsePayload = response.serialize();
     _sendPacket(event.peer, NetworkMessages::MessageType::REGISTER_RESPONSE, responsePayload);
+}
+
+void Server::_handleLoginRequest(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+
+    // Parse using Cap'n Proto LoginAccount message
+    C2S::LoginAccount loginMsg = C2S::LoginAccount::deserialize(payload);
+    std::string username = loginMsg.username;
+    std::string password = loginMsg.password;
+
+    LOG_INFO("Login attempt - Username: '", username, "'");
+
+    // Try to authenticate and create session
+    std::string sessionId = _sessionManager->authenticateAndCreateSession(username, password);
+    bool success = !sessionId.empty();
+
+    // Create response using Cap'n Proto
+    S2C::LoginResponse response;
+    if (success) {
+        response.success = true;
+        response.message = "✓ Login successful! Welcome back, " + username + "!";
+        response.sessionToken = sessionId;
+        LOG_INFO("✓ Login SUCCESS for user: ", username, " (Session: ", sessionId, ")");
+
+        // Update player name in lobby after successful login
+        // Find the peer's session and player ID
+        auto sessionIt = _peerToSession.find(event.peer);
+        if (sessionIt != _peerToSession.end()) {
+            std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionIt->second);
+            if (session) {
+                uint32_t playerId = session->getPlayerId();
+                // Determine display name based on username
+                std::string displayName;
+                if (username == "guest") {
+                    // For guests, generate unique name with first 4 chars of session hash
+                    std::string hashStr = std::to_string(std::hash<std::string>{}(sessionId));
+                    displayName = "guest_" + hashStr.substr(0, 4);
+                } else {
+                    // For registered users, use their username
+                    displayName = username;
+                }
+                _lobby->updatePlayerName(playerId, displayName);
+            }
+        }
+    } else {
+        response.success = false;
+        response.message = "Login failed! Invalid username or password.";
+        response.sessionToken = "";
+        LOG_WARNING("Login FAILED for user: ", username);
+    }
+
+    // Send response
+    std::vector<uint8_t> responsePayload = response.serialize();
+    _sendPacket(event.peer, NetworkMessages::MessageType::LOGIN_RESPONSE, responsePayload);
 }
 
 void Server::_handlePlayerInput(HostNetworkEvent &event) {
@@ -646,8 +721,10 @@ void Server::_handleLeaveRoom(HostNetworkEvent &event) {
     playerRoom->leave(playerId);
     LOG_INFO("✓ Player ", playerId, " left room '", playerRoom->getId(), "'");
 
-    // Player stays in lobby (never removed), no need to re-add
-    // Player name is stored in lobby/session, not in room
+    // Send LEFT_ROOM notification to the player who left
+    S2C::LeftRoom leftRoomMsg(playerId, S2C::LeftRoomReason::VOLUNTARY_LEAVE, "You left the room");
+    auto payload = leftRoomMsg.serialize();
+    _sendPacket(event.peer, NetworkMessages::MessageType::S2C_LEFT_ROOM, payload, true);
 
     // Check if room is now empty (no players, no spectators)
     if (playerRoom->getPlayerCount() == 0 && playerRoom->getSpectators().empty()) {
@@ -661,6 +738,233 @@ void Server::_handleLeaveRoom(HostNetworkEvent &event) {
 
     // Broadcast updated room list to ALL connected players
     _broadcastRoomListToAll();
+}
+
+void Server::_handleChatMessage(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    LOG_DEBUG("[Server] _handleChatMessage called");
+
+    auto session = _getSessionFromPeer(event.peer);
+    uint32_t playerId = 0;
+    std::string playerName = "Unknown";
+
+    if (session) {
+        playerId = session->getPlayerId();
+
+        // Get player name from lobby
+        const server::LobbyPlayer *lobbyPlayer = _lobby->getPlayer(playerId);
+        playerName = lobbyPlayer ? lobbyPlayer->playerName : ("Player" + std::to_string(playerId));
+    }
+
+    LOG_DEBUG("[Server] Chat message from player ", playerId, " (", playerName, ")");
+
+    if (playerId == 0) {
+        LOG_WARNING("❌ Chat message from unknown session");
+        return;
+    }
+
+    // Get player's room
+    std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
+    if (!playerRoom) {
+        LOG_WARNING("Player ", playerId, " is not in any room");
+        return;
+    }
+
+    // Deserialize chat message
+    auto payload = NetworkMessages::getPayload(event.packet->getData());
+    try {
+        auto chatMsg = C2S::C2SChatMessage::deserialize(payload);
+
+        // Validate message length (prevent abuse from malicious clients)
+        static constexpr size_t MAX_CHAT_MESSAGE_LENGTH = 256;
+        if (chatMsg.message.length() > MAX_CHAT_MESSAGE_LENGTH) {
+            LOG_WARNING("Player ", playerId, " sent a message exceeding the maximum length (",
+                        chatMsg.message.length(), " > ", MAX_CHAT_MESSAGE_LENGTH, ")");
+            _sendSystemMessage(playerId, "Error: Message too long. Maximum length is 256 characters.");
+            return;
+        }
+
+        // Validate message is not empty (after trimming whitespace)
+        if (chatMsg.message.empty() || std::all_of(chatMsg.message.begin(), chatMsg.message.end(),
+                                                   [](unsigned char c) { return std::isspace(c) != 0; })) {
+            LOG_DEBUG("Player ", playerId, " sent an empty or whitespace-only message");
+            return;  // Silently ignore empty messages
+        }
+
+        // Check if message is a command (starts with "/")
+        if (!chatMsg.message.empty() && chatMsg.message[0] == '/') {
+            // Command - process with CommandHandler
+            LOG_INFO("[COMMAND] Player ", playerName, " (", playerId, "): ", chatMsg.message);
+
+            // Create command context
+            server::CommandContext context(playerId, playerName, playerRoom, this);
+
+            // Execute command
+            std::string response = _commandHandler->handleCommand(chatMsg.message, context);
+
+            // Send response to player
+            if (!response.empty()) {
+                _sendSystemMessage(playerId, response);
+            }
+
+            return;
+        }
+
+        LOG_INFO("[CHAT] Player ", playerName, " in room '", playerRoom->getId(), "': ", chatMsg.message);
+
+        // Call room method (for logging)
+        playerRoom->broadcastChatMessage(playerId, playerName, chatMsg.message);
+
+        // Create S2C ChatMessage
+        auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
+
+        S2C::S2CChatMessage chatResponse(playerId, playerName, chatMsg.message, timestamp);
+        auto responsePayload = chatResponse.serialize();
+        auto responsePacket =
+            NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_CHAT_MESSAGE, responsePayload);
+
+        // Broadcast to all players in the room
+        std::vector<uint32_t> players = playerRoom->getPlayers();
+        for (uint32_t targetPlayerId : players) {
+            auto it = _playerIdToSessionId.find(targetPlayerId);
+            if (it != _playerIdToSessionId.end()) {
+                std::string sessionId = it->second;
+                auto peerIt = _sessionPeers.find(sessionId);
+                if (peerIt != _sessionPeers.end()) {
+                    _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_CHAT_MESSAGE,
+                                responsePayload, true);
+                }
+            }
+        }
+
+        LOG_INFO("✓ Chat message broadcast to ", players.size(), " players");
+
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse ChatMessage: ", e.what());
+    }
+}
+
+void Server::_sendSystemMessage(uint32_t playerId, const std::string &message) {
+    using namespace RType::Messages;
+
+    // Split multi-line messages into individual messages
+    std::istringstream iss(message);
+    std::string line;
+    int messageCount = 0;
+
+    while (std::getline(iss, line)) {
+        // Skip empty lines
+        if (line.empty()) {
+            continue;
+        }
+
+        // Create system chat message (playerId = 0 for system)
+        auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
+
+        // Add small increment to timestamp for ordering
+        timestamp += messageCount;
+        messageCount++;
+
+        S2C::S2CChatMessage systemMsg(0, "SYSTEM", line, timestamp);
+        auto payload = systemMsg.serialize();
+
+        // Find player's session and peer
+        auto it = _playerIdToSessionId.find(playerId);
+        if (it != _playerIdToSessionId.end()) {
+            std::string sessionId = it->second;
+            auto peerIt = _sessionPeers.find(sessionId);
+            if (peerIt != _sessionPeers.end()) {
+                _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_CHAT_MESSAGE, payload, true);
+            }
+        }
+    }
+
+    if (messageCount > 0) {
+        LOG_DEBUG("✓ Sent ", messageCount, " system message(s) to player ", playerId);
+    }
+}
+
+void Server::_sendKickedNotification(uint32_t playerId) {
+    using namespace RType::Messages;
+
+    // Find player's session and peer
+    auto it = _playerIdToSessionId.find(playerId);
+    if (it == _playerIdToSessionId.end()) {
+        LOG_WARNING("Cannot notify kicked player ", playerId, ": session not found");
+        return;
+    }
+
+    std::string sessionId = it->second;
+    auto peerIt = _sessionPeers.find(sessionId);
+    if (peerIt == _sessionPeers.end()) {
+        LOG_WARNING("Cannot notify kicked player ", playerId, ": peer not found");
+        return;
+    }
+
+    IPeer *peer = peerIt->second;
+
+    // Send S2C_LEFT_ROOM with KICKED reason to the kicked player
+    LOG_INFO("Sending LEFT_ROOM (KICKED) to player ", playerId);
+
+    S2C::LeftRoom leftRoomMsg(playerId, S2C::LeftRoomReason::KICKED, "You have been kicked by the host");
+    auto payload = leftRoomMsg.serialize();
+
+    _sendPacket(peer, NetworkMessages::MessageType::S2C_LEFT_ROOM, payload, true);
+
+    LOG_DEBUG("✓ Kicked player ", playerId, " notified with S2C_LEFT_ROOM");
+}
+
+void Server::notifyRoomUpdate(std::shared_ptr<server::Room> room) {
+    if (!room) {
+        LOG_WARNING("notifyRoomUpdate called with null room");
+        return;
+    }
+
+    LOG_DEBUG("Broadcasting room state update for room ", room->getId());
+    _broadcastRoomState(room);
+
+    // Also update the room list in case player count changed
+    _broadcastRoomListToAll();
+}
+
+bool Server::kickPlayer(uint32_t playerId) {
+    // Find the player's room
+    std::shared_ptr<server::Room> playerRoom = _roomManager->getRoomByPlayer(playerId);
+    if (!playerRoom) {
+        LOG_WARNING("Cannot kick player ", playerId, ": not in any room");
+        return false;
+    }
+
+    LOG_INFO("Kicking player ", playerId, " from room ", playerRoom->getId());
+
+    // Notify the kicked player BEFORE removing them
+    _sendSystemMessage(playerId, "You have been kicked from the room by the host.");
+
+    // Despawn player from game if in progress
+    std::shared_ptr<server::IGameLogic> gameLogic = playerRoom->getGameLogic();
+    if (gameLogic) {
+        gameLogic->despawnPlayer(playerId);
+    }
+
+    // Remove from room
+    playerRoom->leave(playerId);
+
+    // Send empty room state to kicked player to clear their UI
+    _sendKickedNotification(playerId);
+
+    // Broadcast updated room state to remaining players
+    _broadcastRoomState(playerRoom);
+    _broadcastRoomListToAll();
+
+    // Publish event
+    _eventBus->publish(server::PlayerLeftEvent(playerId));
+
+    return true;
 }
 
 void Server::run() {

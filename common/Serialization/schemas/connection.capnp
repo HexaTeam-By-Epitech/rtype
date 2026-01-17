@@ -16,6 +16,7 @@ struct HandshakeResponse {
   message @3 :Text;           # Welcome message or rejection reason
   serverVersion @4 :Text;
   playerId @5 :UInt32;        # Player ID assigned by server
+  playerName @6 :Text;        # Display name (e.g., username or guest_XXXX)
 }
 
 struct DisconnectNotification {

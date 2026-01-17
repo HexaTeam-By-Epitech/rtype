@@ -7,6 +7,8 @@
     "capnproto",
     "enet",
     "sol2",
-    "lua"
+    "lua",
+    "argon2",
+    "nlohmann-json"
   ]
 }

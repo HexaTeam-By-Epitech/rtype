@@ -90,15 +90,18 @@ namespace server {
             _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
+
+            // Register Lua system BEFORE SpawnSystem so wave_manager can queue spawns
+            auto luaSystem = std::make_unique<scripting::LuaSystemAdapter>(_luaEngine.get(), _world.get());
+            _world->registerSystem("Lua", std::move(luaSystem));
+            LOG_INFO("✓ Lua system registered (executes before spawn processing)");
+
+            // SpawnSystem processes spawn requests queued by Lua scripts
             _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
+
             _world->createSystem<ecs::AISystem>("AISystem");
             _world->createSystem<ecs::BoundarySystem>("BoundarySystem");
             _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
-
-            // Create and register Lua system (executes after other systems)
-            auto luaSystem = std::make_unique<scripting::LuaSystemAdapter>(_luaEngine.get(), _world.get());
-            _world->registerSystem("Lua", std::move(luaSystem));
-            LOG_INFO("✓ Lua system registered");
 
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
             if (_threadPool) {
@@ -397,8 +400,11 @@ namespace server {
         // Group 4: Depends on collision results
         std::vector<std::string> group4 = {"HealthSystem", "WeaponSystem"};
 
-        // Group 5: AI and spawning (can run in parallel)
-        std::vector<std::string> group5 = {"AISystem", "SpawnSystem"};
+        // Group 5: Lua scripts (wave_manager) must run before spawning
+        std::vector<std::string> group5 = {"Lua"};
+
+        // Group 6: Process spawn requests from Lua and AI
+        std::vector<std::string> group6 = {"AISystem", "SpawnSystem"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {
@@ -425,10 +431,8 @@ namespace server {
         executeGroup(group2);
         executeGroup(group3);
         executeGroup(group4);
-        executeGroup(group5);
-
-        // Execute Lua system SEQUENTIALLY after all other systems to avoid registry concurrency issues
-        _world->updateSystem("Lua", deltaTime);
+        executeGroup(group5);  // Lua scripts
+        executeGroup(group6);  // Spawning (processes Lua's spawn requests)
     }
 
     void GameLogic::_cleanupDeadEntities() {

@@ -180,13 +180,6 @@ namespace server {
                 return false;
             }
 
-            // Spawn enemies (Lua scripts) now that game is starting
-            // Cast to GameLogic to access spawnEnemies()
-            if (auto *gameLogic = dynamic_cast<GameLogic *>(_gameLogic.get())) {
-                // gameLogic->spawnEnemies();
-                // [FOR KILLIAN] To be replaced by the spawn enemies from the wave system
-            }
-
             // Spawn players and validate entity IDs
             std::vector<uint32_t> failedPlayers;
             for (uint32_t playerId : _players) {
@@ -213,6 +206,10 @@ namespace server {
                     return false;
                 }
             }
+
+            // Notify Lua scripts that the game has started (triggers wave spawning)
+            _gameLogic->notifyGameStarted(_id);
+            LOG_INFO("✓ Game start notification sent to Lua scripts");
         }
 
         setState(RoomState::IN_PROGRESS);

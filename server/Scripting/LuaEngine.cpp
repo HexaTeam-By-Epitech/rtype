@@ -72,8 +72,7 @@ namespace scripting {
                 return false;
             }
             try {
-                // Load the script file directly (no isolated environment)
-                // This allows scripts to access all global types and metatables
+                // Load the script file
                 const sol::load_result loadResult = _lua.load_file(p.string());
                 if (!loadResult.valid()) {
                     const sol::error err = loadResult;
@@ -83,6 +82,7 @@ namespace scripting {
 
                 const sol::protected_function scriptFunc = loadResult;
 
+                // Execute in global environment
                 sol::protected_function_result result = scriptFunc();
                 if (!result.valid()) {
                     const sol::error err = result;
@@ -90,8 +90,23 @@ namespace scripting {
                     return false;
                 }
 
-                // Store script in cache (using globals as the table)
-                _scriptCache[scriptPath] = _lua.globals();
+                // Create a table that captures the state after script execution
+                // Copy only the essential functions (onUpdate, onInit, etc.) not everything
+                sol::table scriptTable = _lua.create_table();
+                sol::table globals = _lua.globals();
+
+                // Copy only known script functions to avoid deep copy issues
+                if (globals["onUpdate"].valid()) {
+                    scriptTable["onUpdate"] = globals["onUpdate"];
+                }
+                if (globals["onInit"].valid()) {
+                    scriptTable["onInit"] = globals["onInit"];
+                }
+                if (globals["onDestroy"].valid()) {
+                    scriptTable["onDestroy"] = globals["onDestroy"];
+                }
+
+                _scriptCache[scriptPath] = scriptTable;
                 LOG_INFO("Loaded Lua script: " + scriptPath + " (" + p.string() + ")");
                 return true;
             } catch (const sol::error &e) {
@@ -141,6 +156,44 @@ namespace scripting {
             return;
         }
 
+        // wave_manager uses cached shared state (not per-entity)
+        bool isWaveManager = (scriptPath.find("wave_manager") != std::string::npos);
+
+        if (isWaveManager) {
+            // Use cached version for wave_manager (shared state, not per-entity)
+            if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
+                if (!loadScript(scriptPath)) {
+                    return;
+                }
+            }
+
+            try {
+                sol::table script = _scriptCache[scriptPath];
+                sol::optional<sol::function> onUpdateOpt = script["onUpdate"];
+
+                if (!onUpdateOpt) {
+                    LOG_WARNING("Script " + scriptPath + " has no onUpdate function");
+                    return;
+                }
+
+                sol::protected_function onUpdate = onUpdateOpt.value();
+                sol::protected_function_result result = onUpdate(entity, deltaTime);
+                if (!result.valid()) {
+                    sol::error err = result;
+                    LOG_ERROR("Lua runtime error in " + scriptPath + ": " + std::string(err.what()));
+                }
+            } catch (const sol::error &e) {
+                LOG_ERROR("Lua runtime error in " + scriptPath + ": " + std::string(e.what()));
+            } catch (const std::exception &e) {
+                LOG_ERROR("C++ exception in executeUpdate: " + std::string(e.what()));
+            }
+            return;  // Exit here for wave_manager
+        }
+
+        // For entity scripts (enemy_*): use simple cached script execution
+        // No complex per-entity environments - rely on local variables in Lua
+
+        // Use cached version (same as wave_manager)
         if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
             if (!loadScript(scriptPath)) {
                 return;
@@ -148,10 +201,15 @@ namespace scripting {
         }
 
         try {
-            // Retrieve the specific script's environment from cache
             sol::table script = _scriptCache[scriptPath];
 
-            // Always call Lua through a protected function to avoid hard crashes on script errors.
+            // Validate that the table is still valid
+            if (!script.valid()) {
+                LOG_ERROR("Cached script table is invalid for: " + scriptPath);
+                _scriptCache.erase(scriptPath);  // Remove invalid cache
+                return;
+            }
+
             sol::optional<sol::function> onUpdateOpt = script["onUpdate"];
 
             if (!onUpdateOpt) {
@@ -160,6 +218,12 @@ namespace scripting {
             }
 
             sol::protected_function onUpdate = onUpdateOpt.value();
+
+            // Validate function before calling
+            if (!onUpdate.valid()) {
+                LOG_ERROR("onUpdate function is invalid for: " + scriptPath);
+                return;
+            }
 
             sol::protected_function_result result = onUpdate(entity, deltaTime);
             if (!result.valid()) {
@@ -236,4 +300,14 @@ namespace scripting {
         }
     }
 
-};  // namespace scripting
+    void LuaEngine::cleanupEntity(uint32_t entityId) {
+        std::lock_guard<std::recursive_mutex> lock(_luaMutex);
+
+        auto it = _entityScriptCache.find(entityId);
+        if (it != _entityScriptCache.end()) {
+            LOG_DEBUG("Cleaning up script cache for entity " + std::to_string(entityId));
+            _entityScriptCache.erase(it);
+        }
+    }
+
+}  // namespace scripting

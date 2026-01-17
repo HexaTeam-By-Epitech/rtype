@@ -86,10 +86,18 @@ namespace scripting {
          */
         void fireGameStartCallbacks(const std::string &roomId);
 
+        /**
+         * @brief Clean up script cache for a destroyed entity.
+         * @param entityId The ID of the entity to clean up
+         */
+        void cleanupEntity(uint32_t entityId);
+
        private:
         sol::state _lua;
         std::string _scriptPath;
         std::unordered_map<std::string, sol::table> _scriptCache;
+        // Per-entity script state (for enemy scripts with local variables)
+        std::unordered_map<uint32_t, std::unordered_map<std::string, sol::table>> _entityScriptCache;
         ecs::wrapper::ECSWorld *_world;
         bool _bindingsInitialized;
         mutable std::recursive_mutex _luaMutex;  // Protects _lua and _scriptCache from concurrent access

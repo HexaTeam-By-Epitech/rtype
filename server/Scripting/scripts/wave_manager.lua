@@ -5,6 +5,7 @@
 ** wave_manager.lua - Orchestrates game waves using SpawnSystem
 ]]
 
+-- Wave manager state (local to avoid pollution, but accessible within this script)
 local waveSystem = {
 	currentWave = 0,
 	waveActive = false,
@@ -13,31 +14,36 @@ local waveSystem = {
 	totalEnemiesInWave = 0,
 	spawnerEntity = nil,
 	waves = {},
+	waveCompleted = false,
+	timeSinceWaveComplete = 0,
+	delayBetweenWaves = 5.0, -- 5 seconds between waves
 }
 
 -- Define waves with spawn timings and enemy configurations
 waveSystem.waves[1] = {
-	name = "Wave 1: Basics",
-	duration = 10,
+	name = "Wave 1",
+	duration = 5,
 	enemyConfigs = {
-		{ delay = 0.0, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 400, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 600, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 400, health = 50, script = "enemy_basic.lua" },
+		{ delay = 0.0, type = "basic", x = 1200, y = 300, health = 50, script = "enemy_basic.lua" },
+		{ delay = 1.0, type = "basic", x = 1200, y = 300, health = 50, script = "enemy_basic.lua" },
 	},
 }
 
 waveSystem.waves[2] = {
-	name = "Wave 2: Mixed",
-	duration = 15,
+	name = "Wave 2",
+	duration = 5,
 	enemyConfigs = {
-		{ delay = 0.5, type = "basic", x = 1200, y = 150, health = 50, script = "enemy_basic.lua" },
-		{ delay = 1.0, type = "advanced", x = 1200, y = 350, health = 100, script = "enemy_advanced.lua" },
-		{ delay = 1.5, type = "basic", x = 1200, y = 550, health = 50, script = "enemy_basic.lua" },
-		{ delay = 2.0, type = "advanced", x = 1200, y = 750, health = 100, script = "enemy_advanced.lua" },
-		{ delay = 2.5, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
-		{ delay = 3.0, type = "advanced", x = 1200, y = 400, health = 100, script = "enemy_advanced.lua" },
+		{ delay = 0.0, type = "basic", x = 1200, y = 300, health = 50, script = "enemy_basic.lua" },
+		{ delay = 1.0, type = "basic", x = 1200, y = 300, health = 50, script = "enemy_basic.lua" },
+	},
+}
+
+waveSystem.waves[3] = {
+	name = "Wave 3",
+	duration = 5,
+	enemyConfigs = {
+		{ delay = 0.0, type = "basic", x = 1200, y = 300, health = 50, script = "enemy_basic.lua" },
+		{ delay = 1.0, type = "basic", x = 1200, y = 300, health = 50, script = "enemy_basic.lua" },
 	},
 }
 
@@ -51,7 +57,7 @@ function waveSystem:startWave(waveNumber)
 	end
 
 	if not self.waves[waveNumber] then
-		log("Wave " .. tostring(waveNumber) .. " not found")
+		log("No more waves - Game Complete!")
 		return false
 	end
 
@@ -59,6 +65,8 @@ function waveSystem:startWave(waveNumber)
 	self.waveActive = true
 	self.waveStartTime = 0
 	self.enemiesSpawned = 0
+	self.waveCompleted = false
+	self.timeSinceWaveComplete = 0
 	self.totalEnemiesInWave = #self.waves[waveNumber].enemyConfigs
 
 	log("=== Starting " .. self.waves[waveNumber].name .. " ===")
@@ -70,13 +78,34 @@ end
 ---@param entity The spawner entity (should have Spawner component)
 ---@param deltaTime Time elapsed since last frame
 function waveSystem:onUpdate(entity, deltaTime)
-	if not self.waveActive or not entity:isValid() then
+	-- Validate that this is the spawner entity
+	-- Store reference on first valid call
+	if not self.spawnerEntity or not self.spawnerEntity:isValid() then
+		-- First time initialization - this should be the spawner with ID 1
+		self.spawnerEntity = entity
+		log("🎯 wave_manager: Locked to spawner entity " .. tostring(entity:getAddress()))
+	end
+	
+	-- Only process updates on the original spawner entity
+	-- This prevents the script from running on enemy entities
+	if entity:getAddress() ~= self.spawnerEntity:getAddress() then
+		-- Silently ignore - this is an enemy entity, not the spawner
 		return
 	end
-
-	-- Store reference to spawner entity
-	if not self.spawnerEntity or not self.spawnerEntity:isValid() then
-		self.spawnerEntity = entity
+	
+	-- Handle delay between waves
+	if not self.waveActive and self.waveCompleted then
+		self.timeSinceWaveComplete = self.timeSinceWaveComplete + deltaTime
+		
+		if self.timeSinceWaveComplete >= self.delayBetweenWaves then
+			log("⏰ Delay complete! Starting next wave...")
+			self:startWave(self.currentWave + 1)
+		end
+		return
+	end
+	
+	if not self.waveActive or not entity:isValid() then
+		return
 	end
 
 	self.waveStartTime = self.waveStartTime + deltaTime
@@ -94,10 +123,15 @@ function waveSystem:onUpdate(entity, deltaTime)
 		end
 	end
 
-	-- Check if all enemies spawned
+	-- Check if all enemies spawned and wave duration elapsed
 	if self.enemiesSpawned >= self.totalEnemiesInWave then
-		if self.enemiesSpawned == self.totalEnemiesInWave then
-			log("✓ All enemies for wave " .. self.currentWave .. " have been spawned")
+		if not self.waveCompleted and self.waveStartTime >= wave.duration then
+			log("✓ Wave " .. self.currentWave .. " completed!")
+			log("📊 Wave stats: " .. self.enemiesSpawned .. "/" .. self.totalEnemiesInWave .. " enemies spawned")
+			self.waveActive = false
+			self.waveCompleted = true
+			self.timeSinceWaveComplete = 0
+			log("⏳ Next wave in " .. self.delayBetweenWaves .. " seconds...")
 		end
 	end
 end
@@ -138,6 +172,12 @@ end)
 
 -- Main update function called by LuaSystemAdapter
 function onUpdate(entity, deltaTime)
+	-- Only process on entities with Spawner component
+	-- wave_manager should only run on the spawner entity, not on enemy entities
+	if not entity:isValid() then
+		return
+	end
+	
 	-- Only process waves after game has started
 	if not gameStarted then
 		return

@@ -444,6 +444,9 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
         case NetworkMessages::MessageType::S2C_ROOM_STATE:
             handleRoomState(payload);
             break;
+        case NetworkMessages::MessageType::S2C_ENTITY_DESTROYED:
+            handleEntityDestroyed(payload);
+            break;
         case NetworkMessages::MessageType::S2C_CHAT_MESSAGE:
             handleChatMessage(payload);
             break;
@@ -568,6 +571,30 @@ void GameLoop::handleRoomState(const std::vector<uint8_t> &payload) {
 
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse RoomState: ", e.what());
+    }
+}
+
+void GameLoop::handleEntityDestroyed(const std::vector<uint8_t> &payload) {
+    try {
+        auto entityDestroyed = RType::Messages::S2C::EntityDestroyed::deserialize(payload);
+
+        LOG_INFO("✓ EntityDestroyed received: entityId=", entityDestroyed.entityId,
+                 " reason=", static_cast<int>(entityDestroyed.reason));
+
+        // Remove the entity from rendering immediately
+        if (_rendering) {
+            _rendering->RemoveEntity(entityDestroyed.entityId);
+        }
+
+        // If this was our entity, handle game over scenario
+        if (_myEntityId.has_value() && entityDestroyed.entityId == _myEntityId.value()) {
+            LOG_WARNING("Our entity was destroyed!");
+            _myEntityId = std::nullopt;
+            _entityInitialized = false;
+        }
+
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse EntityDestroyed: ", e.what());
     }
 }
 

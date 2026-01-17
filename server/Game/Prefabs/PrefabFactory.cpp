@@ -12,12 +12,14 @@
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"
+#include "common/ECS/Registry.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
 
@@ -114,6 +116,49 @@ namespace server {
             return powerUp.getAddress();
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create power-up: ", e.what());
+    int PrefabFactory::_enemyTypeFromString(const std::string &enemyType) {
+        if (enemyType == "basic") {
+            return 0;
+        } else if (enemyType == "advanced" || enemyType == "heavy") {
+            return 1;
+        } else if (enemyType == "fast") {
+            return 2;
+        } else if (enemyType == "boss") {
+            return 3;
+        }
+        return 0;  // Default to basic
+    }
+
+    ecs::Address PrefabFactory::createEnemy(ecs::wrapper::ECSWorld &world, const std::string &enemyType,
+                                            float posX, float posY, float health, int scoreValue,
+                                            const std::string &scriptPath) {
+        try {
+            int typeId = _enemyTypeFromString(enemyType);
+            EnemySpawnData spawnData = _getEnemySpawnData(typeId);
+
+            // Use custom health/score if provided, otherwise use defaults
+            int finalHealth = (health > 0) ? static_cast<int>(health) : spawnData.health;
+            int finalScore = (scoreValue > 0) ? scoreValue : spawnData.scoreValue;
+
+            ecs::wrapper::Entity enemy =
+                world.createEntity()
+                    .with(ecs::Enemy(typeId, finalScore, 0))
+                    .with(ecs::Transform(posX, posY))
+                    .with(ecs::Velocity(-1.0f, 0.0f, spawnData.speed))
+                    .with(ecs::Health(finalHealth, finalHealth))
+                    .with(ecs::Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f, 0.0f, 2,
+                                        0xFFFFFFFF, false))
+                    .with(ecs::Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, type 1, 15 damage
+
+            // Add Lua script if provided
+            if (!scriptPath.empty()) {
+                enemy.with(ecs::LuaScript(scriptPath));
+            }
+
+            LOG_INFO("✓ Enemy spawned: ", enemyType, " (type ", typeId, ") at (", posX, ", ", posY, ")");
+            return enemy.getAddress();
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create enemy: ", e.what());
             return 0;
         }
     }
@@ -133,6 +178,36 @@ namespace server {
             return healthPack.getAddress();
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create health pack: ", e.what());
+    ecs::Address PrefabFactory::createEnemyFromRegistry(ecs::Registry &registry, const std::string &enemyType,
+                                                        float posX, float posY, float health, int scoreValue,
+                                                        const std::string &scriptPath) {
+        try {
+            int typeId = _enemyTypeFromString(enemyType);
+            EnemySpawnData spawnData = _getEnemySpawnData(typeId);
+
+            // Use custom health/score if provided, otherwise use defaults
+            int finalHealth = (health > 0) ? static_cast<int>(health) : spawnData.health;
+            int finalScore = (scoreValue > 0) ? scoreValue : spawnData.scoreValue;
+
+            ecs::Address enemy = registry.newEntity();
+
+            registry.setComponent<ecs::Transform>(enemy, ecs::Transform(posX, posY));
+            registry.setComponent<ecs::Velocity>(enemy, ecs::Velocity(-1.0f, 0.0f, spawnData.speed));
+            registry.setComponent<ecs::Health>(enemy, ecs::Health(finalHealth, finalHealth));
+            registry.setComponent<ecs::Enemy>(enemy, ecs::Enemy(typeId, finalScore, 0));
+            registry.setComponent<ecs::Collider>(
+                enemy, ecs::Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f, 0.0f, 2,
+                                     0xFFFFFFFF, false));
+            registry.setComponent<ecs::Weapon>(enemy, ecs::Weapon(3.0f, 0.0f, 1, 15));
+
+            if (!scriptPath.empty()) {
+                registry.setComponent<ecs::LuaScript>(enemy, ecs::LuaScript(scriptPath));
+            }
+
+            LOG_INFO("✓ Enemy spawned: ", enemyType, " (type ", typeId, ") at (", posX, ", ", posY, ")");
+            return enemy;
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create enemy from registry: ", e.what());
             return 0;
         }
     }

@@ -19,6 +19,7 @@
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/IComponent.hpp"
+#include "common/ECS/Components/PendingDestroy.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Sprite.hpp"
@@ -999,6 +1000,7 @@ void Server::run() {
             }
         }
 
+        _processPendingDestructions();
         _broadcastGameState();
 
         // Sleep to avoid busy-waiting (network processing is the bottleneck here)
@@ -1048,14 +1050,38 @@ void Server::_broadcastGameState() {
         S2C::GameState state;
         state.serverTick = roomLoop->getCurrentTick();
 
-        // Use helper to serialize entities
-        std::shared_ptr<server::IGameLogic> gameLogic = room->getGameLogic();
-        state.entities = _serializeEntities(ecsWorld, gameLogic.get());
+        // Get all entities with Transform component
+        auto entities = ecsWorld->query<ecs::Transform>();
+
+        LOG_DEBUG("[BroadcastGameState] Room '", room->getId(), "' - Found ", entities.size(),
+                  " entities with Transform");
+
+        // Serialize each entity's state
+        for (auto &entity : entities) {
+            try {
+                S2C::EntityState entityState = _serializeEntity(entity);
+                state.entities.push_back(entityState);
+            } catch (const std::exception &e) {
+                LOG_ERROR("Failed to serialize entity: ", e.what());
+                continue;
+            }
+        }
 
         // Serialize and create packet
         std::vector<uint8_t> payload = state.serialize();
         std::vector<uint8_t> packet =
             NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_GAME_STATE, payload);
+
+        // Log detailed entity information (every 10 frames to avoid spam)
+        static uint32_t logCounter = 0;
+        if (++logCounter % 10 == 0 && !state.entities.empty()) {
+            LOG_INFO("[GameState] Tick ", state.serverTick, " - Broadcasting ", state.entities.size(),
+                     " entities");
+            for (const auto &e : state.entities) {
+                LOG_DEBUG("  Entity ", e.entityId, ": Type=", static_cast<int>(e.type), " Pos=(",
+                          e.position.x, ",", e.position.y, ") Health=", e.health.value_or(-1));
+            }
+        }
 
         // Broadcast to both players and spectators in this room
         auto players = room->getPlayers();
@@ -1078,6 +1104,100 @@ void Server::_broadcastGameState() {
                     createPacket(packet, static_cast<int>(PacketFlag::UNSEQUENCED));
                 peerIt->second->send(std::move(peerPacket), 0);
             }
+        }
+    }
+}
+
+void Server::_processPendingDestructions() {
+    using namespace RType::Messages;
+
+    auto rooms = _roomManager->getAllRooms();
+
+    for (const auto &room : rooms) {
+        server::ServerLoop *roomLoop = room->getServerLoop();
+        if (!roomLoop) {
+            continue;
+        }
+
+        std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = roomLoop->getECSWorld();
+        if (!ecsWorld) {
+            continue;
+        }
+
+        // Find all entities marked for destruction
+        auto pendingEntities = ecsWorld->query<ecs::PendingDestroy>();
+
+        if (pendingEntities.empty()) {
+            continue;
+        }
+
+        LOG_DEBUG("[ProcessPendingDestructions] Room '", room->getId(), "' - Found ", pendingEntities.size(),
+                  " entities pending destruction");
+
+        // Get all recipients for this room
+        auto players = room->getPlayers();
+        auto spectators = room->getSpectators();
+        std::vector<uint32_t> allRecipients = players;
+        allRecipients.insert(allRecipients.end(), spectators.begin(), spectators.end());
+
+        // Process each entity marked for destruction
+        std::vector<ecs::Address> toDestroy;
+        for (auto &entity : pendingEntities) {
+            ecs::Address entityId = entity.getAddress();
+            ecs::PendingDestroy &pendingDestroy = entity.get<ecs::PendingDestroy>();
+
+            // Convert internal DestroyReason to network DestroyReason
+            Shared::DestroyReason networkReason;
+            switch (pendingDestroy.getReason()) {
+                case ecs::DestroyReason::OutOfBounds:
+                    networkReason = Shared::DestroyReason::OutOfBounds;
+                    break;
+                case ecs::DestroyReason::Killed:
+                    networkReason = Shared::DestroyReason::KilledByPlayer;
+                    break;
+                case ecs::DestroyReason::Expired:
+                    networkReason = Shared::DestroyReason::Collision;
+                    break;
+                case ecs::DestroyReason::Manual:
+                default:
+                    networkReason = Shared::DestroyReason::OutOfBounds;
+                    break;
+            }
+
+            // Create and serialize EntityDestroyed message
+            S2C::EntityDestroyed destroyedMsg(entityId, networkReason);
+            std::vector<uint8_t> payload = destroyedMsg.serialize();
+            std::vector<uint8_t> packet =
+                NetworkMessages::createMessage(NetworkMessages::MessageType::S2C_ENTITY_DESTROYED, payload);
+
+            // Send to all recipients in the room
+            for (uint32_t recipientId : allRecipients) {
+                auto sessionIt = _playerIdToSessionId.find(recipientId);
+                if (sessionIt == _playerIdToSessionId.end()) {
+                    continue;
+                }
+                const std::string &sessionId = sessionIt->second;
+
+                auto peerIt = _sessionPeers.find(sessionId);
+                if (peerIt != _sessionPeers.end() && peerIt->second) {
+                    std::unique_ptr<IPacket> peerPacket =
+                        createPacket(packet, static_cast<int>(PacketFlag::RELIABLE));
+                    peerIt->second->send(std::move(peerPacket), 0);
+                }
+            }
+
+            LOG_DEBUG("[ProcessPendingDestructions] Sent EntityDestroyed for entity ", entityId);
+            toDestroy.push_back(entityId);
+        }
+
+        // Now actually destroy the entities
+        for (ecs::Address entityId : toDestroy) {
+            ecsWorld->destroyEntity(entityId);
+        }
+
+        if (!toDestroy.empty()) {
+            LOG_INFO("[ProcessPendingDestructions] Destroyed ", toDestroy.size(), " entities in room '",
+                     room->getId(), "'");
         }
     }
 }

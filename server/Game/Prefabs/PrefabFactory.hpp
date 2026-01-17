@@ -19,6 +19,7 @@ namespace ecs::wrapper {
 namespace ecs {
     typedef uint32_t Address;
     enum class BuffType;  // Forward declaration
+    class Registry;
 }  // namespace ecs
 
 namespace server {
@@ -50,6 +51,36 @@ namespace server {
          * @return Entity address or 0 if failed
          */
         static ecs::Address createEnemy(ecs::wrapper::ECSWorld &world, int enemyType, float posX, float posY);
+
+        /**
+         * @brief Create an enemy entity with custom parameters (for SpawnSystem)
+         * @param world ECS world wrapper
+         * @param enemyType Type string ("basic", "advanced", "fast", "boss")
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @param health Custom health value
+         * @param scoreValue Custom score value
+         * @param scriptPath Optional Lua script path for AI behavior
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createEnemy(ecs::wrapper::ECSWorld &world, const std::string &enemyType,
+                                        float posX, float posY, float health, int scoreValue,
+                                        const std::string &scriptPath = "");
+
+        /**
+         * @brief Create an enemy entity directly from Registry (for SpawnSystem)
+         * @param registry ECS registry
+         * @param enemyType Type string ("basic", "advanced", "fast", "boss")
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @param health Custom health value
+         * @param scoreValue Custom score value
+         * @param scriptPath Optional Lua script path for AI behavior
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createEnemyFromRegistry(ecs::Registry &registry, const std::string &enemyType,
+                                                    float posX, float posY, float health, int scoreValue,
+                                                    const std::string &scriptPath = "");
 
         /**
          * @brief Create a projectile entity
@@ -102,6 +133,7 @@ namespace server {
         };
 
         static EnemySpawnData _getEnemySpawnData(int enemyType);
+        static int _enemyTypeFromString(const std::string &enemyType);
     };
 
 }  // namespace server

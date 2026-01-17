@@ -197,6 +197,11 @@ namespace server {
         _rooms[roomId] = room;
         LOG_INFO("✓ Match room registered: ", roomId, " (", room->getPlayerCount(), " players)");
         room->setState(RoomState::STARTING);
+
+        // Notify server that room was created with matched players
+        if (_roomCreatedCallback) {
+            _roomCreatedCallback(room);
+        }
     }
 
 }  // namespace server

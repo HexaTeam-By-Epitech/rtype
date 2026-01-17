@@ -78,6 +78,10 @@ bool Server::initialize() {
     _lobby = std::make_shared<server::Lobby>(_roomManager);
     _commandHandler = std::make_unique<server::CommandHandler>();
 
+    // Set callback for when matchmaking creates a room
+    _roomManager->setRoomCreatedCallback(
+        [this](std::shared_ptr<server::Room> room) { _onMatchmakingRoomCreated(room); });
+
     // Subscribe to game events on global EventBus
     _eventBus->subscribe<server::PlayerJoinedEvent>([](const server::PlayerJoinedEvent &event) {
         LOG_INFO("[EVENT] Player joined: ", event.getPlayerName(), " (ID: ", event.getPlayerId(), ")");
@@ -142,6 +146,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
 
             case NetworkMessages::MessageType::C2S_JOIN_ROOM:
                 _handleJoinRoom(event);
+                break;
+
+            case NetworkMessages::MessageType::C2S_AUTO_MATCHMAKING:
+                _handleAutoMatchmaking(event);
                 break;
 
             case NetworkMessages::MessageType::C2S_LEAVE_ROOM:
@@ -422,6 +430,7 @@ void Server::_handleLoginRequest(HostNetworkEvent &event) {
         response.success = true;
         response.message = "✓ Login successful! Welcome back, " + username + "!";
         response.sessionToken = sessionId;
+        response.autoMatchmaking = _sessionManager->getAuthService()->getAutoMatchmaking(username);
         LOG_INFO("✓ Login SUCCESS for user: ", username, " (Session: ", sessionId, ")");
 
         // Update player name in lobby after successful login
@@ -431,6 +440,8 @@ void Server::_handleLoginRequest(HostNetworkEvent &event) {
             std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionIt->second);
             if (session) {
                 uint32_t playerId = session->getPlayerId();
+                // Store username for future preference updates
+                _playerIdToUsername[playerId] = username;
                 // Determine display name based on username
                 std::string displayName;
                 if (username == "guest") {
@@ -448,6 +459,7 @@ void Server::_handleLoginRequest(HostNetworkEvent &event) {
         response.success = false;
         response.message = "Login failed! Invalid username or password.";
         response.sessionToken = "";
+        response.autoMatchmaking = false;
         LOG_WARNING("Login FAILED for user: ", username);
     }
 
@@ -656,6 +668,145 @@ void Server::_handleJoinRoom(HostNetworkEvent &event) {
     _broadcastRoomState(room);
 
     // Broadcast updated room list to ALL connected players (player count changed)
+    _broadcastRoomListToAll();
+}
+
+void Server::_handleAutoMatchmaking(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    auto session = _getSessionFromPeer(event.peer);
+    uint32_t playerId = 0;
+    bool isSpectator = false;
+    if (session) {
+        playerId = session->getPlayerId();
+        isSpectator = session->isSpectator();
+    }
+
+    if (playerId == 0) {
+        LOG_ERROR("Failed to find player for auto-matchmaking");
+        S2C::JoinedRoom response("", false, "Session not found");
+        _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+        return;
+    }
+
+    // Deserialize the AutoMatchmaking message
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+    C2S::AutoMatchmaking msg = C2S::AutoMatchmaking::deserialize(payload);
+
+    // Get username from player ID mapping
+    auto usernameIt = _playerIdToUsername.find(playerId);
+    if (usernameIt != _playerIdToUsername.end()) {
+        const std::string &username = usernameIt->second;
+        // Update the user's auto-matchmaking preference (but not for guests)
+        if (username != "guest") {
+            _sessionManager->getAuthService()->updateAutoMatchmaking(username, msg.enabled);
+            LOG_INFO("Updated auto-matchmaking preference for user '", username,
+                     "': ", msg.enabled ? "ON" : "OFF");
+        }
+    }
+
+    // If auto-matchmaking is disabled, just return success
+    if (!msg.enabled) {
+        LOG_INFO("Auto-matchmaking disabled for player ", playerId);
+        return;
+    }
+
+    LOG_INFO("Auto-matchmaking requested by player ", playerId);
+
+    // Get all available public rooms
+    auto availableRooms = _roomManager->getPublicRooms();
+
+    // Use MatchmakingService to find a match or add to queue
+    auto matchmakingService = _roomManager->getMatchmaking();
+    if (!matchmakingService) {
+        LOG_ERROR("MatchmakingService not available");
+        S2C::JoinedRoom response("", false, "Matchmaking service unavailable");
+        _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+        return;
+    }
+
+    auto [targetRoom, joinAsSpectator] =
+        matchmakingService->findOrCreateMatch(playerId, availableRooms, !isSpectator);
+
+    // If no immediate match found, player was added to queue
+    if (!targetRoom) {
+        LOG_INFO("Player ", playerId, " added to matchmaking queue");
+        S2C::JoinedRoom response("", false,
+                                 "Searching for match... You will be notified when a match is found.");
+        _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+        return;
+    }
+
+    // Immediate match found - join the room
+    bool joinSuccess = false;
+    if (joinAsSpectator) {
+        joinSuccess = targetRoom->joinAsSpectator(playerId);
+    } else {
+        joinSuccess = targetRoom->join(playerId);
+    }
+
+    if (!joinSuccess) {
+        LOG_ERROR("Failed to join room '", targetRoom->getId(), "'");
+        S2C::JoinedRoom response("", false, "Failed to join room");
+        _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+        return;
+    }
+
+    std::string modeStr = joinAsSpectator ? " as spectator" : "";
+    LOG_INFO("Player ", playerId, " auto-matched to room '", targetRoom->getId(), "'", modeStr);
+
+    S2C::JoinedRoom response(targetRoom->getId(), true, "", joinAsSpectator);
+    _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+
+    // If player joined as spectator to an in-progress game, send them the current game state
+    if (joinAsSpectator && targetRoom->getState() == server::RoomState::IN_PROGRESS) {
+        LOG_INFO("Sending current game state to spectator ", playerId);
+        _sendGameStartToSpectator(playerId, targetRoom);
+    }
+
+    // Broadcast updated room state to all players in the room
+    _broadcastRoomState(targetRoom);
+
+    // Broadcast updated room list to ALL connected players
+    _broadcastRoomListToAll();
+}
+
+void Server::_onMatchmakingRoomCreated(std::shared_ptr<server::Room> room) {
+    using namespace RType::Messages;
+
+    LOG_INFO("[Matchmaking] Room '", room->getId(), "' created with ", room->getPlayerCount(),
+             " matched players");
+
+    // Get all players in the room and notify them
+    auto playerIds = room->getPlayers();
+    for (uint32_t playerId : playerIds) {
+        // Find the peer for this player
+        auto it = _playerIdToSessionId.find(playerId);
+        if (it == _playerIdToSessionId.end()) {
+            LOG_WARNING("Player ", playerId, " session not found for matchmaking notification");
+            continue;
+        }
+
+        const std::string &sessionId = it->second;
+        auto peerIt = _sessionPeers.find(sessionId);
+        if (peerIt == _sessionPeers.end()) {
+            LOG_WARNING("Player ", playerId, " peer not found for matchmaking notification");
+            continue;
+        }
+
+        IPeer *peer = peerIt->second;
+
+        // Send JoinedRoom success response
+        S2C::JoinedRoom response(room->getId(), true, "Match found!", false);
+        _sendPacket(peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
+
+        LOG_INFO("Notified player ", playerId, " of match in room '", room->getId(), "'");
+    }
+
+    // Broadcast room state to all players in the room
+    _broadcastRoomState(room);
+
+    // Broadcast updated room list to ALL connected players
     _broadcastRoomListToAll();
 }
 

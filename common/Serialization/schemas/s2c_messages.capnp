@@ -110,6 +110,7 @@ struct LoginResponse {
   success @0 :Bool;
   message @1 :Text;  # Error message if failed
   sessionToken @2 :Text;  # Token if successful
+  autoMatchmaking @3 :Bool;  # User's auto-matchmaking preference
 }
 struct S2CChatMessage {
   playerId @0 :UInt32;

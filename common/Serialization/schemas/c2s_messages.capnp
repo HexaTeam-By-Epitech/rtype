@@ -48,6 +48,13 @@ struct LeaveRoom {
   # Request to leave current room
 }
 
+struct AutoMatchmaking {
+  # Request to join a room automatically
+  # Server will find an available room or create one
+  # Also updates the user's auto-matchmaking preference
+  enabled @0 :Bool;  # Whether auto-matchmaking is enabled
+}
+
 struct StartMatchmaking {
   # Request to enter matchmaking queue
 }

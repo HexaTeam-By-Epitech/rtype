@@ -249,10 +249,18 @@ namespace server {
     bool Room::tryMarkGameStartSent() {
         std::lock_guard<std::mutex> lock(_mutex);
         if (_gameStartSent) {
-            return false;  // Already sent
+            return false;
         }
         _gameStartSent = true;
-        return true;  // Successfully marked as sent
+        return true;
+    }
+
+    void Room::broadcastChatMessage(uint32_t senderId, const std::string &senderName,
+                                    const std::string &message) {
+        // Note: The actual broadcasting will be done by the Server
+        // This method is called by Server::_handleChatMessage
+        // We just log it here for room tracking
+        LOG_INFO("[Room ", _id, "] Chat from ", senderName, " (", senderId, "): ", message);
     }
 
 }  // namespace server

@@ -170,6 +170,35 @@ namespace Game {
          */
         void SetVolumeSilent(float volume);
 
+        /**
+         * @brief Set chat visibility
+         * @param enabled 
+         */
+        void SetShowChat(bool enabled);
+
+        /**
+         * @brief Get chat visibility
+         * @return true if chat is shown
+         */
+        bool GetShowChat() const;
+
+        /**
+         * @brief Set callback invoked when the chat visibility changes
+         * @param cb Callback invoked when the chat toggle changes.
+         */
+        void SetOnShowChatChanged(std::function<void(bool)> cb);
+
+        /**
+         * @brief Set chat visibility without emitting callbacks/logs.
+         * @param enabled enable or disable chat visibility silently
+         */
+        void SetShowChatSilent(bool enabled);
+
+        /**
+         * @brief Updates the visuals of the chat toggle button.
+         */
+        void UpdateChatToggleVisuals();
+
        private:
         [[nodiscard]] uint32_t ValidateTargetFps(uint32_t targetFps) const;
         void UpdateToggleVisuals();
@@ -183,6 +212,7 @@ namespace Game {
         Mode _mode{Mode::FULLSCREEN};
         bool _showPing{true};
         bool _showFps{true};
+        bool _showChat{true};
         unsigned int _overlayDimColor{0x88000000};
         uint32_t _targetFps{60};
         float _volume{50.0F};  // Default volume 50%
@@ -191,13 +221,15 @@ namespace Game {
         std::function<void()> _onBack{};
         std::function<void()> _onMainMenu{};
         std::function<void(bool)> _onShowFpsChanged{};
+        std::function<void(bool)> _onShowChatChanged{};
         std::function<void(uint32_t)> _onTargetFpsChanged{};
         std::function<void(float)> _onVolumeChanged{};
 
         static constexpr size_t TOGGLE_PING_INDEX = 0;
         static constexpr size_t TOGGLE_FPS_INDEX = 1;
-        static constexpr size_t TARGET_FPS_INDEX = 2;
-        static constexpr size_t BACK_INDEX = 3;
-        static constexpr size_t MAIN_MENU_INDEX = 4;
+        static constexpr size_t TOGGLE_CHAT_INDEX = 2;
+        static constexpr size_t TARGET_FPS_INDEX = 3;
+        static constexpr size_t BACK_INDEX = 4;
+        static constexpr size_t MAIN_MENU_INDEX = 5;
     };
 }  // namespace Game

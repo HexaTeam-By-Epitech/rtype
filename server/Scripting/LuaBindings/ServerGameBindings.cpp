@@ -118,7 +118,7 @@ namespace scripting::bindings {
                 }
 
                 ecs::Spawner &spawnerComp = spawner.get<ecs::Spawner>();
-                ecs::SpawnRequest request{x, y, enemyType, scriptPath, health, scoreValue};
+                ecs::SpawnRequest request{x, y, enemyType, scriptPath, health, scoreValue, 0.0f};
                 spawnerComp.queueSpawn(request);
 
                 LOG_DEBUG("[LUA] Queued spawn for ", enemyType, " at (", x, ", ", y, ")");

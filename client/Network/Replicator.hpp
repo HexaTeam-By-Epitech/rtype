@@ -266,6 +266,17 @@ class Replicator {
      */
     bool sendLeaveRoom();
 
+    /**
+     * @brief Send chat message to server
+     * 
+     * Sends a chat message to be broadcast to other players in the room.
+     * Messages starting with "/" are treated as commands.
+     * 
+     * @param message The message text to send
+     * @return true if the packet was sent successfully
+     */
+    bool sendChatMessage(const std::string &message);
+
    private:
     /**
      * @brief Network thread main loop

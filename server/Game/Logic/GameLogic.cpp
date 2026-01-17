@@ -471,34 +471,7 @@ namespace server {
         LOG_INFO("✓ Game reset");
     }
 
-    void GameLogic::spawnEnemies() {
-        LOG_INFO("Spawning enemies with Lua scripts...");
-
-        // Spawn initial enemies with Lua scripts
-        // Example: Spawn a few test enemies
-        _world->createEntity()
-            .with(ecs::Transform(600.0f, 300.0f))
-            .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
-            .with(ecs::Health(100, 100))
-            .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
-            .with(ecs::LuaScript("test_movement.lua"));
-
-        _world->createEntity()
-            .with(ecs::Transform(700.0f, 200.0f))
-            .with(ecs::Velocity(-1.0f, 0.2f, 60.0f))
-            .with(ecs::Health(80, 80))
-            .with(ecs::Enemy(1, 150, 0))
-            .with(ecs::LuaScript("test_movement.lua"));
-
-        _world->createEntity()
-            .with(ecs::Transform(800.0f, 400.0f))
-            .with(ecs::Velocity(-1.0f, -0.2f, 60.0f))
-            .with(ecs::Health(80, 80))
-            .with(ecs::Enemy(1, 150, 0))
-            .with(ecs::LuaScript("test_movement.lua"));
-
-        LOG_INFO("✓ Spawned 3 enemies with Lua scripts");
-
+    void GameLogic::spawnPowerUps() {
         // 🧪 TEST: Spawn power-ups for testing buff system
         LOG_INFO("🧪 Spawning test power-ups...");
 
@@ -523,8 +496,13 @@ namespace server {
         LOG_INFO("  ✓ Health pack at (300, 350)");
 
         LOG_INFO("✓ Test power-ups spawned - try collecting them!");
+    }
+
     void GameLogic::onGameStart() {
         LOG_INFO("Fire onGameStart");
+
+        // Spawn test power-ups
+        spawnPowerUps();
 
         // Find the spawner entity with wave_manager.lua script
         if (_luaEngine) {

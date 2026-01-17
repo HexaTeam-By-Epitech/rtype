@@ -116,6 +116,10 @@ namespace server {
             return powerUp.getAddress();
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create power-up: ", e.what());
+            return 0;
+        }
+    }
+
     int PrefabFactory::_enemyTypeFromString(const std::string &enemyType) {
         if (enemyType == "basic") {
             return 0;
@@ -178,6 +182,10 @@ namespace server {
             return healthPack.getAddress();
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create health pack: ", e.what());
+            return 0;
+        }
+    }
+
     ecs::Address PrefabFactory::createEnemyFromRegistry(ecs::Registry &registry, const std::string &enemyType,
                                                         float posX, float posY, float health, int scoreValue,
                                                         const std::string &scriptPath) {

@@ -8,7 +8,10 @@
 #include "ServerGameBindings.hpp"
 #include <cstdlib>
 #include <ctime>
+#include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/LuaScript.hpp"
+#include "common/ECS/Components/Spawner.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/Logger/Logger.hpp"
@@ -90,6 +93,113 @@ namespace scripting::bindings {
             result["x"] = x / length;
             result["y"] = y / length;
             return result;
+        });
+
+        // Queue a spawn request through a Spawner entity
+        // Usage: queueSpawn(spawnerEntity, x, y, type, scriptPath, health, scoreValue)
+        lua.set_function("queueSpawn", [world](ecs::wrapper::Entity spawner, float x, float y,
+                                               const std::string &enemyType, const std::string &scriptPath,
+                                               float health, int scoreValue) {
+            try {
+                if (!world) {
+                    LOG_ERROR("[LUA] queueSpawn: world is null");
+                    return;
+                }
+
+                if (!spawner.isValid()) {
+                    LOG_WARNING("[LUA] Cannot queue spawn: invalid spawner entity (address: ",
+                                spawner.getAddress(), ")");
+                    return;
+                }
+
+                if (!spawner.has<ecs::Spawner>()) {
+                    LOG_WARNING("[LUA] Entity (", spawner.getAddress(), ") does not have Spawner component");
+                    return;
+                }
+
+                ecs::Spawner &spawnerComp = spawner.get<ecs::Spawner>();
+                ecs::SpawnRequest request{x, y, enemyType, scriptPath, health, scoreValue, 0.0f};
+                spawnerComp.queueSpawn(request);
+
+                LOG_DEBUG("[LUA] Queued spawn for ", enemyType, " at (", x, ", ", y, ")");
+            } catch (const std::exception &e) {
+                LOG_ERROR("[LUA] queueSpawn exception: ", e.what());
+            }
+        });
+
+        lua.set_function("setSpawnerConfig", [world](ecs::wrapper::Entity spawner, sol::table configTable) {
+            try {
+                if (!world) {
+                    LOG_ERROR("[LUA] setSpawnerConfig: world is null");
+                    return;
+                }
+
+                if (!spawner.isValid()) {
+                    LOG_WARNING("[LUA] Cannot set spawner config: invalid spawner entity (address: ",
+                                spawner.getAddress(), ")");
+                    return;
+                }
+
+                if (!spawner.has<ecs::Spawner>()) {
+                    LOG_WARNING("[LUA] Entity (", spawner.getAddress(), ") does not have Spawner component");
+                    return;
+                }
+
+                ecs::Spawner &spawnerComp = spawner.get<ecs::Spawner>();
+                ecs::SpawnerConfig config;
+
+                // Parse waves
+                sol::optional<sol::table> wavesTableOpt = configTable["waves"];
+                if (wavesTableOpt) {
+                    sol::table wavesTable = wavesTableOpt.value();
+                    for (auto &wavePair : wavesTable) {
+                        sol::table waveTable = wavePair.second;
+                        ecs::WaveConfig waveConfig;
+
+                        // Parse enemies in wave (using enemyConfigs key from Lua)
+                        sol::optional<sol::table> enemiesTableOpt = waveTable["enemyConfigs"];
+                        if (!enemiesTableOpt) {
+                            enemiesTableOpt = waveTable["enemies"];
+                        }
+                        if (enemiesTableOpt) {
+                            sol::table enemiesTable = enemiesTableOpt.value();
+                            for (auto &enemyPair : enemiesTable) {
+                                sol::table enemyTable = enemyPair.second;
+                                ecs::SpawnRequest request;
+                                request.x = enemyTable.get_or("x", 0.0f);
+                                request.y = enemyTable.get_or("y", 0.0f);
+                                request.enemyType = enemyTable.get_or<std::string>("type", "basic");
+                                request.scriptPath = enemyTable.get_or<std::string>("script", "");
+                                request.health = enemyTable.get_or("health", 100.0f);
+                                request.scoreValue = enemyTable.get_or("scoreValue", 100);
+                                request.spawnDelay = enemyTable.get_or("delay", 0.0f);
+                                request.hasSpawned = false;
+                                waveConfig.enemies.push_back(request);
+                            }
+                        }
+
+                        waveConfig.spawnInterval = waveTable.get_or("spawnInterval", 1.0f);
+                        config.waves.push_back(waveConfig);
+                    }
+                }
+
+                // Parse wave intervals
+                sol::optional<sol::table> intervalsTableOpt = configTable["wavesIntervals"];
+                if (intervalsTableOpt) {
+                    sol::table intervalsTable = intervalsTableOpt.value();
+                    for (auto &intervalPair : intervalsTable) {
+                        int interval = intervalPair.second.as<int>();
+                        config.wavesIntervals.push_back(interval);
+                    }
+                }
+
+                spawnerComp.setConfig(config);
+
+                LOG_INFO("[LUA] Set spawner config for entity ", spawner.getAddress(), " with ",
+                         config.waves.size(), " waves");
+            } catch (const std::exception &e) {
+                LOG_ERROR("[LUA] setSpawnerConfig exception: ", e.what());
+            }
         });
 
         LOG_INFO("Server game bindings initialized");

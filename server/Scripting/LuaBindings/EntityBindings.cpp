@@ -17,6 +17,13 @@ void scripting::bindings::bindEntity(sol::state &lua, ecs::wrapper::ECSWorld *wo
     entity_type["getAddress"] = &ecs::wrapper::Entity::getAddress;
     entity_type["isValid"] = &ecs::wrapper::Entity::isValid;
 
+    // Add destroy() method
+    entity_type["destroy"] = [world](ecs::wrapper::Entity &entity) {
+        if (entity.isValid()) {
+            world->destroyEntity(entity.getAddress());
+        }
+    };
+
     helper.applyEntityMethods(entity_type);
 
     // Automatically generate the removeComponent function

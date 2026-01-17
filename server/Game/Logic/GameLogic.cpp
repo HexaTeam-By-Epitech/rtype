@@ -17,8 +17,10 @@
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
+#include "common/ECS/Components/PendingDestroy.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Spawner.hpp"
 #include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
@@ -125,17 +127,8 @@ namespace server {
             LOG_INFO("✓ GameStateManager initialized with 3 states");
 
             // 🧪 TEST: Spawn a test enemy with Lua script
-
-            LOG_INFO("🧪 Spawning test enemy with Lua script...");
-
-            _world->createEntity()
-                .with(ecs::Transform(600.0f, 300.0f))
-                .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
-                .with(ecs::Health(100, 100))
-                .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
-                .with(ecs::LuaScript("test_movement.lua"));
-
-            LOG_INFO("✓ Test enemy spawned at (600, 300) with script: test_movement.lua");
+            LOG_INFO("🧪 Spawning test with Lua script...");
+            _world->createEntity().with(ecs::Spawner()).with(ecs::LuaScript("wave_manager.lua"));
 
             _gameActive = true;
 
@@ -229,9 +222,10 @@ namespace server {
 
             LOG_INFO("Despawning player ", playerId, " (entity: ", playerEntity, ")");
 
-            // Remove entity from the world
-            _world->destroyEntity(playerEntity);
-            LOG_INFO("✓ Player removed from game and entity destroyed");
+            // Mark entity for destruction with proper client notification
+            _world->getEntity(playerEntity)
+                .with<ecs::PendingDestroy>(ecs::PendingDestroy(ecs::DestroyReason::Manual));
+            LOG_INFO("✓ Player marked for destruction (will be processed in next tick)");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to despawn player: ", e.what());
         }
@@ -360,8 +354,8 @@ namespace server {
         // Group 3: Depends on collision results
         std::vector<std::string> group3 = {"HealthSystem", "ProjectileSystem"};
 
-        // Group 4: AI, spawning, and scripting (can run in parallel)
-        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem", "Lua"};
+        // Group 4: AI, spawning, and weapons (can run in parallel)
+        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {
@@ -388,23 +382,30 @@ namespace server {
         executeGroup(group2);
         executeGroup(group3);
         executeGroup(group4);
+
+        // Execute Lua system SEQUENTIALLY after all other systems to avoid registry concurrency issues
+        _world->updateSystem("Lua", deltaTime);
     }
 
     void GameLogic::_cleanupDeadEntities() {
-        // Query all entities with Health component
+        // Query all entities with Health component that are dead
+        // Note: Actual entity destruction is handled by _processPendingDestructions in Server
+        // This function just cleans up the player map for dead players
         auto entities = _world->query<ecs::Health>();
 
-        std::vector<ecs::Address> toDestroy;
-
-        // Find entities that need to be removed
         for (auto &entity : entities) {
             ecs::Health &health = entity.get<ecs::Health>();
 
             if (health.getCurrentHealth() > 0) {
                 continue;
             }
+
+            // Mark for destruction if not already marked (HealthSystem should have done this)
             ecs::Address entityAddress = entity.getAddress();
-            toDestroy.push_back(entityAddress);
+            if (!entity.has<ecs::PendingDestroy>()) {
+                _world->getEntity(entityAddress)
+                    .with<ecs::PendingDestroy>(ecs::PendingDestroy(ecs::DestroyReason::Killed));
+            }
 
             // Remove from player map if it's a player entity
             if (!entity.has<ecs::Player>()) {
@@ -419,10 +420,7 @@ namespace server {
                 }
             }
         }
-
-        for (ecs::Address address : toDestroy) {
-            _world->destroyEntity(address);
-        }
+        // Entity destruction is deferred to _processPendingDestructions in Server
     }
 
     void GameLogic::_checkGameOverCondition() {
@@ -470,33 +468,20 @@ namespace server {
         LOG_INFO("✓ Game reset");
     }
 
-    void GameLogic::spawnEnemies() {
-        LOG_INFO("Spawning enemies with Lua scripts...");
+    void GameLogic::onGameStart() {
+        LOG_INFO("Fire onGameStart");
 
-        // Spawn initial enemies with Lua scripts
-        // Example: Spawn a few test enemies
-        _world->createEntity()
-            .with(ecs::Transform(600.0f, 300.0f))
-            .with(ecs::Velocity(-1.0f, 0.0f, 80.0f))
-            .with(ecs::Health(100, 100))
-            .with(ecs::Enemy(0, 100, 0))  // type=0, score=100, pattern=0
-            .with(ecs::LuaScript("test_movement.lua"));
-
-        _world->createEntity()
-            .with(ecs::Transform(700.0f, 200.0f))
-            .with(ecs::Velocity(-1.0f, 0.2f, 60.0f))
-            .with(ecs::Health(80, 80))
-            .with(ecs::Enemy(1, 150, 0))
-            .with(ecs::LuaScript("test_movement.lua"));
-
-        _world->createEntity()
-            .with(ecs::Transform(800.0f, 400.0f))
-            .with(ecs::Velocity(-1.0f, -0.2f, 60.0f))
-            .with(ecs::Health(80, 80))
-            .with(ecs::Enemy(1, 150, 0))
-            .with(ecs::LuaScript("test_movement.lua"));
-
-        LOG_INFO("✓ Spawned 3 enemies with Lua scripts");
+        // Find the spawner entity with wave_manager.lua script
+        if (_luaEngine) {
+            auto entities = _world->query<ecs::Spawner, ecs::LuaScript>();
+            for (auto &entity : entities) {
+                const ecs::LuaScript &script = entity.get<ecs::LuaScript>();
+                if (script.getScriptPath() == "wave_manager.lua") {
+                    _luaEngine->executeOnGameStart("wave_manager.lua", entity);
+                    break;
+                }
+            }
+        }
     }
 
 }  // namespace server

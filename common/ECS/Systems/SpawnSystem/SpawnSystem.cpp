@@ -6,37 +6,95 @@
 */
 
 #include "SpawnSystem.hpp"
+#include "common/ECS/Components/Spawner.hpp"
+#include "common/Logger/Logger.hpp"
+#include "server/Game/Prefabs/PrefabFactory.hpp"
 
 namespace ecs {
-    SpawnSystem::SpawnSystem()
-        : _waveNumber(1), _enemiesSpawned(0), _enemiesPerWave(5), _spawnTimer(0.0f), _spawnInterval(2.0f) {}
+    SpawnSystem::SpawnSystem() {}
 
-    void SpawnSystem::update([[maybe_unused]] Registry &registry, float deltaTime) {
-        _spawnTimer += deltaTime;
+    void SpawnSystem::update(Registry &registry, float deltaTime) {
+        auto spawners = registry.view<Spawner>();
 
-        if (_spawnTimer >= _spawnInterval && _enemiesSpawned < _enemiesPerWave) {
-            // TODO: Implement actual enemy entity creation with components
+        // Process wave timing and spawning logic
+        for (auto spawner : spawners) {
+            Spawner &spawnerComp = registry.getComponent<Spawner>(spawner);
 
-            _enemiesSpawned++;
-            _spawnTimer = 0.0f;
-        }
+            if (spawnerComp.getConfig().waves.empty() || !spawnerComp.isActive) {
+                continue;  // No waves configured or spawner inactive
+            }
 
-        if (_enemiesSpawned >= _enemiesPerWave) {
-            _waveNumber++;
-            _enemiesSpawned = 0;
-            _enemiesPerWave += 2;
+            SpawnerConfig &config = spawnerComp.getConfigMutable();
+            int wavesCount = static_cast<int>(config.waves.size());
+
+            // Check if wavesIntervals is properly configured
+            if (config.wavesIntervals.empty() ||
+                spawnerComp.currentWaveIndex >= static_cast<int>(config.wavesIntervals.size())) {
+                LOG_WARNING("[SpawnSystem] Invalid wave configuration - missing intervals");
+                continue;
+            }
+
+            if (spawnerComp.currentWaveIndex >= wavesCount) {
+                spawnerComp.isActive = false;
+                continue;
+            }
+
+            // Get current wave
+            WaveConfig &currentWave = config.waves[spawnerComp.currentWaveIndex];
+            float waveInterval = static_cast<float>(config.wavesIntervals[spawnerComp.currentWaveIndex]);
+
+            // Update wave elapsed time
+            spawnerComp.waveElapsedTime += deltaTime;
+
+            // Spawn enemies FIRST based on their individual delay within the wave
+            for (auto &enemy : currentWave.enemies) {
+                if (!enemy.hasSpawned && spawnerComp.waveElapsedTime >= enemy.spawnDelay) {
+                    _spawnEnemy(registry, enemy);
+                    enemy.hasSpawned = true;
+                }
+            }
+
+            // THEN check if it's time to advance to next wave
+            if (spawnerComp.waveElapsedTime >= waveInterval) {
+                // Check if all enemies in current wave have spawned
+                bool allSpawned = true;
+                for (const auto &enemy : currentWave.enemies) {
+                    if (!enemy.hasSpawned) {
+                        allSpawned = false;
+                        break;
+                    }
+                }
+
+                if (allSpawned) {
+                    spawnerComp.currentWaveIndex++;
+                    spawnerComp.waveElapsedTime = 0.0f;
+                    LOG_INFO("[SpawnSystem] Moving to wave ", spawnerComp.currentWaveIndex + 1);
+
+                    if (spawnerComp.currentWaveIndex >= wavesCount) {
+                        spawnerComp.isActive = false;
+                        LOG_INFO("[SpawnSystem] All waves completed for this spawner.");
+                    } else {
+                        // Reset hasSpawned flags for the next wave
+                        WaveConfig &nextWave = config.waves[spawnerComp.currentWaveIndex];
+                        for (auto &enemy : nextWave.enemies) {
+                            enemy.hasSpawned = false;
+                        }
+                        LOG_INFO("[SpawnSystem] Reset spawn flags for wave ",
+                                 spawnerComp.currentWaveIndex + 1);
+                    }
+                }
+            }
         }
     }
 
-    /**
-     * @brief Configures the spawn system for a specific wave.
-     */
-    void SpawnSystem::setWaveConfig(int waveNumber, int enemiesPerWave, float spawnInterval) {
-        _waveNumber = waveNumber;
-        _enemiesPerWave = enemiesPerWave;
-        _spawnInterval = spawnInterval;
-        _enemiesSpawned = 0;
-        _spawnTimer = 0.0f;
+    void SpawnSystem::_spawnEnemy(Registry &registry, const SpawnRequest &request) {
+        ecs::Address enemy = server::PrefabFactory::createEnemyFromRegistry(
+            registry, request.enemyType, request.x, request.y, request.health, request.scoreValue,
+            request.scriptPath);
+
+        if (enemy == 0) {
+            LOG_ERROR("[SpawnSystem] Failed to spawn enemy via PrefabFactory");
+        }
     }
 
     ComponentMask SpawnSystem::getComponentMask() const {

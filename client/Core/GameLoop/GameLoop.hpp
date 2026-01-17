@@ -234,6 +234,7 @@ class GameLoop {
     void handleGameruleUpdate(const std::vector<uint8_t> &payload);
     void handleRoomList(const std::vector<uint8_t> &payload);
     void handleRoomState(const std::vector<uint8_t> &payload);
+    void handleEntityDestroyed(const std::vector<uint8_t> &payload);
     void handleChatMessage(const std::vector<uint8_t> &payload);
     void handleLeftRoom(const std::vector<uint8_t> &payload);
 

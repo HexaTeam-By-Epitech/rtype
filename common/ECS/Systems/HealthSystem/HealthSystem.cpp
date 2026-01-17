@@ -7,6 +7,7 @@
 
 #include "HealthSystem.hpp"
 #include "../../Components/IComponent.hpp"
+#include "../../Components/PendingDestroy.hpp"
 
 namespace ecs {
     /**
@@ -35,7 +36,10 @@ namespace ecs {
         }
 
         for (auto entityId : toDestroy) {
-            registry.destroyEntity(entityId);
+            // Mark for destruction with proper client notification
+            if (!registry.hasComponent<PendingDestroy>(entityId)) {
+                registry.setComponent<PendingDestroy>(entityId, PendingDestroy(DestroyReason::Killed));
+            }
         }
     }
 

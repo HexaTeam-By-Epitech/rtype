@@ -720,15 +720,14 @@ void Rendering::UpdateUI() {
                 }
 
             } else if (_loginMenu->IsGuestSubmitted()) {
-                // Guest: Name will be received from server via HANDSHAKE_RESPONSE
-                // Just close the menu, AUTH_SUCCESS event will be published by Replicator
-                LOG_INFO("[Rendering] Guest login selected");
+                // Guest login: send guest credentials to re-authenticate as guest
+                LOG_INFO("[Rendering] Guest login selected - sending guest credentials");
 
-                // Close menu
-                _loginMenu->Hide();
-                if (_mainMenu)
-                    _mainMenu->Show();
-                _loginOverlay = false;
+                // Send guest credentials
+                std::string credentials = "guest:guest";
+                _eventBus.publish(UIEvent(UIEventType::LOGIN_ACCOUNT, credentials));
+
+                // Reset the menu state
                 _loginMenu->Reset();
             }
         }

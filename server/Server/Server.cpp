@@ -430,8 +430,16 @@ void Server::_handleLoginRequest(HostNetworkEvent &event) {
             std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionIt->second);
             if (session) {
                 uint32_t playerId = session->getPlayerId();
-                // Use username as display name for logged-in users
-                std::string displayName = username;
+                // Determine display name based on username
+                std::string displayName;
+                if (username == "guest") {
+                    // For guests, generate unique name with first 4 chars of session hash
+                    std::string hashStr = std::to_string(std::hash<std::string>{}(sessionId));
+                    displayName = "guest_" + hashStr.substr(0, 4);
+                } else {
+                    // For registered users, use their username
+                    displayName = username;
+                }
                 _lobby->updatePlayerName(playerId, displayName);
             }
         }

@@ -25,6 +25,18 @@ namespace ecs {
             float newX = pos.x + direction.x * speed * deltaTime;
             float newY = pos.y + direction.y * speed * deltaTime;
             transform.setPosition(newX, newY);
+
+            // Handle projectile lifetime
+            if (registry.hasComponent<Projectile>(entityId)) {
+                auto &projectile = registry.getComponent<Projectile>(entityId);
+                float newLifetime = projectile.getLifetime() - deltaTime;
+
+                if (newLifetime <= 0.0f) {
+                    registry.destroyEntity(entityId);
+                } else {
+                    projectile.setLifetime(newLifetime);
+                }
+            }
         }
     }
 

@@ -8,6 +8,7 @@
 #pragma once
 
 #include "../../Components/IComponent.hpp"
+#include "../../Components/Projectile.hpp"
 #include "../../Components/Transform.hpp"
 #include "../../Components/Velocity.hpp"
 #include "../ISystem.hpp"
@@ -50,4 +51,4 @@ namespace ecs {
          */
         ComponentMask getComponentMask() const override;
     };
-}
+}  // namespace ecs

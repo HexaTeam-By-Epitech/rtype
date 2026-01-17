@@ -55,3 +55,8 @@ struct StartMatchmaking {
 struct CancelMatchmaking {
   # Request to leave matchmaking queue
 }
+
+struct C2SChatMessage {
+  message @0 :Text;
+}
+

@@ -524,6 +524,37 @@ bool Replicator::sendLeaveRoom() {
     return _serverPeer->send(std::move(packet), 0);
 }
 
+bool Replicator::sendChatMessage(const std::string &message) {
+    if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("[Replicator] Cannot send chat message: Not connected");
+        return false;
+    }
+
+    using namespace RType::Messages;
+
+    LOG_INFO("[Replicator] Sending chat message: '", message, "'");
+
+    // Create ChatMessage
+    C2S::C2SChatMessage chatMsg(message);
+    auto payload = chatMsg.serialize();
+
+    LOG_DEBUG("[Replicator] Chat message serialized, payload size: ", payload.size());
+
+    // Wrap in network protocol
+    auto requestData =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_CHAT_MESSAGE, payload);
+
+    LOG_DEBUG("[Replicator] Network packet created, total size: ", requestData.size());
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    bool sent = _serverPeer->send(std::move(packet), 0);
+
+    LOG_INFO("[Replicator] Chat message sent: ", (sent ? "SUCCESS" : "FAILED"));
+
+    return sent;
+}
+
 void Replicator::onInputEvent(const InputEvent &event) {
     (void)event;
     // TODO: Implement input event handling

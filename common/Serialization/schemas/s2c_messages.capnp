@@ -111,3 +111,22 @@ struct LoginResponse {
   message @1 :Text;  # Error message if failed
   sessionToken @2 :Text;  # Token if successful
 }
+struct S2CChatMessage {
+  playerId @0 :UInt32;
+  playerName @1 :Text;
+  message @2 :Text;
+  timestamp @3 :UInt64;
+}
+
+enum LeftRoomReason {
+  voluntaryLeave @0;  # Player pressed "back" or left voluntarily
+  kicked @1;          # Player was kicked by host
+  roomClosed @2;      # Room was closed/deleted
+  serverShutdown @3;  # Server is shutting down
+}
+
+struct LeftRoom {
+  playerId @0 :UInt32;
+  reason @1 :LeftRoomReason;
+  message @2 :Text;  # Optional message (e.g., "Kicked by host")
+}

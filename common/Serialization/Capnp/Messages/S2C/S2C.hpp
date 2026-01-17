@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "ChatMessage.hpp"
 #include "EntityDestroyed.hpp"
 #include "EntityState.hpp"
 #include "GameOver.hpp"
@@ -14,6 +15,7 @@
 #include "GameState.hpp"
 #include "GamerulePacket.hpp"
 #include "JoinedRoom.hpp"
+#include "LeftRoom.hpp"
 #include "LoginResponse.hpp"
 #include "RegisterResponse.hpp"
 #include "RoomCreated.hpp"

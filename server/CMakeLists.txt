@@ -10,6 +10,7 @@ file(GLOB_RECURSE SERVER_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/Network/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/Server/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/Scripting/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Commands/*.cpp"
 )
 
 # Add ECS sources from common (needed by GameLogic)

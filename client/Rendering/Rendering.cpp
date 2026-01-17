@@ -432,6 +432,16 @@ void Rendering::SubscribeToConnectionEvents() {
             // Update player name after authentication
             const std::string &username = event.getData();
             SetPlayerName(username);
+
+            // Hide both login and server list menus, show main menu
+            if (_loginMenu)
+                _loginMenu->Hide();
+            if (_serverListMenu)
+                _serverListMenu->Hide();
+            if (_mainMenu)
+                _mainMenu->Show();
+
+            LOG_INFO("[Rendering] Authentication successful, returning to main menu");
         } else if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
             LOG_INFO("[Rendering] Connection successful!");
 
@@ -467,6 +477,21 @@ void Rendering::SubscribeToConnectionEvents() {
         } else if (event.getType() == UIEventType::ROOM_LIST_RECEIVED) {
             LOG_INFO("[Rendering] Room list received");
             // Room list will be updated by GameLoop parsing the network message
+        } else if (event.getType() == UIEventType::REGISTER_SUCCESS) {
+            LOG_INFO("[Rendering] Registration successful: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetSuccessMessage("Registration successful! You can now login.");
+            }
+        } else if (event.getType() == UIEventType::REGISTER_FAILED) {
+            LOG_ERROR("[Rendering] Registration failed: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetErrorMessage(event.getData());
+            }
+        } else if (event.getType() == UIEventType::LOGIN_FAILED) {
+            LOG_ERROR("[Rendering] Login failed: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetErrorMessage(event.getData());
+            }
         }
     });
 }

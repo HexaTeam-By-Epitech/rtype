@@ -167,13 +167,18 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                             if (registerResp.success) {
                                 LOG_INFO("✓ Registration successful: ", registerResp.message);
                                 messageContent = "Registration successful: " + registerResp.message;
+                                _eventBus.publish(
+                                    UIEvent(UIEventType::REGISTER_SUCCESS, registerResp.message));
                             } else {
                                 LOG_WARNING("✗ Registration failed: ", registerResp.message);
                                 messageContent = "Registration failed: " + registerResp.message;
+                                _eventBus.publish(
+                                    UIEvent(UIEventType::REGISTER_FAILED, registerResp.message));
                             }
                         } catch (const std::exception &e) {
                             LOG_ERROR("Failed to parse RegisterResponse: ", e.what());
                             messageContent = "Registration error";
+                            _eventBus.publish(UIEvent(UIEventType::REGISTER_FAILED, "Registration error"));
                         }
                     } else if (messageType == NetworkMessages::MessageType::LOGIN_RESPONSE) {
                         // Parse LoginResponse
@@ -195,10 +200,12 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                             } else {
                                 LOG_WARNING("✗ Login failed: ", loginResp.message);
                                 messageContent = "Login failed: " + loginResp.message;
+                                _eventBus.publish(UIEvent(UIEventType::LOGIN_FAILED, loginResp.message));
                             }
                         } catch (const std::exception &e) {
                             LOG_ERROR("Failed to parse LoginResponse: ", e.what());
                             messageContent = "Login error";
+                            _eventBus.publish(UIEvent(UIEventType::LOGIN_FAILED, "Login error"));
                         }
                     } else if (messageType == NetworkMessages::MessageType::S2C_GAME_START) {
                         messageContent = "GameStart received";

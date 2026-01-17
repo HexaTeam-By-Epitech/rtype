@@ -206,6 +206,7 @@ namespace Game {
             SetErrorMessage("Please enter username and password");
             return;
         }
+        ResetMessages();  // Clear previous messages when submitting
         _loginSubmitted = true;
     }
 
@@ -214,6 +215,7 @@ namespace Game {
             SetErrorMessage("Please enter username and password");
             return;
         }
+        ResetMessages();  // Clear previous messages when submitting
         _registerSubmitted = true;
     }
 

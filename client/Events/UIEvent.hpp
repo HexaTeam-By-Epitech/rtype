@@ -37,7 +37,10 @@ enum class UIEventType {
     START_GAME_REQUEST,
     GAME_STARTED,
     REGISTER_ACCOUNT,  // data format: "username:password"
+    REGISTER_SUCCESS,  // data format: success message
+    REGISTER_FAILED,   // data format: error message
     LOGIN_ACCOUNT,     // data format: "username:password"
+    LOGIN_FAILED,      // data format: error message
     AUTH_SUCCESS       // data format: authenticated username (e.g., "lucas" or "guest_a3f2")
 };
 

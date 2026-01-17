@@ -375,14 +375,14 @@ void Server::_handleRegisterRequest(HostNetworkEvent &event) {
     S2C::RegisterResponse response;
     if (success) {
         response.success = true;
-        response.message = "✓ Account created successfully! You can now login.";
-        LOG_INFO("✓ Registration SUCCESS for user: ", username);
+        response.message = "Account created successfully! You can now login.";
+        LOG_INFO("Registration SUCCESS for user: ", username);
     } else {
         response.success = false;
         response.message =
-            "❌ Registration failed! Username may already exist or invalid credentials (min 3 chars "
+            "Registration failed! Username may already exist or invalid credentials (min 3 chars "
             "username, 4 chars password).";
-        LOG_WARNING("❌ Registration FAILED for user: ", username);
+        LOG_WARNING("Registration FAILED for user: ", username);
     }
 
     // Send response
@@ -428,9 +428,9 @@ void Server::_handleLoginRequest(HostNetworkEvent &event) {
         }
     } else {
         response.success = false;
-        response.message = "❌ Login failed! Invalid username or password.";
+        response.message = "Login failed! Invalid username or password.";
         response.sessionToken = "";
-        LOG_WARNING("❌ Login FAILED for user: ", username);
+        LOG_WARNING("Login FAILED for user: ", username);
     }
 
     // Send response

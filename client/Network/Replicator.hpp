@@ -308,7 +308,7 @@ class Replicator {
     std::atomic<bool> _connected{false};
     std::atomic<bool> _authenticated{false};
     std::atomic<uint32_t> _myPlayerId{0};
-    std::string _lastLoginUsername;  // Track username for AUTH_SUCCESS event  // Player ID assigned by server
+    std::string _lastLoginUsername;  // Track username for AUTH_SUCCESS event
     bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;

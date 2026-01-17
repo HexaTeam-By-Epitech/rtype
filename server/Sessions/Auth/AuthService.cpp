@@ -28,6 +28,12 @@ namespace server {
         loadAccounts();
     }
 
+    AuthService::~AuthService() {
+        if (_accountsDirty) {
+            saveAccounts();
+        }
+    }
+
     std::string AuthService::hashPassword(const std::string &password) {
         // Argon2id parameters (recommended for password hashing)
         const uint32_t t_cost = 2;       // 2 iterations
@@ -106,9 +112,17 @@ namespace server {
 
         // Update last login timestamp
         auto now = std::chrono::system_clock::now();
-        it->second.lastLogin =
+        uint64_t nowSeconds =
             std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-        saveAccounts();  // Save updated timestamp
+        it->second.lastLogin = nowSeconds;
+        _accountsDirty = true;
+
+        // Deferred save: only save if enough time has passed
+        if (nowSeconds - _lastSaveTime >= SAVE_INTERVAL_SECONDS) {
+            saveAccounts();
+            _lastSaveTime = nowSeconds;
+            _accountsDirty = false;
+        }
 
         // Store authenticated session
         _authenticatedUsers.insert(username);
@@ -198,6 +212,7 @@ namespace server {
 
         _accounts[username] = account;
         saveAccounts();
+        _accountsDirty = false;
 
         LOG_INFO("✓ Registration successful for user: ", username);
         return true;
@@ -211,6 +226,15 @@ namespace server {
             // Guest login works without registration
             return;
         }
+
+        // Check if file is empty
+        file.seekg(0, std::ios::end);
+        if (file.tellg() == 0) {
+            LOG_INFO("Accounts file is empty, starting with empty database");
+            file.close();
+            return;
+        }
+        file.seekg(0, std::ios::beg);
 
         try {
             json j;

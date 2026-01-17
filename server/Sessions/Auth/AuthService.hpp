@@ -16,7 +16,7 @@ namespace server {
 
     struct AccountData {
         std::string username;
-        std::string passwordHash;  // bcrypt hash
+        std::string passwordHash;  // Argon2id hash
         uint64_t createdAt;        // timestamp
         uint64_t lastLogin;        // timestamp
     };
@@ -25,7 +25,7 @@ namespace server {
        public:
         AuthService();
         explicit AuthService(const std::string &accountsFile);
-        ~AuthService() override = default;
+        ~AuthService() override;
 
         /**
          * @brief Authenticate a user with username and password.
@@ -82,16 +82,16 @@ namespace server {
 
        private:
         /**
-         * @brief Hash a password using bcrypt
+         * @brief Hash a password using Argon2id
          * @param password Plaintext password
-         * @return std::string Bcrypt hash
+         * @return std::string Argon2id hash
          */
         std::string hashPassword(const std::string &password);
 
         /**
-         * @brief Verify a password against a bcrypt hash
+         * @brief Verify a password against an Argon2id hash
          * @param password Plaintext password
-         * @param hash Bcrypt hash to verify against
+         * @param hash Argon2id hash to verify against
          * @return bool True if password matches
          */
         bool verifyPassword(const std::string &password, const std::string &hash);
@@ -100,6 +100,10 @@ namespace server {
         std::unordered_map<std::string, std::string> _activeTokens;  ///< Map of tokens to usernames
         std::unordered_map<std::string, AccountData> _accounts;      ///< Map of username to account data
         std::string _accountsFile = "accounts.json";                 ///< JSON file to store accounts
+
+        bool _accountsDirty = false;                           ///< Flag indicating unsaved changes
+        uint64_t _lastSaveTime = 0;                            ///< Timestamp of last save
+        static constexpr uint64_t SAVE_INTERVAL_SECONDS = 60;  ///< Save every 60 seconds
     };
 
 }  // namespace server

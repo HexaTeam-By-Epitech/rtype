@@ -7,6 +7,7 @@
 
 #include "BuffSystem.hpp"
 #include <algorithm>
+#include "common/Logger/Logger.hpp"
 
 namespace ecs {
 
@@ -42,15 +43,45 @@ namespace ecs {
         auto &buffs = buff.getBuffsMutable();
 
         // Remove expired buffs
+        auto initialSize = buffs.size();
         buffs.erase(std::remove_if(buffs.begin(), buffs.end(),
                                    [deltaTime](BuffInstance &b) {
                                        if (b.isPermanent) {
                                            return false;  // Never remove permanent buffs
                                        }
                                        b.duration -= deltaTime;
-                                       return b.duration <= 0.0f;  // Remove if expired
+                                       if (b.duration <= 0.0f) {
+                                           // Log expired buff
+                                           const char *buffName = "Unknown";
+                                           switch (b.type) {
+                                               case BuffType::SpeedBoost:
+                                                   buffName = "SpeedBoost";
+                                                   break;
+                                               case BuffType::DamageBoost:
+                                                   buffName = "DamageBoost";
+                                                   break;
+                                               case BuffType::FireRateBoost:
+                                                   buffName = "FireRateBoost";
+                                                   break;
+                                               case BuffType::Shield:
+                                                   buffName = "Shield";
+                                                   break;
+                                               case BuffType::HealthRegen:
+                                                   buffName = "HealthRegen";
+                                                   break;
+                                               default:
+                                                   break;
+                                           }
+                                           LOG_INFO("[BUFF] ", buffName, " expired");
+                                           return true;
+                                       }
+                                       return false;
                                    }),
                     buffs.end());
+
+        if (buffs.size() < initialSize) {
+            LOG_DEBUG("[BUFF] Removed ", (initialSize - buffs.size()), " expired buff(s)");
+        }
     }
 
     void BuffSystem::_applyBuffEffects(Address address, Registry &registry, const Buff &buff) {

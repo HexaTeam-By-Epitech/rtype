@@ -37,6 +37,7 @@
 #include "common/Logger/Logger.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
+#include "server/Game/Prefabs/PrefabFactory.hpp"
 #include "server/Game/StateManager/GameOverState.hpp"
 #include "server/Game/StateManager/InGameState.hpp"
 #include "server/Game/StateManager/LobbyState.hpp"
@@ -499,6 +500,31 @@ namespace server {
             .with(ecs::LuaScript("test_movement.lua"));
 
         LOG_INFO("✓ Spawned 3 enemies with Lua scripts");
+
+        // 🧪 TEST: Spawn power-ups for testing buff system
+        LOG_INFO("🧪 Spawning test power-ups...");
+
+        // Speed boost (temporary) - middle of screen
+        server::PrefabFactory::createPowerUp(*_world, ecs::BuffType::SpeedBoost, 5.0f, 1.5f, 400.0f, 300.0f);
+        LOG_INFO("  ✓ Speed boost at (400, 300)");
+
+        // Damage boost (temporary) - upper area
+        server::PrefabFactory::createPowerUp(*_world, ecs::BuffType::DamageBoost, 8.0f, 2.0f, 350.0f, 200.0f);
+        LOG_INFO("  ✓ Damage boost at (350, 200)");
+
+        // Shield (temporary) - lower area
+        server::PrefabFactory::createPowerUp(*_world, ecs::BuffType::Shield, 3.0f, 1.0f, 350.0f, 400.0f);
+        LOG_INFO("  ✓ Shield at (350, 400)");
+
+        // Triple shot (PERMANENT) - special location
+        server::PrefabFactory::createPowerUp(*_world, ecs::BuffType::TripleShot, 0.0f, 1.0f, 450.0f, 250.0f);
+        LOG_INFO("  ✓ Triple Shot upgrade at (450, 250)");
+
+        // Health pack - near starting position
+        server::PrefabFactory::createHealthPack(*_world, 50, 300.0f, 350.0f);
+        LOG_INFO("  ✓ Health pack at (300, 350)");
+
+        LOG_INFO("✓ Test power-ups spawned - try collecting them!");
     }
 
 }  // namespace server

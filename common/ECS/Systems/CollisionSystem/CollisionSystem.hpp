@@ -80,8 +80,10 @@ namespace ecs {
          * @param playerAddr Player entity address
          * @param collectibleAddr Collectible entity address
          * @param registry Reference to the ECS registry
+         * @param entitiesToDestroy Vector to collect entities that should be destroyed after collision processing
          */
-        void handlePickup(Address playerAddr, Address collectibleAddr, Registry &registry);
+        void handlePickup(Address playerAddr, Address collectibleAddr, Registry &registry,
+                          std::vector<Address> &entitiesToDestroy);
 
         /**
          * @brief Checks if two entities can collide based on layers.

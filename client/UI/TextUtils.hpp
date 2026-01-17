@@ -15,7 +15,7 @@ namespace UI {
          * @brief Estimate the width of text in pixels.
          * 
          * This is a rough approximation based on the assumption that
-         * each character is approximately 60% of the font size in width.
+         * each character is approximately 55% of the font size in width.
          * 
          * @param text Text string to measure
          * @param fontSize Font size in pixels
@@ -25,7 +25,7 @@ namespace UI {
          *       For accurate measurements, use Raylib's MeasureText function.
          */
         inline int EstimateTextWidth(const std::string &text, int fontSize) {
-            return static_cast<int>(text.size() * static_cast<size_t>(fontSize) * 6 / 10);
+            return static_cast<int>(text.size() * static_cast<size_t>(fontSize) * 55 / 100);
         }
     }  // namespace TextUtils
 }  // namespace UI

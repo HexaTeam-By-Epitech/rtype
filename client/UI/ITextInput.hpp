@@ -202,5 +202,17 @@ namespace UI {
          * @return true if enabled.
          */
         [[nodiscard]] virtual bool IsEnabled() const = 0;
+
+        /**
+         * @brief Enable or disable password mode (masks characters with asterisks).
+         * @param passwordMode true to mask characters, false to show them normally.
+         */
+        virtual void SetPasswordMode(bool passwordMode) = 0;
+
+        /**
+         * @brief Check if password mode is enabled.
+         * @return true if password mode is enabled.
+         */
+        [[nodiscard]] virtual bool IsPasswordMode() const = 0;
     };
 }  // namespace UI

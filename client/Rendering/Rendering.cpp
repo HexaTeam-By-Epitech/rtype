@@ -6,7 +6,6 @@
 */
 
 #include "Rendering.hpp"
-#include <chrono>
 #include <thread>
 #include "Events/UIEvent.hpp"
 #include "UI/TextUtils.hpp"
@@ -436,7 +435,21 @@ void Rendering::InitializeWaitingRoomMenu() {
 
 void Rendering::SubscribeToConnectionEvents() {
     _eventBus.subscribe<UIEvent>([this](const UIEvent &event) {
-        if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
+        if (event.getType() == UIEventType::AUTH_SUCCESS) {
+            // Update player name after authentication
+            const std::string &username = event.getData();
+            SetPlayerName(username);
+
+            // Hide both login and server list menus, show main menu
+            if (_loginMenu)
+                _loginMenu->Hide();
+            if (_serverListMenu)
+                _serverListMenu->Hide();
+            if (_mainMenu)
+                _mainMenu->Show();
+
+            LOG_INFO("[Rendering] Authentication successful, returning to main menu");
+        } else if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
             LOG_INFO("[Rendering] Connection successful!");
 
             // Clear connecting state
@@ -471,17 +484,21 @@ void Rendering::SubscribeToConnectionEvents() {
         } else if (event.getType() == UIEventType::ROOM_LIST_RECEIVED) {
             LOG_INFO("[Rendering] Room list received");
             // Room list will be updated by GameLoop parsing the network message
-        } else if (event.getType() == UIEventType::BACK_TO_ROOM_LIST) {
-            LOG_INFO("[Rendering] Returning to room list");
-
-            // Hide waiting room and show room list
-            if (_waitingRoomMenu)
-                _waitingRoomMenu->Hide();
-            if (_roomListMenu)
-                _roomListMenu->Show();
-
-            // Ensure we're in menu scene
-            _scene = Scene::MENU;
+        } else if (event.getType() == UIEventType::REGISTER_SUCCESS) {
+            LOG_INFO("[Rendering] Registration successful: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetSuccessMessage("Registration successful! You can now login.");
+            }
+        } else if (event.getType() == UIEventType::REGISTER_FAILED) {
+            LOG_ERROR("[Rendering] Registration failed: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetErrorMessage(event.getData());
+            }
+        } else if (event.getType() == UIEventType::LOGIN_FAILED) {
+            LOG_ERROR("[Rendering] Login failed: ", event.getData());
+            if (_loginMenu) {
+                _loginMenu->SetErrorMessage(event.getData());
+            }
         }
     });
 }
@@ -519,6 +536,13 @@ void Rendering::SetShowFps(bool enabled) {
 
 bool Rendering::GetShowFps() const {
     return _showFps;
+}
+
+void Rendering::SetPlayerName(const std::string &name) {
+    if (_mainMenu) {
+        _mainMenu->SetProfileName(name);
+    }
+    LOG_INFO("[Rendering] Player name updated to: ", name);
 }
 
 void Rendering::StartGame() {
@@ -661,27 +685,49 @@ void Rendering::UpdateUI() {
             _loginMenu->Update();
 
             // Check for submission
-            if (_loginMenu->IsLoginSubmitted() || _loginMenu->IsRegisterSubmitted() ||
-                _loginMenu->IsGuestSubmitted()) {
-                std::string username;
-                if (_loginMenu->IsGuestSubmitted()) {
-                    username = "Guest";
+            if (_loginMenu->IsRegisterSubmitted()) {
+                // Register: Send RegisterAccount event
+                std::string username = _loginMenu->GetUsername();
+                std::string password = _loginMenu->GetPassword();
+
+                if (!username.empty() && !password.empty()) {
+                    LOG_INFO("[Rendering] Sending register request for user: " + username);
+                    // Publish event with "username:password" format
+                    std::string credentials = username + ":" + password;
+                    _eventBus.publish(UIEvent(UIEventType::REGISTER_ACCOUNT, credentials));
+
+                    // Reset the menu state so it doesn't keep sending
+                    _loginMenu->Reset();
                 } else {
-                    username = _loginMenu->GetUsername();
+                    _loginMenu->SetErrorMessage("Please enter username and password");
                 }
 
-                // Update MainMenu profile button
-                if (_mainMenu) {
-                    _mainMenu->SetProfileName(username);
+            } else if (_loginMenu->IsLoginSubmitted()) {
+                // Login: Send LoginAccount event
+                std::string username = _loginMenu->GetUsername();
+                std::string password = _loginMenu->GetPassword();
+
+                if (!username.empty() && !password.empty()) {
+                    LOG_INFO("[Rendering] Sending login request for user: " + username);
+                    // Publish event with "username:password" format
+                    std::string credentials = username + ":" + password;
+                    _eventBus.publish(UIEvent(UIEventType::LOGIN_ACCOUNT, credentials));
+
+                    // Reset the menu state so it doesn't keep sending
+                    _loginMenu->Reset();
+                } else {
+                    _loginMenu->SetErrorMessage("Please enter username and password");
                 }
 
-                LOG_INFO("[Rendering] User logged in as: " + username);
+            } else if (_loginMenu->IsGuestSubmitted()) {
+                // Guest login: send guest credentials to re-authenticate as guest
+                LOG_INFO("[Rendering] Guest login selected - sending guest credentials");
 
-                // Close menu
-                _loginMenu->Hide();
-                if (_mainMenu)
-                    _mainMenu->Show();
-                _loginOverlay = false;
+                // Send guest credentials
+                std::string credentials = "guest:guest";
+                _eventBus.publish(UIEvent(UIEventType::LOGIN_ACCOUNT, credentials));
+
+                // Reset the menu state
                 _loginMenu->Reset();
             }
         }

@@ -8,6 +8,7 @@
 #include "server/Server/Server.hpp"
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <thread>
 #include "Capnp/ConnectionMessages.hpp"
 #include "Capnp/Messages/Messages.hpp"
@@ -120,6 +121,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
 
             case NetworkMessages::MessageType::REGISTER_REQUEST:
                 _handleRegisterRequest(event);
+                break;
+
+            case NetworkMessages::MessageType::LOGIN_REQUEST:
+                _handleLoginRequest(event);
                 break;
 
             case NetworkMessages::MessageType::C2S_PLAYER_INPUT:
@@ -318,19 +323,31 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
     _peerToSession[event.peer] = sessionId;
     _playerIdToSessionId[newPlayerId] = sessionId;
 
-    _lobby->addPlayer(newPlayerId, playerName);
+    // Determine display name based on authentication type
+    std::string displayName;
+    if (username == "guest") {
+        // For guests, generate unique name with first 4 chars of hash
+        std::string hashStr = std::to_string(std::hash<std::string>{}(sessionId));
+        displayName = "guest_" + hashStr.substr(0, 4);
+    } else {
+        // For registered users, use their username
+        displayName = username;
+    }
 
-    LOG_INFO("✓ Player '", playerName, "' (", username, ") authenticated (Session: ", sessionId,
+    _lobby->addPlayer(newPlayerId, displayName);
+
+    LOG_INFO("✓ Player '", displayName, "' (", username, ") authenticated (Session: ", sessionId,
              ", Player ID: ", newPlayerId, ")");
 
-    // Send authentication response with playerId
+    // Send authentication response with playerId and displayName
     RType::Messages::Connection::HandshakeResponse response;
     response.accepted = true;
     response.sessionId = sessionId;
     response.serverId = "r-type-server";
-    response.message = "✓ Authentication successful! Welcome to R-Type, " + playerName + "!";
+    response.message = "✓ Authentication successful! Welcome to R-Type, " + displayName + "!";
     response.serverVersion = "1.0.0";
     response.playerId = newPlayerId;
+    response.playerName = displayName;
 
     std::vector<uint8_t> responseData = response.serialize();
     std::vector<uint8_t> packet =
@@ -350,43 +367,92 @@ void Server::_handleHandshakeRequest(HostNetworkEvent &event) {
 
 void Server::_handleRegisterRequest(HostNetworkEvent &event) {
     using namespace RType::Messages;
-    using namespace ConnectionMessages;
 
     std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
-    RegisterRequestData registerData = parseRegisterRequest(payload);
 
-    std::string username = registerData.username;
-    std::string password = registerData.password;
+    // Parse using Cap'n Proto RegisterAccount message
+    C2S::RegisterAccount registerMsg = C2S::RegisterAccount::deserialize(payload);
+    std::string username = registerMsg.username;
+    std::string password = registerMsg.password;
 
     LOG_INFO("Registration attempt - Username: '", username, "'");
 
     // Try to register the user
     bool success = _sessionManager->getAuthService()->registerUser(username, password);
 
-    RegisterResponseData response;
+    // Create response using Cap'n Proto
+    S2C::RegisterResponse response;
     if (success) {
         response.success = true;
-        response.message = "✓ Account created successfully! You can now login.";
-        LOG_INFO("✓ Registration SUCCESS for user: ", username);
+        response.message = "Account created successfully! You can now login.";
+        LOG_INFO("Registration SUCCESS for user: ", username);
     } else {
         response.success = false;
         response.message =
-            "❌ Registration failed! Username may already exist or invalid credentials (min 3 chars "
+            "Registration failed! Username may already exist or invalid credentials (min 3 chars "
             "username, 4 chars password).";
-        LOG_WARNING("❌ Registration FAILED for user: ", username);
+        LOG_WARNING("Registration FAILED for user: ", username);
     }
 
     // Send response
-    std::vector<uint8_t> responsePayload = createRegisterResponse(response);
-    // Again, createRegisterResponse likely returns full message?
-    // NetworkMessages::createMessage(NetworkMessages::MessageType::REGISTER_RESPONSE, responsePayload);
-    // Wait, in original code:
-    // std::vector<uint8_t> responsePayload = createRegisterResponse(response);
-    // std::vector<uint8_t> responseData = NetworkMessages::createMessage(NetworkMessages::MessageType::REGISTER_RESPONSE, responsePayload);
-    // So createRegisterResponse returns PAYLOAD.
-    // Original code was correct.
-
+    std::vector<uint8_t> responsePayload = response.serialize();
     _sendPacket(event.peer, NetworkMessages::MessageType::REGISTER_RESPONSE, responsePayload);
+}
+
+void Server::_handleLoginRequest(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+
+    // Parse using Cap'n Proto LoginAccount message
+    C2S::LoginAccount loginMsg = C2S::LoginAccount::deserialize(payload);
+    std::string username = loginMsg.username;
+    std::string password = loginMsg.password;
+
+    LOG_INFO("Login attempt - Username: '", username, "'");
+
+    // Try to authenticate and create session
+    std::string sessionId = _sessionManager->authenticateAndCreateSession(username, password);
+    bool success = !sessionId.empty();
+
+    // Create response using Cap'n Proto
+    S2C::LoginResponse response;
+    if (success) {
+        response.success = true;
+        response.message = "✓ Login successful! Welcome back, " + username + "!";
+        response.sessionToken = sessionId;
+        LOG_INFO("✓ Login SUCCESS for user: ", username, " (Session: ", sessionId, ")");
+
+        // Update player name in lobby after successful login
+        // Find the peer's session and player ID
+        auto sessionIt = _peerToSession.find(event.peer);
+        if (sessionIt != _peerToSession.end()) {
+            std::shared_ptr<server::Session> session = _sessionManager->getSession(sessionIt->second);
+            if (session) {
+                uint32_t playerId = session->getPlayerId();
+                // Determine display name based on username
+                std::string displayName;
+                if (username == "guest") {
+                    // For guests, generate unique name with first 4 chars of session hash
+                    std::string hashStr = std::to_string(std::hash<std::string>{}(sessionId));
+                    displayName = "guest_" + hashStr.substr(0, 4);
+                } else {
+                    // For registered users, use their username
+                    displayName = username;
+                }
+                _lobby->updatePlayerName(playerId, displayName);
+            }
+        }
+    } else {
+        response.success = false;
+        response.message = "Login failed! Invalid username or password.";
+        response.sessionToken = "";
+        LOG_WARNING("Login FAILED for user: ", username);
+    }
+
+    // Send response
+    std::vector<uint8_t> responsePayload = response.serialize();
+    _sendPacket(event.peer, NetworkMessages::MessageType::LOGIN_RESPONSE, responsePayload);
 }
 
 void Server::_handlePlayerInput(HostNetworkEvent &event) {

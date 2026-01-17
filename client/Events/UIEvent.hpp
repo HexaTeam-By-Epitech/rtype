@@ -36,7 +36,13 @@ enum class UIEventType {
     BACK_TO_ROOM_LIST,
     PLAYER_JOINED_ROOM,
     START_GAME_REQUEST,
-    GAME_STARTED
+    GAME_STARTED,
+    REGISTER_ACCOUNT,  // data format: "username:password"
+    REGISTER_SUCCESS,  // data format: success message
+    REGISTER_FAILED,   // data format: error message
+    LOGIN_ACCOUNT,     // data format: "username:password"
+    LOGIN_FAILED,      // data format: error message
+    AUTH_SUCCESS       // data format: authenticated username (e.g., "lucas" or "guest_a3f2")
 };
 
 class UIEvent : public IEvent {

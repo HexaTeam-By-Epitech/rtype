@@ -33,9 +33,23 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             float errorY = y - it->second.y;
             float errorDistance = std::sqrt(errorX * errorX + errorY * errorY);
 
-            // MICRO-JITTER FILTERING
-            if (errorDistance < 2.0f) {
-                return;  // Visually perfect, don't touch position
+            // ADAPTIVE MICRO-JITTER FILTERING
+            // When player IS MOVING: Apply strict filtering to avoid jitter during active movement
+            // When player IS STOPPED: Accept small corrections to prevent drift accumulation
+            float jitterThreshold = _localPlayerIsMoving ? 2.0f : 0.5f;
+
+            if (errorDistance < jitterThreshold) {
+                // When stopped, we still want to sync positions, just not create visible jumps
+                // So we'll do a very gentle correction instead of ignoring it completely
+                if (!_localPlayerIsMoving && errorDistance > 0.1f) {
+                    // Gentle correction: slowly drift towards server position
+                    it->second.prevX = it->second.x;
+                    it->second.prevY = it->second.y;
+                    it->second.targetX = x;
+                    it->second.targetY = y;
+                    it->second.interpolationFactor = 0.5f;  // Start halfway for very smooth transition
+                }
+                return;  // Don't apply large corrections for micro-jitter
             }
 
             // Only reconcile when error exceeds threshold

@@ -29,7 +29,7 @@ namespace server {
                 world.createEntity()
                     .with(ecs::Player(0, 3, playerId))  // score=0, lives=3
                     .with(ecs::Transform(50.0f, 300.0f))
-                    .with(ecs::Velocity(0.0f, 0.0f, 200.0f))  // 200 units/sec max speed
+                    .with(ecs::Velocity(0.0f, 0.0f, 300.0f))  // 300 units/sec max speed
                     .with(ecs::Health(100, 100))
                     .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
                     .with(ecs::Weapon(10.0f, 0.0f, 0, 25));  // fire rate: 10 shots/sec, type 0, 25 damage

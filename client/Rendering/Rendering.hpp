@@ -359,6 +359,15 @@ class Rendering {
     float GetReconciliationThreshold() const;
 
     /**
+     * @brief Set whether the local player is currently moving
+     * @param moving true if player is actively moving, false if stopped
+     * 
+     * This affects reconciliation behavior to prevent rollback when stopping.
+     * Delegates to EntityRenderer.
+     */
+    void SetLocalPlayerMoving(bool moving);
+
+    /**
      * @brief Set the current ping value for display
      * @param pingMs Ping in milliseconds
      * 

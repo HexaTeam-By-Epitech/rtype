@@ -76,8 +76,8 @@ namespace server {
 
         uint32_t getLastProcessedInput(uint32_t playerId) const override {
             std::lock_guard<std::mutex> lock(_inputMutex);
-            auto it = _lastProcessedSequenceId.find(playerId);
-            return (it != _lastProcessedSequenceId.end()) ? it->second : 0;
+            auto it = _lastAppliedSequenceId.find(playerId);
+            return (it != _lastAppliedSequenceId.end()) ? it->second : 0;
         }
 
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
@@ -166,7 +166,8 @@ namespace server {
         std::unordered_map<uint32_t, std::deque<PlayerInput>> _pendingInput;
 
         // Last processed input sequence ID per player (for redundancy)
-        std::unordered_map<uint32_t, uint32_t> _lastProcessedSequenceId;
+        std::unordered_map<uint32_t, uint32_t> _lastReceivedSequenceId;
+        std::unordered_map<uint32_t, uint32_t> _lastAppliedSequenceId;
 
         // Game state
         std::shared_ptr<GameStateManager> _stateManager;

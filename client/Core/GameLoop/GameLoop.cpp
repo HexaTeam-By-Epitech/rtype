@@ -364,6 +364,11 @@ void GameLoop::processInput() {
     // Update movement state based on input
     _isMoving = (dx != 0 || dy != 0);
 
+    // Inform rendering system about movement state (for reconciliation logic)
+    if (_rendering) {
+        _rendering->SetLocalPlayerMoving(_isMoving);
+    }
+
     // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
     // Only predict if entity is initialized (prevents moving before spawn)
     if (_myEntityId.has_value() && _entityInitialized && _clientSidePredictionEnabled && _isMoving) {

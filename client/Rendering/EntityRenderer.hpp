@@ -262,6 +262,16 @@ class EntityRenderer {
          */
     void moveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
 
+    /**
+     * @brief Set whether the local player is currently moving
+     * @param moving true if player is actively moving, false if stopped
+     * 
+     * This is used to adjust reconciliation behavior:
+     * - When moving: Apply micro-jitter filtering to avoid visual jitter
+     * - When stopped: Accept all server corrections to sync position
+     */
+    void setLocalPlayerMoving(bool moving) { _localPlayerIsMoving = moving; }
+
    private:
     /**
          * @brief Render a player entity
@@ -358,4 +368,7 @@ class EntityRenderer {
     /// With 100px/s speed at 60Hz, each frame is ~1.67px, so 15px = ~9 frames (150ms) tolerance
     /// This prevents constant micro-corrections while client prediction is working normally
     float _reconciliationThreshold = 15.0f;
+
+    /// Track whether local player is currently moving (used for reconciliation logic)
+    bool _localPlayerIsMoving = false;
 };

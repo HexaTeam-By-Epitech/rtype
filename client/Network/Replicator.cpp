@@ -497,7 +497,8 @@ bool Replicator::updateAutoMatchmakingPreference(bool enabled) {
         return false;
     }
 
-    LOG_INFO("Updating auto-matchmaking preference: ", enabled ? "ON" : "OFF");
+    LOG_INFO("Updating auto-matchmaking preference: ", enabled ? "ON" : "OFF",
+             " (preference only, NOT triggering matchmaking)");
 
     using namespace RType::Messages;
 
@@ -505,9 +506,9 @@ bool Replicator::updateAutoMatchmakingPreference(bool enabled) {
     C2S::AutoMatchmaking request(enabled);
     auto payload = request.serialize();
 
-    // Wrap in network protocol
+    // Wrap in network protocol - using UPDATE_AUTO_MM_PREF to only update preference
     auto requestData =
-        NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_AUTO_MATCHMAKING, payload);
+        NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_UPDATE_AUTO_MM_PREF, payload);
 
     // Send via ENet
     auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));

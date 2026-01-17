@@ -30,8 +30,9 @@ enum class UIEventType {
     CONNECTION_SUCCESS,
     CREATE_ROOM,
     REQUEST_ROOM_LIST,
-    AUTO_MATCHMAKING,             // Auto-matchmaking request or preference update
-    APPLY_AUTO_MATCHMAKING_PREF,  // Apply auto-matchmaking preference to settings menu
+    AUTO_MATCHMAKING,              // Auto-matchmaking request (trigger matchmaking)
+    UPDATE_AUTO_MATCHMAKING_PREF,  // Update auto-matchmaking preference on server
+    APPLY_AUTO_MATCHMAKING_PREF,   // Apply auto-matchmaking preference to settings menu
     ROOM_LIST_RECEIVED,
     ROOM_JOINED,
     LEAVE_ROOM,

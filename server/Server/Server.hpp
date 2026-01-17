@@ -162,6 +162,12 @@ class Server {
     void _handleAutoMatchmaking(HostNetworkEvent &event);
 
     /**
+     * @brief Handle auto-matchmaking preference update (without triggering matchmaking)
+     * @param event Network event containing AutoMatchmaking message
+     */
+    void _handleUpdateAutoMatchmakingPref(HostNetworkEvent &event);
+
+    /**
      * @brief Called when matchmaking service creates a room with matched players
      * @param room Newly created room with players
      */

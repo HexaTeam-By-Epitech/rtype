@@ -152,6 +152,10 @@ void Server::handlePacket(HostNetworkEvent &event) {
                 _handleAutoMatchmaking(event);
                 break;
 
+            case NetworkMessages::MessageType::C2S_UPDATE_AUTO_MM_PREF:
+                _handleUpdateAutoMatchmakingPref(event);
+                break;
+
             case NetworkMessages::MessageType::C2S_LEAVE_ROOM:
                 _handleLeaveRoom(event);
                 break;
@@ -693,25 +697,14 @@ void Server::_handleAutoMatchmaking(HostNetworkEvent &event) {
     std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
     C2S::AutoMatchmaking msg = C2S::AutoMatchmaking::deserialize(payload);
 
-    // Get username from player ID mapping
-    auto usernameIt = _playerIdToUsername.find(playerId);
-    if (usernameIt != _playerIdToUsername.end()) {
-        const std::string &username = usernameIt->second;
-        // Update the user's auto-matchmaking preference (but not for guests)
-        if (username != "guest") {
-            _sessionManager->getAuthService()->updateAutoMatchmaking(username, msg.enabled);
-            LOG_INFO("Updated auto-matchmaking preference for user '", username,
-                     "': ", msg.enabled ? "ON" : "OFF");
-        }
-    }
+    // Note: This handler triggers matchmaking. Preference update is handled separately.
+    LOG_INFO("Auto-matchmaking requested by player ", playerId);
 
-    // If auto-matchmaking is disabled, just return success
+    // If auto-matchmaking is disabled, just return
     if (!msg.enabled) {
         LOG_INFO("Auto-matchmaking disabled for player ", playerId);
         return;
     }
-
-    LOG_INFO("Auto-matchmaking requested by player ", playerId);
 
     // Get all available public rooms
     auto availableRooms = _roomManager->getPublicRooms();
@@ -846,6 +839,43 @@ void Server::_onMatchmakingRoomCreated(std::shared_ptr<server::Room> room) {
 
     // Broadcast updated room list to ALL connected players
     _broadcastRoomListToAll();
+}
+
+void Server::_handleUpdateAutoMatchmakingPref(HostNetworkEvent &event) {
+    using namespace RType::Messages;
+
+    auto session = _getSessionFromPeer(event.peer);
+    uint32_t playerId = 0;
+    if (session) {
+        playerId = session->getPlayerId();
+    }
+
+    if (playerId == 0) {
+        LOG_ERROR("Failed to find player for auto-matchmaking preference update");
+        return;
+    }
+
+    // Deserialize the AutoMatchmaking message
+    std::vector<uint8_t> payload = NetworkMessages::getPayload(event.packet->getData());
+    C2S::AutoMatchmaking msg = C2S::AutoMatchmaking::deserialize(payload);
+
+    // Get username from player ID mapping
+    auto usernameIt = _playerIdToUsername.find(playerId);
+    if (usernameIt != _playerIdToUsername.end()) {
+        const std::string &username = usernameIt->second;
+        // Update the user's auto-matchmaking preference (but not for guests)
+        if (username != "guest") {
+            _sessionManager->getAuthService()->updateAutoMatchmaking(username, msg.enabled);
+            LOG_INFO("✓ Updated auto-matchmaking preference for user '", username,
+                     "': ", msg.enabled ? "ON" : "OFF", " (preference only, NO matchmaking triggered)");
+        } else {
+            LOG_INFO("Guest user - auto-matchmaking preference not saved");
+        }
+    } else {
+        LOG_WARNING("Username not found for player ", playerId);
+    }
+
+    // DO NOT trigger matchmaking here - this is only a preference update
 }
 
 void Server::_handleStartGame(HostNetworkEvent &event) {

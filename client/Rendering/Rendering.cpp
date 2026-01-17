@@ -121,9 +121,9 @@ void Rendering::InitializeSettingsMenu() {
     });
 
     _settingsMenu->SetOnAutoMatchmakingChanged([this](bool enabled) {
-        LOG_INFO("[Rendering] Auto-matchmaking ", enabled ? "enabled" : "disabled");
-        // Publish event to update preference on server
-        _eventBus.publish(UIEvent(UIEventType::AUTO_MATCHMAKING, enabled ? "enable" : "disable"));
+        LOG_INFO("[Rendering] Auto-matchmaking preference ", enabled ? "enabled" : "disabled");
+        // Publish event to update preference on server (NOT to trigger matchmaking)
+        _eventBus.publish(UIEvent(UIEventType::UPDATE_AUTO_MATCHMAKING_PREF, enabled ? "enable" : "disable"));
     });
 
     _settingsMenu->SetOnTargetFpsChanged(

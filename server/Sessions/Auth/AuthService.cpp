@@ -6,7 +6,6 @@
 */
 
 #include "server/Sessions/Auth/AuthService.hpp"
-#include <argon2.h>
 #include <algorithm>
 #include <chrono>
 #include <cstring>
@@ -15,16 +14,18 @@
 #include <random>
 #include <sstream>
 #include "common/Logger/Logger.hpp"
+#include "common/Security/Argon2PasswordHasher.hpp"
 
 using json = nlohmann::json;
 
 namespace server {
 
-    AuthService::AuthService() {
+    AuthService::AuthService() : _passwordHasher(std::make_unique<Argon2PasswordHasher>()) {
         loadAccounts();
     }
 
-    AuthService::AuthService(const std::string &accountsFile) : _accountsFile(accountsFile) {
+    AuthService::AuthService(const std::string &accountsFile)
+        : _accountsFile(accountsFile), _passwordHasher(std::make_unique<Argon2PasswordHasher>()) {
         loadAccounts();
     }
 
@@ -32,50 +33,6 @@ namespace server {
         if (_accountsDirty) {
             saveAccounts();
         }
-    }
-
-    std::string AuthService::hashPassword(const std::string &password) {
-        // Argon2id parameters (recommended for password hashing)
-        const uint32_t t_cost = 2;       // 2 iterations
-        const uint32_t m_cost = 65536;   // 64 MiB memory
-        const uint32_t parallelism = 1;  // 1 thread
-        const size_t hashlen = 32;       // 32 bytes hash
-        const size_t saltlen = 16;       // 16 bytes salt
-        const size_t encodedlen = 128;   // Encoded string length
-
-        // Generate random salt
-        unsigned char salt[saltlen];
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, 255);
-        for (size_t i = 0; i < saltlen; ++i) {
-            salt[i] = static_cast<unsigned char>(dis(gen));
-        }
-
-        // Allocate buffer for encoded hash
-        char encoded[encodedlen];
-
-        // Hash password using Argon2id
-        int result = argon2id_hash_encoded(t_cost, m_cost, parallelism, password.c_str(), password.length(),
-                                           salt, saltlen, hashlen, encoded, encodedlen);
-
-        if (result != ARGON2_OK) {
-            LOG_ERROR("Failed to hash password: ", argon2_error_message(result));
-            return "";
-        }
-
-        return std::string(encoded);
-    }
-
-    bool AuthService::verifyPassword(const std::string &password, const std::string &hash) {
-        if (hash.empty() || password.empty()) {
-            return false;
-        }
-
-        // Verify password against Argon2 hash
-        int result = argon2id_verify(hash.c_str(), password.c_str(), password.length());
-
-        return result == ARGON2_OK;
     }
 
     bool AuthService::authenticate(const std::string &username, const std::string &password) {
@@ -104,8 +61,8 @@ namespace server {
             return false;  // Account doesn't exist
         }
 
-        // Verify password using Argon2
-        if (!verifyPassword(password, it->second.passwordHash)) {
+        // Verify password using password hasher
+        if (!_passwordHasher->verify(password, it->second.passwordHash)) {
             LOG_WARNING("Authentication failed: incorrect password for '", username, "'");
             return false;  // Wrong password
         }
@@ -194,9 +151,11 @@ namespace server {
         }
 
         // Hash the password
-        std::string passwordHash = hashPassword(password);
-        if (passwordHash.empty()) {
-            LOG_ERROR("Registration failed: password hashing failed for '", username, "'");
+        std::string passwordHash;
+        try {
+            passwordHash = _passwordHasher->hash(password);
+        } catch (const std::exception &e) {
+            LOG_ERROR("Registration failed: password hashing failed for '", username, "': ", e.what());
             return false;
         }
 

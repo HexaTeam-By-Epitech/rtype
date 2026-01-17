@@ -48,6 +48,7 @@ target_link_libraries(rtype_server_lib PUBLIC
         rtype_serialization
         rtype_networking
         rtype_threading
+        common_security
         lua
         sol2::sol2
         unofficial::argon2::libargon2

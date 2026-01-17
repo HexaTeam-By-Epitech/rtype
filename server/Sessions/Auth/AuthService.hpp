@@ -7,9 +7,11 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include "common/Security/IPasswordHasher.hpp"
 #include "server/Sessions/Auth/IAuthService.hpp"
 
 namespace server {
@@ -81,25 +83,11 @@ namespace server {
         void saveAccounts();
 
        private:
-        /**
-         * @brief Hash a password using Argon2id
-         * @param password Plaintext password
-         * @return std::string Argon2id hash
-         */
-        std::string hashPassword(const std::string &password);
-
-        /**
-         * @brief Verify a password against an Argon2id hash
-         * @param password Plaintext password
-         * @param hash Argon2id hash to verify against
-         * @return bool True if password matches
-         */
-        bool verifyPassword(const std::string &password, const std::string &hash);
-
+        std::string _accountsFile = "accounts.json";                 ///< JSON file to store accounts
+        std::unique_ptr<IPasswordHasher> _passwordHasher;            ///< Password hashing implementation
         std::unordered_set<std::string> _authenticatedUsers;         ///< Set of authenticated usernames
         std::unordered_map<std::string, std::string> _activeTokens;  ///< Map of tokens to usernames
         std::unordered_map<std::string, AccountData> _accounts;      ///< Map of username to account data
-        std::string _accountsFile = "accounts.json";                 ///< JSON file to store accounts
 
         bool _accountsDirty = false;                           ///< Flag indicating unsaved changes
         uint64_t _lastSaveTime = 0;                            ///< Timestamp of last save

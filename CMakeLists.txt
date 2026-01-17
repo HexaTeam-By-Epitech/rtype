@@ -61,5 +61,6 @@ endif ()
 add_subdirectory(common/Serialization)
 add_subdirectory(common/Networking)
 add_subdirectory(common/Threading)
+add_subdirectory(common/Security)
 
 add_subdirectory(tests)

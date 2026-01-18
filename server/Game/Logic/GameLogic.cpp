@@ -202,6 +202,19 @@ namespace server {
             LOG_INFO("✓ Player spawned at (", _gameRules.getPlayerSpawnX(), ", ",
                      _gameRules.getPlayerSpawnY(), ") with entity ID: ", entityAddress);
 
+            // Spawn orbital drone for the player
+            uint32_t droneId = ecs::PrefabFactory::createOrbitalModule(_world->getRegistry(), entityAddress,
+                                                                       60.0f,  // radius
+                                                                       2.5f,   // speed (rad/s)
+                                                                       0.0f,   // start angle
+                                                                       15,     // damage
+                                                                       50      // health
+            );
+
+            if (droneId != 0) {
+                LOG_INFO("✓ Orbital drone spawned for player (ID: ", droneId, ")");
+            }
+
             return entityAddress;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to spawn player: ", e.what());

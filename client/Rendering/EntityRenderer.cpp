@@ -157,6 +157,10 @@ void EntityRenderer::render() {
                 renderWall(entity);
                 break;
 
+            case RType::Messages::Shared::EntityType::OrbitalModule:
+                renderOrbitalModule(entity);
+                break;
+
             default:
                 LOG_WARNING("Unknown entity type: ", static_cast<int>(entity.type));
                 break;
@@ -329,6 +333,31 @@ void EntityRenderer::renderWall(const RenderableEntity &entity) {
     // If destructible, show health bar
     if (entity.health > 0) {
         renderHealthBar(entity.x, y - 10.0f, entity.health, 100);
+    }
+}
+
+void EntityRenderer::renderOrbitalModule(const RenderableEntity &entity) {
+    // Render orbital module as a cyan/blue glowing rectangle for now
+    // TODO: Replace with proper animated sprite later
+
+    float size = 16.0f;  // Module size
+    float halfSize = size / 2.0f;
+
+    // Cyan/electric blue color (ABGR format)
+    uint32_t moduleColor = 0xFFFFFF00;  // Cyan (full blue + green)
+
+    // Draw filled rectangle
+    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize),
+                             static_cast<int>(size), static_cast<int>(size), moduleColor);
+
+    // Draw border for better visibility
+    _graphics.DrawRectangleLines(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize),
+                                 static_cast<int>(size), static_cast<int>(size),
+                                 0xFFFFFFFF);  // White border
+
+    // Optional: Render health bar if it has health
+    if (entity.health > 0) {
+        renderHealthBar(entity.x, entity.y - 15.0f, entity.health, 50);
     }
 }
 

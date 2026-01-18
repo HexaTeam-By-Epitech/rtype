@@ -337,23 +337,23 @@ void EntityRenderer::renderWall(const RenderableEntity &entity) {
 }
 
 void EntityRenderer::renderOrbitalModule(const RenderableEntity &entity) {
-    // Render orbital module as a cyan/blue glowing rectangle for now
-    // TODO: Replace with proper animated sprite later
+    // Draw orbital module sprite with animation
 
-    float size = 16.0f;  // Module size
-    float halfSize = size / 2.0f;
+    // Source rectangle on the sprite sheet (frame from animation)
+    int srcX = entity.startPixelX;
+    int srcY = entity.startPixelY;
+    int srcWidth = entity.spriteSizeX > 0 ? entity.spriteSizeX : 17;
+    int srcHeight = entity.spriteSizeY > 0 ? entity.spriteSizeY : 18;
 
-    // Cyan/electric blue color (ABGR format)
-    uint32_t moduleColor = 0xFFFFFF00;  // Cyan (full blue + green)
+    // Use scale from entity (server sends 2.0f)
+    float scale = entity.scale > 0.0f ? entity.scale : 2.0f;
 
-    // Draw filled rectangle
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize),
-                             static_cast<int>(size), static_cast<int>(size), moduleColor);
+    // White tint (no color modification)
+    uint32_t tint = 0xFFFFFFFF;
 
-    // Draw border for better visibility
-    _graphics.DrawRectangleLines(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize),
-                                 static_cast<int>(size), static_cast<int>(size),
-                                 0xFFFFFFFF);  // White border
+    _graphics.DrawTextureEx("OrbitalModule", srcX, srcY, srcWidth, srcHeight,
+                            entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
+                            scale, tint);
 
     // Optional: Render health bar if it has health
     if (entity.health > 0) {

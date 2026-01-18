@@ -251,9 +251,13 @@ namespace ecs {
             // Health for the module
             registry.setComponent(module, ecs::Health(moduleHealth, moduleHealth));
 
-            // Visual representation (simple sprite for now)
+            // Animation components for orbital module
+            registry.setComponent(module, AnimDB::createOrbitalModuleAnimations());
+            registry.setComponent(module, ecs::Animation("orbital_spin", true, true));
+
+            // Visual sprite (initial frame from animation)
             registry.setComponent(module,
-                                  ecs::Sprite("Projectiles", {267, 84, 17, 13}, 1.5f, 0.0f, false, false, 0));
+                                  ecs::Sprite("OrbitalModule", {0, 0, 17, 18}, 2.0f, 0.0f, false, false, 0));
 
             LOG_INFO("✓ Orbital module created for entity ", parentEntityId, " - Radius: ", orbitRadius,
                      ", Speed: ", orbitSpeed, " rad/s");

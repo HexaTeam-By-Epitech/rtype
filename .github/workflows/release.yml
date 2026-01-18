@@ -224,6 +224,8 @@ jobs:
           # Copy executables
           Copy-Item "build/windows-release/server/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           Copy-Item "build/windows-release/client/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/server/Release/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/client/Release/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           
           # Copy DLL dependencies from vcpkg
           $vcpkgBinPath = "build/windows-release/vcpkg_installed/x64-windows/bin"
@@ -282,4 +284,3 @@ jobs:
             echo "✅ All builds succeeded!"
             exit 0
           fi
-

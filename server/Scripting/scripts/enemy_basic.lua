@@ -8,7 +8,7 @@
 -- Per-entity state storage (indexed by entity address)
 local entityStates = {}
 
-local baseSpeed = 150 -- pixels per second
+local baseSpeed = 15 -- pixels per second
 
 function onUpdate(entity, deltaTime)
 	if not entity:isValid() or not entity:hasTransform() then

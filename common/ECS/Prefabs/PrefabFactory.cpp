@@ -42,7 +42,8 @@ namespace ecs {
             registry.setComponent(enemy, Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f,
                                                   0.0f, 2, 0xFFFFFFFF, false));
             registry.setComponent(enemy, Weapon(3.0f, 0.8f, 1, 15));  // 3 shots/sec, less damage
-            LOG_INFO("✓ Enemy created of type: ", enemyType);
+            LOG_INFO("✓ Enemy created (ID:", enemy, ") type:", enemyType, " HP:", spawnData.health, " at (",
+                     posX, ",", posY, ")");
             return enemy;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create enemy: ", e.what());
@@ -58,7 +59,8 @@ namespace ecs {
             registry.setComponent(projectile, Projectile(damage, 10.0f, ownerId, friendly));
             registry.setComponent(projectile, Transform(posX, posY));
             registry.setComponent(projectile, Velocity(dirX, dirY, speed));
-            registry.setComponent(projectile, Collider(10.0f, 10.0f, 0.0f, 0.0f, 4, 0xFFFFFFFF, true));
+            // Layer 4 = projectiles, mask 0xFFFFFFFF = collides with all, isTrigger = false for solid collision
+            registry.setComponent(projectile, Collider(10.0f, 10.0f, 0.0f, 0.0f, 4, 0xFFFFFFFF, false));
 
             // Add animation components for projectile rendering
             registry.setComponent(projectile, AnimDB::createPlayerBulletAnimations());

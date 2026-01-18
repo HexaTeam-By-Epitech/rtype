@@ -6,7 +6,9 @@
 */
 
 #include "CollisionSystem.hpp"
+#include "../../Components/Enemy.hpp"
 #include "../../Components/IComponent.hpp"
+#include "../../Components/Projectile.hpp"
 #include "../../Components/Wall.hpp"
 #include "common/Logger/Logger.hpp"
 
@@ -75,7 +77,8 @@ namespace ecs {
                         handlePickup(entity2, entity1, registry, entitiesToDestroy);
                     }
 
-                    // TODO: Handle other collision types (projectile hits, etc.)
+                    // Handle projectile-entity collisions (damage system)
+                    handleProjectileCollision(registry, entity1, entity2, entitiesToDestroy);
                 }
             }
         }
@@ -251,6 +254,82 @@ namespace ecs {
     bool CollisionSystem::canCollide(std::uint32_t layer1, std::uint32_t mask1, std::uint32_t layer2,
                                      std::uint32_t mask2) const {
         return (mask1 & layer2) && (mask2 & layer1);
+    }
+
+    /**
+     * @brief Handles projectile-entity collisions and applies damage.
+     * 
+     * This method implements clean damage logic:
+     * - Friendly projectiles (player bullets) damage enemies only
+     * - Enemy projectiles damage players only
+     * - Projectiles are destroyed on impact (unless piercing)
+     * - Damage is applied through Health component
+     * - Invincibility frames are respected
+     */
+    void CollisionSystem::handleProjectileCollision(Registry &registry, std::uint32_t entity1,
+                                                    std::uint32_t entity2,
+                                                    std::vector<Address> &entitiesToDestroy) {
+        // Check which entity is the projectile
+        bool entity1IsProjectile = registry.hasComponent<Projectile>(entity1);
+        bool entity2IsProjectile = registry.hasComponent<Projectile>(entity2);
+
+        // If neither or both are projectiles, no damage to apply
+        if (!entity1IsProjectile && !entity2IsProjectile) {
+            return;
+        }
+
+        // Determine projectile and target
+        std::uint32_t projectileAddr = entity1IsProjectile ? entity1 : entity2;
+        std::uint32_t targetAddr = entity1IsProjectile ? entity2 : entity1;
+
+        // Get projectile component
+        if (!registry.hasComponent<Projectile>(projectileAddr)) {
+            return;
+        }
+
+        Projectile &projectile = registry.getComponent<Projectile>(projectileAddr);
+
+        // Check if target can receive damage
+        if (!registry.hasComponent<Health>(targetAddr)) {
+            return;  // Target has no health, nothing to damage
+        }
+
+        // Determine if this is a valid hit based on projectile type
+        bool targetIsEnemy = registry.hasComponent<Enemy>(targetAddr);
+        bool targetIsPlayer = registry.hasComponent<Player>(targetAddr);
+
+        // Friendly projectiles hit enemies only
+        if (projectile.isFriendly() && !targetIsEnemy) {
+            return;
+        }
+
+        // Enemy projectiles hit players only
+        if (!projectile.isFriendly() && !targetIsPlayer) {
+            return;
+        }
+
+        // Apply damage
+        Health &targetHealth = registry.getComponent<Health>(targetAddr);
+        int damage = static_cast<int>(projectile.getDamage());
+
+        bool damageApplied = targetHealth.takeDamage(damage);
+
+        if (damageApplied) {
+            // Log the hit
+            if (targetIsEnemy) {
+                LOG_INFO("[PROJECTILE HIT] Player projectile (E", projectileAddr, ") hit enemy (E",
+                         targetAddr, ") for ", damage, " damage. HP: ", targetHealth.getCurrentHealth(), "/",
+                         targetHealth.getMaxHealth());
+            } else if (targetIsPlayer) {
+                LOG_INFO("[PROJECTILE HIT] Enemy projectile (E", projectileAddr, ") hit player (E",
+                         targetAddr, ") for ", damage, " damage. HP: ", targetHealth.getCurrentHealth(), "/",
+                         targetHealth.getMaxHealth());
+            }
+
+            // Mark projectile for destruction (unless it's a piercing shot)
+            // TODO: Check for PiercingShot buff when implementing advanced projectile types
+            entitiesToDestroy.push_back(projectileAddr);
+        }
     }
 
     ComponentMask CollisionSystem::getComponentMask() const {

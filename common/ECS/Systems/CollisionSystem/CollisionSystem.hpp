@@ -120,17 +120,18 @@ namespace ecs {
                                   Registry &registry);
 
         /**
-         * @brief Handle projectile collision with other entities.
+         * @brief Handle projectile-entity collisions and apply damage.
          * 
-         * If entity1 is a projectile and entity2 is an enemy, applies damage
-         * to the enemy and marks the projectile for destruction.
+         * Checks if a collision involves a projectile and a damageable entity (enemy/player).
+         * Applies damage based on projectile properties and marks projectile for destruction.
+         * Respects friendly fire rules: friendly projectiles damage enemies, enemy projectiles damage players.
          * 
          * @param registry Reference to the ECS registry
-         * @param entity1 First entity (potentially a projectile)
-         * @param entity2 Second entity (potentially an enemy)
-         * @param projectilesToDestroy Vector to collect projectiles that should be destroyed
+         * @param entity1 First entity
+         * @param entity2 Second entity
+         * @param entitiesToDestroy Vector to collect entities (projectiles) that should be destroyed
          */
         void handleProjectileCollision(Registry &registry, std::uint32_t entity1, std::uint32_t entity2,
-                                       std::vector<std::uint32_t> &projectilesToDestroy);
+                                       std::vector<Address> &entitiesToDestroy);
     };
 }  // namespace ecs

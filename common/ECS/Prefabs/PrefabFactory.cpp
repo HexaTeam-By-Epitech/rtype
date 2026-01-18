@@ -192,4 +192,30 @@ namespace ecs {
         return 0;
     }
 
+    ecs::Address PrefabFactory::createWall(ecs::Registry &registry, float posX, float posY, float width,
+                                           float height, bool destructible, int health) {
+        try {
+            ecs::Address wall = registry.newEntity();
+            registry.setComponent(wall, ecs::Transform(posX, posY));
+            registry.setComponent(wall, ecs::Wall(destructible));
+            registry.setComponent(wall, ecs::Collider(width, height, 0.0f, 0.0f, 16, 0xFFFFFFFF,
+                                                      false));  // Layer 16 for walls
+            registry.setComponent(
+                wall, ecs::Sprite("Wall.png", {0, 0, static_cast<int>(width), static_cast<int>(height)}, 1.0f,
+                                  0.0f, false, false, 0));
+
+            // Add health if destructible
+            if (destructible && health > 0) {
+                registry.setComponent(wall, ecs::Health(health, health));
+            }
+
+            LOG_INFO("✓ Wall spawned at (", posX, ", ", posY, ") - Size: ", width, "x", height,
+                     destructible ? " [Destructible]" : " [Solid]");
+            return wall;
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create wall: ", e.what());
+            return 0;
+        }
+    }
+
 }  // namespace ecs

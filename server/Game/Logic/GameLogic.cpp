@@ -33,10 +33,12 @@
 #include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
 #include "common/ECS/Systems/ISystem.hpp"
+#include "common/ECS/Systems/MapSystem/MapSystem.hpp"
 #include "common/ECS/Systems/MovementSystem/MovementSystem.hpp"
 #include "common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
+#include "common/MapLoader/MapLoader.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
 #include "server/Game/StateManager/GameOverState.hpp"
@@ -91,6 +93,7 @@ namespace server {
             // Create and register all systems with ECSWorld in execution order
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
             _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
+            _world->createSystem<ecs::MapSystem>("MapSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
             _world->createSystem<ecs::BuffSystem>("BuffSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
@@ -129,10 +132,6 @@ namespace server {
             _stateManager->changeState(1);
 
             LOG_INFO("✓ GameStateManager initialized with 3 states");
-
-            // 🧪 TEST: Spawn a test enemy with Lua script
-            LOG_INFO("🧪 Spawning test with Lua script...");
-            _world->createEntity().with(ecs::Spawner()).with(ecs::LuaScript("wave_manager.lua"));
 
             _gameActive = true;
 
@@ -511,19 +510,62 @@ namespace server {
     }
 
     void GameLogic::onGameStart() {
-        LOG_INFO("Fire onGameStart");
+        LOG_INFO("Game started! Loading map...");
 
-        // Find the spawner entity with wave_manager.lua script
-        if (_luaEngine) {
-            auto entities = _world->query<ecs::Spawner, ecs::LuaScript>();
-            for (auto &entity : entities) {
-                const ecs::LuaScript &script = entity.get<ecs::LuaScript>();
-                if (script.getScriptPath() == "wave_manager.lua") {
-                    _luaEngine->executeOnGameStart("wave_manager.lua", entity);
-                    break;
-                }
-            }
+        // Charger la map maintenant que le jeu démarre
+        loadMap("assets/maps/level_1.json");
+
+        LOG_INFO("✓ Map loaded and spawning will begin!");
+    }
+
+    bool GameLogic::loadMap(const std::string &mapFilePath) {
+        LOG_INFO("Loading map from: ", mapFilePath);
+
+        // Load map data from JSON file
+        auto mapDataOpt = map::MapLoader::loadFromFile(mapFilePath);
+        if (!mapDataOpt.has_value()) {
+            LOG_ERROR("Failed to load map from: ", mapFilePath);
+            return false;
         }
+
+        ecs::MapData mapData = mapDataOpt.value();
+        LOG_INFO("✓ Map loaded: '", mapData.getName(), "' (", mapData.getMapId(), ")");
+
+        // Create or update map entity
+        // Check if there's already an active map entity
+        auto mapEntities = _world->query<ecs::MapData>();
+
+        if (!mapEntities.empty()) {
+            // Update existing map entity
+            auto mapEntity = mapEntities[0];
+            mapEntity.with(mapData);
+            LOG_INFO("Updated existing map entity");
+        } else {
+            // Create new map entity
+            _world->createEntity().with(mapData);
+            LOG_INFO("Created new map entity");
+        }
+
+        // Load spawn script if specified
+        const std::string &spawnScript = mapData.getSpawnScript();
+        if (!spawnScript.empty() && _luaEngine) {
+            LOG_INFO("Loading spawn script: ", spawnScript);
+
+            // Create spawner entity with the map's spawn script
+            _world->createEntity().with(ecs::Spawner()).with(ecs::LuaScript(spawnScript));
+
+            LOG_INFO("✓ Spawner created with script: ", spawnScript);
+        }
+
+        LOG_INFO("✓ Map '", mapData.getName(), "' is now active!");
+        LOG_INFO("  - Scroll speed: ", mapData.getScrollSpeed(), " px/s");
+        if (mapData.getDuration() > 0.0f) {
+            LOG_INFO("  - Duration: ", mapData.getDuration(), " seconds");
+        } else {
+            LOG_INFO("  - Duration: Infinite");
+        }
+
+        return true;
     }
 
 }  // namespace server

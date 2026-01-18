@@ -39,25 +39,31 @@ namespace ecs {
          * @brief Get fire rate.
          * @return float Shots per second.
          */
-        float getFireRate() const { return _fireRate; }
+        [[nodiscard]] float getFireRate() const { return _fireRate; }
 
         /**
          * @brief Get current cooldown.
          * @return float Remaining cooldown in seconds.
          */
-        float getCooldown() const { return _cooldown; }
+        [[nodiscard]] float getCooldown() const { return _cooldown; }
 
         /**
          * @brief Get projectile type.
          * @return int Type of projectile spawned.
          */
-        int getProjectileType() const { return _projectileType; }
+        [[nodiscard]] int getProjectileType() const { return _projectileType; }
 
         /**
          * @brief Get damage value.
-         * @return int Base damage dealt.
+         * @return float Base damage dealt.
          */
-        int getDamage() const { return _damage; }
+        [[nodiscard]] float getDamage() const { return _damage; }
+
+        /**
+         * @brief Check if the weapon should shoot.
+         * @return bool True if the weapon is set to shoot, false otherwise.
+         */
+        [[nodiscard]] bool shouldShoot() const { return _shouldShoot; }
 
         /**
          * @brief Get base fire rate (before buffs).
@@ -93,7 +99,13 @@ namespace ecs {
          * @brief Set damage value.
          * @param damage New damage value
          */
-        void setDamage(int damage) { _damage = damage; }
+        void setDamage(float damage) { _damage = damage; }
+
+        /**
+         * @brief Set whether the weapon should shoot.
+         * @param shouldShoot True to enable shooting, false to disable
+         */
+        void setShouldShoot(bool shouldShoot) { _shouldShoot = shouldShoot; }
 
         /**
          * @brief Get the component type ID.
@@ -102,11 +114,12 @@ namespace ecs {
         ComponentType getType() const override { return getComponentType<Weapon>(); }
 
        private:
-        float _fireRate;      ///< Shots per second
-        float _cooldown;      ///< Current cooldown timer in seconds
-        int _projectileType;  ///< Type of projectile spawned
-        int _damage;          ///< Base damage dealt
-        float _baseFireRate;  ///< Base fire rate (before buffs)
-        int _baseDamage;      ///< Base damage (before buffs)
+        float _fireRate;            ///< Shots per second
+        float _cooldown;            ///< Current cooldown timer in seconds
+        int _projectileType;        ///< Type of projectile spawned
+        float _damage;              ///< Base damage dealt
+        bool _shouldShoot = false;  ///< Whether the weapon is currently set to shoot
+        float _baseFireRate;        ///< Base fire rate (before buffs)
+        int _baseDamage;            ///< Base damage (before buffs)
     };
 }  // namespace ecs

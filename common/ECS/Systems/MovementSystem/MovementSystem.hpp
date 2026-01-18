@@ -50,4 +50,4 @@ namespace ecs {
          */
         ComponentMask getComponentMask() const override;
     };
-}
+}  // namespace ecs

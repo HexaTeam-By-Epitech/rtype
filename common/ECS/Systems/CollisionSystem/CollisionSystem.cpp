@@ -17,6 +17,7 @@ namespace ecs {
     void CollisionSystem::update(Registry &registry, [[maybe_unused]] float deltaTime) {
         auto entities = registry.getEntitiesWithMask(this->getComponentMask());
         std::vector<std::uint32_t> entitiesVec(entities.begin(), entities.end());
+        std::vector<std::uint32_t> projectilesToDestroy;
 
         // Collect entities to destroy after collision processing
         std::vector<Address> entitiesToDestroy;

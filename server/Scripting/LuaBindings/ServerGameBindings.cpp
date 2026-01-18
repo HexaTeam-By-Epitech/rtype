@@ -20,12 +20,17 @@
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Wall.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Scripting/LuaEngine.hpp"
 
 namespace scripting::bindings {
 
-    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world) {
+    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world, LuaEngine *engine) {
         if (!world) {
             LOG_ERROR("Cannot bind server game functions: world is null");
+            return;
+        }
+        if (!engine) {
+            LOG_ERROR("Cannot bind server game functions: engine is null");
             return;
         }
 

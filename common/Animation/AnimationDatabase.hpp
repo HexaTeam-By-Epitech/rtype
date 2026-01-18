@@ -36,13 +36,14 @@ namespace AnimDB {
         ecs::AnimationSet animSet("PlayerShip");
 
         // Idle animation - single frame
-        animSet.addClip("player_idle", makeClip({{0, 0, 32, 32}}, 0.1f, true));
+        animSet.addClip("player_idle", makeClip({{1, 69, 33, 14}}, 0.15f, true));
 
-        // Flying animation - 5 frames loop
+        // Flying animation - 5 frames loop (slower animation with 0.15s per frame)
         animSet.addClip(
             "player_movement",
-            makeClip({{0, 0, 32, 32}, {32, 0, 32, 32}, {64, 0, 32, 32}, {96, 0, 32, 32}, {128, 0, 32, 32}},
-                     0.1f, true));
+            makeClip(
+                {{1, 69, 33, 14}, {34, 69, 33, 14}, {67, 69, 33, 14}, {100, 69, 33, 14}, {133, 69, 33, 14}},
+                0.2f, true));
 
         return animSet;
     }
@@ -152,7 +153,7 @@ namespace AnimDB {
         ecs::AnimationSet animSet("Projectiles");
 
         animSet.addClip("projectile_fly",
-                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.1f, true));
+                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.2f, true));
 
         return animSet;
     }

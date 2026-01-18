@@ -37,6 +37,18 @@ namespace scripting {
 
         for (const auto &entityAddr : entities) {
             try {
+                // Check if entity still has LuaScript component
+                // (may have been destroyed by previous script execution)
+                try {
+                    if (!registry.hasComponent<ecs::LuaScript>(entityAddr)) {
+                        continue;
+                    }
+                } catch (...) {
+                    // Entity doesn't exist anymore, skip it
+                    _luaEngine->cleanupEntity(entityAddr);
+                    continue;
+                }
+
                 auto &luaScript = registry.getComponent<ecs::LuaScript>(entityAddr);
                 const std::string &scriptPath = luaScript.getScriptPath();
 
@@ -50,6 +62,8 @@ namespace scripting {
                 if (!entity.isValid()) {
                     LOG_WARNING("Invalid entity " + std::to_string(entityAddr) +
                                 " for script: " + scriptPath);
+                    // Clean up script cache for invalid entity
+                    _luaEngine->cleanupEntity(entityAddr);
                     continue;
                 }
 

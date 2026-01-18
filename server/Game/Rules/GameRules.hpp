@@ -25,7 +25,7 @@ namespace server {
 
         // Player Configuration
         constexpr uint32_t getDefaultPlayerHealth() const { return 100; }
-        constexpr uint32_t getDefaultPlayerSpeed() const { return 300; }
+        constexpr uint32_t getDefaultPlayerSpeed() const { return 150; }
         constexpr uint32_t getPlayerSpawnX() const { return 50; }
         constexpr uint32_t getPlayerSpawnY() const { return 300; }
         constexpr float getDefaultPlayerFireRate() const { return 3.0f; }

@@ -49,6 +49,32 @@ namespace AnimDB {
     }
 
     /**
+     * @brief Create drone (orbital module) animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for orbital module
+     */
+    inline ecs::AnimationSet createOrbitalModuleAnimations() {
+        ecs::AnimationSet animSet("OrbitalModule");
+
+        // Spin animation - 12 frames
+        animSet.addClip("orbital_spin", makeClip({{0, 0, 17, 18},
+                                                  {17, 0, 17, 18},
+                                                  {34, 0, 17, 18},
+                                                  {51, 0, 17, 18},
+                                                  {68, 0, 17, 18},
+                                                  {85, 0, 17, 18},
+                                                  {102, 0, 17, 18},
+                                                  {119, 0, 17, 18},
+                                                  {136, 0, 17, 18},
+                                                  {153, 0, 17, 18},
+                                                  {170, 0, 17, 18},
+                                                  {187, 0, 17, 18}},
+                                                 0.1f, true));
+
+        return animSet;
+    }
+
+    /**
      * @brief Create basic enemy animations.
      * 
      * @return ecs::AnimationSet Complete animation set for basic enemy

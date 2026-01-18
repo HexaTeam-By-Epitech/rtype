@@ -204,8 +204,8 @@ namespace server {
 
             // Spawn orbital drone for the player
             uint32_t droneId = ecs::PrefabFactory::createOrbitalModule(_world->getRegistry(), entityAddress,
-                                                                       60.0f,  // radius
-                                                                       2.5f,   // speed (rad/s)
+                                                                       90.0f,  // radius
+                                                                       1.2f,   // speed (rad/s)
                                                                        0.0f,   // start angle
                                                                        15,     // damage
                                                                        50      // health

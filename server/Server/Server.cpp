@@ -24,6 +24,7 @@
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
+#include "common/ECS/Components/Wall.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Commands/CommandContext.hpp"
@@ -87,8 +88,13 @@ bool Server::initialize() {
         LOG_INFO("[EVENT] Player left (ID: ", event.getPlayerId(), ")");
     });
 
-    _eventBus->subscribe<server::GameStartedEvent>(
-        [](const server::GameStartedEvent &) { LOG_INFO("[EVENT] Game started!"); });
+    _eventBus->subscribe<server::GameStartedEvent>([](const server::GameStartedEvent &event) {
+        if (event.getRoomId().empty()) {
+            LOG_INFO("[EVENT] Server started!");
+        } else {
+            LOG_INFO("[EVENT] Game started in room: ", event.getRoomId());
+        }
+    });
 
     _eventBus->subscribe<server::GameEndedEvent>([](const server::GameEndedEvent &event) {
         LOG_INFO("[EVENT] Game ended. Reason: ", event.getReason());
@@ -1053,9 +1059,6 @@ void Server::_broadcastGameState() {
         // Get all entities with Transform component
         auto entities = ecsWorld->query<ecs::Transform>();
 
-        LOG_DEBUG("[BroadcastGameState] Room '", room->getId(), "' - Found ", entities.size(),
-                  " entities with Transform");
-
         // Serialize each entity's state
         for (auto &entity : entities) {
             try {
@@ -1513,6 +1516,9 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
         entityState.type =
             projectile.isFriendly() ? Shared::EntityType::PlayerBullet : Shared::EntityType::EnemyBullet;
         entityState.health = -1;  // Projectiles don't have health
+    } else if (entity.has<ecs::Wall>()) {
+        entityState.type = Shared::EntityType::Wall;
+        entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
     } else {
         // Unknown entity type - default to generic
         entityState.type = Shared::EntityType::Player;

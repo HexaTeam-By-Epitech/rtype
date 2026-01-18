@@ -9,7 +9,24 @@
 
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include "common/Animation/AnimationDatabase.hpp"
+#include "common/ECS/Components/Animation.hpp"
+#include "common/ECS/Components/AnimationSet.hpp"
+#include "common/ECS/Components/Buff.hpp"
+#include "common/ECS/Components/Collider.hpp"
+#include "common/ECS/Components/Enemy.hpp"
+#include "common/ECS/Components/Health.hpp"
+#include "common/ECS/Components/Player.hpp"
+#include "common/ECS/Components/Projectile.hpp"
+#include "common/ECS/Components/Sprite.hpp"
+#include "common/ECS/Components/Transform.hpp"
+#include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Wall.hpp"
+#include "common/ECS/Components/Weapon.hpp"
+#include "common/ECS/Registry.hpp"
+#include "common/Logger/Logger.hpp"
 
 // Forward declarations
 namespace ecs::wrapper {
@@ -17,12 +34,7 @@ namespace ecs::wrapper {
 }
 
 namespace ecs {
-    typedef uint32_t Address;
-    enum class BuffType;  // Forward declaration
-    class Registry;
-}  // namespace ecs
-
-namespace server {
+    using Address = std::uint32_t;
 
     /**
      * @class PrefabFactory
@@ -39,22 +51,21 @@ namespace server {
          * @param playerName Display name
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createPlayer(ecs::wrapper::ECSWorld &world, uint32_t playerId,
-                                         const std::string &playerName);
+        static ecs::Address createPlayer(ecs::Registry &registry, uint32_t playerId);
 
         /**
          * @brief Create an enemy entity
-         * @param world ECS world wrapper
+         * @param registry ECS registry
          * @param enemyType Type of enemy (0=basic, 1=heavy, 2=fast, etc.)
          * @param posX Starting X position
          * @param posY Starting Y position
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createEnemy(ecs::wrapper::ECSWorld &world, int enemyType, float posX, float posY);
+        static ecs::Address createEnemy(ecs::Registry &registry, int enemyType, float posX, float posY);
 
         /**
          * @brief Create an enemy entity with custom parameters (for SpawnSystem)
-         * @param world ECS world wrapper
+         * @param registry ECS registry
          * @param enemyType Type string ("basic", "advanced", "fast", "boss")
          * @param posX Starting X position
          * @param posY Starting Y position
@@ -63,8 +74,8 @@ namespace server {
          * @param scriptPath Optional Lua script path for AI behavior
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createEnemy(ecs::wrapper::ECSWorld &world, const std::string &enemyType,
-                                        float posX, float posY, float health, int scoreValue,
+        static ecs::Address createEnemy(ecs::Registry &registry, const std::string &enemyType, float posX,
+                                        float posY, float health, int scoreValue,
                                         const std::string &scriptPath = "");
 
         /**
@@ -84,7 +95,7 @@ namespace server {
 
         /**
          * @brief Create a projectile entity
-         * @param world ECS world wrapper
+         * @param registry ECS registry
          * @param ownerId Owner entity ID (shooter)
          * @param posX Starting X position
          * @param posY Starting Y position
@@ -95,13 +106,13 @@ namespace server {
          * @param friendly True for player projectile, false for enemy
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createProjectile(ecs::wrapper::ECSWorld &world, uint32_t ownerId, float posX,
+        static ecs::Address createProjectile(ecs::Registry &registry, uint32_t ownerId, float posX,
                                              float posY, float dirX, float dirY, float speed, int damage,
                                              bool friendly);
 
         /**
          * @brief Create a collectible power-up entity
-         * @param world ECS world wrapper
+         * @param registry ECS registry
          * @param buffType Type of buff to grant
          * @param duration Duration of buff (0.0f for permanent)
          * @param value Buff value/multiplier
@@ -109,19 +120,33 @@ namespace server {
          * @param posY Starting Y position
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createPowerUp(ecs::wrapper::ECSWorld &world, ecs::BuffType buffType,
-                                          float duration, float value, float posX, float posY);
+        static ecs::Address createPowerUp(ecs::Registry &registry, ecs::BuffType buffType, float duration,
+                                          float value, float posX, float posY);
 
         /**
          * @brief Create a health pack collectible
-         * @param world ECS world wrapper
+         * @param registry ECS registry
          * @param healthRestore Amount of health to restore
          * @param posX Starting X position
          * @param posY Starting Y position
          * @return Entity address or 0 if failed
          */
-        static ecs::Address createHealthPack(ecs::wrapper::ECSWorld &world, int healthRestore, float posX,
+        static ecs::Address createHealthPack(ecs::Registry &registry, int healthRestore, float posX,
                                              float posY);
+
+        /**
+         * @brief Create a wall/obstacle entity
+         * @param registry ECS registry
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @param width Wall width
+         * @param height Wall height
+         * @param destructible Whether the wall can be destroyed
+         * @param health Health points (0 = indestructible)
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createWall(ecs::Registry &registry, float posX, float posY, float width,
+                                       float height, bool destructible = false, int health = 0);
 
        private:
         struct EnemySpawnData {
@@ -136,4 +161,4 @@ namespace server {
         static int _enemyTypeFromString(const std::string &enemyType);
     };
 
-}  // namespace server
+}  // namespace ecs

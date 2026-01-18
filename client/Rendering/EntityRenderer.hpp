@@ -254,6 +254,12 @@ class EntityRenderer {
     void renderProjectile(const RenderableEntity &entity);
 
     /**
+         * @brief Render a wall/obstacle
+         * @param entity Wall entity to render
+         */
+    void renderWall(const RenderableEntity &entity);
+
+    /**
          * @brief Render a health bar above an entity
          * @param x World position X (centered)
          * @param y World position Y (above entity)

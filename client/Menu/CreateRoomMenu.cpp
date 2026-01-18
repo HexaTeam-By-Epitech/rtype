@@ -244,9 +244,6 @@ namespace Game {
     void CreateRoomMenu::UpdateSpeedButtonText() {
         int speedPercent = static_cast<int>(_gameSpeedMultiplier * 100);
         std::string speedText = "Game Speed: " + std::to_string(speedPercent) + "%";
-        if (speedPercent < 100) {
-            speedText += " (Accessibility)";
-        }
         if (_gameSpeedButton) {
             _gameSpeedButton->SetText(speedText);
         }

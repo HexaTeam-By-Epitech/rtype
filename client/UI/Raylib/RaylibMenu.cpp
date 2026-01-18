@@ -6,8 +6,9 @@
 */
 
 #include "UI/Raylib/RaylibMenu.hpp"
-#include <raylib.h>  // For KEY_TAB, KEY_ENTER, KEY_LEFT_SHIFT, KEY_RIGHT_SHIFT
-#include <cstddef>   // For std::ptrdiff_t
+#include <raylib.h>
+#include <cstddef>  // For std::ptrdiff_t
+#include "Input/KeyBindings.hpp"
 #include "UI/IButton.hpp"
 
 namespace UI {
@@ -93,19 +94,49 @@ namespace UI {
             return;
         }
 
+        auto &bindings = Input::KeyBindings::getInstance();
+
+        // Helper to check if a binding (keyboard or gamepad) is pressed
+        auto isBindingPressed = [this](int binding) {
+            if (binding == KEY_NULL) {
+                return false;
+            }
+            if (Input::IsGamepadBinding(binding)) {
+                int button = Input::BindingToGamepadButton(binding);
+                // Check all connected gamepads
+                for (int gp = 0; gp < 4; ++gp) {
+                    if (_graphics.IsGamepadAvailable(gp) && _graphics.IsGamepadButtonPressed(gp, button)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return _graphics.IsKeyPressed(binding);
+        };
+
+        // Helper to check if any binding for an action is pressed
+        auto isActionPressed = [&bindings, &isBindingPressed](Input::GameAction action) {
+            int primary = bindings.GetPrimaryKey(action);
+            int secondary = bindings.GetSecondaryKey(action);
+            return isBindingPressed(primary) || isBindingPressed(secondary);
+        };
+
+        // Check for menu navigation actions using configurable bindings
         bool shiftDown = _graphics.IsKeyDown(KEY_LEFT_SHIFT) || _graphics.IsKeyDown(KEY_RIGHT_SHIFT);
 
-        // Tab / Shift+Tab for navigation
-        if (_graphics.IsKeyPressed(KEY_TAB)) {
-            if (shiftDown) {
-                SelectPrevious();
-            } else {
-                SelectNext();
-            }
+        // Menu Next (Tab by default, but now configurable)
+        if (isActionPressed(Input::GameAction::MENU_NEXT)) {
+            SelectNext();
         }
 
-        // Enter to trigger selected button
-        if (_graphics.IsKeyPressed(KEY_ENTER) || _graphics.IsKeyPressed(KEY_KP_ENTER)) {
+        // Menu Previous (Up/Shift+Tab by default, but now configurable)
+        if (isActionPressed(Input::GameAction::MENU_PREVIOUS) ||
+            (shiftDown && _graphics.IsKeyPressed(KEY_TAB))) {
+            SelectPrevious();
+        }
+
+        // Menu Confirm (Enter by default, but now configurable)
+        if (isActionPressed(Input::GameAction::MENU_CONFIRM)) {
             TriggerSelected();
         }
     }

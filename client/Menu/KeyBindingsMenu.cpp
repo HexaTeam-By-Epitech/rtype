@@ -24,28 +24,28 @@ namespace Game {
 
         // Title (using a disabled button as label)
         std::shared_ptr<UI::IButton> titleLabel = _uiFactory.CreateButton();
-        titleLabel->SetSize(400, 40);
+        titleLabel->SetSize(400, 30);
         titleLabel->SetAlign(UI::Align::CENTER_HORIZONTAL);
         titleLabel->ApplyAlignment();
         float labelX = 0.0f;
         float labelY = 0.0f;
         titleLabel->GetPosition(labelX, labelY);
-        titleLabel->SetPosition(labelX, 50);
+        titleLabel->SetPosition(labelX, 15);
         titleLabel->SetBackgroundColor(0x00000000);  // Transparent
         titleLabel->SetHoverColor(0x00000000);
         titleLabel->SetText("Key Bindings");
-        titleLabel->SetTextSize(28);
+        titleLabel->SetTextSize(22);
         titleLabel->SetTextColor(0xFFFFFFFF);
         titleLabel->SetFont(-1);
         _menu->AddButton(titleLabel);
 
         // Instructions label
         std::shared_ptr<UI::IButton> instructionsLabel = _uiFactory.CreateButton();
-        instructionsLabel->SetSize(500, 30);
+        instructionsLabel->SetSize(500, 20);
         instructionsLabel->SetAlign(UI::Align::CENTER_HORIZONTAL);
         instructionsLabel->ApplyAlignment();
         instructionsLabel->GetPosition(labelX, labelY);
-        instructionsLabel->SetPosition(labelX, 95);
+        instructionsLabel->SetPosition(labelX, 50);
         instructionsLabel->SetBackgroundColor(0x00000000);
         instructionsLabel->SetHoverColor(0x00000000);
         instructionsLabel->SetText("Click a key to remap. Press ESC to cancel.");
@@ -55,8 +55,8 @@ namespace Game {
         _menu->AddButton(instructionsLabel);
 
         // Create binding rows for each action
-        float startY = 140;
-        float rowHeight = 45;
+        float startY = 80;
+        float rowHeight = 32;
         int rowIndex = 0;
 
         // Movement actions
@@ -72,8 +72,16 @@ namespace Game {
         CreateBindingRow(Input::GameAction::PAUSE_MENU, startY + rowHeight * static_cast<float>(rowIndex++));
         CreateBindingRow(Input::GameAction::CHAT_OPEN, startY + rowHeight * static_cast<float>(rowIndex++));
 
+        // Menu Navigation
+        CreateBindingRow(Input::GameAction::MENU_NEXT, startY + rowHeight * static_cast<float>(rowIndex++));
+        CreateBindingRow(Input::GameAction::MENU_PREVIOUS,
+                         startY + rowHeight * static_cast<float>(rowIndex++));
+        CreateBindingRow(Input::GameAction::MENU_CONFIRM,
+                         startY + rowHeight * static_cast<float>(rowIndex++));
+        CreateBindingRow(Input::GameAction::MENU_BACK, startY + rowHeight * static_cast<float>(rowIndex++));
+
         // Bottom buttons
-        float bottomY = startY + rowHeight * static_cast<float>(rowIndex) + 30;
+        float bottomY = startY + rowHeight * static_cast<float>(rowIndex) + 15;
 
         // Reset to Defaults button
         _resetButton =
@@ -105,7 +113,7 @@ namespace Game {
 
         // Action name label
         std::shared_ptr<UI::IButton> actionLabel = _uiFactory.CreateButton();
-        actionLabel->SetSize(150, 35);
+        actionLabel->SetSize(150, 28);
         actionLabel->SetPosition(centerX - 280, yOffset);
         actionLabel->SetBackgroundColor(0x00000000);
         actionLabel->SetHoverColor(0x00000000);
@@ -117,7 +125,7 @@ namespace Game {
 
         // Primary key button
         std::shared_ptr<UI::IButton> primaryButton = _uiFactory.CreateButton();
-        primaryButton->SetSize(120, 35);
+        primaryButton->SetSize(120, 28);
         primaryButton->SetPosition(centerX - 100, yOffset);
         primaryButton->SetBackgroundColor(0xFF404040);
         primaryButton->SetHoverColor(0xFF606060);
@@ -130,7 +138,7 @@ namespace Game {
 
         // Secondary key button
         std::shared_ptr<UI::IButton> secondaryButton = _uiFactory.CreateButton();
-        secondaryButton->SetSize(120, 35);
+        secondaryButton->SetSize(120, 28);
         secondaryButton->SetPosition(centerX + 40, yOffset);
         secondaryButton->SetBackgroundColor(0xFF404040);
         secondaryButton->SetHoverColor(0xFF606060);
@@ -145,7 +153,7 @@ namespace Game {
 
         // Clear secondary button
         std::shared_ptr<UI::IButton> clearButton = _uiFactory.CreateButton();
-        clearButton->SetSize(30, 35);
+        clearButton->SetSize(30, 28);
         clearButton->SetPosition(centerX + 170, yOffset);
         clearButton->SetBackgroundColor(0xFF603030);
         clearButton->SetHoverColor(0xFF804040);

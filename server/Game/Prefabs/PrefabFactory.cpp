@@ -230,7 +230,7 @@ namespace server {
                     .with(ecs::Wall(destructible))
                     .with(ecs::Collider(width, height, 0.0f, 0.0f, 16, 0xFFFFFFFF,
                                         false))  // Layer 16 for walls
-                    .with(ecs::Sprite("wall.png", {0, 0, static_cast<int>(width), static_cast<int>(height)},
+                    .with(ecs::Sprite("Wall.png", {0, 0, static_cast<int>(width), static_cast<int>(height)},
                                       1.0f, 0.0f, false, false, 0));
 
             // Add health if destructible

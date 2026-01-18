@@ -206,7 +206,7 @@ namespace scripting::bindings {
                     entity.with(ecs::Transform(x, y));
                     entity.with(ecs::Wall(isDestructible));
                     entity.with(ecs::Collider(width, height, 0.0f, 0.0f, 16, 0xFFFFFFFF, false));
-                    entity.with(ecs::Sprite("wall.png",
+                    entity.with(ecs::Sprite("Wall.png",
                                             {0, 0, static_cast<int>(width), static_cast<int>(height)}, 1.0f,
                                             0.0f, false, false, 0));
 

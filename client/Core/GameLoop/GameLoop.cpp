@@ -161,6 +161,11 @@ void GameLoop::run() {
     } else {
         LOG_INFO("✓ Loaded r-typesheet2.gif (enemies)");
     }
+    if (!_rendering->LoadTexture("Wall.png", "assets/sprites/Wall.png")) {
+        LOG_WARNING("Failed to load Wall.png");
+    } else {
+        LOG_INFO("✓ Loaded Wall.png (obstacles)");
+    }
 
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {

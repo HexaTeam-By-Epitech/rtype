@@ -16,6 +16,12 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                                   int health, const std::string &currentAnimation, int srcX, int srcY,
                                   int srcW, int srcH) {
+    // Debug: log Wall entities
+    if (type == RType::Messages::Shared::EntityType::Wall) {
+        LOG_INFO("EntityRenderer: Updating Wall entity ID=", id, " Pos=(", x, ",", y, ") Size=(", srcW, "x",
+                 srcH, ") Health=", health);
+    }
+
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
@@ -108,6 +114,22 @@ void EntityRenderer::render() {
         return;
     }
 
+    // Debug: count entities by type once per second
+    static int frameCount = 0;
+    if (++frameCount % 60 == 0) {
+        int wallCount = 0, playerCount = 0, enemyCount = 0;
+        for (const auto &[id, entity] : _entities) {
+            if (entity.type == RType::Messages::Shared::EntityType::Wall)
+                wallCount++;
+            else if (entity.type == RType::Messages::Shared::EntityType::Player)
+                playerCount++;
+            else if (entity.type == RType::Messages::Shared::EntityType::EnemyType1)
+                enemyCount++;
+        }
+        LOG_INFO("EntityRenderer: Rendering ", _entities.size(), " entities - Players:", playerCount,
+                 " Enemies:", enemyCount, " Walls:", wallCount);
+    }
+
     // Note: Interpolation is updated separately via updateInterpolation()
     // which should be called from GameLoop before render()
 
@@ -125,6 +147,11 @@ void EntityRenderer::render() {
             case RType::Messages::Shared::EntityType::EnemyBullet:
                 renderProjectile(entity);
                 break;
+
+            case RType::Messages::Shared::EntityType::Wall:
+                renderWall(entity);
+                break;
+
             default:
                 LOG_WARNING("Unknown entity type: ", static_cast<int>(entity.type));
                 break;
@@ -232,6 +259,34 @@ void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth
 
     // Optional: Border around health bar for visibility
     // _graphics.DrawRectangleBorder(barX, y, barWidth, barHeight, 1.0f, 0xFFFFFFFF);
+}
+
+void EntityRenderer::renderWall(const RenderableEntity &entity) {
+    // Wall rendering: use simple rectangles for now for visibility
+    float width = entity.spriteSizeX > 0 ? static_cast<float>(entity.spriteSizeX) : 50.0f;
+    float height = entity.spriteSizeY > 0 ? static_cast<float>(entity.spriteSizeY) : 50.0f;
+
+    LOG_INFO("RENDERING Wall ID=", entity.entityId, " at (", entity.x, ",", entity.y, ") size=(", width, "x",
+             height, ") health=", entity.health);
+
+    // Color: brown if destructible, gray if solid
+    // Format appears to be ABGR not RGBA: 0xAABBGGRR
+    uint32_t color = entity.health > 0 ? 0xFF13458BFF : 0xFF808080FF;  // Brown : Gray (ABGR format)
+
+    // Draw filled rectangle
+    _graphics.DrawRectFilled(static_cast<int>(entity.x - width / 2.0f),
+                             static_cast<int>(entity.y - height / 2.0f), static_cast<int>(width),
+                             static_cast<int>(height), color);
+
+    // Draw border for visibility
+    _graphics.DrawRectangleLines(static_cast<int>(entity.x - width / 2.0f),
+                                 static_cast<int>(entity.y - height / 2.0f), static_cast<int>(width),
+                                 static_cast<int>(height), 0x000000FF);
+
+    // If destructible, show health bar
+    if (entity.health > 0) {
+        renderHealthBar(entity.x, entity.y - height / 2.0f - 10.0f, entity.health, 100);
+    }
 }
 
 void EntityRenderer::renderDebugInfo(const RenderableEntity &entity) {

@@ -18,9 +18,10 @@ namespace server {
 
     struct AccountData {
         std::string username;
-        std::string passwordHash;  // Argon2id hash
-        uint64_t createdAt;        // timestamp
-        uint64_t lastLogin;        // timestamp
+        std::string passwordHash;     // Argon2id hash
+        uint64_t createdAt;           // timestamp
+        uint64_t lastLogin;           // timestamp
+        bool autoMatchmaking{false};  // Auto-matchmaking preference
     };
 
     class AuthService : public IAuthService {
@@ -71,6 +72,21 @@ namespace server {
          * @return bool True if registration succeeds
          */
         bool registerUser(const std::string &username, const std::string &password);
+
+        /**
+         * @brief Update auto-matchmaking preference for a user
+         * @param username The username
+         * @param enabled Whether auto-matchmaking should be enabled
+         * @return bool True if update succeeds
+         */
+        bool updateAutoMatchmaking(const std::string &username, bool enabled);
+
+        /**
+         * @brief Get auto-matchmaking preference for a user
+         * @param username The username
+         * @return bool Auto-matchmaking preference (default: false)
+         */
+        bool getAutoMatchmaking(const std::string &username) const;
 
         /**
          * @brief Load user accounts from JSON file

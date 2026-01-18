@@ -265,6 +265,24 @@ class Replicator {
     bool sendJoinRoom(const std::string &roomId);
 
     /**
+     * @brief Send auto-matchmaking request to server.
+     * 
+     * Automatically joins the first available room or creates a new one.
+     * @return true if the packet was sent successfully
+     */
+    bool sendAutoMatchmaking();
+
+    /**
+     * @brief Update auto-matchmaking preference on server.
+     * 
+     * Sends the user's auto-matchmaking preference to be saved on the server.
+     * Does not trigger immediate matchmaking.
+     * @param enabled Whether auto-matchmaking should be enabled
+     * @return true if the packet was sent successfully
+     */
+    bool updateAutoMatchmakingPreference(bool enabled);
+
+    /**
      * @brief Send start game request to server.
      * 
      * Only the host of the room can start the game.
@@ -295,6 +313,16 @@ class Replicator {
      */
     bool sendChatMessage(const std::string &message);
 
+    /**
+     * @brief Get the user's auto-matchmaking preference from server
+     * 
+     * Returns the auto-matchmaking preference loaded from the server after login.
+     * This preference is persisted in the user's account on the server.
+     * 
+     * @return true if auto-matchmaking is enabled for this user
+     */
+    bool getAutoMatchmakingPreference() const { return _autoMatchmakingPreference; }
+
    private:
     /**
      * @brief Network thread main loop
@@ -319,7 +347,8 @@ class Replicator {
     std::atomic<bool> _connected{false};
     std::atomic<bool> _authenticated{false};
     std::atomic<uint32_t> _myPlayerId{0};
-    std::string _lastLoginUsername;  // Track username for AUTH_SUCCESS event
+    std::string _lastLoginUsername;                       // Track username for AUTH_SUCCESS event
+    std::atomic<bool> _autoMatchmakingPreference{false};  // User's auto-matchmaking preference from server
     bool _isSpectator;
     std::string _serverHost;
     uint16_t _serverPort = 0;

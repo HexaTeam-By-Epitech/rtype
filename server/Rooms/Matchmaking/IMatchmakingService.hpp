@@ -59,6 +59,23 @@ namespace server {
          * @param callback Function to call when match is ready
          */
         virtual void setMatchCreatedCallback(MatchCreatedCallback callback) = 0;
+
+        /**
+         * @brief Find an available room or add player to matchmaking queue
+         * 
+         * Implements intelligent matchmaking strategy:
+         * 1. Try to find a waiting room (instant join)
+         * 2. If no waiting room, join as spectator to in-progress game (if allowed)
+         * 3. If no matches available, add to queue for future match creation
+         * 
+         * @param playerId Player ID requesting matchmaking
+         * @param availableRooms List of currently available rooms to search
+         * @param allowSpectator Whether player can join as spectator if no waiting rooms
+         * @return Pair of (room, isSpectator) if immediate match found, (nullptr, false) if added to queue
+         */
+        virtual std::pair<std::shared_ptr<Room>, bool> findOrCreateMatch(
+            uint32_t playerId, const std::vector<std::shared_ptr<Room>> &availableRooms,
+            bool allowSpectator = true) = 0;
     };
 
 }  // namespace server

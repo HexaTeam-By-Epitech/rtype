@@ -147,6 +147,52 @@ namespace server {
         _matchCreatedCallback = callback;
     }
 
+    std::pair<std::shared_ptr<Room>, bool> MatchmakingService::findOrCreateMatch(
+        uint32_t playerId, const std::vector<std::shared_ptr<Room>> &availableRooms, bool allowSpectator) {
+
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        LOG_INFO("[MatchmakingService] Finding match for player ", playerId);
+
+        // STRATEGY 1: Try to find a waiting room (instant join - best UX)
+        for (const auto &room : availableRooms) {
+            if (room->getState() == RoomState::WAITING && !room->isFull()) {
+                LOG_INFO("[MatchmakingService] Found waiting room '", room->getId(), "' for player ",
+                         playerId);
+                return {room, false};  // Join as player
+            }
+        }
+
+        // STRATEGY 2: If no waiting room and spectator allowed, try to spectate an in-progress game
+        if (allowSpectator) {
+            for (const auto &room : availableRooms) {
+                if (room->getState() == RoomState::IN_PROGRESS) {
+                    LOG_INFO("[MatchmakingService] No waiting rooms, player ", playerId, " will spectate '",
+                             room->getId(), "'");
+                    return {room, true};  // Join as spectator
+                }
+            }
+        }
+
+        // STRATEGY 3: No immediate match available, add to queue
+        LOG_INFO("[MatchmakingService] No immediate match, adding player ", playerId, " to queue");
+
+        // Check if player is already in queue
+        auto it = std::find_if(_waitingPlayers.begin(), _waitingPlayers.end(),
+                               [playerId](const PlayerQueueInfo &info) { return info.playerId == playerId; });
+
+        if (it == _waitingPlayers.end()) {
+            PlayerQueueInfo info;
+            info.playerId = playerId;
+            info.joinTime = std::chrono::steady_clock::now();
+            _waitingPlayers.push_back(info);
+            LOG_INFO("✓ Player ", playerId, " added to matchmaking queue (", _waitingPlayers.size(),
+                     " players waiting)");
+        }
+
+        return {nullptr, false};  // No immediate match, player is in queue
+    }
+
     std::vector<PlayerQueueInfo> MatchmakingService::getWaitingPlayers() const {
         std::lock_guard<std::mutex> lock(_mutex);
         return _waitingPlayers;

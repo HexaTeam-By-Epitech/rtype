@@ -270,7 +270,7 @@ class GameLoop {
         false;  // Flag to track if we just created the current room           // True after first server update received
     std::string _playerName;                   // Local player's display name (for host detection)
     bool _isMoving = false;                    // True when player is actively moving
-    float _playerSpeed = 100.0f;               // pixels per second (MUST MATCH SERVER!)
+    float _playerSpeed = 300.0f;               // pixels per second (MUST MATCH SERVER!)
     bool _clientSidePredictionEnabled = true;  // Client-side prediction for smooth movement
 
     // Entity tracking for cleanup

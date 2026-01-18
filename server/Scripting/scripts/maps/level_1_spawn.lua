@@ -62,10 +62,27 @@ function onUpdate(entity, deltaTime)
 		-- Bottom wall: position at the actual bottom (1080 - 10)
 		spawnWall(960, 600, 1920, 20, false, 0)
 		
-		-- Test walls in the middle
-		spawnWall(200, 200, 50, 50, false, 0)
-		spawnWall(300, 200, 50, 50, false, 0)
-		spawnWall(400, 200, 60, 80, true, 100)
+		-- TEST: Spawn multishot collectibles for testing
+		print("========================================")
+		print("[TEST] Spawning multishot test collectibles!")
+		print("========================================")
+		
+		-- Spawn DoubleShot upgrade at (300, 300)
+		spawnUpgrade("doubleshot", 1.0, 300.0, 300.0)
+		print("[TEST] ✓ DoubleShot spawned at (300, 300)")
+		
+		-- Spawn TripleShot upgrade at (400, 300)
+		spawnUpgrade("tripleshot", 1.0, 400.0, 300.0)
+		print("[TEST] ✓ TripleShot spawned at (400, 300)")
+		
+		-- Spawn MultiShot upgrade at (500, 300)
+		spawnUpgrade("multishot", 1.0, 500.0, 300.0)
+		print("[TEST] ✓ MultiShot spawned at (500, 300)")
+		
+		print("========================================")
+		print("[TEST] All test collectibles spawned!")
+		print("[TEST] Collect them to test multishot!")
+		print("========================================")
 		
 		setSpawnerConfig(entity, {
 			waves = level1.waves,

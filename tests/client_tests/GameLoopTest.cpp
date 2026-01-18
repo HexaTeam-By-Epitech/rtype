@@ -196,7 +196,7 @@ TEST_F(DiagonalMovementNormalizationTest, NoMovement) {
 // Test: Diagonal Movement Speed Parity
 // ============================================================================
 TEST_F(DiagonalMovementNormalizationTest, DiagonalSpeedParityWithCardinal) {
-    const float playerSpeed = 200.0f;      // pixels per second (matching GameLoop)
+    const float playerSpeed = 300.0f;      // pixels per second (matching GameLoop)
     const float deltaTime = 1.0f / 60.0f;  // 60 FPS fixed timestep
     const float moveDelta = playerSpeed * deltaTime;
 
@@ -234,7 +234,7 @@ TEST_F(DiagonalMovementNormalizationTest, NormalizationMathCorrectness) {
 // Test: All Diagonal Directions Have Equal Speed
 // ============================================================================
 TEST_F(DiagonalMovementNormalizationTest, AllDiagonalsHaveEqualSpeed) {
-    const float playerSpeed = 200.0f;
+    const float playerSpeed = 300.0f;
     const float deltaTime = 1.0f / 60.0f;
     const float moveDelta = playerSpeed * deltaTime;
 
@@ -261,12 +261,12 @@ TEST_F(DiagonalMovementNormalizationTest, AllDiagonalsHaveEqualSpeed) {
 // Test: Movement Delta Calculation
 // ============================================================================
 TEST_F(DiagonalMovementNormalizationTest, MovementDeltaCalculation) {
-    const float playerSpeed = 200.0f;
+    const float playerSpeed = 300.0f;
     const float deltaTime = 1.0f / 60.0f;
     const float expectedMoveDelta = playerSpeed * deltaTime;
 
-    // Expected: 200.0 * (1/60) = 3.333... pixels per frame
-    EXPECT_NEAR(expectedMoveDelta, 3.3333333333f, TOLERANCE);
+    // Expected: 300.0 * (1/60) = 5.0 pixels per frame
+    EXPECT_NEAR(expectedMoveDelta, 5.0f, TOLERANCE);
 
     // For diagonal movement (normalized)
     float diagX, diagY;
@@ -275,9 +275,9 @@ TEST_F(DiagonalMovementNormalizationTest, MovementDeltaCalculation) {
     float actualMoveX = diagX * expectedMoveDelta;
     float actualMoveY = diagY * expectedMoveDelta;
 
-    // Expected: 3.333 * 0.707 = 2.357 pixels per axis
-    EXPECT_NEAR(actualMoveX, 2.3570226039551584f, TOLERANCE);
-    EXPECT_NEAR(actualMoveY, 2.3570226039551584f, TOLERANCE);
+    // Expected: 5.0 * 0.707 = 3.535 pixels per axis
+    EXPECT_NEAR(actualMoveX, 3.5355339059f, TOLERANCE);
+    EXPECT_NEAR(actualMoveY, 3.5355339059f, TOLERANCE);
 }
 
 // ============================================================================

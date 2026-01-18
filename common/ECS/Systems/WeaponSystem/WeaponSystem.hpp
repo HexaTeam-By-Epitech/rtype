@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include "../../Components/Buff.hpp"
 #include "../../Components/Projectile.hpp"
 #include "../../Components/Transform.hpp"
 #include "../../Components/Velocity.hpp"
@@ -125,6 +126,36 @@ namespace ecs {
          * @return Transform component for the projectile initial position
          */
         Transform calculateProjectileTransform(Registry &registry, std::uint32_t ownerId);
+
+        /**
+         * @brief Create a single projectile with specified properties.
+         * 
+         * @param registry Reference to the ECS registry
+         * @param ownerId Entity ID of the weapon owner
+         * @param transform Projectile spawn position
+         * @param velocity Projectile velocity
+         * @param damage Projectile damage
+         * @param isFriendly Whether this is a friendly projectile
+         * @param isCharged Whether this is a charged shot (affects visuals)
+         * @return Address ID of the spawned projectile entity
+         */
+        std::uint32_t createProjectile(Registry &registry, std::uint32_t ownerId, const Transform &transform,
+                                       const Velocity &velocity, float damage, bool isFriendly,
+                                       bool isCharged);
+
+        /**
+         * @brief Fire multiple projectiles based on multishot buff.
+         * 
+         * @param registry Reference to the ECS registry
+         * @param ownerId Entity ID of the weapon owner
+         * @param damage Projectile damage
+         * @param speed Projectile speed
+         * @param isFriendly Whether projectiles are friendly
+         * @param isCharged Whether this is a charged shot
+         * @param shotCount Number of projectiles to fire
+         */
+        void fireMultipleShots(Registry &registry, std::uint32_t ownerId, float damage, float speed,
+                               bool isFriendly, bool isCharged, int shotCount);
 
         ProjectileCreatedCallback _projectileCreatedCallback;
     };

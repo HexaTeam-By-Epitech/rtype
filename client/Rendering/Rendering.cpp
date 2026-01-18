@@ -185,8 +185,26 @@ void Rendering::InitializeAccessibilityMenu() {
     // Colorblind filter changed
     _accessibilityMenu->SetOnColorblindFilterChanged([this](auto filter) {
         LOG_INFO("[Rendering] Applying colorblind filter: ", static_cast<int>(filter));
-        // TODO: Implement actual filter application in graphics/renderer
-        // _graphics.SetColorblindFilter(filter);
+        // Map AccessibilityMenu filter to Graphics filter type
+        Graphics::ColorblindFilterType graphicsFilter = Graphics::ColorblindFilterType::NONE;
+        switch (filter) {
+            case Game::AccessibilityMenu::ColorblindFilter::PROTANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::PROTANOPIA;
+                break;
+            case Game::AccessibilityMenu::ColorblindFilter::DEUTERANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::DEUTERANOPIA;
+                break;
+            case Game::AccessibilityMenu::ColorblindFilter::TRITANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::TRITANOPIA;
+                break;
+            case Game::AccessibilityMenu::ColorblindFilter::MONOCHROMACY:
+                graphicsFilter = Graphics::ColorblindFilterType::MONOCHROMACY;
+                break;
+            default:
+                graphicsFilter = Graphics::ColorblindFilterType::NONE;
+                break;
+        }
+        _graphics.SetColorblindFilter(graphicsFilter);
     });
 
     // Visual sound indicators toggled
@@ -655,9 +673,15 @@ void Rendering::Render() {
     _graphics.StartDrawing();
     _graphics.ClearWindow();
 
+    // Begin colorblind capture if filter is active
+    _graphics.BeginColorblindCapture();
+
     RenderGameScene();
     RenderUI();
     RenderHUD();
+
+    // End colorblind capture and apply filter
+    _graphics.EndColorblindCapture();
 
     _graphics.DisplayWindow();
 

@@ -90,10 +90,26 @@ namespace Graphics {
         void DrawRectangleLines(int x, int y, int width, int height, unsigned int color) override;
         void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) override;
 
+        // Colorblind filter
+        void SetColorblindFilter(ColorblindFilterType filter) override;
+        [[nodiscard]] ColorblindFilterType GetColorblindFilter() const override;
+        void BeginColorblindCapture() override;
+        void EndColorblindCapture() override;
+
        private:
+        void LoadColorblindShader();
+        void UnloadColorblindShader();
+
         std::vector<Font> _fonts;
         std::unordered_map<std::string, Texture2D> _textures;
         Color _clearColor{255, 255, 255, 255};
         bool _windowInitialized = false;
+
+        // Colorblind filter resources
+        Shader _colorblindShader{};
+        RenderTexture2D _colorblindRenderTexture{};
+        ColorblindFilterType _colorblindFilter{ColorblindFilterType::NONE};
+        bool _colorblindShaderLoaded{false};
+        int _filterTypeLoc{-1};
     };
 }  // namespace Graphics

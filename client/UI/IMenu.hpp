@@ -84,5 +84,42 @@ namespace UI {
          * @return true if visible.
          */
         [[nodiscard]] virtual bool IsVisible() const = 0;
+
+        // ===== Keyboard Navigation =====
+
+        /**
+         * @brief Handle keyboard navigation input.
+         * @note Call this in Update() to enable Tab/Shift+Tab/Enter navigation.
+         */
+        virtual void HandleKeyboardNavigation() = 0;
+
+        /**
+         * @brief Select the next navigable element.
+         * @note Wraps around to first element when at the end.
+         */
+        virtual void SelectNext() = 0;
+
+        /**
+         * @brief Select the previous navigable element.
+         * @note Wraps around to last element when at the beginning.
+         */
+        virtual void SelectPrevious() = 0;
+
+        /**
+         * @brief Trigger the currently selected element (simulate click).
+         */
+        virtual void TriggerSelected() = 0;
+
+        /**
+         * @brief Get the index of the currently selected element.
+         * @return Selected index, or -1 if none selected.
+         */
+        [[nodiscard]] virtual int GetSelectedIndex() const = 0;
+
+        /**
+         * @brief Set the selected element by index.
+         * @param index Index of element to select, or -1 to clear selection.
+         */
+        virtual void SetSelectedIndex(int index) = 0;
     };
 }  // namespace UI

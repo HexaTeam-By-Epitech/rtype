@@ -8,6 +8,18 @@
 #pragma once
 
 namespace Graphics {
+
+    /**
+     * @brief Colorblind filter types for accessibility
+     */
+    enum class ColorblindFilterType {
+        NONE = 0,          ///< No filter applied
+        PROTANOPIA = 1,    ///< Red-blind (reduced red sensitivity)
+        DEUTERANOPIA = 2,  ///< Green-blind (reduced green sensitivity)
+        TRITANOPIA = 3,    ///< Blue-blind (reduced blue sensitivity)
+        MONOCHROMACY = 4   ///< Complete color blindness (grayscale)
+    };
+
     /**
  * @brief Abstract interface for graphics rendering operations
  * 
@@ -368,5 +380,31 @@ namespace Graphics {
      * @param color Text color in 0xAARRGGBB format
      */
         virtual void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) = 0;
+
+        // ========== Colorblind Filter ==========
+
+        /**
+     * @brief Set the colorblind filter type
+     * @param filter The type of colorblind filter to apply
+     */
+        virtual void SetColorblindFilter(ColorblindFilterType filter) = 0;
+
+        /**
+     * @brief Get the current colorblind filter type
+     * @return The currently active colorblind filter
+     */
+        [[nodiscard]] virtual ColorblindFilterType GetColorblindFilter() const = 0;
+
+        /**
+     * @brief Begin capturing frame for colorblind filter processing
+     * @note Must be called after StartDrawing() and before any draw calls
+     */
+        virtual void BeginColorblindCapture() = 0;
+
+        /**
+     * @brief End capturing and apply the colorblind filter
+     * @note Must be called after all draw calls and before DisplayWindow()
+     */
+        virtual void EndColorblindCapture() = 0;
     };
 }  // namespace Graphics

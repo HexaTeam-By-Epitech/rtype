@@ -1,0 +1,15 @@
+{
+  "mapId": "level_3",
+  "name": "Zone Gamma - Boss Final",
+  "scrollSpeed": 30.0,
+  "background": "backgrounds/boss_stage.png",
+  "spawnScript": "maps/boss_stage_spawn.lua",
+  "duration": 180.0,
+  "nextMap": "",
+  "metadata": {
+    "difficulty": "hard",
+    "enemies": ["boss"],
+    "description": "Affrontement contre le boss final",
+    "isBossStage": true
+  }
+}

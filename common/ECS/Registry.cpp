@@ -6,6 +6,7 @@
 */
 
 #include "Registry.hpp"
+#include <mutex>
 
 namespace ecs {
     Registry::Registry() : _nextAddress(1) {}

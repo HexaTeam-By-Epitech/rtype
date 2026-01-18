@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <mutex>
 
 namespace ecs {
     template <typename T>

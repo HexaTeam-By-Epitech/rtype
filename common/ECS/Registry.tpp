@@ -7,6 +7,7 @@
 namespace ecs {
     template <typename T>
     void Registry::setComponent(Address address, const T &component) {
+        std::unique_lock lock(_mutex);
         const ComponentType componentType = getComponentType<T>();
         Signature componentSign = 0;
 
@@ -39,6 +40,7 @@ namespace ecs {
 
     template <typename T>
     T &Registry::getComponent(Address address) {
+        std::shared_lock lock(_mutex);
         const ComponentType componentType = getComponentType<T>();
 
         if (!_componentStorage.contains(componentType) ||
@@ -55,6 +57,7 @@ namespace ecs {
 
     template <typename T>
     bool Registry::hasComponent(Address address) {
+        std::shared_lock lock(_mutex);
         const ComponentType componentType = getComponentType<T>();
 
         if (!_componentMap.contains(componentType)) {
@@ -71,6 +74,7 @@ namespace ecs {
 
     template <typename T>
     void Registry::removeComponent(Address address) {
+        std::unique_lock lock(_mutex);
         const ComponentType componentType = getComponentType<T>();
 
         if (!_componentMap.contains(componentType)) {
@@ -91,6 +95,7 @@ namespace ecs {
 
     template <typename T>
     void Registry::addEntityProp(Address address) {
+        std::unique_lock lock(_mutex);
         const ComponentType componentType = getComponentType<T>();
         Signature componentSign = 0;
 
@@ -115,6 +120,7 @@ namespace ecs {
 
     template <typename... Components>
     std::vector<Address> Registry::view() {
+        std::shared_lock lock(_mutex);
         std::vector<Address> result;
 
         // Build the required signature (bitwise OR of all component signatures)

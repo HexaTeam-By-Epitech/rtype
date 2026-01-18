@@ -17,6 +17,7 @@ namespace ecs {
     }
 
     Address Registry::_generateAddress() {
+        // Note: This is called with the mutex already held by newEntity()
         // Reuse a freed address if available
         if (!_freeAddresses.empty()) {
             Address addr = _freeAddresses.top();
@@ -44,6 +45,7 @@ namespace ecs {
     }
 
     Address Registry::newEntity() {
+        std::unique_lock lock(_mutex);
         const Address addr = this->_generateAddress();
         Signature signature;
 
@@ -52,6 +54,7 @@ namespace ecs {
     }
 
     void Registry::destroyEntity(Address addr) {
+        std::unique_lock lock(_mutex);
         // Remove from signatures
         _signatures.erase(addr);
 
@@ -65,6 +68,7 @@ namespace ecs {
     }
 
     Signature Registry::getSignature(Address address) {
+        std::shared_lock lock(_mutex);
         Signature sign = 0u;
         if (_signatures.contains(address)) {
             sign = _signatures[address];
@@ -73,6 +77,7 @@ namespace ecs {
     }
 
     std::vector<Address> Registry::getEntitiesWithMask(Signature requiredMask) {
+        std::shared_lock lock(_mutex);
         std::vector<Address> result;
 
         if (requiredMask == 0) {

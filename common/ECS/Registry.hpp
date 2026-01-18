@@ -18,6 +18,7 @@
 #include <any>
 #include <bitset>
 #include <queue>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -66,6 +67,7 @@ namespace ecs {
     class Registry {
 
        private:
+        mutable std::shared_mutex _mutex;
         std::unordered_map<Address, Signature> _signatures;
 
         Address _nextAddress;

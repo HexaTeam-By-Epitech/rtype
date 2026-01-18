@@ -52,9 +52,13 @@ namespace ecs {
                     bool entity1IsCollectible = registry.hasComponent<Collectible>(entity1);
                     bool entity2IsCollectible = registry.hasComponent<Collectible>(entity2);
 
-                    // Log wall collisions
-                    if ((entity1IsPlayer && entity2IsWall) || (entity2IsPlayer && entity1IsWall)) {
-                        LOG_INFO("[COLLISION] Player-Wall collision detected: E", entity1, " & E", entity2);
+                    // Handle Player-Wall collision: block player movement
+                    if (entity1IsPlayer && entity2IsWall) {
+                        resolveWallCollision(entity1, entity2, transform1, collider1, transform2, collider2,
+                                             registry);
+                    } else if (entity2IsPlayer && entity1IsWall) {
+                        resolveWallCollision(entity2, entity1, transform2, collider2, transform1, collider1,
+                                             registry);
                     }
 
                     // Handle player-collectible pickup
@@ -214,6 +218,29 @@ namespace ecs {
         float bottom2 = top2 + size2.y;
 
         return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2);
+    }
+
+    /**
+     * @brief Resolves player-wall collision by instantly killing the player.
+     */
+    void CollisionSystem::resolveWallCollision(Address playerAddr, Address wallAddr,
+                                               Transform &playerTransform, Collider &playerCollider,
+                                               Transform &wallTransform, Collider &wallCollider,
+                                               Registry &registry) {
+        (void)wallAddr;
+        (void)playerTransform;
+        (void)playerCollider;
+        (void)wallTransform;
+        (void)wallCollider;
+
+        // Walls are instant death - deal massive damage to kill player
+        LOG_INFO("[COLLISION] Player touched wall - instant death!");
+
+        // Deal 9999 damage to ensure instant death
+        if (registry.hasComponent<Health>(playerAddr)) {
+            Health &health = registry.getComponent<Health>(playerAddr);
+            health.setCurrentHealth(0);
+        }
     }
 
     /**

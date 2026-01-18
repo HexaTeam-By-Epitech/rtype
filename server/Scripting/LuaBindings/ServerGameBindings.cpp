@@ -293,7 +293,7 @@ namespace scripting::bindings {
                         // Parse enemies in wave (using enemyConfigs key from Lua)
                         sol::optional<sol::table> enemiesTableOpt = waveTable["enemyConfigs"];
                         if (!enemiesTableOpt) {
-                            enemiesTableOpt = waveTable["enemies"];
+                            sol::optional<sol::table> enemiesTableOpt = waveTable["enemies"];
                         }
                         if (enemiesTableOpt) {
                             sol::table enemiesTable = enemiesTableOpt.value();

@@ -198,6 +198,7 @@ namespace server {
             {
                 std::scoped_lock lock(_playerMutex);
                 _playerMap[playerId] = entityAddress;
+                _hadPlayers = true;  // Mark that at least one player has joined
             }
 
             LOG_INFO("✓ Player spawned at (", _gameRules.getPlayerSpawnX(), ", ",
@@ -508,16 +509,19 @@ namespace server {
             return;
         }
 
+        // Don't check if no players have ever joined
+        if (!_hadPlayers) {
+            return;
+        }
+
         bool allPlayersDead = true;
         bool anyEnemiesRemain = false;
 
         {
             std::scoped_lock lock(_playerMutex);
 
-            // If player map is empty, all players are dead
-            if (_playerMap.empty()) {
-                allPlayersDead = true;
-            } else {
+            // If player map is empty and we had players, they're all dead
+            if (!_playerMap.empty()) {
                 // Check if all players are dead
                 for (const auto &[playerId, entityAddress] : _playerMap) {
                     try {
@@ -560,6 +564,7 @@ namespace server {
         // Victory: All enemies defeated and at least one player alive
         if (!anyEnemiesRemain && !allPlayersDead) {
             LOG_INFO("Victory! All enemies defeated!");
+            _gameActive = false;  // Stop game loop
             _stateManager->changeState(2);
             if (_eventBus) {
                 _eventBus->publish(GameEndedEvent("Victory"));
@@ -570,7 +575,11 @@ namespace server {
         // Defeat: All players dead
         if (allPlayersDead) {
             LOG_INFO("Defeat! All players eliminated.");
+            _gameActive = false;  // Stop game loop
             _stateManager->changeState(2);
+            if (_eventBus) {
+                _eventBus->publish(GameEndedEvent("Defeat"));
+            }
         }
     }
 
@@ -578,6 +587,7 @@ namespace server {
         LOG_INFO("Resetting game...");
 
         _gameActive = true;
+        _hadPlayers = false;  // Reset player tracking
         _playerMap.clear();
         _pendingInput.clear();
         _lastReceivedSequenceId.clear();

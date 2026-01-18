@@ -111,12 +111,14 @@ bool Server::initialize() {
 
         // Find the room associated with this game and broadcast Game Over to all players
         auto rooms = _roomManager->getAllRooms();
+        LOG_INFO("Broadcasting GameOver to ", rooms.size(), " room(s)");
 
         for (const auto &room : rooms) {
             auto gameLogic = room->getGameLogic();
-            if (gameLogic && gameLogic->isGameActive()) {
+            if (gameLogic) {
                 // Send GameOver message to all players in this room
                 auto players = room->getPlayers();
+                LOG_INFO("Room has ", players.size(), " player(s)");
                 for (uint32_t playerId : players) {
                     // Get session ID from player ID
                     auto sessionIt = _playerIdToSessionId.find(playerId);

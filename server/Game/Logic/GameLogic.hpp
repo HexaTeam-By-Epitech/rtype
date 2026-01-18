@@ -65,6 +65,7 @@ namespace server {
         explicit GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world = nullptr,
                            std::shared_ptr<ThreadPool> threadPool = nullptr,
                            std::shared_ptr<EventBus> eventBus = nullptr);
+
         ~GameLogic() override;
 
         bool initialize() override;
@@ -83,6 +84,11 @@ namespace server {
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
         bool isGameActive() const override { return _gameActive; }
         void resetGame() override;
+        /**
+         * @brief Notify Lua scripts that the game has started
+         * @param roomId The ID of the room where the game started
+         */
+        void onGameStart();
 
         /**
          * @brief Get the ECS world instance
@@ -108,12 +114,6 @@ namespace server {
          */
         const GameRules &getGameRules() const override { return _gameRules; }
 
-        /**
-         * @brief Spawn initial enemies with Lua scripts
-         * Called when the game actually starts (not at initialization)
-         */
-        void onGameStart();
-
        private:
         /**
          * @brief Execute all systems in order
@@ -135,11 +135,6 @@ namespace server {
          * @brief Check if all players are dead and trigger game over
          */
         void _checkGameOverCondition();
-
-        /**
-         * @brief Spawn test enemies and power-ups (for development/testing)
-         */
-        void spawnPowerUps();
 
         // ECS World
         std::shared_ptr<ecs::wrapper::ECSWorld> _world;

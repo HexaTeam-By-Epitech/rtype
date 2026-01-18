@@ -11,20 +11,25 @@
 #include "common/ECS/Components/Buff.hpp"
 #include "common/ECS/Components/Collectible.hpp"
 #include "common/ECS/Components/Collider.hpp"
-#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Spawner.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Scripting/LuaEngine.hpp"
 
 namespace scripting::bindings {
 
-    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world) {
+    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world, LuaEngine *engine) {
         if (!world) {
             LOG_ERROR("Cannot bind server game functions: world is null");
+            return;
+        }
+        if (!engine) {
+            LOG_ERROR("Cannot bind server game functions: engine is null");
             return;
         }
 

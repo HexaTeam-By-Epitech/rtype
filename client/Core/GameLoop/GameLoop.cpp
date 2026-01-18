@@ -151,16 +151,21 @@ void GameLoop::run() {
 
     // Load sprite sheets
     LOG_INFO("Loading sprite sheets...");
-    if (!_rendering->LoadTexture("r-typesheet1.gif", "assets/sprites/r-typesheet1.gif")) {
-        LOG_WARNING("Failed to load r-typesheet1.gif");
+    if (!_rendering->LoadTexture("PlayerShips.gif", "assets/sprites/PlayerShips.gif")) {
+        LOG_WARNING("Failed to load PlayerShips.gif");
     } else {
-        LOG_INFO("✓ Loaded r-typesheet1.gif (player ship)");
+        LOG_INFO("✓ Loaded PlayerShips.gif (player ship)");
     }
-    if (!_rendering->LoadTexture("r-typesheet2.gif", "assets/sprites/r-typesheet2.gif")) {
-        LOG_WARNING("Failed to load r-typesheet2.gif");
+    if (!_rendering->LoadTexture("Projectiles", "assets/sprites/Projectiles.gif")) {
+        LOG_WARNING("Failed to load Projectiles.gif");
     } else {
-        LOG_INFO("✓ Loaded r-typesheet2.gif (enemies)");
+        LOG_INFO("✓ Loaded Projectiles.gif (projectiles)");
     }
+    // if (!_rendering->LoadTexture("r-typesheet2.gif", "assets/sprites/r-typesheet2.gif")) {
+    //     LOG_WARNING("Failed to load r-typesheet2.gif");
+    // } else {
+    //     LOG_INFO("✓ Loaded r-typesheet2.gif (enemies)");
+    // }
 
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {

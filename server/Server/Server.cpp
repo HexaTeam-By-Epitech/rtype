@@ -87,8 +87,13 @@ bool Server::initialize() {
         LOG_INFO("[EVENT] Player left (ID: ", event.getPlayerId(), ")");
     });
 
-    _eventBus->subscribe<server::GameStartedEvent>(
-        [](const server::GameStartedEvent &) { LOG_INFO("[EVENT] Game started!"); });
+    _eventBus->subscribe<server::GameStartedEvent>([](const server::GameStartedEvent &event) {
+        if (event.getRoomId().empty()) {
+            LOG_INFO("[EVENT] Server started!");
+        } else {
+            LOG_INFO("[EVENT] Game started in room: ", event.getRoomId());
+        }
+    });
 
     _eventBus->subscribe<server::GameEndedEvent>([](const server::GameEndedEvent &event) {
         LOG_INFO("[EVENT] Game ended. Reason: ", event.getReason());
@@ -1052,9 +1057,6 @@ void Server::_broadcastGameState() {
 
         // Get all entities with Transform component
         auto entities = ecsWorld->query<ecs::Transform>();
-
-        LOG_DEBUG("[BroadcastGameState] Room '", room->getId(), "' - Found ", entities.size(),
-                  " entities with Transform");
 
         // Serialize each entity's state
         for (auto &entity : entities) {

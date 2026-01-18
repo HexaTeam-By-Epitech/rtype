@@ -23,8 +23,6 @@ namespace ecs::wrapper {
                 return "SpawnSystem";
             case SystemId::AI:
                 return "AISystem";
-            case SystemId::Projectile:
-                return "ProjectileSystem";
             case SystemId::Boundary:
                 return "BoundarySystem";
             case SystemId::Weapon:

@@ -48,14 +48,14 @@ waveSystem.waves[3] = {
 		{ delay = 0.3, type = "advanced", x = 1200, y = 100, health = 100, script = "enemy_advanced.lua" },
 		{ delay = 0.6, type = "advanced", x = 1200, y = 300, health = 100, script = "enemy_advanced.lua" },
 		{ delay = 0.9, type = "basic", x = 1200, y = 500, health = 50, script = "enemy_basic.lua" },
-		{ delay = 1.2, type = "advanced", x = 1200, y = 700, health = 100, script = "enemy_advanced.lua" }
+		{ delay = 1.2, type = "advanced", x = 1200, y = 700, health = 100, script = "enemy_advanced.lua" },
 	},
 }
 
 -- Waves intervals configuration
 waveSystem.wavesIntervals = {
-	5,  -- Interval after Wave 1
-	7,  -- Interval after Wave 2
+	5, -- Interval after Wave 1
+	7, -- Interval after Wave 2
 	20, -- Interval after Wave 3
 }
 
@@ -78,13 +78,11 @@ waveSystem.wavesIntervals = {
 -- 	end
 -- end
 
-function onUpdate(entity, deltaTime)
-end
+function onUpdate(entity, deltaTime) end
 
 function onGameStart(entity)
-	log "DDD"
 	setSpawnerConfig(entity, {
-	waves = waveSystem.waves,
-	wavesIntervals = waveSystem.wavesIntervals})
-	log "DDDD"
+		waves = waveSystem.waves,
+		wavesIntervals = waveSystem.wavesIntervals,
+	})
 end

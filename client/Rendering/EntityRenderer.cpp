@@ -24,6 +24,10 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
         it->second.type = type;
         it->second.health = health;
 
+        // Check if entity is a projectile (bullets should NOT be interpolated)
+        bool isProjectile = (type == RType::Messages::Shared::EntityType::PlayerBullet ||
+                             type == RType::Messages::Shared::EntityType::EnemyBullet);
+
         if (isLocalPlayer && _clientSidePredictionEnabled) {
             // CLIENT-SIDE PREDICTION for local player (pro-style dead reckoning)
             float errorX = x - it->second.x;
@@ -55,15 +59,16 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                           ")");
             }
             // Otherwise keep predicted position - client knows best!
-        } else if (_interpolationEnabled) {
-            // INTERPOLATION for other entities
+        } else if (_interpolationEnabled && !isProjectile) {
+            // INTERPOLATION for other entities (but NOT projectiles)
+            // Projectiles move too fast (300 units/sec) for smooth interpolation
             it->second.prevX = it->second.x;
             it->second.prevY = it->second.y;
             it->second.targetX = x;
             it->second.targetY = y;
             it->second.interpolationFactor = 0.0f;
         } else {
-            // No interpolation - snap directly
+            // No interpolation - snap directly (for projectiles and when disabled)
             it->second.x = x;
             it->second.y = y;
         }
@@ -149,9 +154,9 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
     float scale = entity.scale > 0.0f ? entity.scale : 3.0f;
 
     // Visual differentiation: tint green for local player
-    uint32_t tint = isLocalPlayer ? 0xAAFFAAFF : 0xFFFFFFFF;
+    uint32_t tint = isLocalPlayer ? 0xFF008000 : 0xFFFFFFFF;
 
-    _graphics.DrawTextureEx("r-typesheet1.gif", srcX, srcY, srcWidth, srcHeight,
+    _graphics.DrawTextureEx("PlayerShips.gif", srcX, srcY, srcWidth, srcHeight,
                             entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
                             scale, tint);
 
@@ -185,18 +190,33 @@ void EntityRenderer::renderEnemy(const RenderableEntity &entity) {
 }
 
 void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
-    // Small bullet visualization
+    // Draw projectile sprite with animation from sprite sheet
 
-    uint32_t color;
-    if (entity.type == RType::Messages::Shared::EntityType::PlayerBullet) {
-        color = 0xFFFF00FF;  // Yellow
-    } else {
-        color = 0xFF00FFFF;  // Magenta
-    }  // Placeholder: Small 8x8 rectangle
-    float halfSize = 4.0f;
+    // Source rectangle on the sprite sheet (frame from animation)
+    int srcX = entity.startPixelX > 0 ? entity.startPixelX : 267;
+    int srcY = entity.startPixelY > 0 ? entity.startPixelY : 84;
+    int srcWidth = entity.spriteSizeX > 0 ? entity.spriteSizeX : 17;
+    int srcHeight = entity.spriteSizeY > 0 ? entity.spriteSizeY : 13;
 
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 8,
-                             8, color);
+    // Debug log (only for first few frames)
+    static int debugCount = 0;
+    if (debugCount < 10) {
+        LOG_DEBUG("Projectile ", entity.entityId, ": sprite(", srcX, ",", srcY, ",", srcWidth, ",", srcHeight,
+                  ") anim=", entity.currentAnimation);
+        debugCount++;
+    }
+
+    // Use scale from entity (server sends 2.0f for normal, 2.5f for charged)
+    float scale = entity.scale > 0.0f ? entity.scale : 2.0f;
+
+    // Different tint for enemy bullets
+    uint32_t tint = 0xFFFFFFFF;
+    if (entity.type == RType::Messages::Shared::EntityType::EnemyBullet) {
+        tint = 0xFF5555FF;  // Reddish tint for enemy bullets
+    }
+
+    _graphics.DrawTextureEx("Projectiles", srcX, srcY, srcWidth, srcHeight, entity.x - (srcWidth * scale / 2),
+                            entity.y - (srcHeight * scale / 2), 0.0f, scale, tint);
 
     // Projectiles typically don't have health bars
 }
@@ -261,6 +281,13 @@ void EntityRenderer::updateInterpolation(float deltaTime) {
     }
 
     for (auto &[id, entity] : _entities) {
+        // Skip projectiles - they move too fast for interpolation (300 units/sec)
+        // Interpolation would cause visual "sliding" instead of smooth linear movement
+        if (entity.type == RType::Messages::Shared::EntityType::PlayerBullet ||
+            entity.type == RType::Messages::Shared::EntityType::EnemyBullet) {
+            continue;
+        }
+
         // Skip if already at target
         if (entity.interpolationFactor >= 1.0f) {
             continue;

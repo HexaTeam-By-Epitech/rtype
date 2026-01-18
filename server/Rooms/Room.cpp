@@ -183,8 +183,12 @@ namespace server {
             // Spawn enemies (Lua scripts) now that game is starting
             // Cast to GameLogic to access spawnEnemies()
             LOG_INFO("Will call onGameStart for room ", _id);
-            if (auto *gameLogic = dynamic_cast<GameLogic *>(_gameLogic.get())) {
-                gameLogic->onGameStart();
+            auto gameLogicPtr = std::dynamic_pointer_cast<GameLogic>(_gameLogic);
+            if (gameLogicPtr) {
+                gameLogicPtr->onGameStart();
+            } else {
+                LOG_ERROR("Failed to cast IGameLogic to GameLogic for room ", _id);
+                return false;
             }
 
             // Spawn players and validate entity IDs

@@ -57,7 +57,12 @@ level1.wavesIntervals = {
 -- Function called by LuaEngine to setup the spawner
 function onUpdate(entity, deltaTime)
 	if level1.isWaveSetup == false then
-		-- Test walls at visible positions (200,200)
+		spawnWall(960, 10, 1920, 20, false, 0)
+		
+		-- Bottom wall: position at the actual bottom (1080 - 10)
+		spawnWall(960, 600, 1920, 20, false, 0)
+		
+		-- Test walls in the middle
 		spawnWall(200, 200, 50, 50, false, 0)
 		spawnWall(300, 200, 50, 50, false, 0)
 		spawnWall(400, 200, 60, 80, true, 100)

@@ -207,14 +207,15 @@ namespace ecs {
                                     const Collider::Vector2 &offset1, const Transform::Vector2 &pos2,
                                     const Collider::Vector2 &size2, const Collider::Vector2 &offset2) const {
 
-        float left1 = pos1.x + offset1.x;
+        // Position is the CENTER of the entity, so we need to offset by half the size
+        float left1 = pos1.x + offset1.x - (size1.x / 2.0f);
         float right1 = left1 + size1.x;
-        float top1 = pos1.y + offset1.y;
+        float top1 = pos1.y + offset1.y - (size1.y / 2.0f);
         float bottom1 = top1 + size1.y;
 
-        float left2 = pos2.x + offset2.x;
+        float left2 = pos2.x + offset2.x - (size2.x / 2.0f);
         float right2 = left2 + size2.x;
-        float top2 = pos2.y + offset2.y;
+        float top2 = pos2.y + offset2.y - (size2.y / 2.0f);
         float bottom2 = top2 + size2.y;
 
         return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2);

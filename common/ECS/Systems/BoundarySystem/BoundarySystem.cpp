@@ -7,8 +7,10 @@
 
 #include "BoundarySystem.hpp"
 #include <vector>
+#include "../../../Logger/Logger.hpp"
 #include "../../Components/IComponent.hpp"
 #include "../../Components/PendingDestroy.hpp"
+#include "../../Components/Player.hpp"
 
 namespace ecs {
     BoundarySystem::BoundarySystem(int screenWidth, int screenHeight)
@@ -38,6 +40,12 @@ namespace ecs {
             auto pos = transform.getPosition();
 
             if (pos.x < -100 || pos.x > _screenWidth + 100 || pos.y < -100 || pos.y > _screenHeight + 100) {
+                // Log if it's a player being destroyed
+                if (registry.hasComponent<Player>(entityId)) {
+                    LOG_WARNING("[BOUNDARY] Player out of bounds at (", pos.x, ", ", pos.y,
+                                ") - Limits: x[-100,", _screenWidth + 100, "] y[-100,", _screenHeight + 100,
+                                "]");
+                }
                 toMarkForDestruction.push_back(entityId);
             }
         }

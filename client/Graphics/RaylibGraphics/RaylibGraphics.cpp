@@ -266,6 +266,22 @@ namespace Graphics {
         return ::IsKeyReleased(key);
     }
 
+    bool RaylibGraphics::IsGamepadAvailable(int gamepad) const {
+        return ::IsGamepadAvailable(gamepad);
+    }
+
+    bool RaylibGraphics::IsGamepadButtonPressed(int gamepad, int button) const {
+        return ::IsGamepadButtonPressed(gamepad, button);
+    }
+
+    bool RaylibGraphics::IsGamepadButtonDown(int gamepad, int button) const {
+        return ::IsGamepadButtonDown(gamepad, button);
+    }
+
+    float RaylibGraphics::GetGamepadAxisMovement(int gamepad, int axis) const {
+        return ::GetGamepadAxisMovement(gamepad, axis);
+    }
+
     bool RaylibGraphics::IsMouseButtonPressed(int button) const {
         return ::IsMouseButtonPressed(button);
     }

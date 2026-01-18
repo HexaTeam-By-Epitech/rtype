@@ -256,6 +256,21 @@ class Rendering {
     bool IsKeyDown(int key) const;
 
     /**
+     * @brief Check if a gamepad is available/connected
+     * @param gamepad Gamepad index (0-3)
+     * @return true if the gamepad is connected
+     */
+    bool IsGamepadAvailable(int gamepad) const;
+
+    /**
+     * @brief Check if a gamepad button is currently held down
+     * @param gamepad Gamepad index (0-3)
+     * @param button Button code (GAMEPAD_BUTTON_* constants)
+     * @return true if the button is down
+     */
+    bool IsGamepadButtonDown(int gamepad, int button) const;
+
+    /**
      * @brief Update interpolation for all entities
      * @param deltaTime Time elapsed since last frame (in seconds)
      * 

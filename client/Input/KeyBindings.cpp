@@ -24,24 +24,26 @@ namespace Input {
     void KeyBindings::ResetToDefaults() {
         _bindings.clear();
 
-        // Movement - WASD primary, ZQSD secondary (French layout support)
-        _bindings[GameAction::MOVE_UP] = {KEY_W, KEY_Z};
-        _bindings[GameAction::MOVE_DOWN] = {KEY_S, KEY_NULL};
-        _bindings[GameAction::MOVE_LEFT] = {KEY_A, KEY_Q};
-        _bindings[GameAction::MOVE_RIGHT] = {KEY_D, KEY_NULL};
+        // Movement - WASD primary, Gamepad D-Pad secondary
+        _bindings[GameAction::MOVE_UP] = {KEY_W, GamepadButtonToBinding(GAMEPAD_BUTTON_LEFT_FACE_UP)};
+        _bindings[GameAction::MOVE_DOWN] = {KEY_S, GamepadButtonToBinding(GAMEPAD_BUTTON_LEFT_FACE_DOWN)};
+        _bindings[GameAction::MOVE_LEFT] = {KEY_A, GamepadButtonToBinding(GAMEPAD_BUTTON_LEFT_FACE_LEFT)};
+        _bindings[GameAction::MOVE_RIGHT] = {KEY_D, GamepadButtonToBinding(GAMEPAD_BUTTON_LEFT_FACE_RIGHT)};
 
-        // Combat
-        _bindings[GameAction::SHOOT] = {KEY_SPACE, KEY_NULL};
+        // Combat - Space primary, Gamepad A button secondary
+        _bindings[GameAction::SHOOT] = {KEY_SPACE, GamepadButtonToBinding(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)};
 
-        // UI/System
-        _bindings[GameAction::PAUSE_MENU] = {KEY_ESCAPE, KEY_NULL};
+        // UI/System - Escape primary, Gamepad Start secondary
+        _bindings[GameAction::PAUSE_MENU] = {KEY_ESCAPE, GamepadButtonToBinding(GAMEPAD_BUTTON_MIDDLE_RIGHT)};
         _bindings[GameAction::CHAT_OPEN] = {KEY_T, KEY_ENTER};
 
         // Menu Navigation
         _bindings[GameAction::MENU_NEXT] = {KEY_TAB, KEY_DOWN};
         _bindings[GameAction::MENU_PREVIOUS] = {KEY_UP, KEY_NULL};  // Shift+Tab handled specially
-        _bindings[GameAction::MENU_CONFIRM] = {KEY_ENTER, KEY_KP_ENTER};
-        _bindings[GameAction::MENU_BACK] = {KEY_ESCAPE, KEY_BACKSPACE};
+        _bindings[GameAction::MENU_CONFIRM] = {KEY_ENTER,
+                                               GamepadButtonToBinding(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)};
+        _bindings[GameAction::MENU_BACK] = {KEY_ESCAPE,
+                                            GamepadButtonToBinding(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)};
 
         NotifyBindingsChanged();
     }
@@ -192,6 +194,45 @@ namespace Input {
             return it->second;
         }
         return "Unknown";
+    }
+
+    std::string KeyBindings::GetGamepadButtonName(int button) {
+        static const std::unordered_map<int, std::string> buttonNames = {
+            {GAMEPAD_BUTTON_UNKNOWN, "Unknown"},
+            {GAMEPAD_BUTTON_LEFT_FACE_UP, "D-Pad Up"},
+            {GAMEPAD_BUTTON_LEFT_FACE_RIGHT, "D-Pad Right"},
+            {GAMEPAD_BUTTON_LEFT_FACE_DOWN, "D-Pad Down"},
+            {GAMEPAD_BUTTON_LEFT_FACE_LEFT, "D-Pad Left"},
+            {GAMEPAD_BUTTON_RIGHT_FACE_UP, "Y"},
+            {GAMEPAD_BUTTON_RIGHT_FACE_RIGHT, "B"},
+            {GAMEPAD_BUTTON_RIGHT_FACE_DOWN, "A"},
+            {GAMEPAD_BUTTON_RIGHT_FACE_LEFT, "X"},
+            {GAMEPAD_BUTTON_LEFT_TRIGGER_1, "LB"},
+            {GAMEPAD_BUTTON_LEFT_TRIGGER_2, "LT"},
+            {GAMEPAD_BUTTON_RIGHT_TRIGGER_1, "RB"},
+            {GAMEPAD_BUTTON_RIGHT_TRIGGER_2, "RT"},
+            {GAMEPAD_BUTTON_MIDDLE_LEFT, "Select"},
+            {GAMEPAD_BUTTON_MIDDLE, "Guide"},
+            {GAMEPAD_BUTTON_MIDDLE_RIGHT, "Start"},
+            {GAMEPAD_BUTTON_LEFT_THUMB, "L3"},
+            {GAMEPAD_BUTTON_RIGHT_THUMB, "R3"},
+        };
+
+        auto it = buttonNames.find(button);
+        if (it != buttonNames.end()) {
+            return it->second;
+        }
+        return "Gamepad ?";
+    }
+
+    std::string KeyBindings::GetBindingName(int binding) {
+        if (binding == KEY_NULL) {
+            return "None";
+        }
+        if (IsGamepadBinding(binding)) {
+            return GetGamepadButtonName(BindingToGamepadButton(binding));
+        }
+        return GetKeyName(binding);
     }
 
     std::string KeyBindings::GetActionName(GameAction action) {

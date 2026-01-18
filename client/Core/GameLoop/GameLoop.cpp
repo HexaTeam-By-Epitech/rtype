@@ -356,12 +356,29 @@ void GameLoop::processInput() {
     // Collect input directions first
     int dx = 0, dy = 0;
 
-    // Helper lambda to check if an action's key is pressed
-    auto isActionDown = [this, &bindings](Input::GameAction action) {
+    // Helper lambda to check if a binding (keyboard or gamepad) is pressed
+    auto isBindingDown = [this](int binding) {
+        if (binding == KEY_NULL) {
+            return false;
+        }
+        if (Input::IsGamepadBinding(binding)) {
+            int button = Input::BindingToGamepadButton(binding);
+            // Check all connected gamepads (typically just gamepad 0)
+            for (int gp = 0; gp < 4; ++gp) {
+                if (_rendering->IsGamepadAvailable(gp) && _rendering->IsGamepadButtonDown(gp, button)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return _rendering->IsKeyDown(binding);
+    };
+
+    // Helper lambda to check if an action's key or gamepad button is pressed
+    auto isActionDown = [&bindings, &isBindingDown](Input::GameAction action) {
         int primary = bindings.GetPrimaryKey(action);
         int secondary = bindings.GetSecondaryKey(action);
-        return (primary != KEY_NULL && _rendering->IsKeyDown(primary)) ||
-               (secondary != KEY_NULL && _rendering->IsKeyDown(secondary));
+        return isBindingDown(primary) || isBindingDown(secondary);
     };
 
     // Movement using configurable bindings

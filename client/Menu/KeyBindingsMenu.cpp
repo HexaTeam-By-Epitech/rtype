@@ -121,7 +121,7 @@ namespace Game {
         primaryButton->SetPosition(centerX - 100, yOffset);
         primaryButton->SetBackgroundColor(0xFF404040);
         primaryButton->SetHoverColor(0xFF606060);
-        primaryButton->SetText(Input::KeyBindings::GetKeyName(bindings.GetPrimaryKey(action)));
+        primaryButton->SetText(Input::KeyBindings::GetBindingName(bindings.GetPrimaryKey(action)));
         primaryButton->SetTextSize(14);
         primaryButton->SetTextColor(0xFFFFFFFF);
         primaryButton->SetFont(-1);
@@ -134,9 +134,9 @@ namespace Game {
         secondaryButton->SetPosition(centerX + 40, yOffset);
         secondaryButton->SetBackgroundColor(0xFF404040);
         secondaryButton->SetHoverColor(0xFF606060);
-        int secondaryKey = bindings.GetSecondaryKey(action);
-        secondaryButton->SetText(secondaryKey != KEY_NULL ? Input::KeyBindings::GetKeyName(secondaryKey)
-                                                          : "-");
+        int secondaryBinding = bindings.GetSecondaryKey(action);
+        secondaryButton->SetText(
+            secondaryBinding != KEY_NULL ? Input::KeyBindings::GetBindingName(secondaryBinding) : "-");
         secondaryButton->SetTextSize(14);
         secondaryButton->SetTextColor(0xFFCCCCCC);
         secondaryButton->SetFont(-1);
@@ -179,7 +179,21 @@ namespace Game {
                 return;
             }
 
-            // Check for any key press
+            // Check for gamepad button presses first (on any connected gamepad)
+            for (int gp = 0; gp < 4; ++gp) {
+                if (_graphics.IsGamepadAvailable(gp)) {
+                    for (int button = 0; button <= GAMEPAD_BUTTON_RIGHT_THUMB; ++button) {
+                        if (_graphics.IsGamepadButtonPressed(gp, button)) {
+                            // Convert gamepad button to binding value
+                            int binding = Input::GamepadButtonToBinding(button);
+                            HandleCapturedKey(binding);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Check for any keyboard key press
             for (int key = KEY_SPACE; key <= KEY_KP_EQUAL; ++key) {
                 if (_graphics.IsKeyPressed(key)) {
                     HandleCapturedKey(key);
@@ -282,11 +296,12 @@ namespace Game {
         auto &bindings = Input::KeyBindings::getInstance();
 
         if (isPrimary && it->second.primaryButton) {
-            it->second.primaryButton->SetText(Input::KeyBindings::GetKeyName(bindings.GetPrimaryKey(action)));
+            it->second.primaryButton->SetText(
+                Input::KeyBindings::GetBindingName(bindings.GetPrimaryKey(action)));
         } else if (!isPrimary && it->second.secondaryButton) {
-            int secondaryKey = bindings.GetSecondaryKey(action);
+            int secondaryBinding = bindings.GetSecondaryKey(action);
             it->second.secondaryButton->SetText(
-                secondaryKey != KEY_NULL ? Input::KeyBindings::GetKeyName(secondaryKey) : "-");
+                secondaryBinding != KEY_NULL ? Input::KeyBindings::GetBindingName(secondaryBinding) : "-");
         }
     }
 

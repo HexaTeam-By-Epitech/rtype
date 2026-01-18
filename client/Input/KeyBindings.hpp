@@ -15,6 +15,33 @@
 namespace Input {
 
     /**
+     * @brief Special constant for gamepad button bindings
+     * Gamepad buttons are stored as (GAMEPAD_BUTTON_OFFSET + button_id)
+     */
+    constexpr int GAMEPAD_BUTTON_OFFSET = 1000;
+
+    /**
+     * @brief Check if a binding value represents a gamepad button
+     */
+    inline bool IsGamepadBinding(int binding) {
+        return binding >= GAMEPAD_BUTTON_OFFSET;
+    }
+
+    /**
+     * @brief Convert a gamepad button to a binding value
+     */
+    inline int GamepadButtonToBinding(int button) {
+        return GAMEPAD_BUTTON_OFFSET + button;
+    }
+
+    /**
+     * @brief Extract gamepad button from a binding value
+     */
+    inline int BindingToGamepadButton(int binding) {
+        return binding - GAMEPAD_BUTTON_OFFSET;
+    }
+
+    /**
      * @brief Enumeration of all bindable game actions
      */
     enum class GameAction {
@@ -116,6 +143,20 @@ namespace Input {
          * @return String representation of the key
          */
         [[nodiscard]] static std::string GetKeyName(int key);
+
+        /**
+         * @brief Get human-readable name of a gamepad button
+         * @param button The button code (GAMEPAD_BUTTON_* constant)
+         * @return String representation of the button
+         */
+        [[nodiscard]] static std::string GetGamepadButtonName(int button);
+
+        /**
+         * @brief Get human-readable name of a binding (keyboard key or gamepad button)
+         * @param binding The binding value (may be key or GAMEPAD_BUTTON_OFFSET + button)
+         * @return String representation of the binding
+         */
+        [[nodiscard]] static std::string GetBindingName(int binding);
 
         /**
          * @brief Get human-readable name of an action

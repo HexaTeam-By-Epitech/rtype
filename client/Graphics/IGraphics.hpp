@@ -294,6 +294,39 @@ namespace Graphics {
      */
         virtual bool IsKeyReleased(int key) const = 0;
 
+        // ========== Gamepad/Controller Input ==========
+
+        /**
+     * @brief Check if a gamepad is available/connected
+     * @param gamepad Gamepad index (0-3, typically 0 for first controller)
+     * @return true if the gamepad is connected, false otherwise
+     */
+        virtual bool IsGamepadAvailable(int gamepad) const = 0;
+
+        /**
+     * @brief Check if a gamepad button was pressed this frame
+     * @param gamepad Gamepad index (0-3)
+     * @param button Button code (use GAMEPAD_BUTTON_* constants)
+     * @return true if the button was just pressed, false otherwise
+     */
+        virtual bool IsGamepadButtonPressed(int gamepad, int button) const = 0;
+
+        /**
+     * @brief Check if a gamepad button is currently held down
+     * @param gamepad Gamepad index (0-3)
+     * @param button Button code (use GAMEPAD_BUTTON_* constants)
+     * @return true if the button is currently down, false otherwise
+     */
+        virtual bool IsGamepadButtonDown(int gamepad, int button) const = 0;
+
+        /**
+     * @brief Get gamepad axis value (for analog sticks and triggers)
+     * @param gamepad Gamepad index (0-3)
+     * @param axis Axis code (use GAMEPAD_AXIS_* constants)
+     * @return Axis value between -1.0 and 1.0 (0.0 for triggers at rest)
+     */
+        virtual float GetGamepadAxisMovement(int gamepad, int axis) const = 0;
+
         /**
      * @brief Check if a mouse button was pressed (triggered once when button goes down)
      * @param button Mouse button code (implementation-specific button constants)

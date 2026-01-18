@@ -1071,6 +1071,14 @@ bool Rendering::IsKeyDown(int key) const {
     return _graphics.IsKeyDown(key);
 }
 
+bool Rendering::IsGamepadAvailable(int gamepad) const {
+    return _graphics.IsGamepadAvailable(gamepad);
+}
+
+bool Rendering::IsGamepadButtonDown(int gamepad, int button) const {
+    return _graphics.IsGamepadButtonDown(gamepad, button);
+}
+
 void Rendering::UpdateInterpolation(float deltaTime) {
     if (_entityRenderer) {
         _entityRenderer->updateInterpolation(deltaTime);

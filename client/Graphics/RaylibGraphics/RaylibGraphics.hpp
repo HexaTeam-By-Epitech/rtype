@@ -77,6 +77,10 @@ namespace Graphics {
         bool IsKeyPressed(int key) const override;
         bool IsKeyDown(int key) const override;
         bool IsKeyReleased(int key) const override;
+        bool IsGamepadAvailable(int gamepad) const override;
+        bool IsGamepadButtonPressed(int gamepad, int button) const override;
+        bool IsGamepadButtonDown(int gamepad, int button) const override;
+        float GetGamepadAxisMovement(int gamepad, int axis) const override;
         bool IsMouseButtonPressed(int button) const override;
         bool IsMouseButtonDown(int button) const override;
         void GetMousePosition(float &x, float &y) const override;

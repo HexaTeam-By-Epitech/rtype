@@ -110,12 +110,6 @@ namespace server {
          * @return Reference to game rules
          */
         virtual const class GameRules &getGameRules() const = 0;
-
-        /**
-         * @brief Notify Lua scripts that the game has started
-         * @param roomId The ID of the room where the game started
-         */
-        virtual void notifyGameStarted(const std::string &roomId) = 0;
     };
 
 }  // namespace server

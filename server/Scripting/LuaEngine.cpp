@@ -105,6 +105,9 @@ namespace scripting {
                 if (globals["onDestroy"].valid()) {
                     scriptTable["onDestroy"] = globals["onDestroy"];
                 }
+                if (globals["onGameStart"].valid()) {
+                    scriptTable["onGameStart"] = globals["onGameStart"];
+                }
 
                 _scriptCache[scriptPath] = scriptTable;
                 LOG_INFO("Loaded Lua script: " + scriptPath + " (" + p.string() + ")");
@@ -145,6 +148,46 @@ namespace scripting {
             LOG_ERROR("  - basePath: " + base.string());
         }
         return false;
+    }
+
+    void LuaEngine::executeOnGameStart(const std::string &scriptPath, ecs::wrapper::Entity entity) {
+        std::lock_guard<std::recursive_mutex> lock(_luaMutex);
+
+        if (!_world || !_bindingsInitialized) {
+            LOG_ERROR("LuaEngine not properly initialized. Call setWorld() first.");
+            return;
+        }
+
+        if (_scriptCache.find(scriptPath) == _scriptCache.end()) {
+            if (!loadScript(scriptPath)) {
+                return;
+            }
+        }
+
+        try {
+            // Retrieve the specific script's environment from cache
+            sol::table script = _scriptCache[scriptPath];
+
+            // Always call Lua through a protected function to avoid hard crashes on script errors.
+            sol::optional<sol::function> onGameStartOpt = script["onGameStart"];
+
+            if (!onGameStartOpt) {
+                LOG_WARNING("Script " + scriptPath + " has no onGameStart function");
+                return;
+            }
+
+            sol::protected_function onGameStart = onGameStartOpt.value();
+
+            sol::protected_function_result result = onGameStart(entity);
+            if (!result.valid()) {
+                sol::error err = result;
+                LOG_ERROR("Lua runtime error in " + scriptPath + ": " + std::string(err.what()));
+            }
+        } catch (const sol::error &e) {
+            LOG_ERROR("Lua runtime error in " + scriptPath + ": " + std::string(e.what()));
+        } catch (const std::exception &e) {
+            LOG_ERROR("C++ exception in executeOnGameStart: " + std::string(e.what()));
+        }
     }
 
     void LuaEngine::executeUpdate(const std::string &scriptPath, ecs::wrapper::Entity entity,

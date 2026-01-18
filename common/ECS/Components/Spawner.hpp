@@ -23,6 +23,18 @@ namespace ecs {
         std::string scriptPath;  // Lua script for behavior
         float health;
         int scoreValue;
+        float spawnDelay;         // Delay in seconds from wave start
+        bool hasSpawned = false;  // Track if this request has been spawned
+    };
+
+    struct WaveConfig {
+        std::vector<SpawnRequest> enemies;
+        float spawnInterval;  // Time between spawns in this wave
+    };
+
+    struct SpawnerConfig {
+        std::vector<WaveConfig> waves;
+        std::vector<int> wavesIntervals;  // Time between waves
     };
 
     /**
@@ -67,8 +79,30 @@ namespace ecs {
          */
         ComponentType getType() const override { return getComponentType<Spawner>(); }
 
+        void setConfig(const SpawnerConfig &config) {
+            _config = config;
+            // Reset spawner state
+            waveElapsedTime = 0.0f;
+            currentWaveIndex = 0;
+            isActive = true;
+            // Ensure all hasSpawned flags are reset
+            for (auto &wave : _config.waves) {
+                for (auto &enemy : wave.enemies) {
+                    enemy.hasSpawned = false;
+                }
+            }
+        }
+        const SpawnerConfig &getConfig() const { return _config; }
+        SpawnerConfig &getConfigMutable() { return _config; }
+
+        float waveElapsedTime = 0.0f;  // Time elapsed within current wave
+        int currentWaveIndex = 0;
+
+        bool isActive = true;
+
        private:
         std::vector<SpawnRequest> _spawnRequests;
+        SpawnerConfig _config = {};
     };
 
 }  // namespace ecs

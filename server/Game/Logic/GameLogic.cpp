@@ -17,6 +17,7 @@
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
+#include "common/ECS/Components/PendingDestroy.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Spawner.hpp"
@@ -222,9 +223,10 @@ namespace server {
 
             LOG_INFO("Despawning player ", playerId, " (entity: ", playerEntity, ")");
 
-            // Remove entity from the world
-            _world->destroyEntity(playerEntity);
-            LOG_INFO("✓ Player removed from game and entity destroyed");
+            // Mark entity for destruction with proper client notification
+            _world->getEntity(playerEntity)
+                .with<ecs::PendingDestroy>(ecs::PendingDestroy(ecs::DestroyReason::Manual));
+            LOG_INFO("✓ Player marked for destruction (will be processed in next tick)");
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to despawn player: ", e.what());
         }
@@ -436,20 +438,24 @@ namespace server {
     }
 
     void GameLogic::_cleanupDeadEntities() {
-        // Query all entities with Health component
+        // Query all entities with Health component that are dead
+        // Note: Actual entity destruction is handled by _processPendingDestructions in Server
+        // This function just cleans up the player map for dead players
         auto entities = _world->query<ecs::Health>();
 
-        std::vector<ecs::Address> toDestroy;
-
-        // Find entities that need to be removed
         for (auto &entity : entities) {
             ecs::Health &health = entity.get<ecs::Health>();
 
             if (health.getCurrentHealth() > 0) {
                 continue;
             }
+
+            // Mark for destruction if not already marked (HealthSystem should have done this)
             ecs::Address entityAddress = entity.getAddress();
-            toDestroy.push_back(entityAddress);
+            if (!entity.has<ecs::PendingDestroy>()) {
+                _world->getEntity(entityAddress)
+                    .with<ecs::PendingDestroy>(ecs::PendingDestroy(ecs::DestroyReason::Killed));
+            }
 
             // Remove from player map if it's a player entity
             if (!entity.has<ecs::Player>()) {
@@ -464,10 +470,7 @@ namespace server {
                 }
             }
         }
-
-        for (ecs::Address address : toDestroy) {
-            _world->destroyEntity(address);
-        }
+        // Entity destruction is deferred to _processPendingDestructions in Server
     }
 
     void GameLogic::_checkGameOverCondition() {
@@ -515,12 +518,19 @@ namespace server {
         LOG_INFO("✓ Game reset");
     }
 
-    void GameLogic::notifyGameStarted(const std::string &roomId) {
+    void GameLogic::onGameStart() {
+
+        // Find the spawner entity with wave_manager.lua script
         if (_luaEngine) {
-            LOG_INFO("Notifying Lua scripts that game started in room: ", roomId);
-            _luaEngine->fireGameStartCallbacks(roomId);
-        } else {
-            LOG_WARNING("Cannot notify Lua of game start: LuaEngine is null");
+            LOG_INFO("BUGGER");
+            auto entities = _world->query<ecs::Spawner, ecs::LuaScript>();
+            for (auto &entity : entities) {
+                const ecs::LuaScript &script = entity.get<ecs::LuaScript>();
+                if (script.getScriptPath() == "wave_manager.lua") {
+                    _luaEngine->executeOnGameStart("wave_manager.lua", entity);
+                    break;
+                }
+            }
         }
     }
 

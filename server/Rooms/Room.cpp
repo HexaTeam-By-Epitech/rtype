@@ -180,6 +180,17 @@ namespace server {
                 return false;
             }
 
+            // Spawn enemies (Lua scripts) now that game is starting
+            // Cast to GameLogic to access spawnEnemies()
+            LOG_INFO("Will call onGameStart for room ", _id);
+            auto gameLogicPtr = std::dynamic_pointer_cast<GameLogic>(_gameLogic);
+            if (gameLogicPtr) {
+                gameLogicPtr->onGameStart();
+            } else {
+                LOG_ERROR("Failed to cast IGameLogic to GameLogic for room ", _id);
+                return false;
+            }
+
             // Spawn players and validate entity IDs
             std::vector<uint32_t> failedPlayers;
             for (uint32_t playerId : _players) {
@@ -206,10 +217,6 @@ namespace server {
                     return false;
                 }
             }
-
-            // Notify Lua scripts that the game has started (triggers wave spawning)
-            _gameLogic->notifyGameStarted(_id);
-            LOG_INFO("✓ Game start notification sent to Lua scripts");
         }
 
         setState(RoomState::IN_PROGRESS);

@@ -65,6 +65,7 @@ namespace server {
         explicit GameLogic(std::shared_ptr<ecs::wrapper::ECSWorld> world = nullptr,
                            std::shared_ptr<ThreadPool> threadPool = nullptr,
                            std::shared_ptr<EventBus> eventBus = nullptr);
+
         ~GameLogic() override;
 
         bool initialize() override;
@@ -83,6 +84,11 @@ namespace server {
         ecs::Registry &getRegistry() override { return _world->getRegistry(); }
         bool isGameActive() const override { return _gameActive; }
         void resetGame() override;
+        /**
+         * @brief Notify Lua scripts that the game has started
+         * @param roomId The ID of the room where the game started
+         */
+        void onGameStart();
 
         /**
          * @brief Get the ECS world instance
@@ -107,12 +113,6 @@ namespace server {
          * @return Const reference to game rules
          */
         const GameRules &getGameRules() const override { return _gameRules; }
-
-        /**
-         * @brief Notify Lua scripts that the game has started
-         * @param roomId The ID of the room where the game started
-         */
-        void notifyGameStarted(const std::string &roomId) override;
 
        private:
         /**

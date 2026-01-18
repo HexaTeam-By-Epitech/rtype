@@ -6,51 +6,91 @@
 */
 
 #include "SpawnSystem.hpp"
+#include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Spawner.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Weapon.hpp"
 #include "common/ECS/Prefabs/PrefabFactory.hpp"
 #include "common/Logger/Logger.hpp"
 
 namespace ecs {
-    SpawnSystem::SpawnSystem()
-        : _waveNumber(1), _enemiesSpawned(0), _enemiesPerWave(5), _spawnTimer(0.0f), _spawnInterval(2.0f) {}
+    SpawnSystem::SpawnSystem() {}
 
     void SpawnSystem::update(Registry &registry, float deltaTime) {
-        // Process spawn requests from Spawner components
         auto spawners = registry.view<Spawner>();
 
-        for (auto entity : spawners) {
-            Spawner &spawner = registry.getComponent<Spawner>(entity);
+        // Process wave timing and spawning logic
+        for (auto spawner : spawners) {
+            Spawner &spawnerComp = registry.getComponent<Spawner>(spawner);
 
-            if (!spawner.hasPendingSpawns()) {
+            if (spawnerComp.getConfig().waves.empty() || !spawnerComp.isActive) {
+                continue;  // No waves configured or spawner inactive
+            }
+
+            SpawnerConfig &config = spawnerComp.getConfigMutable();
+            int wavesCount = static_cast<int>(config.waves.size());
+
+            // Check if wavesIntervals is properly configured
+            if (config.wavesIntervals.empty() ||
+                spawnerComp.currentWaveIndex >= static_cast<int>(config.wavesIntervals.size())) {
+                LOG_WARNING("[SpawnSystem] Invalid wave configuration - missing intervals");
                 continue;
             }
 
-            const auto &requests = spawner.getSpawnRequests();
-            for (const auto &request : requests) {
-                _spawnEnemy(registry, request);
+            if (spawnerComp.currentWaveIndex >= wavesCount) {
+                spawnerComp.isActive = false;
+                continue;
             }
 
-            spawner.clearSpawnRequests();
-        }
+            // Get current wave
+            WaveConfig &currentWave = config.waves[spawnerComp.currentWaveIndex];
+            float waveInterval = static_cast<float>(config.wavesIntervals[spawnerComp.currentWaveIndex]);
 
-        // Legacy wave-based spawning (optional)
-        _spawnTimer += deltaTime;
+            // Update wave elapsed time
+            spawnerComp.waveElapsedTime += deltaTime;
 
-        if (_spawnTimer >= _spawnInterval && _enemiesSpawned < _enemiesPerWave) {
-            // Spawn using legacy system if needed
-            _spawnTimer = 0.0f;
-            _enemiesSpawned++;
-        }
+            // Spawn enemies FIRST based on their individual delay within the wave
+            for (auto &enemy : currentWave.enemies) {
+                if (!enemy.hasSpawned && spawnerComp.waveElapsedTime >= enemy.spawnDelay) {
+                    _spawnEnemy(registry, enemy);
+                    enemy.hasSpawned = true;
+                }
+            }
 
-        if (_enemiesSpawned >= _enemiesPerWave) {
-            _waveNumber++;
-            _enemiesSpawned = 0;
-            _enemiesPerWave += 2;
+            // THEN check if it's time to advance to next wave
+            if (spawnerComp.waveElapsedTime >= waveInterval) {
+                // Check if all enemies in current wave have spawned
+                bool allSpawned = true;
+                for (const auto &enemy : currentWave.enemies) {
+                    if (!enemy.hasSpawned) {
+                        allSpawned = false;
+                        break;
+                    }
+                }
+
+                if (allSpawned) {
+                    spawnerComp.currentWaveIndex++;
+                    spawnerComp.waveElapsedTime = 0.0f;
+                    LOG_INFO("[SpawnSystem] Moving to wave ", spawnerComp.currentWaveIndex + 1);
+
+                    if (spawnerComp.currentWaveIndex >= wavesCount) {
+                        spawnerComp.isActive = false;
+                        LOG_INFO("[SpawnSystem] All waves completed for this spawner.");
+                    } else {
+                        // Reset hasSpawned flags for the next wave
+                        WaveConfig &nextWave = config.waves[spawnerComp.currentWaveIndex];
+                        for (auto &enemy : nextWave.enemies) {
+                            enemy.hasSpawned = false;
+                        }
+                        LOG_INFO("[SpawnSystem] Reset spawn flags for wave ",
+                                 spawnerComp.currentWaveIndex + 1);
+                    }
+                }
+            }
         }
     }
 
@@ -58,31 +98,53 @@ namespace ecs {
         try {
             Address enemy = registry.newEntity();
 
+            // Map enemy type string to numeric type
+            int enemyType = 0;  // Default: basic
+            float speed = 150.0f;
+            float colliderWidth = 40.0f;
+            float colliderHeight = 40.0f;
+
+            if (request.enemyType == "basic") {
+                enemyType = 0;
+                speed = 150.0f;
+                colliderWidth = 40.0f;
+                colliderHeight = 40.0f;
+            } else if (request.enemyType == "advanced" || request.enemyType == "heavy") {
+                enemyType = 1;
+                speed = 100.0f;
+                colliderWidth = 60.0f;
+                colliderHeight = 60.0f;
+            } else if (request.enemyType == "fast") {
+                enemyType = 2;
+                speed = 200.0f;
+                colliderWidth = 30.0f;
+                colliderHeight = 30.0f;
+            } else if (request.enemyType == "boss") {
+                enemyType = 3;
+                speed = 120.0f;
+                colliderWidth = 80.0f;
+                colliderHeight = 80.0f;
+            }
+
             registry.setComponent<Transform>(enemy, Transform(request.x, request.y));
-            registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, 200.0f));
+            registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, speed));
             registry.setComponent<Health>(
                 enemy, Health(static_cast<int>(request.health), static_cast<int>(request.health)));
-            registry.setComponent<Enemy>(enemy, Enemy(0, request.scoreValue));
+            registry.setComponent<Enemy>(enemy, Enemy(enemyType, request.scoreValue));
+            registry.setComponent<Collider>(
+                enemy, Collider(colliderWidth, colliderHeight, 0.0f, 0.0f, 2, 0xFFFFFFFF, false));
+            registry.setComponent<Weapon>(enemy,
+                                          Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, type 1, 15 damage
 
             if (!request.scriptPath.empty()) {
                 registry.setComponent<LuaScript>(enemy, LuaScript(request.scriptPath));
             }
 
-            LOG_INFO("[SpawnSystem] Spawned ", request.enemyType, " at (", request.x, ", ", request.y, ")");
+            LOG_INFO("[SpawnSystem] Spawned ", request.enemyType, " (type ", enemyType, ") at (", request.x,
+                     ", ", request.y, ") with entity ID: ", enemy);
         } catch (const std::exception &e) {
             LOG_ERROR("[SpawnSystem] Failed to spawn enemy: ", e.what());
         }
-    }
-
-    /**
-     * @brief Configures the spawn system for a specific wave.
-     */
-    void SpawnSystem::setWaveConfig(int waveNumber, int enemiesPerWave, float spawnInterval) {
-        _waveNumber = waveNumber;
-        _enemiesPerWave = enemiesPerWave;
-        _spawnInterval = spawnInterval;
-        _enemiesSpawned = 0;
-        _spawnTimer = 0.0f;
     }
 
     ComponentMask SpawnSystem::getComponentMask() const {

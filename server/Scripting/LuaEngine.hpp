@@ -60,6 +60,13 @@ namespace scripting {
         void executeUpdate(const std::string &scriptPath, ecs::wrapper::Entity entity, float deltaTime);
 
         /**
+         * @brief Execute onGameStart function for an entity's script.
+         * @param scriptPath Path to the script
+         * @param entity Entity wrapper
+         */
+        void executeOnGameStart(const std::string &scriptPath, ecs::wrapper::Entity entity);
+
+        /**
          * @brief Call a specific Lua function.
          * @param scriptPath Path to the script
          * @param functionName Name of the function to call

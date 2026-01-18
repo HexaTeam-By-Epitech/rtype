@@ -6,6 +6,7 @@
 */
 
 #include "Menu/BaseMenu.hpp"
+#include "Audio/ISoundEffectService.hpp"
 
 namespace Game {
     BaseMenu::BaseMenu(UI::IUIFactory &uiFactory) : _uiFactory(uiFactory) {
@@ -40,6 +41,22 @@ namespace Game {
         return _menu && _menu->IsVisible();
     }
 
+    void BaseMenu::SetSoundEffectService(Audio::ISoundEffectService *soundService) {
+        _soundService = soundService;
+    }
+
+    std::function<void()> BaseMenu::WrapWithClickSound(std::function<void()> callback) {
+        if (!callback) {
+            return callback;
+        }
+        return [this, cb = std::move(callback)]() {
+            if (_soundService) {
+                _soundService->PlayClickSound();
+            }
+            cb();
+        };
+    }
+
     std::shared_ptr<UI::IButton> BaseMenu::CreateCenteredButton(const char *label, float offsetY, float width,
                                                                 float height, unsigned int backgroundColor,
                                                                 unsigned int hoverColor,
@@ -60,7 +77,7 @@ namespace Game {
         button->SetTextSize(18);
         button->SetTextColor(0xFFFFFFFF);
         button->SetFont(-1);
-        button->SetCallback(std::move(callback));
+        button->SetCallback(WrapWithClickSound(std::move(callback)));
         return button;
     }
 }  // namespace Game

@@ -1,0 +1,14 @@
+{
+  "mapId": "endless_mode",
+  "name": "Mode Survie Infini",
+  "scrollSpeed": 40.0,
+  "background": "backgrounds/space_nebula.png",
+  "spawnScript": "maps/endless_spawn.lua",
+  "duration": 0.0,
+  "nextMap": "",
+  "metadata": {
+    "difficulty": "infinite",
+    "enemies": ["all"],
+    "description": "Survie sans fin avec difficulté croissante"
+  }
+}

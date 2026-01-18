@@ -23,6 +23,7 @@
 #include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Wall.hpp"
 #include "common/ECS/Components/Weapon.hpp"
 #include "common/ECS/Registry.hpp"
 #include "common/Logger/Logger.hpp"
@@ -132,6 +133,20 @@ namespace ecs {
          */
         static ecs::Address createHealthPack(ecs::Registry &registry, int healthRestore, float posX,
                                              float posY);
+
+        /**
+         * @brief Create a wall/obstacle entity
+         * @param registry ECS registry
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @param width Wall width
+         * @param height Wall height
+         * @param destructible Whether the wall can be destroyed
+         * @param health Health points (0 = indestructible)
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createWall(ecs::Registry &registry, float posX, float posY, float width,
+                                       float height, bool destructible = false, int health = 0);
 
        private:
         struct EnemySpawnData {

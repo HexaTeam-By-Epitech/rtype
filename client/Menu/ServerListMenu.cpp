@@ -83,7 +83,7 @@ namespace Game {
         addServerPtr->SetBackgroundColor(0xFF4CAF50);  // Green
         addServerPtr->SetHoverColor(0xFF66BB6A);
         addServerPtr->SetTextColor(0xFFFFFFFF);
-        addServerPtr->SetCallback([this]() { OnAddServerClicked(); });
+        addServerPtr->SetCallback(WrapWithClickSound([this]() { OnAddServerClicked(); }));
 
         _addServerButton = std::move(addServerPtr);
         _menu->AddButton(_addServerButton);
@@ -97,7 +97,7 @@ namespace Game {
         exitPtr->SetBackgroundColor(0xFFF44336);  // Red
         exitPtr->SetHoverColor(0xFFE57373);
         exitPtr->SetTextColor(0xFFFFFFFF);
-        exitPtr->SetCallback([this]() { OnBackClicked(); });
+        exitPtr->SetCallback(WrapWithClickSound([this]() { OnBackClicked(); }));
 
         _backButton = std::move(exitPtr);
         _menu->AddButton(_backButton);
@@ -148,7 +148,7 @@ namespace Game {
             buttonPtr->SetTextSize(16);
 
             size_t index = i;  // Capture by value for lambda
-            buttonPtr->SetCallback([this, index]() { OnServerClicked(index); });
+            buttonPtr->SetCallback(WrapWithClickSound([this, index]() { OnServerClicked(index); }));
 
             std::shared_ptr<UI::IButton> button = std::move(buttonPtr);
             _serverButtons.push_back(button);
@@ -164,7 +164,7 @@ namespace Game {
             deletePtr->SetHoverColor(0xFFE57373);
             deletePtr->SetTextColor(0xFFFFFFFF);
             deletePtr->SetTextSize(20);
-            deletePtr->SetCallback([this, index]() { OnDeleteServerClicked(index); });
+            deletePtr->SetCallback(WrapWithClickSound([this, index]() { OnDeleteServerClicked(index); }));
 
             std::shared_ptr<UI::IButton> deleteButton = std::move(deletePtr);
             _deleteButtons.push_back(deleteButton);
@@ -268,13 +268,13 @@ namespace Game {
             // Disable button when limit reached
             _addServerButton->SetBackgroundColor(0xFF757575);  // Gray
             _addServerButton->SetHoverColor(0xFF757575);       // Same gray (no hover effect)
-            _addServerButton->SetCallback(
-                []() { LOG_WARNING("[ServerListMenu] Cannot add server: maximum limit reached"); });
+            _addServerButton->SetCallback(WrapWithClickSound(
+                []() { LOG_WARNING("[ServerListMenu] Cannot add server: maximum limit reached"); }));
         } else {
             // Enable button
             _addServerButton->SetBackgroundColor(0xFF4CAF50);  // Green
             _addServerButton->SetHoverColor(0xFF66BB6A);
-            _addServerButton->SetCallback([this]() { OnAddServerClicked(); });
+            _addServerButton->SetCallback(WrapWithClickSound([this]() { OnAddServerClicked(); }));
         }
     }
 

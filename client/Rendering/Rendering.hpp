@@ -19,6 +19,9 @@
 #include "Events/UIEvent.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
+// Audio
+#include "Audio/SoundEffectManager.hpp"
+
 // UI library
 #include "Menu/AccessibilityMenu.hpp"
 #include "Menu/AddServerMenu.hpp"
@@ -425,6 +428,9 @@ class Rendering {
     uint32_t _width = 0;
     uint32_t _height = 0;
     Graphics::RaylibGraphics _graphics;
+
+    // ===== Audio =====
+    std::unique_ptr<Audio::SoundEffectManager> _soundEffectManager;
 
     // ===== Menu UI (business) =====
     std::unique_ptr<UI::RaylibUIFactory> _uiFactory;

@@ -16,6 +16,12 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                                   int health, const std::string &currentAnimation, int srcX, int srcY,
                                   int srcW, int srcH) {
+    // Debug: log Wall entities
+    if (type == RType::Messages::Shared::EntityType::Wall) {
+        LOG_INFO("EntityRenderer: Updating Wall entity ID=", id, " Pos=(", x, ",", y, ") Size=(", srcW, "x",
+                 srcH, ") Health=", health);
+    }
+
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
@@ -113,6 +119,22 @@ void EntityRenderer::render() {
         return;
     }
 
+    // Debug: count entities by type once per second
+    static int frameCount = 0;
+    if (++frameCount % 60 == 0) {
+        int wallCount = 0, playerCount = 0, enemyCount = 0;
+        for (const auto &[id, entity] : _entities) {
+            if (entity.type == RType::Messages::Shared::EntityType::Wall)
+                wallCount++;
+            else if (entity.type == RType::Messages::Shared::EntityType::Player)
+                playerCount++;
+            else if (entity.type == RType::Messages::Shared::EntityType::EnemyType1)
+                enemyCount++;
+        }
+        LOG_INFO("EntityRenderer: Rendering ", _entities.size(), " entities - Players:", playerCount,
+                 " Enemies:", enemyCount, " Walls:", wallCount);
+    }
+
     // Note: Interpolation is updated separately via updateInterpolation()
     // which should be called from GameLoop before render()
 
@@ -130,6 +152,11 @@ void EntityRenderer::render() {
             case RType::Messages::Shared::EntityType::EnemyBullet:
                 renderProjectile(entity);
                 break;
+
+            case RType::Messages::Shared::EntityType::Wall:
+                renderWall(entity);
+                break;
+
             default:
                 LOG_WARNING("Unknown entity type: ", static_cast<int>(entity.type));
                 break;
@@ -169,6 +196,13 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
         // Show local player indicator
         _graphics.DrawText(-1, "YOU", static_cast<int>(entity.x - 15), static_cast<int>(entity.y - 50), 14,
                            0x9DFF73AA);
+
+        // TODO: Add charge indicator
+        // When weapon is charging, show a progress bar or glow effect around the ship
+        // Example: Draw a circular progress bar based on charge level (0.0 to 1.0)
+        // if (entity.weaponChargeLevel > 0.0f) {
+        //     renderChargeIndicator(entity.x, entity.y, entity.weaponChargeLevel);
+        // }
     }
 }
 
@@ -217,8 +251,6 @@ void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
 
     _graphics.DrawTextureEx("Projectiles", srcX, srcY, srcWidth, srcHeight, entity.x - (srcWidth * scale / 2),
                             entity.y - (srcHeight * scale / 2), 0.0f, scale, tint);
-
-    // Projectiles typically don't have health bars
 }
 
 void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth) {
@@ -252,6 +284,48 @@ void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth
 
     // Optional: Border around health bar for visibility
     // _graphics.DrawRectangleBorder(barX, y, barWidth, barHeight, 1.0f, 0xFFFFFFFF);
+}
+
+void EntityRenderer::renderWall(const RenderableEntity &entity) {
+    // Wall rendering with Wall.png texture
+    float width = entity.spriteSizeX > 0 ? static_cast<float>(entity.spriteSizeX) : 50.0f;
+    float height = entity.spriteSizeY > 0 ? static_cast<float>(entity.spriteSizeY) : 50.0f;
+
+    // Calculate position (top-left corner for drawing)
+    float x = entity.x - width / 2.0f;
+    float y = entity.y - height / 2.0f;
+
+    // Color tint: ABGR format
+    uint32_t tint = 0xFFFFFFFF;  // White (no tint) by default
+    if (entity.health > 0) {
+        // Destructible wall - tint red when damaged
+        float healthRatio = entity.health / 100.0f;
+        uint8_t red = 255;
+        uint8_t green = static_cast<uint8_t>(255 * healthRatio);
+        uint8_t blue = static_cast<uint8_t>(255 * healthRatio);
+        // ABGR format: 0xAABBGGRR
+        tint = 0xFF000000 | (blue << 16) | (green << 8) | red;
+    }
+
+    // Draw Wall.png texture stretched to fit the wall dimensions
+    // For proper stretching, we need to use DrawTexturePro or tile it
+    // Let's just fill with solid color for now, more efficient for large walls
+    uint32_t wallColor = 0xFF13458B;  // Brown color in ARGB (0xAARRGGBB)
+    if (entity.health > 0) {
+        wallColor = tint;  // Use health-based tint for destructible walls
+    }
+
+    _graphics.DrawRectFilled(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width),
+                             static_cast<int>(height), wallColor);
+
+    // Draw border for visibility
+    _graphics.DrawRectangleLines(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width),
+                                 static_cast<int>(height), 0xFF000000);
+
+    // If destructible, show health bar
+    if (entity.health > 0) {
+        renderHealthBar(entity.x, y - 10.0f, entity.health, 100);
+    }
 }
 
 void EntityRenderer::renderDebugInfo(const RenderableEntity &entity) {

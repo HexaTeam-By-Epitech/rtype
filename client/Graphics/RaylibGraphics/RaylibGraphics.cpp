@@ -19,6 +19,12 @@ namespace Graphics {
         for (const auto &[name, texture] : _textures) {
             ::UnloadTexture(texture);
         }
+        for (const auto &[name, sound] : _sounds) {
+            ::UnloadSound(sound);
+        }
+        if (_audioInitialized) {
+            ::CloseAudioDevice();
+        }
     }
 
     // Window management
@@ -443,5 +449,70 @@ namespace Graphics {
         ::DrawTexturePro(_colorblindRenderTexture.texture, sourceRec, destRec, origin, 0.0f, WHITE);
 
         ::EndShaderMode();
+    }
+
+    // Audio management
+    void RaylibGraphics::InitAudioDevice() {
+        if (!_audioInitialized) {
+            ::InitAudioDevice();
+            _audioInitialized = true;
+        }
+    }
+
+    void RaylibGraphics::CloseAudioDevice() {
+        if (_audioInitialized) {
+            for (const auto &[name, sound] : _sounds) {
+                ::UnloadSound(sound);
+            }
+            _sounds.clear();
+            ::CloseAudioDevice();
+            _audioInitialized = false;
+        }
+    }
+
+    bool RaylibGraphics::IsAudioDeviceReady() const {
+        return _audioInitialized && ::IsAudioDeviceReady();
+    }
+
+    bool RaylibGraphics::LoadSound(const char *soundName, const char *filepath) {
+        if (!_audioInitialized) {
+            return false;
+        }
+        Sound sound = ::LoadSound(filepath);
+        if (sound.frameCount == 0) {
+            return false;
+        }
+        _sounds[soundName] = sound;
+        return true;
+    }
+
+    void RaylibGraphics::UnloadSound(const char *soundName) {
+        auto iter = _sounds.find(soundName);
+        if (iter != _sounds.end()) {
+            ::UnloadSound(iter->second);
+            _sounds.erase(iter);
+        }
+    }
+
+    void RaylibGraphics::PlaySound(const char *soundName) {
+        auto iter = _sounds.find(soundName);
+        if (iter != _sounds.end()) {
+            ::PlaySound(iter->second);
+        }
+    }
+
+    void RaylibGraphics::SetSoundVolume(const char *soundName, float volume) {
+        auto iter = _sounds.find(soundName);
+        if (iter != _sounds.end()) {
+            ::SetSoundVolume(iter->second, volume);
+        }
+    }
+
+    bool RaylibGraphics::IsSoundPlaying(const char *soundName) const {
+        auto iter = _sounds.find(soundName);
+        if (iter != _sounds.end()) {
+            return ::IsSoundPlaying(iter->second);
+        }
+        return false;
     }
 }  // namespace Graphics

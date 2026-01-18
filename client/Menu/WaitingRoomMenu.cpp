@@ -70,7 +70,7 @@ namespace Game {
             startGamePtr->SetBackgroundColor(0xFF4CAF50);  // Green
             startGamePtr->SetHoverColor(0xFF66BB6A);
             startGamePtr->SetTextColor(0xFFFFFFFF);
-            startGamePtr->SetCallback([this]() { OnStartGameClicked(); });
+            startGamePtr->SetCallback(WrapWithClickSound([this]() { OnStartGameClicked(); }));
 
             _startGameButton = std::move(startGamePtr);
             _menu->AddButton(_startGameButton);
@@ -84,7 +84,7 @@ namespace Game {
         backPtr->SetBackgroundColor(0xFF424242);  // Dark gray
         backPtr->SetHoverColor(0xFF616161);
         backPtr->SetTextColor(0xFFFFFFFF);
-        backPtr->SetCallback([this]() { OnBackClicked(); });
+        backPtr->SetCallback(WrapWithClickSound([this]() { OnBackClicked(); }));
 
         _backButton = std::move(backPtr);
         _menu->AddButton(_backButton);

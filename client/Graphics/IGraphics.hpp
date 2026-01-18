@@ -439,5 +439,57 @@ namespace Graphics {
      * @note Must be called after all draw calls and before DisplayWindow()
      */
         virtual void EndColorblindCapture() = 0;
+        // ========== Audio Management ==========
+
+        /**
+     * @brief Initialize the audio device
+     * @note Must be called before any audio operations
+     */
+        virtual void InitAudioDevice() = 0;
+
+        /**
+     * @brief Close the audio device and cleanup audio resources
+     */
+        virtual void CloseAudioDevice() = 0;
+
+        /**
+     * @brief Check if audio device is ready
+     * @return true if audio device is initialized
+     */
+        virtual bool IsAudioDeviceReady() const = 0;
+
+        /**
+     * @brief Load a sound from file
+     * @param soundName Unique name to identify the sound
+     * @param filepath Path to the sound file (e.g., .wav, .mp3, .ogg)
+     * @return true if sound was loaded successfully, false otherwise
+     */
+        virtual bool LoadSound(const char *soundName, const char *filepath) = 0;
+
+        /**
+     * @brief Unload a previously loaded sound
+     * @param soundName Name of the sound to unload
+     */
+        virtual void UnloadSound(const char *soundName) = 0;
+
+        /**
+     * @brief Play a loaded sound
+     * @param soundName Name of the sound to play
+     */
+        virtual void PlaySound(const char *soundName) = 0;
+
+        /**
+     * @brief Set volume for a specific sound
+     * @param soundName Name of the sound
+     * @param volume Volume level (0.0 to 1.0)
+     */
+        virtual void SetSoundVolume(const char *soundName, float volume) = 0;
+
+        /**
+     * @brief Check if a sound is currently playing
+     * @param soundName Name of the sound to check
+     * @return true if the sound is playing
+     */
+        virtual bool IsSoundPlaying(const char *soundName) const = 0;
     };
 }  // namespace Graphics

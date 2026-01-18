@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <memory>
+#include "Audio/ISoundEffectService.hpp"
 #include "UI/IButton.hpp"
 #include "UI/IMenu.hpp"
 #include "UI/Raylib/RaylibUIFactory.hpp"
@@ -66,7 +67,19 @@ namespace Game {
          */
         virtual void Initialize() = 0;
 
+        /**
+         * @brief Set the sound effect service for playing UI sounds.
+         * @param soundService Pointer to sound effect service (can be nullptr to disable sounds).
+         */
+        void SetSoundEffectService(Audio::ISoundEffectService *soundService);
+
        protected:
+        /**
+         * @brief Wrap a callback to play click sound before executing.
+         * @param callback Original callback function.
+         * @return Wrapped callback that plays click sound.
+         */
+        std::function<void()> WrapWithClickSound(std::function<void()> callback);
         /**
          * @brief Create a button with standard styling and positioning.
          * 
@@ -86,5 +99,6 @@ namespace Game {
 
         UI::IUIFactory &_uiFactory;
         std::shared_ptr<UI::IMenu> _menu;
+        Audio::ISoundEffectService *_soundService{nullptr};
     };
 }  // namespace Game

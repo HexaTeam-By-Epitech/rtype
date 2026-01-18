@@ -153,7 +153,13 @@ namespace AnimDB {
         ecs::AnimationSet animSet("Projectiles");
 
         animSet.addClip("projectile_fly",
-                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.2f, true));
+                        makeClip({{267, 84, 17, 13}, {284, 84, 17, 13}, {301, 84, 17, 13}}, 0.2F, true));
+        animSet.addClip("charged_projectile_1", makeClip(
+                                                    {
+                                                        {200, 121, 32, 10},
+                                                        {232, 121, 32, 10},
+                                                    },
+                                                    0.2F, true));
 
         return animSet;
     }

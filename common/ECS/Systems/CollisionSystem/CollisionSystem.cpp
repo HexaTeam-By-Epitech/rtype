@@ -7,6 +7,7 @@
 
 #include "CollisionSystem.hpp"
 #include "../../Components/IComponent.hpp"
+#include "../../Components/Wall.hpp"
 #include "common/Logger/Logger.hpp"
 
 namespace ecs {
@@ -44,12 +45,24 @@ namespace ecs {
 
                 if (checkAABB(transform1.getPosition(), collider1.getSize(), collider1.getOffset(),
                               transform2.getPosition(), collider2.getSize(), collider2.getOffset())) {
-                    // Handle player-collectible pickup
+                    // Check for wall collisions
+                    bool entity1IsWall = registry.hasComponent<Wall>(entity1);
+                    bool entity2IsWall = registry.hasComponent<Wall>(entity2);
                     bool entity1IsPlayer = registry.hasComponent<Player>(entity1);
                     bool entity2IsPlayer = registry.hasComponent<Player>(entity2);
                     bool entity1IsCollectible = registry.hasComponent<Collectible>(entity1);
                     bool entity2IsCollectible = registry.hasComponent<Collectible>(entity2);
 
+                    // Handle Player-Wall collision: block player movement
+                    if (entity1IsPlayer && entity2IsWall) {
+                        resolveWallCollision(entity1, entity2, transform1, collider1, transform2, collider2,
+                                             registry);
+                    } else if (entity2IsPlayer && entity1IsWall) {
+                        resolveWallCollision(entity2, entity1, transform2, collider2, transform1, collider1,
+                                             registry);
+                    }
+
+                    // Handle player-collectible pickup
                     if ((entity1IsPlayer && entity2IsCollectible) ||
                         (entity2IsPlayer && entity1IsCollectible)) {
                         LOG_DEBUG("[COLLISION] Player-Collectible collision detected: E", entity1, " & E",
@@ -195,17 +208,41 @@ namespace ecs {
                                     const Collider::Vector2 &offset1, const Transform::Vector2 &pos2,
                                     const Collider::Vector2 &size2, const Collider::Vector2 &offset2) const {
 
-        float left1 = pos1.x + offset1.x;
+        // Position is the CENTER of the entity, so we need to offset by half the size
+        float left1 = pos1.x + offset1.x - (size1.x / 2.0f);
         float right1 = left1 + size1.x;
-        float top1 = pos1.y + offset1.y;
+        float top1 = pos1.y + offset1.y - (size1.y / 2.0f);
         float bottom1 = top1 + size1.y;
 
-        float left2 = pos2.x + offset2.x;
+        float left2 = pos2.x + offset2.x - (size2.x / 2.0f);
         float right2 = left2 + size2.x;
-        float top2 = pos2.y + offset2.y;
+        float top2 = pos2.y + offset2.y - (size2.y / 2.0f);
         float bottom2 = top2 + size2.y;
 
         return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2);
+    }
+
+    /**
+     * @brief Resolves player-wall collision by instantly killing the player.
+     */
+    void CollisionSystem::resolveWallCollision(Address playerAddr, Address wallAddr,
+                                               Transform &playerTransform, Collider &playerCollider,
+                                               Transform &wallTransform, Collider &wallCollider,
+                                               Registry &registry) {
+        (void)wallAddr;
+        (void)playerTransform;
+        (void)playerCollider;
+        (void)wallTransform;
+        (void)wallCollider;
+
+        // Walls are instant death - deal massive damage to kill player
+        LOG_INFO("[COLLISION] Player touched wall - instant death!");
+
+        // Deal 9999 damage to ensure instant death
+        if (registry.hasComponent<Health>(playerAddr)) {
+            Health &health = registry.getComponent<Health>(playerAddr);
+            health.setCurrentHealth(0);
+        }
     }
 
     /**

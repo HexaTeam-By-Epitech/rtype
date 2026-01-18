@@ -58,7 +58,7 @@ namespace Game {
         _maxPlayersButton->SetBackgroundColor(0xFF2196F3);
         _maxPlayersButton->SetHoverColor(0xFF64B5F6);
         _maxPlayersButton->SetTextColor(0xFFFFFFFF);
-        _maxPlayersButton->SetCallback([this]() {
+        _maxPlayersButton->SetCallback(WrapWithClickSound([this]() {
             // Cycle through 2, 4, 8 players
             if (_selectedMaxPlayers == 4) {
                 _selectedMaxPlayers = 8;
@@ -68,7 +68,7 @@ namespace Game {
                 _selectedMaxPlayers = 4;
             }
             _maxPlayersButton->SetText("Max Players: " + std::to_string(_selectedMaxPlayers));
-        });
+        }));
         _menu->AddButton(_maxPlayersButton);
 
         // Private Toggle Button
@@ -79,12 +79,12 @@ namespace Game {
         _privateButton->SetBackgroundColor(0xFF9E9E9E);
         _privateButton->SetHoverColor(0xFFBDBDBD);
         _privateButton->SetTextColor(0xFFFFFFFF);
-        _privateButton->SetCallback([this]() {
+        _privateButton->SetCallback(WrapWithClickSound([this]() {
             _isPrivate = !_isPrivate;
             _privateButton->SetText(_isPrivate ? "Private: Yes" : "Private: No");
             _privateButton->SetBackgroundColor(_isPrivate ? 0xFFFFA726 : 0xFF9E9E9E);
             _privateButton->SetHoverColor(_isPrivate ? 0xFFFFB74D : 0xFFBDBDBD);
-        });
+        }));
         _menu->AddButton(_privateButton);
 
         // Game Speed Button (cycles through speed options: 100%, 75%, 50%, 25%)
@@ -118,7 +118,7 @@ namespace Game {
         _createButton->SetBackgroundColor(0xFF4CAF50);
         _createButton->SetHoverColor(0xFF66BB6A);
         _createButton->SetTextColor(0xFFFFFFFF);
-        _createButton->SetCallback([this]() { OnCreateClicked(); });
+        _createButton->SetCallback(WrapWithClickSound([this]() { OnCreateClicked(); }));
         _menu->AddButton(_createButton);
 
         // Cancel Button
@@ -129,7 +129,7 @@ namespace Game {
         _cancelButton->SetBackgroundColor(0xFF424242);
         _cancelButton->SetHoverColor(0xFF616161);
         _cancelButton->SetTextColor(0xFFFFFFFF);
-        _cancelButton->SetCallback([this]() { OnCancelClicked(); });
+        _cancelButton->SetCallback(WrapWithClickSound([this]() { OnCancelClicked(); }));
         _menu->AddButton(_cancelButton);
     }
 

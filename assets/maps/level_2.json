@@ -1,0 +1,14 @@
+{
+  "mapId": "level_2",
+  "name": "Zone Beta - Escalade",
+  "scrollSpeed": 60.0,
+  "background": "backgrounds/space_2.png",
+  "spawnScript": "maps/level_2_spawn.lua",
+  "duration": 120.0,
+  "nextMap": "level_3",
+  "metadata": {
+    "difficulty": "medium",
+    "enemies": ["basic", "advanced", "fast"],
+    "description": "Difficulté progressive avec ennemis variés"
+  }
+}

@@ -94,7 +94,7 @@ namespace Game {
             btn->SetBackgroundColor(color);
             btn->SetHoverColor(hover);
             btn->SetTextColor(0xFFFFFFFF);
-            btn->SetCallback(cb);
+            btn->SetCallback(WrapWithClickSound(cb));
 
             _menu->AddButton(btn);
         };
@@ -122,10 +122,10 @@ namespace Game {
         backBtn->SetBackgroundColor(0xFF424242);
         backBtn->SetHoverColor(0xFF616161);
         backBtn->SetTextColor(0xFFFFFFFF);
-        backBtn->SetCallback([this]() {
+        backBtn->SetCallback(WrapWithClickSound([this]() {
             if (_onBack)
                 _onBack();
-        });
+        }));
         _menu->AddButton(backBtn);
     }
 

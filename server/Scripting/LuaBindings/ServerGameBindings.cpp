@@ -18,6 +18,7 @@
 #include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Wall.hpp"
 #include "common/Logger/Logger.hpp"
 #include "server/Scripting/LuaEngine.hpp"
 
@@ -196,6 +197,38 @@ namespace scripting::bindings {
                     throw;
                 }
             });
+
+        // Spawn wall/obstacle
+        lua.set_function(
+            "spawnWall",
+            [world](float x, float y, float width, float height, sol::optional<bool> destructible,
+                    sol::optional<int> health) -> ecs::wrapper::Entity {
+                try {
+                    bool isDestructible = destructible.value_or(false);
+                    int wallHealth = health.value_or(0);
+
+                    auto entity = world->createEntity();
+                    entity.with(ecs::Transform(x, y));
+                    entity.with(ecs::Wall(isDestructible));
+                    entity.with(ecs::Collider(width, height, 0.0f, 0.0f, 16, 0xFFFFFFFF, false));
+                    entity.with(ecs::Sprite("Wall.png",
+                                            {0, 0, static_cast<int>(width), static_cast<int>(height)}, 1.0f,
+                                            0.0f, false, false, 0));
+
+                    if (isDestructible && wallHealth > 0) {
+                        entity.with(ecs::Health(wallHealth, wallHealth));
+                    }
+
+                    LOG_INFO("[LUA] Spawned wall at (", x, ", ", y, ") - Size: ", width, "x", height,
+                             isDestructible ? " [Destructible]" : " [Solid]");
+
+                    return entity;
+                } catch (const std::exception &e) {
+                    LOG_ERROR("[LUA] Failed to spawn wall: ", e.what());
+                    throw;
+                }
+            });
+
         // Queue a spawn request through a Spawner entity
         // Usage: queueSpawn(spawnerEntity, x, y, type, scriptPath, health, scoreValue)
         lua.set_function("queueSpawn", [world](ecs::wrapper::Entity spawner, float x, float y,
@@ -260,7 +293,7 @@ namespace scripting::bindings {
                         // Parse enemies in wave (using enemyConfigs key from Lua)
                         sol::optional<sol::table> enemiesTableOpt = waveTable["enemyConfigs"];
                         if (!enemiesTableOpt) {
-                            enemiesTableOpt = waveTable["enemies"];
+                            sol::optional<sol::table> enemiesTableOpt = waveTable["enemies"];
                         }
                         if (enemiesTableOpt) {
                             sol::table enemiesTable = enemiesTableOpt.value();

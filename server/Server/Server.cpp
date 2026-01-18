@@ -1720,7 +1720,10 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
     S2C::EntityState entityState;
     entityState.entityId = entity.getAddress();
 
-    // Get Transform (required - entity was queried with it)
+    // Get Transform (required - entity was queried with it, but might be destroyed by now)
+    if (!entity.has<ecs::Transform>()) {
+        throw std::runtime_error("Entity no longer has Transform component");
+    }
     ecs::Transform &transform = entity.get<ecs::Transform>();
     entityState.position.x = transform.getPosition().x;
     entityState.position.y = transform.getPosition().y;

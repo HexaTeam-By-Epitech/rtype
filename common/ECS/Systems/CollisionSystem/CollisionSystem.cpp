@@ -30,9 +30,11 @@ namespace ecs {
                 auto entity1 = entitiesVec[i];
                 auto entity2 = entitiesVec[j];
 
-                // Check if entities still exist (might have been marked for destruction)
+                // Check if entities still exist and have all required components
+                // (might have been marked for destruction or modified by other systems)
                 if (!registry.hasComponent<Transform>(entity1) ||
-                    !registry.hasComponent<Transform>(entity2)) {
+                    !registry.hasComponent<Transform>(entity2) || !registry.hasComponent<Collider>(entity1) ||
+                    !registry.hasComponent<Collider>(entity2)) {
                     continue;
                 }
 

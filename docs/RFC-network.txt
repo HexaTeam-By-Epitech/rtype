@@ -64,7 +64,7 @@ Message Routing:
 
 2.2 Unified Message Format
 
-All messages follow a consistent binary structure:
+**ALL messages** (connection, authentication, gameplay, lobby, chat) follow a consistent binary structure:
 
     +------------------------------------------+
     | Message Header (6 bytes)                 |
@@ -76,16 +76,40 @@ All messages follow a consistent binary structure:
     | Cap'n Proto Serialized DTO               |
     +------------------------------------------+
 
-Encoding (Little-Endian):
-- Type: Unique 16-bit message identifier
-- Length: Payload size in bytes (excludes header)
-- Payload: Cap'n Proto serialized message
+**This unified format applies to**:
+- ✅ HANDSHAKE_REQUEST / HANDSHAKE_RESPONSE (0x0001-0x0002)
+- ✅ REGISTER_REQUEST / REGISTER_RESPONSE (0x0007-0x0008)
+- ✅ LOGIN_REQUEST / LOGIN_RESPONSE (0x0009-0x000A)
+- ✅ PING / PONG (0x0005-0x0006)
+- ✅ C2S_PLAYER_INPUT / S2C_GAME_STATE (0x0100, 0x0200)
+- ✅ C2S_CHAT_MESSAGE / S2C_CHAT_MESSAGE (0x0307, 0x0406)
+- ✅ ALL other 31+ message types
 
-Safety Constraints:
+**Encoding (Little-Endian)**:
+- Type: Unique 16-bit message identifier (see Section 3.1)
+- Length: Payload size in bytes (excludes 6-byte header)
+- Payload: Cap'n Proto serialized DTO (see Section 8.2)
+
+**Example - REGISTER_REQUEST (0x0007)**:
+```
+Bytes:  07 00 | 1F 00 00 00 | [Cap'n Proto payload: 31 bytes]
+        ^^^^   ^^^^^^^^^^^^^^
+        Type   Length=31      Serialized RegisterAccount DTO
+```
+
+**Example - S2C_GAME_STATE (0x0200)**:
+```
+Bytes:  00 02 | E8 03 00 00 | [Cap'n Proto payload: 1000 bytes]
+        ^^^^   ^^^^^^^^^^^^^^
+        Type   Length=1000    Serialized GameState DTO
+```
+
+**Safety Constraints**:
 - Maximum payload size: 10 MB (configurable, default for DoS prevention)
 - Maximum string size: 1 MB (individual field limit)
 - Packet validation: Length must match actual payload size
 - Integer overflow protection: All size calculations validated
+- Type validation: Unknown types silently dropped (see Section 7.4)
 
 2.3 Security Model
 The protocol implements layered security:
@@ -157,6 +181,137 @@ All message types are uint16_t identifiers grouped by category:
 - 0x0405 S2C_ROOM_STATE     - Current room state (players, status)
 - 0x0406 S2C_CHAT_MESSAGE   - Chat message from server/other players
 - 0x0407 S2C_LEFT_ROOM      - Notification of room leaving
+
+3.1b C2S (Client-to-Server) vs S2C (Server-to-Client) Communication Schema
+
+**Message Direction Summary**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     NETWORK COMMUNICATION SCHEMA                 │
+└─────────────────────────────────────────────────────────────────┘
+
+                          CONNECTION PHASE
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    ├─ HANDSHAKE_REQUEST (0x0001) ──────────>│               │
+│    │                                         │ [Validate]    │
+│    │  <──────── HANDSHAKE_RESPONSE (0x0002) ┤               │
+│    │                                         │               │
+│    ├─ REGISTER_REQUEST (0x0007) ───────────>│               │
+│    │                                         │ [DB Insert]   │
+│    │  <──────── REGISTER_RESPONSE (0x0008)  ┤               │
+│    │                                         │               │
+│    ├─ LOGIN_REQUEST (0x0009) ──────────────>│               │
+│    │                                         │ [DB Check]    │
+│    │  <────────── LOGIN_RESPONSE (0x000A)   ┤               │
+│    │                                         │               │
+│    ├─ PING (0x0005) ────────────────────────>│               │
+│    │  <────────────────── PONG (0x0006)     ┤               │
+│    │                                         │               │
+│    └─ [UDP Linked, Ready for Gameplay]      │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
+
+                        LOBBY MANAGEMENT PHASE
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    ├─ LIST_ROOMS (0x0300) ─────────────────>│               │
+│    │  <──────── ROOM_LIST (0x0400)          │               │
+│    │                                         │               │
+│    ├─ CREATE_ROOM (0x0301) ───────────────>│               │
+│    │  <──────── ROOM_CREATED (0x0401)      │               │
+│    │                                         │               │
+│    ├─ JOIN_ROOM (0x0302) ──────────────────>│               │
+│    │  <──────── JOINED_ROOM (0x0402)       │               │
+│    │  <──────── ROOM_STATE (0x0405) [Broadcast] ┤           │
+│    │                                         │               │
+│    ├─ START_MATCHMAKING (0x0303) ─────────>│               │
+│    │  <──────── MATCHMAKING_STARTED (0x0403)   ┤           │
+│    │  <──────── MATCH_FOUND (0x0404)       │               │
+│    │                                         │               │
+│    ├─ CHAT_MESSAGE (0x0307) ───────────────>│               │
+│    │  <──────── CHAT_MESSAGE (0x0406) [Broadcast] ┤         │
+│    │                                         │               │
+│    └─ [Room joined, waiting for game start] │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
+
+                      GAMEPLAY LOOP PHASE (60 Hz)
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    ├─ C2S_PLAYER_INPUT (0x0100) ──────────>│               │
+│    │  [Move, Shoot, Actions]                 │ [Process]    │
+│    │                                         │               │
+│    │  <──────── S2C_GAME_STATE (0x0200)     │               │
+│    │  [Entity states, positions, health]     │               │
+│    │                                         │               │
+│    │  <─── S2C_ENTITY_DESTROYED (0x0202)   │               │
+│    │  [Entity killed, removed]               │               │
+│    │                                         │               │
+│    │  <──────── S2C_GAMERULE_UPDATE (0x0204)  ┤             │
+│    │  [Speed multiplier, etc.]               │               │
+│    │                                         │               │
+│    └─ [Repeat every 16.67 ms]               │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
+
+                      GAME ENDING PHASE
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    │  <──────── S2C_GAME_OVER (0x0203)      │               │
+│    │  [Victory / Defeat / Draw]              │               │
+│    │                                         │               │
+│    ├─ LEAVE_ROOM (0x0306) ─────────────────>│               │
+│    │  <──────── LEFT_ROOM (0x0407)          │               │
+│    │                                         │               │
+│    ├─ DISCONNECT (0x0003) ──────────────────>│               │
+│    │                                         │               │
+│    └─ [Connection closed]                   │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
+
+                       ERROR / FORCED KICK
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    │  <──────────── KICK (0x0004) ──────────┤               │
+│    │  [Immediate disconnect + ban]           │               │
+│    │                                         │               │
+│    └─ [Connection terminated]               │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Key Observations**:
+
+1. **Request/Response Pattern**:
+   - Most C2S messages expect S2C response
+   - Exception: C2S_PLAYER_INPUT (no acknowledgment, latest wins)
+
+2. **Broadcast Messages**:
+   - S2C_ROOM_STATE sent to ALL players in room
+   - S2C_GAME_STATE sent to ALL players in game
+   - S2C_CHAT_MESSAGE sent to ALL room members
+
+3. **Synchronous vs Asynchronous**:
+   - Auth phase: Synchronous (request → response)
+   - Gameplay: Asynchronous (input streams continuously)
+   - Room management: Mixed (requests get responses, broadcasts are one-way)
+
+4. **Error Paths**:
+   - KICK: No negotiation (immediate disconnect)
+   - DISCONNECT: Graceful shutdown (client-initiated or server-initiated)
+   - Timeouts: Silent disconnect after 15 seconds
 
 3.2 Channel Assignment
 

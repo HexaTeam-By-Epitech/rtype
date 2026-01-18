@@ -6,6 +6,7 @@
 */
 
 #include "WeaponSystem.hpp"
+#include <cmath>
 #include "common/Animation/AnimationDatabase.hpp"
 #include "common/ECS/Components/Animation.hpp"
 #include "common/ECS/Components/AnimationSet.hpp"
@@ -76,48 +77,39 @@ namespace ecs {
         }
 
         auto &weapon = registry.getComponent<Weapon>(ownerId);
+        float damage = weapon.getDamage();
+        float baseSpeed = 500.0f;  // Default projectile speed
 
-        // Calculate projectile properties
+        // Check for multishot buffs
+        int shotCount = 1;
+
+        if (registry.hasComponent<Buff>(ownerId)) {
+            const Buff &buff = registry.getComponent<Buff>(ownerId);
+
+            // Check all multishot buffs and keep the highest
+            if (buff.hasBuff(BuffType::MultiShot)) {
+                shotCount = 5;  // MultiShot fires 5 projectiles in a spread
+            }
+            if (buff.hasBuff(BuffType::TripleShot) && shotCount < 3) {
+                shotCount = 3;
+            }
+            if (buff.hasBuff(BuffType::DoubleShot) && shotCount < 2) {
+                shotCount = 2;
+            }
+        }
+
+        // Fire multiple shots if multishot buff is active
+        if (shotCount > 1) {
+            fireMultipleShots(registry, ownerId, damage, baseSpeed, isFriendly, false, shotCount);
+            return 0;  // Return 0 as we created multiple projectiles
+        }
+
+        // Single shot - create projectile
         Transform projectileTransform = calculateProjectileTransform(registry, ownerId);
-        Velocity projectileVelocity = calculateProjectileVelocity(300.0F);  // Base speed: 300 units/sec
+        Velocity projectileVelocity = calculateProjectileVelocity(baseSpeed);
 
-        auto projectileId = registry.newEntity();
-
-        registry.setComponent(projectileId, projectileTransform);
-        registry.setComponent(projectileId, projectileVelocity);
-        registry.setComponent(projectileId, Projectile(weapon.getDamage(), 10.0f, ownerId, isFriendly));
-
-        // Add projectile animations
-        ecs::AnimationSet bulletAnimations = AnimDB::createPlayerBulletAnimations();
-        registry.setComponent(projectileId, bulletAnimations);
-        registry.setComponent(projectileId, ecs::Animation("projectile_fly", true, true));
-
-        // Create sprite with explicit Rectangle
-        ecs::Rectangle projRect = {267, 84, 17, 13};
-        ecs::Sprite projSprite("Projectiles", projRect, 2.0f, 0.0f, false, false, 0);
-        registry.setComponent(projectileId, projSprite);
-
-        // Debug: verify sprite was created correctly
-        LOG_DEBUG("Created projectile ", projectileId, " with Sprite rect(", projRect.x, ",", projRect.y, ",",
-                  projRect.width, ",", projRect.height, ")");
-
-        // Reset weapon cooldown
-        float fireRate = weapon.getFireRate();
-        if (fireRate > 0.0F) {
-            weapon.setCooldown(1.0F / fireRate);  // Convert fire rate (shots/sec) to cooldown (sec/shot)
-        }
-
-        // Invoke callback if set and projectile was created
-        if (_projectileCreatedCallback && projectileId != 0) {
-            auto &transform = registry.getComponent<Transform>(projectileId);
-            auto &velocity = registry.getComponent<Velocity>(projectileId);
-            auto pos = transform.getPosition();
-            auto dir = velocity.getDirection();
-            _projectileCreatedCallback(projectileId, ownerId, pos.x, pos.y, dir.x, dir.y, 300.0f,
-                                       static_cast<int>(weapon.getDamage()), isFriendly);
-        }
-
-        return projectileId;
+        return createProjectile(registry, ownerId, projectileTransform, projectileVelocity, damage,
+                                isFriendly, false);
     }
 
     Velocity WeaponSystem::calculateProjectileVelocity(float baseSpeed) {
@@ -160,59 +152,140 @@ namespace ecs {
         float damageMultiplier = 1.0F + chargeLevel * 1.5F;  // Up to 2.5x at full charge
         float speedMultiplier = 1.0F + chargeLevel * 0.5F;   // Up to 1.5x at full charge
 
-        // Calculate projectile properties
+        float chargedDamage = weapon.getDamage() * damageMultiplier;
+        float chargedSpeed = 500.0f * speedMultiplier;  // Default projectile speed with charge multiplier
+
+        // Check for multishot buffs
+        int shotCount = 1;
+
+        if (registry.hasComponent<Buff>(ownerId)) {
+            const Buff &buff = registry.getComponent<Buff>(ownerId);
+
+            // Check all multishot buffs and keep the highest
+            if (buff.hasBuff(BuffType::MultiShot)) {
+                shotCount = 5;
+            }
+            if (buff.hasBuff(BuffType::TripleShot) && shotCount < 3) {
+                shotCount = 3;
+            }
+            if (buff.hasBuff(BuffType::DoubleShot) && shotCount < 2) {
+                shotCount = 2;
+            }
+        }
+
+        // Fire multiple shots if multishot buff is active
+        if (shotCount > 1) {
+            fireMultipleShots(registry, ownerId, chargedDamage, chargedSpeed, isFriendly, true, shotCount);
+            return 0;
+        }
+
+        // Single charged shot
         Transform projectileTransform = calculateProjectileTransform(registry, ownerId);
-        float chargedSpeed = 300.0F * speedMultiplier;
         Velocity projectileVelocity = calculateProjectileVelocity(chargedSpeed);
 
-        // Create projectile entity
+        return createProjectile(registry, ownerId, projectileTransform, projectileVelocity, chargedDamage,
+                                isFriendly, true);
+    }
+
+    ComponentMask WeaponSystem::getComponentMask() const {
+        return (1ULL << getComponentType<Weapon>()) | (1ULL << getComponentType<Transform>());
+    }
+
+    std::uint32_t WeaponSystem::createProjectile(Registry &registry, std::uint32_t ownerId,
+                                                 const Transform &transform, const Velocity &velocity,
+                                                 float damage, bool isFriendly, bool isCharged) {
         auto projectileId = registry.newEntity();
 
-        // Set components with charge-boosted damage
-        registry.setComponent(projectileId, projectileTransform);
-        registry.setComponent(projectileId, projectileVelocity);
-        float chargedDamage = weapon.getDamage() * damageMultiplier;
-        registry.setComponent(projectileId, Projectile(chargedDamage, 10.0F, ownerId, isFriendly));
+        registry.setComponent(projectileId, transform);
+        registry.setComponent(projectileId, velocity);
+        registry.setComponent(projectileId, Projectile(damage, 10.0f, ownerId, isFriendly));
 
-        // Add projectile animations with charge-based sprite selection
+        // Add projectile animations
         ecs::AnimationSet bulletAnimations = AnimDB::createPlayerBulletAnimations();
         registry.setComponent(projectileId, bulletAnimations);
 
-        // Select animation and sprite based on charge level
-        std::string animationName = "projectile_fly";
-        ecs::Rectangle chargedRect = {267, 84, 17, 13};  // Default normal projectile
-        float scale = 2.0f;
-
-        animationName = "charged_projectile_1";
+        // Select animation and sprite based on shot type
+        std::string animationName = isCharged ? "charged_projectile_1" : "projectile_fly";
+        ecs::Rectangle projRect = {267, 84, 17, 13};
+        float scale = isCharged ? 2.5f : 2.0f;
 
         registry.setComponent(projectileId, ecs::Animation(animationName, true, true));
-        ecs::Sprite chargedSprite("Projectiles", chargedRect, scale, 0.0f, false, false, 0);
-        registry.setComponent(projectileId, chargedSprite);
+        ecs::Sprite projSprite("Projectiles", projRect, scale, 0.0f, false, false, 0);
+        registry.setComponent(projectileId, projSprite);
 
-        LOG_DEBUG("Created charged projectile ", projectileId, " (charge: ", chargeLevel,
-                  ", anim: ", animationName, ") with Sprite rect(", chargedRect.x, ",", chargedRect.y, ",",
-                  chargedRect.width, ",", chargedRect.height, ") scale: ", scale);
+        LOG_DEBUG("Created projectile ", projectileId, " (charged:", isCharged, ") with damage:", damage);
 
         // Reset weapon cooldown
-        float fireRate = weapon.getFireRate();
-        if (fireRate > 0.0F) {
-            weapon.setCooldown(1.0F / fireRate);
+        if (registry.hasComponent<Weapon>(ownerId)) {
+            auto &weapon = registry.getComponent<Weapon>(ownerId);
+            float fireRate = weapon.getFireRate();
+            if (fireRate > 0.0F) {
+                weapon.setCooldown(1.0F / fireRate);
+            }
         }
 
-        // Invoke callback if set and projectile was created
+        // Invoke callback if set
         if (_projectileCreatedCallback && projectileId != 0) {
-            auto &transform = registry.getComponent<Transform>(projectileId);
-            auto &velocity = registry.getComponent<Velocity>(projectileId);
             auto pos = transform.getPosition();
             auto dir = velocity.getDirection();
-            _projectileCreatedCallback(projectileId, ownerId, pos.x, pos.y, dir.x, dir.y, chargedSpeed,
-                                       static_cast<int>(chargedDamage), isFriendly);
+            float speed = velocity.getSpeed();
+            _projectileCreatedCallback(projectileId, ownerId, pos.x, pos.y, dir.x, dir.y, speed,
+                                       static_cast<int>(damage), isFriendly);
         }
 
         return projectileId;
     }
 
-    ComponentMask WeaponSystem::getComponentMask() const {
-        return (1ULL << getComponentType<Weapon>()) | (1ULL << getComponentType<Transform>());
+    void WeaponSystem::fireMultipleShots(Registry &registry, std::uint32_t ownerId, float damage, float speed,
+                                         bool isFriendly, bool isCharged, int shotCount) {
+        if (!registry.hasComponent<Transform>(ownerId)) {
+            return;
+        }
+
+        // Calculate angle spread based on shot count
+        float angleSpread = 0.0f;
+        float startAngle = 0.0f;
+
+        switch (shotCount) {
+            case 2:                   // DoubleShot
+                angleSpread = 15.0f;  // 15 degrees apart
+                startAngle = -7.5f;   // Center the spread
+                break;
+            case 3:  // TripleShot
+                angleSpread = 15.0f;
+                startAngle = -15.0f;
+                break;
+            case 5:  // MultiShot
+                angleSpread = 15.0f;
+                startAngle = -30.0f;
+                break;
+            default:
+                angleSpread = 10.0f;
+                startAngle = -(angleSpread * (shotCount - 1)) / 2.0f;
+                break;
+        }
+
+        Transform baseTransform = calculateProjectileTransform(registry, ownerId);
+
+        // Fire each projectile with different angle
+        for (int i = 0; i < shotCount; i++) {
+            float angle = startAngle + (i * angleSpread);
+            float angleRad = angle * 3.14159f / 180.0f;
+
+            // Calculate velocity with angle
+            float dirX = std::cos(angleRad);
+            float dirY = std::sin(angleRad);
+            Velocity projectileVelocity(dirX, dirY, speed);
+
+            // Slightly offset Y position for visual variety
+            Transform projectileTransform = baseTransform;
+            auto pos = projectileTransform.getPosition();
+            projectileTransform.setPosition(pos.x, pos.y + (i - shotCount / 2) * 5.0f);
+
+            createProjectile(registry, ownerId, projectileTransform, projectileVelocity, damage, isFriendly,
+                             isCharged);
+        }
+
+        LOG_INFO("[WEAPON] Fired ", shotCount, " projectiles with multishot buff");
     }
 }  // namespace ecs

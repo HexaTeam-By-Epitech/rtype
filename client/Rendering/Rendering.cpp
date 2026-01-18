@@ -169,6 +169,7 @@ void Rendering::InitializeSettingsMenu() {
         }
 
         if (_entityRenderer) {
+            _entityRenderer->clearBackground();  // Clear background when leaving game
             _entityRenderer->clearAllEntities();
         }
         _entityRenderer.reset();
@@ -785,6 +786,8 @@ void Rendering::UpdateUI() {
 
 void Rendering::RenderGameScene() {
     if (_scene == Scene::IN_GAME && _entityRenderer) {
+        // Update background scroll before rendering
+        _entityRenderer->updateBackground(_graphics.GetDeltaTime());
         _entityRenderer->render();
     }
 }
@@ -942,6 +945,25 @@ void Rendering::SetMyEntityId(uint32_t id) {
 void Rendering::ClearAllEntities() {
     if (_entityRenderer) {
         _entityRenderer->clearAllEntities();
+    }
+}
+
+void Rendering::SetBackground(const std::string &mainBackground, const std::string &parallaxBackground,
+                              float scrollSpeed, float parallaxSpeedFactor) {
+    if (_entityRenderer) {
+        _entityRenderer->setBackground(mainBackground, parallaxBackground, scrollSpeed, parallaxSpeedFactor);
+    }
+}
+
+void Rendering::ClearBackground() {
+    if (_entityRenderer) {
+        _entityRenderer->clearBackground();
+    }
+}
+
+void Rendering::UpdateBackground(float deltaTime) {
+    if (_entityRenderer) {
+        _entityRenderer->updateBackground(deltaTime);
     }
 }
 

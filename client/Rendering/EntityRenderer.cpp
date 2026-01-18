@@ -169,6 +169,13 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
         // Show local player indicator
         _graphics.DrawText(-1, "YOU", static_cast<int>(entity.x - 15), static_cast<int>(entity.y - 50), 14,
                            0x9DFF73AA);
+
+        // TODO: Add charge indicator
+        // When weapon is charging, show a progress bar or glow effect around the ship
+        // Example: Draw a circular progress bar based on charge level (0.0 to 1.0)
+        // if (entity.weaponChargeLevel > 0.0f) {
+        //     renderChargeIndicator(entity.x, entity.y, entity.weaponChargeLevel);
+        // }
     }
 }
 
@@ -217,8 +224,6 @@ void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
 
     _graphics.DrawTextureEx("Projectiles", srcX, srcY, srcWidth, srcHeight, entity.x - (srcWidth * scale / 2),
                             entity.y - (srcHeight * scale / 2), 0.0f, scale, tint);
-
-    // Projectiles typically don't have health bars
 }
 
 void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth) {

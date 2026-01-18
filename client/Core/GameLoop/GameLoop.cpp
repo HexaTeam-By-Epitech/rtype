@@ -181,6 +181,11 @@ void GameLoop::run() {
     } else {
         LOG_INFO("✓ Loaded Wall.png (obstacles)");
     }
+    if (!_rendering->LoadTexture("OrbitalModule", "assets/sprites/Module.gif")) {
+        LOG_WARNING("Failed to load Module.gif");
+    } else {
+        LOG_INFO("✓ Loaded Module.gif (orbital modules)");
+    }
 
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {
@@ -494,6 +499,15 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
     try {
         auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
         LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
+
+        // Set up parallax background using map config from server
+        if (_rendering) {
+            const auto &mapConfig = gameStart.mapConfig;
+            LOG_INFO("Map config: bg='", mapConfig.background, "', parallax='", mapConfig.parallaxBackground,
+                     "', speed=", mapConfig.scrollSpeed, ", parallaxFactor=", mapConfig.parallaxSpeedFactor);
+            _rendering->SetBackground(mapConfig.background, mapConfig.parallaxBackground,
+                                      mapConfig.scrollSpeed, mapConfig.parallaxSpeedFactor);
+        }
 
         for (const auto &entity : gameStart.initialState.entities) {
             if (entity.entityId == gameStart.yourEntityId) {

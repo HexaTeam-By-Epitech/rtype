@@ -120,7 +120,31 @@ namespace ecs {
                                   Registry &registry);
 
         /**
-         * @brief Handle projectile-entity collisions and apply damage.
+         * @brief Handle collision between orbital module and enemy.
+         * 
+         * Applies damage from the module to the enemy on contact.
+         * 
+         * @param moduleAddr Orbital module entity address
+         * @param enemyAddr Enemy entity address
+         * @param registry Reference to the ECS registry
+         */
+        void handleModuleEnemyCollision(Address moduleAddr, Address enemyAddr, Registry &registry);
+
+        /**
+         * @brief Handle collision between orbital module and projectile.
+         * 
+         * Blocks enemy projectiles by destroying them on contact with the module.
+         * 
+         * @param moduleAddr Orbital module entity address
+         * @param projectileAddr Projectile entity address
+         * @param registry Reference to the ECS registry
+         * @param entitiesToDestroy Vector to collect entities that should be destroyed
+         */
+        void handleModuleProjectileCollision(Address moduleAddr, Address projectileAddr, Registry &registry,
+                                             std::vector<Address> &entitiesToDestroy);
+
+        /**
+         * @brief Handle projectile collision with other entities.
          * 
          * Checks if a collision involves a projectile and a damageable entity (enemy/player).
          * Applies damage based on projectile properties and marks projectile for destruction.

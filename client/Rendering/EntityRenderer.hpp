@@ -92,9 +92,23 @@ class EntityRenderer {
     };
 
     /**
+     * @struct BackgroundConfig
+     * @brief Configuration for scrolling parallax backgrounds
+     */
+    struct BackgroundConfig {
+        std::string textureName;  ///< Texture name (loaded texture)
+        std::string texturePath;  ///< Asset path for texture loading
+        float scrollSpeed;        ///< Scroll speed in pixels/second
+        float scrollOffset;       ///< Current scroll offset (updates each frame)
+        int textureWidth;         ///< Texture width for tiling
+        int textureHeight;        ///< Texture height for tiling
+        bool loaded;              ///< Whether texture is loaded
+    };
+
+    /**
          * @brief Constructor
          * @param graphics Reference to the graphics subsystem (RaylibGraphics)
-         * 
+         *
          * The EntityRenderer does not own the graphics object, it only
          * holds a reference to use its drawing primitives.
          */
@@ -142,10 +156,38 @@ class EntityRenderer {
 
     /**
          * @brief Clear all entities from the cache
-         * 
+         *
          * Useful for scene transitions or when disconnecting from server.
          */
     void clearAllEntities();
+
+    /**
+     * @brief Set up background layers for parallax scrolling
+     * @param mainBackground Path to the main background texture
+     * @param parallaxBackground Path to the parallax layer texture (rendered on top, scrolls slower)
+     * @param scrollSpeed Base scroll speed in pixels/second
+     * @param parallaxSpeedFactor Speed factor for parallax layer (0.5 = half speed)
+     *
+     * The main background scrolls at scrollSpeed, while the parallax layer
+     * scrolls at scrollSpeed * parallaxSpeedFactor for depth effect.
+     */
+    void setBackground(const std::string &mainBackground, const std::string &parallaxBackground,
+                       float scrollSpeed, float parallaxSpeedFactor);
+
+    /**
+     * @brief Clear background configuration
+     *
+     * Called when leaving the game scene to stop background rendering.
+     */
+    void clearBackground();
+
+    /**
+     * @brief Update background scroll positions
+     * @param deltaTime Time elapsed since last frame (in seconds)
+     *
+     * Should be called every frame to advance the scrolling animation.
+     */
+    void updateBackground(float deltaTime);
 
     /**
          * @brief Set the local player's entity ID for visual differentiation
@@ -302,6 +344,12 @@ class EntityRenderer {
     void renderWall(const RenderableEntity &entity);
 
     /**
+         * @brief Render an orbital module (drone)
+         * @param entity Orbital module entity to render
+         */
+    void renderOrbitalModule(const RenderableEntity &entity);
+
+    /**
          * @brief Render a health bar above an entity
          * @param x World position X (centered)
          * @param y World position Y (above entity)
@@ -316,11 +364,19 @@ class EntityRenderer {
     /**
          * @brief Render debug information for an entity
          * @param entity Entity to display debug info for
-         * 
+         *
          * Shows entity ID and health as text overlay.
          * Only rendered when _showDebugInfo is true.
          */
     void renderDebugInfo(const RenderableEntity &entity);
+
+    /**
+     * @brief Render scrolling background layers
+     *
+     * Draws both the main background and parallax layer with their
+     * respective scroll offsets for parallax depth effect.
+     */
+    void renderBackground();
 
     /**
      * @brief Linear interpolation between two values
@@ -377,4 +433,15 @@ class EntityRenderer {
 
     /// Track whether local player is currently moving (used for reconciliation logic)
     bool _localPlayerIsMoving = false;
+
+    // ===== Background configuration =====
+
+    /// Main background layer (scrolls at map's scroll speed)
+    BackgroundConfig _mainBackground;
+
+    /// Parallax background layer (rendered on top, scrolls slower for depth effect)
+    BackgroundConfig _parallaxBackground;
+
+    /// Whether backgrounds are configured and active
+    bool _backgroundActive = false;
 };

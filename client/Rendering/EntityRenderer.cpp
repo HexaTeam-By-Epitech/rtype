@@ -165,6 +165,165 @@ void EntityRenderer::clearAllEntities() {
     _entities.clear();
 }
 
+void EntityRenderer::setBackground(const std::string &mainBackground, const std::string &parallaxBackground,
+                                   float scrollSpeed, float parallaxSpeedFactor) {
+    // Clear previous backgrounds
+    clearBackground();
+
+    // Always activate background (even with just black)
+    _backgroundActive = true;
+
+    // Configure main background (if provided)
+    if (!mainBackground.empty()) {
+        _mainBackground.texturePath = mainBackground;
+        _mainBackground.textureName = "bg_main";
+        _mainBackground.scrollSpeed = scrollSpeed;
+        _mainBackground.scrollOffset = 0.0f;
+        _mainBackground.loaded = false;
+
+        // Load texture
+        std::string fullPath = "assets/" + mainBackground;
+        if (_graphics.LoadTexture(_mainBackground.textureName.c_str(), fullPath.c_str()) == 0) {
+            _graphics.GetTextureSize(_mainBackground.textureName.c_str(), _mainBackground.textureWidth,
+                                     _mainBackground.textureHeight);
+            _mainBackground.loaded = true;
+            LOG_INFO("Loaded main background: ", fullPath, " (", _mainBackground.textureWidth, "x",
+                     _mainBackground.textureHeight, ")");
+        } else {
+            LOG_WARNING("Failed to load main background: ", fullPath, " - using black background");
+        }
+    } else {
+        LOG_INFO("No main background defined - using black background");
+    }
+
+    // Configure parallax background (rendered on top, scrolls slower) - only if provided
+    if (!parallaxBackground.empty()) {
+        _parallaxBackground.texturePath = parallaxBackground;
+        _parallaxBackground.textureName = "bg_parallax";
+        _parallaxBackground.scrollSpeed = scrollSpeed * parallaxSpeedFactor;
+        _parallaxBackground.scrollOffset = 0.0f;
+        _parallaxBackground.loaded = false;
+
+        // Load texture
+        std::string fullPath = "assets/" + parallaxBackground;
+        if (_graphics.LoadTexture(_parallaxBackground.textureName.c_str(), fullPath.c_str()) == 0) {
+            _graphics.GetTextureSize(_parallaxBackground.textureName.c_str(),
+                                     _parallaxBackground.textureWidth, _parallaxBackground.textureHeight);
+            _parallaxBackground.loaded = true;
+            LOG_INFO("Loaded parallax background: ", fullPath, " (", _parallaxBackground.textureWidth, "x",
+                     _parallaxBackground.textureHeight, ") speed factor: ", parallaxSpeedFactor);
+        } else {
+            LOG_WARNING("Failed to load parallax background: ", fullPath, " - no parallax layer");
+        }
+    }
+    // If no parallaxBackground provided, simply don't render any parallax layer (transparent)
+
+    LOG_INFO("Background system activated (main: ", _mainBackground.loaded ? "loaded" : "black",
+             ", parallax: ", _parallaxBackground.loaded ? "loaded" : "none", ")");
+}
+
+void EntityRenderer::clearBackground() {
+    if (_mainBackground.loaded) {
+        _graphics.UnloadTexture(_mainBackground.textureName.c_str());
+        _mainBackground = BackgroundConfig{};
+    }
+    if (_parallaxBackground.loaded) {
+        _graphics.UnloadTexture(_parallaxBackground.textureName.c_str());
+        _parallaxBackground = BackgroundConfig{};
+    }
+    _backgroundActive = false;
+    LOG_DEBUG("Background system deactivated");
+}
+
+void EntityRenderer::updateBackground(float deltaTime) {
+    if (!_backgroundActive) {
+        return;
+    }
+
+    // Update scroll offsets (scrolling left = negative offset increases)
+    if (_mainBackground.loaded) {
+        _mainBackground.scrollOffset += _mainBackground.scrollSpeed * deltaTime;
+        // Wrap around for seamless tiling
+        if (_mainBackground.textureWidth > 0) {
+            while (_mainBackground.scrollOffset >= _mainBackground.textureWidth) {
+                _mainBackground.scrollOffset -= _mainBackground.textureWidth;
+            }
+        }
+    }
+
+    if (_parallaxBackground.loaded) {
+        _parallaxBackground.scrollOffset += _parallaxBackground.scrollSpeed * deltaTime;
+        // Wrap around for seamless tiling
+        if (_parallaxBackground.textureWidth > 0) {
+            while (_parallaxBackground.scrollOffset >= _parallaxBackground.textureWidth) {
+                _parallaxBackground.scrollOffset -= _parallaxBackground.textureWidth;
+            }
+        }
+    }
+}
+
+void EntityRenderer::renderBackground() {
+    int screenWidth = _graphics.GetWindowWidth();
+    int screenHeight = _graphics.GetWindowHeight();
+
+    // Always draw a black background first as base
+    _graphics.DrawRectFilled(0, 0, screenWidth, screenHeight, 0xFF000000);
+
+    if (!_backgroundActive) {
+        return;
+    }
+
+    // Render main background (bottom layer)
+    // Scale texture to fit screen height, calculate scaled width for tiling
+    if (_mainBackground.loaded && _mainBackground.textureWidth > 0 && _mainBackground.textureHeight > 0) {
+        // Calculate the scaled dimensions to fit screen height
+        float scale = static_cast<float>(screenHeight) / static_cast<float>(_mainBackground.textureHeight);
+        float scaledWidth = static_cast<float>(_mainBackground.textureWidth) * scale;
+
+        // Calculate how many tiles needed to cover screen + 1 extra for seamless scroll
+        int tilesNeeded = static_cast<int>(std::ceil(static_cast<float>(screenWidth) / scaledWidth)) + 2;
+
+        // Wrap scroll offset to prevent overflow
+        float wrappedOffset = std::fmod(_mainBackground.scrollOffset * scale, scaledWidth);
+        if (wrappedOffset < 0) {
+            wrappedOffset += scaledWidth;
+        }
+
+        for (int i = 0; i < tilesNeeded; i++) {
+            float drawX = (static_cast<float>(i) * scaledWidth) - wrappedOffset;
+
+            // Draw texture stretched to fit screen height, tiled horizontally
+            _graphics.DrawTexturePro(_mainBackground.textureName.c_str(), 0, 0, _mainBackground.textureWidth,
+                                     _mainBackground.textureHeight, drawX, 0.0f, scaledWidth,
+                                     static_cast<float>(screenHeight), 0xFFFFFFFF);
+        }
+    }
+
+    // Render parallax background on top (overlay layer - only if loaded)
+    // This layer should have transparency in the texture (e.g., stars with transparent background)
+    if (_parallaxBackground.loaded && _parallaxBackground.textureWidth > 0 &&
+        _parallaxBackground.textureHeight > 0) {
+        float scale =
+            static_cast<float>(screenHeight) / static_cast<float>(_parallaxBackground.textureHeight);
+        float scaledWidth = static_cast<float>(_parallaxBackground.textureWidth) * scale;
+
+        int tilesNeeded = static_cast<int>(std::ceil(static_cast<float>(screenWidth) / scaledWidth)) + 2;
+
+        float wrappedOffset = std::fmod(_parallaxBackground.scrollOffset * scale, scaledWidth);
+        if (wrappedOffset < 0) {
+            wrappedOffset += scaledWidth;
+        }
+
+        for (int i = 0; i < tilesNeeded; i++) {
+            float drawX = (static_cast<float>(i) * scaledWidth) - wrappedOffset;
+
+            _graphics.DrawTexturePro(_parallaxBackground.textureName.c_str(), 0, 0,
+                                     _parallaxBackground.textureWidth, _parallaxBackground.textureHeight,
+                                     drawX, 0.0f, scaledWidth, static_cast<float>(screenHeight), 0xFFFFFFFF);
+        }
+    }
+}
+
 void EntityRenderer::setMyEntityId(uint32_t id) {
     _myEntityId = id;
     LOG_INFO("Local player entity ID set to: ", id);
@@ -172,6 +331,9 @@ void EntityRenderer::setMyEntityId(uint32_t id) {
 }
 
 void EntityRenderer::render() {
+    // Always render background first (even if no entities)
+    renderBackground();
+
     if (_entities.empty()) {
         return;
     }
@@ -212,6 +374,10 @@ void EntityRenderer::render() {
 
             case RType::Messages::Shared::EntityType::Wall:
                 renderWall(entity);
+                break;
+
+            case RType::Messages::Shared::EntityType::OrbitalModule:
+                renderOrbitalModule(entity);
                 break;
 
             default:
@@ -386,6 +552,31 @@ void EntityRenderer::renderWall(const RenderableEntity &entity) {
     // If destructible, show health bar
     if (entity.health > 0) {
         renderHealthBar(entity.x, y - 10.0f, entity.health, 100);
+    }
+}
+
+void EntityRenderer::renderOrbitalModule(const RenderableEntity &entity) {
+    // Draw orbital module sprite with animation
+
+    // Source rectangle on the sprite sheet (frame from animation)
+    int srcX = entity.startPixelX;
+    int srcY = entity.startPixelY;
+    int srcWidth = entity.spriteSizeX > 0 ? entity.spriteSizeX : 17;
+    int srcHeight = entity.spriteSizeY > 0 ? entity.spriteSizeY : 18;
+
+    // Use scale from entity (server sends 2.0f)
+    float scale = entity.scale > 0.0f ? entity.scale : 2.0f;
+
+    // White tint (no color modification)
+    uint32_t tint = 0xFFFFFFFF;
+
+    _graphics.DrawTextureEx("OrbitalModule", srcX, srcY, srcWidth, srcHeight,
+                            entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
+                            scale, tint);
+
+    // Optional: Render health bar if it has health
+    if (entity.health > 0) {
+        renderHealthBar(entity.x, entity.y - 15.0f, entity.health, 50);
     }
 }
 

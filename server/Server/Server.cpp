@@ -19,6 +19,8 @@
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/IComponent.hpp"
+#include "common/ECS/Components/OrbitalModule.hpp"
+#include "common/ECS/Components/MapData.hpp"
 #include "common/ECS/Components/PendingDestroy.hpp"
 #include "common/ECS/Components/Player.hpp"
 #include "common/ECS/Components/Projectile.hpp"
@@ -1477,12 +1479,27 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
         server::GameruleBroadcaster::sendAllGamerules(peerIt->second, gameLogic->getGameRules());
     };
 
+    // Get map configuration from ECS world
+    S2C::MapConfig mapConfig;
+    auto mapEntities = ecsWorld->query<ecs::MapData>();
+    if (!mapEntities.empty()) {
+        auto &mapData = mapEntities[0].get<ecs::MapData>();
+        mapConfig.background = mapData.getBackgroundSprite();
+        mapConfig.parallaxBackground = mapData.getParallaxBackgroundSprite();
+        mapConfig.scrollSpeed = mapData.getScrollSpeed();
+        mapConfig.parallaxSpeedFactor = mapData.getParallaxSpeedFactor();
+        LOG_DEBUG("Map config for GameStart: bg='", mapConfig.background, "', parallax='",
+                  mapConfig.parallaxBackground, "', speed=", mapConfig.scrollSpeed,
+                  ", parallaxFactor=", mapConfig.parallaxSpeedFactor);
+    }
+
     // Helper to send game start
     auto sendGameStart = [&](uint32_t playerId, uint32_t entityId) {
         S2C::GameStart gameStart;
         gameStart.yourEntityId = entityId;
         gameStart.initialState.serverTick = roomLoop->getCurrentTick();
         gameStart.initialState.entities = entities;
+        gameStart.mapConfig = mapConfig;
 
         auto sessionIt = _playerIdToSessionId.find(playerId);
         if (sessionIt != _playerIdToSessionId.end()) {
@@ -1581,11 +1598,23 @@ void Server::_sendGameStartToSpectator(uint32_t spectatorId, std::shared_ptr<ser
     // Serialize all entities
     auto entities = _serializeEntities(ecsWorld, gameLogic.get());
 
+    // Get map configuration from ECS world
+    S2C::MapConfig mapConfig;
+    auto mapEntities = ecsWorld->query<ecs::MapData>();
+    if (!mapEntities.empty()) {
+        auto &mapData = mapEntities[0].get<ecs::MapData>();
+        mapConfig.background = mapData.getBackgroundSprite();
+        mapConfig.parallaxBackground = mapData.getParallaxBackgroundSprite();
+        mapConfig.scrollSpeed = mapData.getScrollSpeed();
+        mapConfig.parallaxSpeedFactor = mapData.getParallaxSpeedFactor();
+    }
+
     // Send GameStart with entityId = 0 (spectator has no controllable entity)
     S2C::GameStart gameStart;
     gameStart.yourEntityId = 0;
     gameStart.initialState.serverTick = roomLoop->getCurrentTick();
     gameStart.initialState.entities = entities;
+    gameStart.mapConfig = mapConfig;
 
     _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_GAME_START, gameStart.serialize());
 
@@ -1747,6 +1776,9 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
         entityState.health = -1;  // Projectiles don't have health
     } else if (entity.has<ecs::Wall>()) {
         entityState.type = Shared::EntityType::Wall;
+        entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
+    } else if (entity.has<ecs::OrbitalModule>()) {
+        entityState.type = Shared::EntityType::OrbitalModule;
         entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
     } else {
         // Unknown entity type - default to generic

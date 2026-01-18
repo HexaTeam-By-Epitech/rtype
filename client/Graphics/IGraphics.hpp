@@ -259,6 +259,32 @@ namespace Graphics {
                                    float destX, float destY, float rotation, float scale,
                                    unsigned int tint) = 0;
 
+        /**
+     * @brief Get the dimensions of a loaded texture
+     * @param textureName Name of the texture
+     * @param width Reference to store the width
+     * @param height Reference to store the height
+     * @return true if texture exists and dimensions were retrieved, false otherwise
+     */
+        virtual bool GetTextureSize(const char *textureName, int &width, int &height) const = 0;
+
+        /**
+     * @brief Draw a texture with separate width/height scaling (for non-uniform scaling)
+     * @param textureName Name of the texture to draw
+     * @param srcX X coordinate of source rectangle in texture
+     * @param srcY Y coordinate of source rectangle in texture
+     * @param srcW Width of source rectangle
+     * @param srcH Height of source rectangle
+     * @param destX X coordinate of destination position
+     * @param destY Y coordinate of destination position
+     * @param destW Width of destination rectangle
+     * @param destH Height of destination rectangle
+     * @param tint Tint color in 0xAARRGGBB format
+     */
+        virtual void DrawTexturePro(const char *textureName, int srcX, int srcY, int srcW, int srcH,
+                                    float destX, float destY, float destW, float destH,
+                                    unsigned int tint) = 0;
+
         // ========== Input Handling ==========
 
         /**

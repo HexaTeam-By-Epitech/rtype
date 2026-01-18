@@ -62,16 +62,23 @@ namespace map {
             std::string name = jsonObj.value("name", mapId);
             float scrollSpeed = jsonObj.value("scrollSpeed", 0.0f);
             std::string background = jsonObj.value("background", "");
+            std::string parallaxBackground = jsonObj.value("parallaxBackground", "");
+            float parallaxSpeedFactor = jsonObj.value("parallaxSpeedFactor", 0.5f);
             std::string spawnScript = jsonObj.value("spawnScript", "");
             float duration = jsonObj.value("duration", 0.0f);
             std::string nextMap = jsonObj.value("nextMap", "");
 
             // Create and return MapData
-            ecs::MapData mapData(mapId, name, scrollSpeed, background, spawnScript, duration, nextMap);
+            ecs::MapData mapData(mapId, name, scrollSpeed, background, spawnScript, duration, nextMap,
+                                 parallaxBackground, parallaxSpeedFactor);
 
             LOG_INFO("✓ Parsed map: '", name, "' (", mapId, ")");
             LOG_DEBUG("  - Scroll speed: ", scrollSpeed, " px/s");
             LOG_DEBUG("  - Duration: ", duration > 0.0f ? std::to_string(duration) + "s" : "infinite");
+            if (!parallaxBackground.empty()) {
+                LOG_DEBUG("  - Parallax background: ", parallaxBackground,
+                          " (speed factor: ", parallaxSpeedFactor, ")");
+            }
             if (!nextMap.empty()) {
                 LOG_DEBUG("  - Next map: ", nextMap);
             }

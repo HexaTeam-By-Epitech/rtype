@@ -18,7 +18,8 @@
 
 namespace server {
 
-    Room::Room(const std::string &id, const std::string &name, size_t maxPlayers, bool isPrivate)
+    Room::Room(const std::string &id, const std::string &name, size_t maxPlayers, bool isPrivate,
+               std::shared_ptr<EventBus> eventBus)
         : _id(id),
           _name(name.empty() ? id : name),
           _state(RoomState::WAITING),
@@ -27,7 +28,8 @@ namespace server {
           _hostPlayerId(0),
           _gameStartSent(false) {
 
-        _eventBus = std::make_shared<EventBus>();
+        // Use provided EventBus or create a new one
+        _eventBus = eventBus ? eventBus : std::make_shared<EventBus>();
         std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = std::make_shared<ecs::wrapper::ECSWorld>();
         std::shared_ptr<ThreadPool> threadPool = std::make_shared<ThreadPool>(4);
         threadPool->start();

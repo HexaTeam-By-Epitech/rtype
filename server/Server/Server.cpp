@@ -77,7 +77,11 @@ bool Server::initialize() {
 
     _eventBus = std::make_shared<server::EventBus>();
     _sessionManager = std::make_shared<server::SessionManager>();
-    _roomManager = std::make_shared<server::RoomManager>();
+
+    // Create matchmaking service with shared EventBus
+    auto matchmaking = std::make_shared<server::MatchmakingService>(2, 4, _eventBus);
+    _roomManager = std::make_shared<server::RoomManager>(matchmaking, _eventBus);
+
     _lobby = std::make_shared<server::Lobby>(_roomManager);
     _commandHandler = std::make_unique<server::CommandHandler>();
 

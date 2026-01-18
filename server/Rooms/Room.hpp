@@ -31,9 +31,10 @@ namespace server {
          * @param name Display name for the room
          * @param maxPlayers Maximum number of players (default: 4)
          * @param isPrivate Whether the room is private (default: false)
+         * @param eventBus Shared event bus for server-wide events
          */
         explicit Room(const std::string &id, const std::string &name = "", size_t maxPlayers = 4,
-                      bool isPrivate = false);
+                      bool isPrivate = false, std::shared_ptr<EventBus> eventBus = nullptr);
         ~Room() override = default;
 
         bool join(uint32_t playerId) override;

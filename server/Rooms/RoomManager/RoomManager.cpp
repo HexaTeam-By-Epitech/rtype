@@ -10,12 +10,15 @@
 
 namespace server {
 
-    RoomManager::RoomManager() : _matchmaking(std::make_shared<MatchmakingService>(2, 4)) {
+    RoomManager::RoomManager()
+        : _matchmaking(std::make_shared<MatchmakingService>(2, 4, nullptr)), _eventBus(nullptr) {
         _matchmaking->setMatchCreatedCallback([this](std::shared_ptr<Room> room) { _onMatchCreated(room); });
         LOG_INFO("RoomManager created with matchmaking service");
     }
 
-    RoomManager::RoomManager(std::shared_ptr<MatchmakingService> matchmaking) : _matchmaking(matchmaking) {
+    RoomManager::RoomManager(std::shared_ptr<MatchmakingService> matchmaking,
+                             std::shared_ptr<EventBus> eventBus)
+        : _matchmaking(matchmaking), _eventBus(eventBus) {
         if (_matchmaking) {
             _matchmaking->setMatchCreatedCallback(
                 [this](std::shared_ptr<Room> room) { _onMatchCreated(room); });
@@ -53,7 +56,7 @@ namespace server {
         }
 
         try {
-            auto room = std::make_shared<Room>(id, name, maxPlayers, isPrivate);
+            auto room = std::make_shared<Room>(id, name, maxPlayers, isPrivate, _eventBus);
             _rooms[id] = room;
 
             LOG_INFO("✓ Room created: '", room->getName(), "' (", id, ")");

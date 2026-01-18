@@ -666,14 +666,23 @@ void Rendering::StartGame() {
 }
 
 void Rendering::ShowGameOver(const std::string &reason) {
+    LOG_INFO("[Rendering] ========== ShowGameOver CALLED ==========");
+    LOG_INFO("[Rendering] Current scene before: ", static_cast<int>(_scene));
+
     _scene = Scene::GAME_OVER;
     _gameOverReason = reason;
-    LOG_INFO("[Rendering] ✓ Game over - reason: ", reason);
+
+    LOG_INFO("[Rendering] Scene changed to GAME_OVER (", static_cast<int>(_scene), ")");
+    LOG_INFO("[Rendering] Game over reason: ", reason);
 
     // Check if it's a victory or defeat
     bool isVictory = (reason.find("Victory") != std::string::npos) ||
                      (reason.find("victory") != std::string::npos) ||
                      (reason.find("Win") != std::string::npos) || (reason.find("win") != std::string::npos);
+
+    LOG_INFO("[Rendering] Is victory: ", isVictory);
+    LOG_INFO("[Rendering] DefeatMenu exists: ", (_defeatMenu != nullptr));
+    LOG_INFO("[Rendering] VictoryMenu exists: ", (_victoryMenu != nullptr));
 
     // Hide all other menus and show the appropriate game over menu
     if (_defeatMenu)
@@ -686,12 +695,16 @@ void Rendering::ShowGameOver(const std::string &reason) {
     }
 
     if (isVictory && _victoryMenu) {
+        LOG_INFO("[Rendering] Showing VictoryMenu");
         _victoryMenu->SetVictoryMessage(reason);
         _victoryMenu->Show();
     } else if (_defeatMenu) {
+        LOG_INFO("[Rendering] Showing DefeatMenu");
         _defeatMenu->SetDefeatReason(reason);
         _defeatMenu->Show();
     }
+
+    LOG_INFO("[Rendering] ========== ShowGameOver COMPLETE ==========");
 }
 
 void Rendering::Render() {

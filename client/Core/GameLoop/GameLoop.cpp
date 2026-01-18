@@ -484,6 +484,7 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
             handleLeftRoom(payload);
             break;
         case NetworkMessages::MessageType::S2C_GAME_OVER:
+            LOG_INFO("[NETWORK] ========== S2C_GAME_OVER MESSAGE RECEIVED ==========");
             handleGameOver(payload);
             break;
         default:
@@ -808,15 +809,20 @@ void GameLoop::handleLeftRoom(const std::vector<uint8_t> &payload) {
 
 void GameLoop::handleGameOver(const std::vector<uint8_t> &payload) {
     try {
+        LOG_INFO("[GAME_OVER] Deserializing GameOver message...");
         auto gameOver = RType::Messages::S2C::GameOver::deserialize(payload);
 
-        LOG_INFO("✓ GameOver received - reason: ", gameOver.reason);
+        LOG_INFO("[GAME_OVER] ✓ GameOver received - reason: ", gameOver.reason);
 
         // Show game over screen via rendering
         if (_rendering) {
+            LOG_INFO("[GAME_OVER] Calling _rendering->ShowGameOver()...");
             _rendering->ShowGameOver(gameOver.reason);
+            LOG_INFO("[GAME_OVER] ShowGameOver() called successfully");
+        } else {
+            LOG_ERROR("[GAME_OVER] _rendering is null!");
         }
     } catch (const std::exception &e) {
-        LOG_ERROR("Failed to parse GameOver: ", e.what());
+        LOG_ERROR("[GAME_OVER] Failed to parse GameOver: ", e.what());
     }
 }

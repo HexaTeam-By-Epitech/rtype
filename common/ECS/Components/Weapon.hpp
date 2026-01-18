@@ -26,8 +26,13 @@ namespace ecs {
          * @param projectileType Type of projectile spawned
          * @param damage Base damage dealt by this weapon
          */
-        Weapon(float fireRate, float cooldown, int projectileType, float damage)
-            : _fireRate(fireRate), _cooldown(cooldown), _projectileType(projectileType), _damage(damage) {}
+        Weapon(float fireRate, float cooldown, int projectileType, int damage)
+            : _fireRate(fireRate),
+              _cooldown(cooldown),
+              _projectileType(projectileType),
+              _damage(damage),
+              _baseFireRate(fireRate),
+              _baseDamage(damage) {}
         ~Weapon() override = default;
 
         /**
@@ -59,6 +64,18 @@ namespace ecs {
          * @return bool True if the weapon is set to shoot, false otherwise.
          */
         [[nodiscard]] bool shouldShoot() const { return _shouldShoot; }
+
+        /**
+         * @brief Get base fire rate (before buffs).
+         * @return float Base shots per second
+         */
+        float getBaseFireRate() const { return _baseFireRate; }
+
+        /**
+         * @brief Get base damage (before buffs).
+         * @return int Base damage value
+         */
+        int getBaseDamage() const { return _baseDamage; }
 
         /**
          * @brief Set fire rate.
@@ -102,5 +119,7 @@ namespace ecs {
         int _projectileType;        ///< Type of projectile spawned
         float _damage;              ///< Base damage dealt
         bool _shouldShoot = false;  ///< Whether the weapon is currently set to shoot
+        float _baseFireRate;        ///< Base fire rate (before buffs)
+        int _baseDamage;            ///< Base damage (before buffs)
     };
 }  // namespace ecs

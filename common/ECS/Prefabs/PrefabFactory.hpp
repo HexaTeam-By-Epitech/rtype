@@ -14,6 +14,7 @@
 #include "common/Animation/AnimationDatabase.hpp"
 #include "common/ECS/Components/Animation.hpp"
 #include "common/ECS/Components/AnimationSet.hpp"
+#include "common/ECS/Components/Buff.hpp"
 #include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
@@ -26,6 +27,7 @@
 #include "common/ECS/Registry.hpp"
 #include "common/Logger/Logger.hpp"
 
+// Forward declarations
 namespace ecs::wrapper {
     class ECSWorld;
 }
@@ -61,6 +63,36 @@ namespace ecs {
         static ecs::Address createEnemy(ecs::Registry &registry, int enemyType, float posX, float posY);
 
         /**
+         * @brief Create an enemy entity with custom parameters (for SpawnSystem)
+         * @param registry ECS registry
+         * @param enemyType Type string ("basic", "advanced", "fast", "boss")
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @param health Custom health value
+         * @param scoreValue Custom score value
+         * @param scriptPath Optional Lua script path for AI behavior
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createEnemy(ecs::Registry &registry, const std::string &enemyType, float posX,
+                                        float posY, float health, int scoreValue,
+                                        const std::string &scriptPath = "");
+
+        /**
+         * @brief Create an enemy entity directly from Registry (for SpawnSystem)
+         * @param registry ECS registry
+         * @param enemyType Type string ("basic", "advanced", "fast", "boss")
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @param health Custom health value
+         * @param scoreValue Custom score value
+         * @param scriptPath Optional Lua script path for AI behavior
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createEnemyFromRegistry(ecs::Registry &registry, const std::string &enemyType,
+                                                    float posX, float posY, float health, int scoreValue,
+                                                    const std::string &scriptPath = "");
+
+        /**
          * @brief Create a projectile entity
          * @param registry ECS registry
          * @param ownerId Owner entity ID (shooter)
@@ -77,6 +109,30 @@ namespace ecs {
                                              float posY, float dirX, float dirY, float speed, int damage,
                                              bool friendly);
 
+        /**
+         * @brief Create a collectible power-up entity
+         * @param registry ECS registry
+         * @param buffType Type of buff to grant
+         * @param duration Duration of buff (0.0f for permanent)
+         * @param value Buff value/multiplier
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createPowerUp(ecs::Registry &registry, ecs::BuffType buffType, float duration,
+                                          float value, float posX, float posY);
+
+        /**
+         * @brief Create a health pack collectible
+         * @param registry ECS registry
+         * @param healthRestore Amount of health to restore
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createHealthPack(ecs::Registry &registry, int healthRestore, float posX,
+                                             float posY);
+
        private:
         struct EnemySpawnData {
             float speed;
@@ -87,6 +143,7 @@ namespace ecs {
         };
 
         static EnemySpawnData _getEnemySpawnData(int enemyType);
+        static int _enemyTypeFromString(const std::string &enemyType);
     };
 
 }  // namespace ecs

@@ -25,9 +25,11 @@
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"
+#include "common/ECS/Prefabs/PrefabFactory.hpp"
 #include "common/ECS/Systems/AISystem/AISystem.hpp"
 #include "common/ECS/Systems/AnimationSystem/AnimationSystem.hpp"
 #include "common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
+#include "common/ECS/Systems/BuffSystem/BuffSystem.hpp"
 #include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
 #include "common/ECS/Systems/ISystem.hpp"
@@ -90,6 +92,7 @@ namespace server {
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
             _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
+            _world->createSystem<ecs::BuffSystem>("BuffSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
 
             // Register Lua system BEFORE SpawnSystem so wave_manager can queue spawns
@@ -438,39 +441,28 @@ namespace server {
     }
 
     void GameLogic::_cleanupDeadEntities() {
-        // Query all entities with Health component that are dead
-        // Note: Actual entity destruction is handled by _processPendingDestructions in Server
-        // This function just cleans up the player map for dead players
-        auto entities = _world->query<ecs::Health>();
+        // Query all entities marked for destruction
+        auto entitiesToDestroy = _world->query<ecs::PendingDestroy>();
 
-        for (auto &entity : entities) {
-            ecs::Health &health = entity.get<ecs::Health>();
-
-            if (health.getCurrentHealth() > 0) {
-                continue;
-            }
-
-            // Mark for destruction if not already marked (HealthSystem should have done this)
+        for (auto &entity : entitiesToDestroy) {
             ecs::Address entityAddress = entity.getAddress();
-            if (!entity.has<ecs::PendingDestroy>()) {
-                _world->getEntity(entityAddress)
-                    .with<ecs::PendingDestroy>(ecs::PendingDestroy(ecs::DestroyReason::Killed));
-            }
 
             // Remove from player map if it's a player entity
-            if (!entity.has<ecs::Player>()) {
-                continue;
-            }
-            std::scoped_lock lock(_playerMutex);
-            for (auto it = _playerMap.begin(); it != _playerMap.end();) {
-                if (it->second == entityAddress) {
-                    it = _playerMap.erase(it);
-                } else {
-                    ++it;
+            if (entity.has<ecs::Player>()) {
+                std::scoped_lock lock(_playerMutex);
+                for (auto it = _playerMap.begin(); it != _playerMap.end();) {
+                    if (it->second == entityAddress) {
+                        LOG_INFO("Removing player ", it->first, " from player map (entity destroyed)");
+                        it = _playerMap.erase(it);
+                    } else {
+                        ++it;
+                    }
                 }
             }
+
+            // Actually destroy the entity
+            _world->destroyEntity(entity);
         }
-        // Entity destruction is deferred to _processPendingDestructions in Server
     }
 
     void GameLogic::_checkGameOverCondition() {
@@ -519,10 +511,10 @@ namespace server {
     }
 
     void GameLogic::onGameStart() {
+        LOG_INFO("Fire onGameStart");
 
         // Find the spawner entity with wave_manager.lua script
         if (_luaEngine) {
-            LOG_INFO("BUGGER");
             auto entities = _world->query<ecs::Spawner, ecs::LuaScript>();
             for (auto &entity : entities) {
                 const ecs::LuaScript &script = entity.get<ecs::LuaScript>();

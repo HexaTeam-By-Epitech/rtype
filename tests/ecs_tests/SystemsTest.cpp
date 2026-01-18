@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "Components/Health.hpp"
+#include "Components/PendingDestroy.hpp"
 #include "Components/Projectile.hpp"
 #include "Components/Transform.hpp"
 #include "Components/Velocity.hpp"
@@ -144,8 +145,8 @@ TEST(HealthSystemTest, DeadEntitiesAreDestroyed) {
 
     healthSystem.update(registry, 0.016f);
 
-    // Entity should be destroyed
-    EXPECT_FALSE(registry.hasComponent<ecs::Health>(entity));
+    // Entity should be marked for destruction
+    EXPECT_TRUE(registry.hasComponent<ecs::PendingDestroy>(entity));
 }
 
 TEST(HealthSystemTest, HealthyEntitiesSurvive) {
@@ -227,7 +228,7 @@ TEST(BoundarySystemTest, EntitiesOutOfBoundsDestroyed) {
 
     boundarySystem.update(registry, 0.016f);
 
-    EXPECT_FALSE(registry.hasComponent<ecs::Transform>(entity));
+    EXPECT_TRUE(registry.hasComponent<ecs::PendingDestroy>(entity));
 }
 
 TEST(BoundarySystemTest, MarginAllowed) {
@@ -260,10 +261,10 @@ TEST(BoundarySystemTest, AllDirectionsBoundaries) {
 
     boundarySystem.update(registry, 0.016f);
 
-    EXPECT_FALSE(registry.hasComponent<ecs::Transform>(left));
-    EXPECT_FALSE(registry.hasComponent<ecs::Transform>(right));
-    EXPECT_FALSE(registry.hasComponent<ecs::Transform>(top));
-    EXPECT_FALSE(registry.hasComponent<ecs::Transform>(bottom));
+    EXPECT_TRUE(registry.hasComponent<ecs::PendingDestroy>(left));
+    EXPECT_TRUE(registry.hasComponent<ecs::PendingDestroy>(right));
+    EXPECT_TRUE(registry.hasComponent<ecs::PendingDestroy>(top));
+    EXPECT_TRUE(registry.hasComponent<ecs::PendingDestroy>(bottom));
 }
 
 // ========== Integration Tests ==========
@@ -283,5 +284,5 @@ TEST(SystemsIntegrationTest, MovementAndBoundary) {
         boundarySystem.update(registry, 1.0f / 60.0f);
     }
 
-    EXPECT_FALSE(registry.hasComponent<ecs::Transform>(entity));
+    EXPECT_TRUE(registry.hasComponent<ecs::PendingDestroy>(entity));
 }

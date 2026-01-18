@@ -7,8 +7,11 @@
 
 #pragma once
 
-#include <vector>
+#include "../../Components/Buff.hpp"
+#include "../../Components/Collectible.hpp"
 #include "../../Components/Collider.hpp"
+#include "../../Components/Health.hpp"
+#include "../../Components/Player.hpp"
 #include "../../Components/Transform.hpp"
 #include "../ISystem.hpp"
 
@@ -68,6 +71,19 @@ namespace ecs {
         bool checkAABB(const Transform::Vector2 &pos1, const Collider::Vector2 &size1,
                        const Collider::Vector2 &offset1, const Transform::Vector2 &pos2,
                        const Collider::Vector2 &size2, const Collider::Vector2 &offset2) const;
+
+        /**
+         * @brief Handle collision between player and collectible
+         * 
+         * Applies collectible effects to the player and marks collectible for destruction.
+         * 
+         * @param playerAddr Player entity address
+         * @param collectibleAddr Collectible entity address
+         * @param registry Reference to the ECS registry
+         * @param entitiesToDestroy Vector to collect entities that should be destroyed after collision processing
+         */
+        void handlePickup(Address playerAddr, Address collectibleAddr, Registry &registry,
+                          std::vector<Address> &entitiesToDestroy);
 
         /**
          * @brief Checks if two entities can collide based on layers.

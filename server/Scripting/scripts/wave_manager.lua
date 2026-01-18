@@ -81,10 +81,8 @@ waveSystem.wavesIntervals = {
 function onUpdate(entity, deltaTime) end
 
 function onGameStart(entity)
-	log("DDD")
 	setSpawnerConfig(entity, {
 		waves = waveSystem.waves,
 		wavesIntervals = waveSystem.wavesIntervals,
 	})
-	log("DDDD")
 end

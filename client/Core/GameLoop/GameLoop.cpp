@@ -7,6 +7,7 @@
 
 #include "GameLoop.hpp"
 #include <cmath>
+#include <unordered_set>
 #include "../ClientGameRules.hpp"
 #include "GameruleKeys.hpp"
 
@@ -606,7 +607,12 @@ void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
     try {
         auto gameState = RType::Messages::S2C::GameState::deserialize(payload);
 
+        // Track which entities are in this GameState
+        std::unordered_set<uint32_t> currentEntityIds;
+
         for (const auto &entity : gameState.entities) {
+            currentEntityIds.insert(entity.entityId);
+
             if (entity.entityId == _myEntityId.value_or(0) && _clientSidePredictionEnabled) {
                 processServerReconciliation(entity);
             } else {
@@ -614,6 +620,28 @@ void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
                                          entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
                                          entity.spriteY, entity.spriteW, entity.spriteH);
             }
+        }
+
+        // Remove entities that no longer exist in the GameState
+        // (e.g., collectibles that were picked up)
+        if (_rendering) {
+            std::vector<uint32_t> entitiesToRemove;
+
+            // Check which previously seen entities are now missing
+            for (uint32_t id : _knownEntityIds) {
+                if (currentEntityIds.find(id) == currentEntityIds.end()) {
+                    entitiesToRemove.push_back(id);
+                }
+            }
+
+            // Remove obsolete entities
+            for (uint32_t id : entitiesToRemove) {
+                _rendering->RemoveEntity(id);
+                LOG_DEBUG("[CLEANUP] Removed entity ", id, " (no longer in GameState)");
+            }
+
+            // Update our known entity list
+            _knownEntityIds = currentEntityIds;
         }
 
         static uint32_t logCounter = 0;

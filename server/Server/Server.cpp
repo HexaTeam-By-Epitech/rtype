@@ -143,7 +143,6 @@ bool Server::initialize() {
 
     _initialized = true;
     LOG_INFO("✓ Server initialized successfully");
-
     return true;
 }
 

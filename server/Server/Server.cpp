@@ -102,8 +102,56 @@ bool Server::initialize() {
         }
     });
 
-    _eventBus->subscribe<server::GameEndedEvent>([](const server::GameEndedEvent &event) {
-        LOG_INFO("[EVENT] Game ended. Reason: ", event.getReason());
+    _eventBus->subscribe<server::GameEndedEvent>([this](const server::GameEndedEvent &event) {
+        LOG_INFO("[EVENT] ========== GameEndedEvent RECEIVED ========== Reason: ", event.getReason());
+
+        // Find the room associated with this game and broadcast Game Over to all players
+        // For now, we'll broadcast to all rooms (ideally should be scoped to the specific room)
+        auto rooms = _roomManager->getAllRooms();
+        LOG_INFO("[EVENT] Checking ", rooms.size(), " rooms for active games...");
+
+        for (const auto &room : rooms) {
+            LOG_INFO("[EVENT] Checking room...");
+            // Check if room has active game logic
+            auto gameLogic = room->getGameLogic();
+            LOG_INFO("[EVENT] GameLogic exists: ", (gameLogic != nullptr));
+            if (gameLogic) {
+                bool active = gameLogic->isGameActive();
+                LOG_INFO("[EVENT] GameLogic isGameActive: ", active);
+                if (active) {
+                    LOG_INFO("[EVENT] Found active game in room, broadcasting to players...");
+                    // Send GameOver message to all players in this room
+                    auto players = room->getPlayers();
+                    LOG_INFO("[EVENT] Room has ", players.size(), " players");
+                    for (uint32_t playerId : players) {
+                        // Get session ID from player ID
+                        auto sessionIt = _playerIdToSessionId.find(playerId);
+                        if (sessionIt != _playerIdToSessionId.end()) {
+                            const std::string &sessionId = sessionIt->second;
+                            // Get peer from session ID
+                            auto peerIt = _sessionPeers.find(sessionId);
+                            if (peerIt != _sessionPeers.end() && peerIt->second) {
+                                // Create GameOver message
+                                RType::Messages::S2C::GameOver gameOverMsg(event.getReason());
+                                std::vector<uint8_t> payload = gameOverMsg.serialize();
+
+                                _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_GAME_OVER,
+                                            payload, true);
+                                LOG_INFO("✓ Sent GameOver to player ", playerId,
+                                         " - Reason: ", event.getReason());
+                            } else {
+                                LOG_ERROR("[EVENT] Could not find peer for player ", playerId);
+                            }
+                        } else {
+                            LOG_ERROR("[EVENT] Could not find session for player ", playerId);
+                        }
+                    }
+                } else {
+                    LOG_INFO("[EVENT] Room game is not active, skipping");
+                }
+            }
+        }
+        LOG_INFO("[EVENT] ========== GameEndedEvent PROCESSING COMPLETE ==========");
     });
 
     _initialized = true;
@@ -1779,7 +1827,6 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
 }
 
 void Server::_actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot) {
-
     using enum RType::Messages::Shared::Action;
     switch (action) {
         case MoveUp:

@@ -42,6 +42,7 @@
 #include "common/MapLoader/MapLoader.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
+#include "server/Events/GameEvent/GameEndedEvent.hpp"
 #include "server/Game/StateManager/GameOverState.hpp"
 #include "server/Game/StateManager/InGameState.hpp"
 #include "server/Game/StateManager/LobbyState.hpp"
@@ -161,9 +162,9 @@ namespace server {
 
         _executeSystems(deltaTime);
 
-        _cleanupDeadEntities();
+        _checkGameOverCondition();  // Check BEFORE cleaning up dead entities
 
-        _checkGameOverCondition();
+        _cleanupDeadEntities();
     }
 
     uint32_t GameLogic::spawnPlayer(uint32_t playerId, const std::string &playerName) {
@@ -507,29 +508,81 @@ namespace server {
             return;
         }
 
+        LOG_DEBUG("[GAME_OVER_CHECK] Checking game over conditions...");
+
         bool allPlayersDead = true;
+        bool anyEnemiesRemain = false;
+
         {
             std::scoped_lock lock(_playerMutex);
             if (_playerMap.empty()) {
+                LOG_DEBUG("[GAME_OVER_CHECK] No players in map, skipping check");
                 return;  // No players, no game over
             }
 
+            LOG_DEBUG("[GAME_OVER_CHECK] Checking ", _playerMap.size(), " players...");
+
+            // Check if all players are dead
             for (const auto &[playerId, entityAddress] : _playerMap) {
                 try {
                     ecs::wrapper::Entity entity = _world->getEntity(entityAddress);
-                    if (entity.has<ecs::Health>() && entity.get<ecs::Health>().getCurrentHealth() > 0) {
-                        allPlayersDead = false;
-                        break;
+                    if (entity.has<ecs::Health>()) {
+                        int health = entity.get<ecs::Health>().getCurrentHealth();
+                        LOG_DEBUG("[GAME_OVER_CHECK] Player ", playerId, " health: ", health);
+                        if (health > 0) {
+                            allPlayersDead = false;
+                            break;
+                        }
                     }
-
                 } catch (...) {
                     // Entity doesn't exist, consider dead
+                    LOG_DEBUG("[GAME_OVER_CHECK] Player ", playerId, " entity not found (dead)");
                 }
             }
         }
 
+        // Check if there are any enemies left alive
+        auto enemies = _world->query<ecs::Enemy, ecs::Health>();
+        int enemyCount = 0;
+        int aliveEnemyCount = 0;
+        for (auto &enemyEntity : enemies) {
+            enemyCount++;
+            try {
+                if (enemyEntity.has<ecs::Health>()) {
+                    const ecs::Health &health = enemyEntity.get<ecs::Health>();
+                    if (health.getCurrentHealth() > 0) {
+                        aliveEnemyCount++;
+                        anyEnemiesRemain = true;
+                        break;
+                    }
+                }
+            } catch (...) {
+                // Skip invalid entities
+            }
+        }
+        LOG_DEBUG("[GAME_OVER_CHECK] Total enemies: ", enemyCount, ", Alive: ", aliveEnemyCount);
+
+        LOG_DEBUG("[GAME_OVER_CHECK] Results - AllPlayersDead: ", allPlayersDead,
+                  ", AnyEnemiesRemain: ", anyEnemiesRemain);
+
+        // Victory: All enemies defeated and at least one player alive
+        if (!anyEnemiesRemain && !allPlayersDead) {
+            LOG_INFO("[VICTORY] All enemies defeated! Publishing victory event...");
+            _stateManager->changeState(2);  // GameOverState will publish GameEndedEvent with "Victory" reason
+
+            // Manually publish with Victory reason
+            if (_eventBus) {
+                _eventBus->publish(GameEndedEvent("Victory"));
+                LOG_INFO("[EVENT] GameEndedEvent published with Victory reason");
+            } else {
+                LOG_ERROR("[EVENT] EventBus is null, cannot publish Victory!");
+            }
+            return;
+        }
+
+        // Defeat: All players dead
         if (allPlayersDead) {
-            LOG_INFO("All players defeated! Changing to GameOver state...");
+            LOG_INFO("[DEFEAT] All players defeated! Changing to GameOver state...");
             _stateManager->changeState(2);  // GameOverState will publish GameEndedEvent
         }
     }

@@ -94,6 +94,21 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
         if (_replicator) {
             _replicator->sendRequestRoomList();
         }
+    } else if (event.getType() == UIEventType::UPDATE_AUTO_MATCHMAKING_PREF) {
+        // Update auto-matchmaking preference on server (from settings menu)
+        LOG_INFO("[GameLoop] Auto-matchmaking preference update");
+        const std::string &data = event.getData();
+        if (_replicator) {
+            bool enabled = (data == "enable");
+            _replicator->updateAutoMatchmakingPreference(enabled);
+            LOG_INFO("[GameLoop] Preference updated (will apply when player clicks Play)");
+        }
+    } else if (event.getType() == UIEventType::AUTO_MATCHMAKING) {
+        // Trigger auto-matchmaking (from Play button)
+        LOG_INFO("[GameLoop] Auto-matchmaking request (triggering matchmaking now)");
+        if (_replicator) {
+            _replicator->sendAutoMatchmaking();
+        }
     } else if (event.getType() == UIEventType::START_GAME_REQUEST) {
         LOG_INFO("[GameLoop] Host requesting game start");
         if (_replicator) {

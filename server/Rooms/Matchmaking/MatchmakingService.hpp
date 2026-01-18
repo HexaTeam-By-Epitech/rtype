@@ -29,14 +29,24 @@ namespace server {
      * @class MatchmakingService
      * @brief Automatic matchmaking service
      * 
-     * Manages a queue of players waiting for matches and automatically creates games
-     * when enough players are available (default: 2-4 players per match).
+     * Manages matchmaking for players in two modes:
+     * 
+     * 1. **Manual Matchmaking** (queue-based):
+     *    - Players are added to a waiting queue via addPlayer()
+     *    - tick() is called periodically to create matches when min players reached
+     *    - Creates balanced matches (2-4 players)
+     * 
+     * 2. **Auto-Matchmaking** (instant + queue):
+     *    - findOrCreateMatch() tries to find an existing room first (instant join)
+     *    - If no room available, automatically adds to queue
+     *    - Provides best user experience with minimal wait time
      * 
      * Features:
      * - Automatic match creation when minimum players reached
      * - Configurable min/max players per match
      * - Wait time tracking
      * - Callback notification when match is created
+     * - Thread-safe operations
      */
     class MatchmakingService : public IMatchmakingService {
        public:
@@ -53,6 +63,9 @@ namespace server {
         void tick() override;
         size_t getQueueSize() const override;
         void setMatchCreatedCallback(MatchCreatedCallback callback) override;
+        std::pair<std::shared_ptr<Room>, bool> findOrCreateMatch(
+            uint32_t playerId, const std::vector<std::shared_ptr<Room>> &availableRooms,
+            bool allowSpectator = true) override;
 
         /**
          * @brief Get list of waiting players

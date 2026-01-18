@@ -71,6 +71,8 @@ namespace NetworkMessages {
         C2S_CREATE_ROOM = 0x0301,
         C2S_JOIN_ROOM = 0x0302,
         C2S_LEAVE_ROOM = 0x0306,
+        C2S_AUTO_MATCHMAKING = 0x0308,     // Auto-matchmaking request (trigger matchmaking)
+        C2S_UPDATE_AUTO_MM_PREF = 0x0309,  // Update auto-matchmaking preference only
         C2S_START_MATCHMAKING = 0x0303,
         C2S_CANCEL_MATCHMAKING = 0x0304,
         C2S_START_GAME = 0x0305,

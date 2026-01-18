@@ -13,45 +13,57 @@ local level1 = {
 }
 
 level1.waves[1] = {
-	name = "Level 1 - Wave 1: Introduction",
+	name = "Wave 1: Diagonal (Vert) - Déplacement en diagonale",
 	duration = 12,
 	enemyConfigs = {
-		{ delay = 1.0, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
-		{ delay = 3.0, type = "basic", x = 1200, y = 400, health = 50, script = "enemy_basic.lua" },
-		{ delay = 5.0, type = "basic", x = 1200, y = 600, health = 50, script = "enemy_basic.lua" },
+		{ delay = 0.0, type = "diagonal", x = 1200, y = 150, health = 75, script = "enemy_diagonal.lua" },
+		{ delay = 2.0, type = "diagonal", x = 1200, y = 200, health = 75, script = "enemy_diagonal.lua" },
+		{ delay = 4.0, type = "diagonal", x = 1200, y = 250, health = 75, script = "enemy_diagonal.lua" },
+		{ delay = 6.0, type = "diagonal", x = 1200, y = 300, health = 75, script = "enemy_diagonal.lua" },
 	},
 }
 
 level1.waves[2] = {
-	name = "Level 1 - Wave 2: Vitesse",
+	name = "Wave 2: Ground Walker (Orange) - Marche au sol",
 	duration = 15,
 	enemyConfigs = {
-		{ delay = 0.5, type = "basic", x = 1200, y = 150, health = 50, script = "enemy_basic.lua" },
-		{ delay = 1.5, type = "fast", x = 1200, y = 350, health = 30, script = "enemy_basic.lua" },
-		{ delay = 2.5, type = "basic", x = 1200, y = 550, health = 50, script = "enemy_basic.lua" },
-		{ delay = 3.5, type = "fast", x = 1200, y = 750, health = 30, script = "enemy_basic.lua" },
-		{ delay = 5.0, type = "basic", x = 1200, y = 300, health = 50, script = "enemy_basic.lua" },
+		{ delay = 0.0, type = "homing", x = 1200, y = 580, health = 80, script = "enemy_homing.lua" },
+		{ delay = 3.0, type = "homing", x = 1200, y = 580, health = 80, script = "enemy_homing.lua" },
+		{ delay = 6.0, type = "homing", x = 1200, y = 580, health = 80, script = "enemy_homing.lua" },
+		{ delay = 9.0, type = "homing", x = 1200, y = 580, health = 80, script = "enemy_homing.lua" },
 	},
 }
 
 level1.waves[3] = {
-	name = "Level 1 - Wave 3: Formation",
+	name = "Wave 3: Circular (Rose/Magenta) - Mouvement circulaire",
 	duration = 18,
 	enemyConfigs = {
-		{ delay = 0.0, type = "basic", x = 1200, y = 400, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.5, type = "basic", x = 1250, y = 350, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.5, type = "basic", x = 1250, y = 450, health = 50, script = "enemy_basic.lua" },
-		{ delay = 1.0, type = "basic", x = 1300, y = 300, health = 50, script = "enemy_basic.lua" },
-		{ delay = 1.0, type = "basic", x = 1300, y = 500, health = 50, script = "enemy_basic.lua" },
-		{ delay = 4.0, type = "fast", x = 1200, y = 200, health = 30, script = "enemy_basic.lua" },
-		{ delay = 4.0, type = "fast", x = 1200, y = 600, health = 30, script = "enemy_basic.lua" },
+		{ delay = 0.0, type = "circular", x = 1200, y = 300, health = 90, script = "enemy_circular.lua" },
+		{ delay = 4.0, type = "circular", x = 1200, y = 500, health = 90, script = "enemy_circular.lua" },
+		{ delay = 8.0, type = "circular", x = 1200, y = 400, health = 90, script = "enemy_circular.lua" },
+	},
+}
+
+level1.waves[4] = {
+	name = "Wave 4: Formation (Cyan) - Groupe en diagonal",
+	duration = 15,
+	enemyConfigs = {
+		{ delay = 0.0, type = "formation", x = 1200, y = 200, health = 70, script = "enemy_formation.lua" },
+		{ delay = 0.5, type = "formation", x = 1200, y = 260, health = 70, script = "enemy_formation.lua" },
+		{ delay = 1.0, type = "formation", x = 1200, y = 320, health = 70, script = "enemy_formation.lua" },
+		{ delay = 1.5, type = "formation", x = 1200, y = 380, health = 70, script = "enemy_formation.lua" },
+		{ delay = 2.0, type = "formation", x = 1200, y = 440, health = 70, script = "enemy_formation.lua" },
+		{ delay = 5.0, type = "formation", x = 1200, y = 250, health = 70, script = "enemy_formation.lua" },
+		{ delay = 5.5, type = "formation", x = 1200, y = 310, health = 70, script = "enemy_formation.lua" },
+		{ delay = 6.0, type = "formation", x = 1200, y = 370, health = 70, script = "enemy_formation.lua" },
 	},
 }
 
 level1.wavesIntervals = {
-	5,
-	6,
-	30,
+	6,  -- Interval after Wave 1 (Diagonal)
+	6,  -- Interval after Wave 2 (Homing)
+	6,  -- Interval after Wave 3 (Circular)
+	8,  -- Interval after Wave 4 (Formation)
 }
 
 -- Function called by LuaEngine to setup the spawner

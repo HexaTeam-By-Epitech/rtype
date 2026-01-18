@@ -32,6 +32,7 @@ namespace RType::Messages::S2C {
         int32_t spriteW;
         int32_t spriteH;
         uint32_t lastProcessedInput = 0;  // 0 if N/A
+        uint32_t tint = 0xFFFFFFFF;       // Color tint in ABGR format (default: white)
 
         EntityState()
             : entityId(0),
@@ -56,6 +57,7 @@ namespace RType::Messages::S2C {
             builder.setSpriteW(spriteW);
             builder.setSpriteH(spriteH);
             builder.setLastProcessedInput(lastProcessedInput);
+            builder.setTint(tint);
         }
 
         static EntityState fromCapnp(::EntityState::Reader reader) {
@@ -75,6 +77,7 @@ namespace RType::Messages::S2C {
             result.spriteY = reader.getSpriteY();
             result.spriteW = reader.getSpriteW();
             result.spriteH = reader.getSpriteH();
+            result.tint = reader.getTint();
             return result;
         }
     };

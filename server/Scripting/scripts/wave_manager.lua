@@ -17,46 +17,57 @@ local waveSystem = {
 }
 
 -- Define waves with spawn timings and enemy configurations
+-- Each wave showcases ONE enemy type for easy testing
+
 waveSystem.waves[1] = {
-	name = "Wave 1: Basics",
-	duration = 10,
+	name = "Wave 1: Zigzag (Green) - Up/Down Wave",
+	duration = 12,
 	enemyConfigs = {
-		{ delay = 0.0, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 400, health = 50, script = "enemy_basic.lua" },
-		{ delay = 0.0, type = "basic", x = 1200, y = 600, health = 50, script = "enemy_basic.lua" },
+		{ delay = 0.0, type = "zigzag", x = 1200, y = 200, health = 75, script = "enemy_zigzag.lua" },
+		{ delay = 2.0, type = "zigzag", x = 1200, y = 400, health = 75, script = "enemy_zigzag.lua" },
+		{ delay = 4.0, type = "zigzag", x = 1200, y = 600, health = 75, script = "enemy_zigzag.lua" },
+		{ delay = 6.0, type = "zigzag", x = 1200, y = 300, health = 75, script = "enemy_zigzag.lua" },
 	},
 }
 
 waveSystem.waves[2] = {
-	name = "Wave 2: Mixed",
+	name = "Wave 2: Diving (Orange) - Dive Attack",
 	duration = 15,
 	enemyConfigs = {
-		{ delay = 0.5, type = "basic", x = 1200, y = 150, health = 50, script = "enemy_basic.lua" },
-		{ delay = 1.0, type = "advanced", x = 1200, y = 350, health = 100, script = "enemy_advanced.lua" },
-		{ delay = 1.5, type = "basic", x = 1200, y = 550, health = 50, script = "enemy_basic.lua" },
-		{ delay = 2.0, type = "advanced", x = 1200, y = 750, health = 100, script = "enemy_advanced.lua" },
-		{ delay = 2.5, type = "basic", x = 1200, y = 200, health = 50, script = "enemy_basic.lua" },
-		{ delay = 3.0, type = "advanced", x = 1200, y = 400, health = 100, script = "enemy_advanced.lua" },
+		{ delay = 0.0, type = "diving", x = 1200, y = 100, health = 80, script = "enemy_diving.lua" },
+		{ delay = 3.0, type = "diving", x = 1200, y = 100, health = 80, script = "enemy_diving.lua" },
+		{ delay = 6.0, type = "diving", x = 1200, y = 100, health = 80, script = "enemy_diving.lua" },
+		{ delay = 9.0, type = "diving", x = 1200, y = 100, health = 80, script = "enemy_diving.lua" },
 	},
 }
 
--- Wave 3 for testing purposes
 waveSystem.waves[3] = {
-	name = "Wave 3: Challenge",
-	duration = 20,
+	name = "Wave 3: Circular (Magenta) - Circle Motion",
+	duration = 18,
 	enemyConfigs = {
-		{ delay = 0.3, type = "advanced", x = 1200, y = 100, health = 100, script = "enemy_advanced.lua" },
-		{ delay = 0.6, type = "advanced", x = 1200, y = 300, health = 100, script = "enemy_advanced.lua" },
-		{ delay = 0.9, type = "basic", x = 1200, y = 500, health = 50, script = "enemy_basic.lua" },
-		{ delay = 1.2, type = "advanced", x = 1200, y = 700, health = 100, script = "enemy_advanced.lua" },
+		{ delay = 0.0, type = "circular", x = 1200, y = 300, health = 90, script = "enemy_circular.lua" },
+		{ delay = 4.0, type = "circular", x = 1200, y = 500, health = 90, script = "enemy_circular.lua" },
+		{ delay = 8.0, type = "circular", x = 1200, y = 400, health = 90, script = "enemy_circular.lua" },
+	},
+}
+
+waveSystem.waves[4] = {
+	name = "Wave 4: Kamikaze (Cyan) - Charge Attack",
+	duration = 15,
+	enemyConfigs = {
+		{ delay = 0.0, type = "kamikaze", x = 1200, y = 200, health = 60, script = "enemy_kamikaze.lua" },
+		{ delay = 3.0, type = "kamikaze", x = 1200, y = 400, health = 60, script = "enemy_kamikaze.lua" },
+		{ delay = 6.0, type = "kamikaze", x = 1200, y = 600, health = 60, script = "enemy_kamikaze.lua" },
+		{ delay = 9.0, type = "kamikaze", x = 1200, y = 350, health = 60, script = "enemy_kamikaze.lua" },
 	},
 }
 
 -- Waves intervals configuration
 waveSystem.wavesIntervals = {
-	5, -- Interval after Wave 1
-	7, -- Interval after Wave 2
-	20, -- Interval after Wave 3
+	6,  -- Interval after Wave 1 (Zigzag Green)
+	6,  -- Interval after Wave 2 (Diving Orange)
+	6,  -- Interval after Wave 3 (Circular Magenta)
+	8,  -- Interval after Wave 4 (Kamikaze Cyan)
 }
 
 -- Submit the configured waves to the spawner component

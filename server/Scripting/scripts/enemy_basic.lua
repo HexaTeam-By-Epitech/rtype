@@ -22,6 +22,7 @@ function onUpdate(entity, deltaTime)
 		entityStates[addr] = {
 			initialized = true,
 		}
+		log("Basic enemy initialized: " .. tostring(addr))
 	end
 
 	local transform = entity:getTransform()

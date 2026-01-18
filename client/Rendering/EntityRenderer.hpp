@@ -62,6 +62,7 @@ class EntityRenderer {
         int offsetY;                               ///< Sprite offset Y for rendering
         float scale;                               ///< Sprite scale multiplier
         std::string currentAnimation;              ///< Current animation name from server
+        uint32_t tint;                             ///< Color tint in ABGR format
         std::vector<int>
             animationFrameIndices;  ///< Animation frame sequence (sprite indices to allow freedom of picking frames manually)
         int currentFrame;  ///< Current animation frame
@@ -97,7 +98,8 @@ class EntityRenderer {
          * message is received from the server.
          */
     void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
-                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH,
+                      uint32_t tint = 0xFFFFFFFF);
 
     /**
          * @brief Remove an entity from the rendering cache

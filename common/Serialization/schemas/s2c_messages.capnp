@@ -18,6 +18,7 @@ struct EntityState {
   spriteW @7 :Int32;          # Sprite width
   spriteH @8 :Int32;          # Sprite height
   lastProcessedInput @9 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
+  tint @10 :UInt32;           # Color tint in ABGR format (0xAABBGGRR)
 }
 
 struct GameState {

@@ -217,11 +217,13 @@ class Rendering {
      * @param srcY Sprite source Y on spritesheet  
      * @param srcW Sprite width
      * @param srcH Sprite height
+     * @param tint Color tint in ABGR format (default: white)
      * 
      * Delegates to EntityRenderer. Call when receiving GameState updates.
      */
     void UpdateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
-                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH,
+                      uint32_t tint = 0xFFFFFFFF);
 
     /**
      * @brief Remove an entity from rendering

@@ -16,6 +16,7 @@
 #include "Capnp/NetworkMessages.hpp"
 #include "NetworkFactory.hpp"
 #include "common/ECS/Components/Animation.hpp"
+#include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/IComponent.hpp"
@@ -1493,6 +1494,13 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
         entityState.spriteY = 0;
         entityState.spriteW = 33;
         entityState.spriteH = 17;
+    }
+
+    // Get tint color from Collider if available
+    if (entity.has<ecs::Collider>()) {
+        entityState.tint = entity.get<ecs::Collider>().getMask();
+    } else {
+        entityState.tint = 0xFFFFFFFF;  // Default: white
     }
 
     // Determine entity type and get health

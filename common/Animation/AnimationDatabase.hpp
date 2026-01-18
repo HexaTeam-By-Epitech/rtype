@@ -1,7 +1,60 @@
 /*
 ** EPITECH PROJECT, 2025
 ** RTYPE
-** File description:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+end	end		entityStates[addr] = nil	if transform.x < -100 then	-- Cleanup if off-screen	transform.y = state.startY + zigzagOffset		end		zigzagOffset = zigzagAmplitude * (3.0 - zigzagPhase * 2.0)	else		zigzagOffset = zigzagAmplitude * (zigzagPhase * 2.0 - 1.0)	if zigzagPhase < 1.0 then	local zigzagOffset = 0	local zigzagPhase = (state.time * zigzagSpeed) % 2.0	-- Create zigzag pattern using sawtooth wave		transform.x = transform.x - baseSpeed * deltaTime	-- Move left + zigzag up/down (sharp triangular wave pattern)	state.time = state.time + deltaTime	-- Increment time for this specific entity	local state = entityStates[addr]	end		}			initialized = true,			startY = transform.y,			time = 0,		entityStates[addr] = {	if not entityStates[addr] then	-- Initialize per-entity state on first update	local transform = entity:getTransform()	local addr = entity:getAddress()	end		return	if not entity:isValid() or not entity:hasTransform() thenfunction onUpdate(entity, deltaTime)local zigzagAmplitude = 80 -- vertical zigzag amplitude (pixels)local zigzagSpeed = 4.0 -- vertical zigzag frequencylocal baseSpeed = 120 -- horizontal movement speed (pixels per second)local entityStates = {}-- Per-entity state storage (indexed by entity address)]]** enemy_zigzag.lua - Zigzag enemy with vertical oscillation pattern** File description:** File description:
 ** AnimationDatabase
 */
 
@@ -106,6 +159,86 @@ namespace AnimDB {
     }
 
     /**
+     * @brief Create zigzag enemy animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for zigzag enemy
+     */
+    inline ecs::AnimationSet createEnemyZigzagAnimations() {
+        ecs::AnimationSet animSet("r-typesheet3");
+
+        // Zigzag flying animation - 8 frames
+        animSet.addClip("fly", makeClip({{0, 0, 33, 34},
+                                         {33, 0, 33, 34},
+                                         {66, 0, 33, 34},
+                                         {99, 0, 33, 34},
+                                         {132, 0, 33, 34},
+                                         {165, 0, 33, 34},
+                                         {198, 0, 33, 34},
+                                         {231, 0, 33, 34}},
+                                        0.12f, true));
+
+        return animSet;
+    }
+
+    /**
+     * @brief Create diving enemy animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for diving enemy
+     */
+    inline ecs::AnimationSet createEnemyDivingAnimations() {
+        ecs::AnimationSet animSet("r-typesheet4");
+
+        // Diving animation - 6 frames
+        animSet.addClip("dive", makeClip({{0, 0, 33, 33},
+                                          {33, 0, 33, 33},
+                                          {66, 0, 33, 33},
+                                          {99, 0, 33, 33},
+                                          {132, 0, 33, 33},
+                                          {165, 0, 33, 33}},
+                                         0.1f, true));
+
+        return animSet;
+    }
+
+    /**
+     * @brief Create circular enemy animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for circular enemy
+     */
+    inline ecs::AnimationSet createEnemyCircularAnimations() {
+        ecs::AnimationSet animSet("r-typesheet5");
+
+        // Circular flight animation - 8 frames
+        animSet.addClip("circle", makeClip({{0, 0, 32, 32},
+                                            {32, 0, 32, 32},
+                                            {64, 0, 32, 32},
+                                            {96, 0, 32, 32},
+                                            {128, 0, 32, 32},
+                                            {160, 0, 32, 32},
+                                            {192, 0, 32, 32},
+                                            {224, 0, 32, 32}},
+                                           0.15f, true));
+
+        return animSet;
+    }
+
+    /**
+     * @brief Create kamikaze enemy animations.
+     * 
+     * @return ecs::AnimationSet Complete animation set for kamikaze enemy
+     */
+    inline ecs::AnimationSet createEnemyKamikazeAnimations() {
+        ecs::AnimationSet animSet("r-typesheet6");
+
+        // Kamikaze charge animation - 4 frames fast
+        animSet.addClip(
+            "charge",
+            makeClip({{0, 0, 30, 28}, {30, 0, 30, 28}, {60, 0, 30, 28}, {90, 0, 30, 28}}, 0.08f, true));
+
+        return animSet;
+    }
+
+    /**
      * @brief Create boss body animations.
      * 
      * @return ecs::AnimationSet Complete animation set for boss body
@@ -185,6 +318,10 @@ namespace AnimDB {
     inline const std::unordered_map<std::string, AnimationFactory> FACTORIES = {
         {"player", createPlayerAnimations},
         {"enemy_basic", createEnemyBasicAnimations},
+        {"enemy_zigzag", createEnemyZigzagAnimations},
+        {"enemy_diving", createEnemyDivingAnimations},
+        {"enemy_circular", createEnemyCircularAnimations},
+        {"enemy_kamikaze", createEnemyKamikazeAnimations},
         {"boss_body", createBossBodyAnimations},
         {"boss_arm", createBossArmAnimations},
         {"player_bullet", createPlayerBulletAnimations},

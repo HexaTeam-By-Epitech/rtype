@@ -491,7 +491,7 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
             if (_rendering) {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
                                          entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
-                                         entity.spriteY, entity.spriteW, entity.spriteH);
+                                         entity.spriteY, entity.spriteW, entity.spriteH, entity.tint);
             }
         }
         LOG_INFO("Loaded ", gameStart.initialState.entities.size(), " entities from GameStart");
@@ -618,7 +618,7 @@ void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
             } else {
                 _rendering->UpdateEntity(entity.entityId, entity.type, entity.position.x, entity.position.y,
                                          entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
-                                         entity.spriteY, entity.spriteW, entity.spriteH);
+                                         entity.spriteY, entity.spriteW, entity.spriteH, entity.tint);
             }
         }
 
@@ -668,7 +668,7 @@ void GameLoop::processServerReconciliation(const RType::Messages::S2C::EntitySta
     if (_rendering) {
         _rendering->UpdateEntity(entity.entityId, entity.type, predictedX, predictedY,
                                  entity.health.value_or(-1), entity.currentAnimation, entity.spriteX,
-                                 entity.spriteY, entity.spriteW, entity.spriteH);
+                                 entity.spriteY, entity.spriteW, entity.spriteH, entity.tint);
     }
 }
 

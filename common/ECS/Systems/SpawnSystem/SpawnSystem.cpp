@@ -98,46 +98,71 @@ namespace ecs {
         try {
             Address enemy = registry.newEntity();
 
-            // Map enemy type string to numeric type
-            int enemyType = 0;  // Default: basic
-            float speed = 150.0f;
-            float colliderWidth = 40.0f;
-            float colliderHeight = 40.0f;
+            // Map enemy type string to numeric type and color (ABGR format: 0xAABBGGRR)
+            int enemyType = 0;  // Default: diagonal
+            float speed = 120.0f;
+            float colliderWidth = 33.0f;
+            float colliderHeight = 34.0f;
+            uint32_t color = 0xFF00FF00;  // Default: Green
 
-            if (request.enemyType == "basic") {
+            if (request.enemyType == "diagonal") {
                 enemyType = 0;
                 speed = 150.0f;
-                colliderWidth = 40.0f;
-                colliderHeight = 40.0f;
-            } else if (request.enemyType == "advanced" || request.enemyType == "heavy") {
+                colliderWidth = 33.0f;
+                colliderHeight = 34.0f;
+                color = 0xFF00FF00;  // Green
+            } else if (request.enemyType == "homing") {
                 enemyType = 1;
-                speed = 100.0f;
-                colliderWidth = 60.0f;
-                colliderHeight = 60.0f;
-            } else if (request.enemyType == "fast") {
+                speed = 180.0f;
+                colliderWidth = 33.0f;
+                colliderHeight = 33.0f;
+                color = 0xFF0080FF;  // Orange
+            } else if (request.enemyType == "circular") {
                 enemyType = 2;
-                speed = 200.0f;
-                colliderWidth = 30.0f;
-                colliderHeight = 30.0f;
-            } else if (request.enemyType == "boss") {
+                speed = 80.0f;
+                colliderWidth = 32.0f;
+                colliderHeight = 32.0f;
+                color = 0xFFFF00FF;  // Magenta (rose)
+            } else if (request.enemyType == "formation") {
                 enemyType = 3;
-                speed = 120.0f;
-                colliderWidth = 80.0f;
-                colliderHeight = 80.0f;
+                speed = 140.0f;
+                colliderWidth = 30.0f;
+                colliderHeight = 28.0f;
+                color = 0xFFFFFF00;  // Cyan
+            } else {
+                // Unknown type - default to diagonal
+                LOG_WARNING("[SpawnSystem] Unknown enemy type: ", request.enemyType,
+                            " - defaulting to diagonal");
             }
 
+            LOG_INFO("[SpawnSystem] Creating '", request.enemyType, "' enemy type=", enemyType, " color=0x",
+                     std::hex, color, std::dec);
+
             registry.setComponent<Transform>(enemy, Transform(request.x, request.y));
-            registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, speed));
+
+            // For script-controlled enemies (diagonal, homing, formation), disable velocity
+            // So the Lua script has full control over movement
+            if (request.enemyType == "diagonal" || request.enemyType == "homing" ||
+                request.enemyType == "formation") {
+                registry.setComponent<Velocity>(enemy, Velocity(0.0f, 0.0f, 0.0f));
+            } else {
+                registry.setComponent<Velocity>(enemy, Velocity(-1.0f, 0.0f, speed));
+            }
+
             registry.setComponent<Health>(
                 enemy, Health(static_cast<int>(request.health), static_cast<int>(request.health)));
             registry.setComponent<Enemy>(enemy, Enemy(enemyType, request.scoreValue));
             registry.setComponent<Collider>(
-                enemy, Collider(colliderWidth, colliderHeight, 0.0f, 0.0f, 2, 0xFFFFFFFF, false));
+                enemy, Collider(colliderWidth, colliderHeight, 0.0f, 0.0f, 2, color, false));
             registry.setComponent<Weapon>(enemy,
                                           Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, type 1, 15 damage
 
+            // Attach Lua script for AI behavior
             if (!request.scriptPath.empty()) {
                 registry.setComponent<LuaScript>(enemy, LuaScript(request.scriptPath));
+                LOG_INFO("[SpawnSystem] Attached script: ", request.scriptPath, " to enemy ", enemy);
+            } else {
+                LOG_WARNING("[SpawnSystem] No script path for enemy type: ", request.enemyType);
             }
 
             LOG_INFO("[SpawnSystem] Spawned ", request.enemyType, " (type ", enemyType, ") at (", request.x,

@@ -15,7 +15,7 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                                   int health, const std::string &currentAnimation, int srcX, int srcY,
-                                  int srcW, int srcH) {
+                                  int srcW, int srcH, uint32_t tint) {
     // Debug: log Wall entities
     if (type == RType::Messages::Shared::EntityType::Wall) {
         LOG_INFO("EntityRenderer: Updating Wall entity ID=", id, " Pos=(", x, ",", y, ") Size=(", srcW, "x",
@@ -26,9 +26,15 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
 
-        // Always update type and health first (critical data)
+        // Always update type, health, sprite coords, animation, and tint
         it->second.type = type;
         it->second.health = health;
+        it->second.currentAnimation = currentAnimation;
+        it->second.startPixelX = srcX;
+        it->second.startPixelY = srcY;
+        it->second.spriteSizeX = srcW;
+        it->second.spriteSizeY = srcH;
+        it->second.tint = tint;
 
         // Check if entity is a projectile (bullets should NOT be interpolated)
         bool isProjectile = (type == RType::Messages::Shared::EntityType::PlayerBullet ||
@@ -78,18 +84,10 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.x = x;
             it->second.y = y;
         }
-        // Always update type, health, sprite coords, and animation
-        it->second.type = type;
-        it->second.health = health;
-        it->second.currentAnimation = currentAnimation;
-        it->second.startPixelX = srcX;
-        it->second.startPixelY = srcY;
-        it->second.spriteSizeX = srcW;
-        it->second.spriteSizeY = srcH;
     } else {
         // Create new entity with sprite values from server
-        _entities[id] = {id,   type, x, y,    health,           x,  y, x, y, 1.0f, srcX, srcY, srcW,
-                         srcH, 0,    0, 3.0f, currentAnimation, {}, 0};
+        _entities[id] = {id,   type, x, y,    health,           x,    y,  x, y, 1.0f, srcX, srcY, srcW,
+                         srcH, 0,    0, 3.0f, currentAnimation, tint, {}, 0};
         LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y,
                   ") sprite(", srcX, ",", srcY, ",", srcW, ",", srcH, ") anim=", currentAnimation);
     }
@@ -200,11 +198,11 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
 }
 
 void EntityRenderer::renderEnemy(const RenderableEntity &entity) {
-    // Red enemy visualization
+    // Enemy visualization with color from server (via Collider tint)
     // TODO: Load enemy sprite based on type (EnemyType1, EnemyType2, etc.)
 
-    // Placeholder: Red rectangle
-    uint32_t color = 0xFF0000FF;  // Red
+    // Use color from server (set by SpawnSystem based on enemy type)
+    uint32_t color = entity.tint;
     float halfSize = 12.0f;
 
     _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 24,
@@ -304,12 +302,11 @@ void EntityRenderer::renderWall(const RenderableEntity &entity) {
 
     // Draw Wall.png texture stretched to fit the wall dimensions
     // Respect the actual width and height separately (no average scale)
-    float scaleX = width / 50.0f;   // Assuming Wall.png is 50 pixels wide
-    float scaleY = height / 50.0f;  // Assuming Wall.png is 50 pixels tall
+    // Note: Using solid color fill for efficiency instead of texture stretching
 
     // For proper stretching, we need to use DrawTexturePro or tile it
     // Let's just fill with solid color for now, more efficient for large walls
-    uint32_t wallColor = 0xFF13458BFF;  // Brown color in ABGR
+    uint32_t wallColor = 0xFF8B4513;  // Brown color in ABGR
     if (entity.health > 0) {
         wallColor = tint;  // Use health-based tint for destructible walls
     }

@@ -252,11 +252,10 @@ namespace Game {
         static constexpr size_t TOGGLE_PING_INDEX = 0;
         static constexpr size_t TOGGLE_FPS_INDEX = 1;
         static constexpr size_t TOGGLE_CHAT_INDEX = 2;
-        static constexpr size_t TARGET_FPS_INDEX = 3;
-        static constexpr size_t ACCESSIBILITY_INDEX = 4;
         static constexpr size_t AUTO_MATCHMAKING_INDEX = 3;
         static constexpr size_t TARGET_FPS_INDEX = 4;
-        static constexpr size_t BACK_INDEX = 5;
-        static constexpr size_t MAIN_MENU_INDEX = 6;
+        static constexpr size_t ACCESSIBILITY_INDEX = 5;
+        static constexpr size_t BACK_INDEX = 6;
+        static constexpr size_t MAIN_MENU_INDEX = 7;
     };
 }  // namespace Game

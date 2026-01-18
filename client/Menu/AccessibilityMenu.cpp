@@ -26,7 +26,7 @@ namespace Game {
         const float spacing = 18.0f;
 
         const bool showMainMenuButton = (_mode == Mode::OVERLAY);
-        const int buttonCount = showMainMenuButton ? 5 : 4;
+        const int buttonCount = showMainMenuButton ? 4 : 3;
 
         // Center buttons vertically as a stack
         const float totalHeight = (buttonHeight * static_cast<float>(buttonCount)) +
@@ -42,18 +42,13 @@ namespace Game {
             "COLORBLIND: NONE", offsetForIndex(0), buttonWidth, buttonHeight, 0xFF424242, 0xFF616161,
             [this]() { SetColorblindFilter(NextColorblindFilter(_colorblindFilter)); }));
 
-        // Visual Sound Indicators toggle
-        _menu->AddButton(CreateCenteredButton(
-            "VISUAL SOUNDS: OFF", offsetForIndex(1), buttonWidth, buttonHeight, 0xFF424242, 0xFF616161,
-            [this]() { SetVisualSoundIndicators(!_visualSoundIndicators); }));
-
         // Key Bindings configuration button
-        _menu->AddButton(CreateCenteredButton("CONFIGURE KEY BINDINGS", offsetForIndex(2), buttonWidth,
+        _menu->AddButton(CreateCenteredButton("CONFIGURE KEY BINDINGS", offsetForIndex(1), buttonWidth,
                                               buttonHeight, 0xFF5E35B1, 0xFF7E57C2,
                                               [this]() { OpenKeyBindingsConfig(); }));
 
         // Back button
-        _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(3), buttonWidth, buttonHeight,
+        _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(2), buttonWidth, buttonHeight,
                                               0xFF1976D2, 0xFF1E88E5, [this]() {
                                                   if (_onBack) {
                                                       _onBack();
@@ -64,7 +59,7 @@ namespace Game {
 
         // Main menu (only in overlay mode)
         if (showMainMenuButton) {
-            _menu->AddButton(CreateCenteredButton("MAIN MENU", offsetForIndex(4), buttonWidth, buttonHeight,
+            _menu->AddButton(CreateCenteredButton("MAIN MENU", offsetForIndex(3), buttonWidth, buttonHeight,
                                                   0xFF5D4037, 0xFF6D4C41, [this]() {
                                                       if (_onMainMenu) {
                                                           _onMainMenu();
@@ -150,31 +145,6 @@ namespace Game {
         UpdateColorblindFilterVisuals();
     }
 
-    // --- Visual Sound Indicators ---
-    void AccessibilityMenu::SetVisualSoundIndicators(bool enabled) {
-        if (_visualSoundIndicators != enabled) {
-            _visualSoundIndicators = enabled;
-            UpdateVisualSoundIndicatorsVisuals();
-            LOG_INFO("[AccessibilityMenu] Visual sound indicators: ", enabled ? "ON" : "OFF");
-            if (_onVisualSoundIndicatorsChanged) {
-                _onVisualSoundIndicatorsChanged(enabled);
-            }
-        }
-    }
-
-    bool AccessibilityMenu::GetVisualSoundIndicators() const {
-        return _visualSoundIndicators;
-    }
-
-    void AccessibilityMenu::SetOnVisualSoundIndicatorsChanged(std::function<void(bool)> callback) {
-        _onVisualSoundIndicatorsChanged = std::move(callback);
-    }
-
-    void AccessibilityMenu::SetVisualSoundIndicatorsSilent(bool enabled) {
-        _visualSoundIndicators = enabled;
-        UpdateVisualSoundIndicatorsVisuals();
-    }
-
     // --- Game Speed ---
     void AccessibilityMenu::SetGameSpeed(float speed) {
         float clampedSpeed = ClampGameSpeed(speed);
@@ -226,7 +196,6 @@ namespace Game {
     // --- Visual Updates ---
     void AccessibilityMenu::RefreshVisuals() {
         UpdateColorblindFilterVisuals();
-        UpdateVisualSoundIndicatorsVisuals();
     }
 
     void AccessibilityMenu::UpdateColorblindFilterVisuals() {
@@ -240,21 +209,6 @@ namespace Game {
 
         if (_menu->GetButtonCount() > COLORBLIND_FILTER_INDEX) {
             auto button = _menu->GetButton(COLORBLIND_FILTER_INDEX);
-            button->SetText(buttonText);
-        }
-    }
-
-    void AccessibilityMenu::UpdateVisualSoundIndicatorsVisuals() {
-        if (!_menu) {
-            return;
-        }
-
-        const char *status = _visualSoundIndicators ? "ON" : "OFF";
-        char buttonText[64];
-        snprintf(buttonText, sizeof(buttonText), "VISUAL SOUNDS: %s", status);
-
-        if (_menu->GetButtonCount() > VISUAL_SOUND_INDEX) {
-            auto button = _menu->GetButton(VISUAL_SOUND_INDEX);
             button->SetText(buttonText);
         }
     }

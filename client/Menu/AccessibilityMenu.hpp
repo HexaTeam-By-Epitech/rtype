@@ -93,28 +93,6 @@ namespace Game {
          */
         void SetColorblindFilterSilent(ColorblindFilter filter);
 
-        // --- Visual Sound Indicators ---
-        /**
-         * @brief Toggle visual sound indicators
-         * @param enabled Whether to show visual indicators for sounds
-         */
-        void SetVisualSoundIndicators(bool enabled);
-
-        /**
-         * @brief Get visual sound indicators state
-         */
-        [[nodiscard]] bool GetVisualSoundIndicators() const;
-
-        /**
-         * @brief Set callback invoked when visual sound indicators toggle changes
-         */
-        void SetOnVisualSoundIndicatorsChanged(std::function<void(bool)> callback);
-
-        /**
-         * @brief Set visual sound indicators without emitting callbacks
-         */
-        void SetVisualSoundIndicatorsSilent(bool enabled);
-
         // --- Game Speed ---
         /**
          * @brief Set game speed multiplier (0.5 = 50% speed, 1.0 = normal)
@@ -167,7 +145,6 @@ namespace Game {
        private:
         // Helper methods
         void UpdateColorblindFilterVisuals();
-        void UpdateVisualSoundIndicatorsVisuals();
         [[nodiscard]] ColorblindFilter NextColorblindFilter(ColorblindFilter current) const;
         [[nodiscard]] const char *ColorblindFilterToString(ColorblindFilter filter) const;
         [[nodiscard]] float ClampGameSpeed(float speed) const;
@@ -177,13 +154,11 @@ namespace Game {
 
         Mode _mode{Mode::FULLSCREEN};
         ColorblindFilter _colorblindFilter{ColorblindFilter::NONE};
-        bool _visualSoundIndicators{false};
         float _gameSpeed{1.0f};  // Normal speed
         unsigned int _overlayDimColor{0x88000000};
 
         // Callbacks
         std::function<void(ColorblindFilter)> _onColorblindFilterChanged{};
-        std::function<void(bool)> _onVisualSoundIndicatorsChanged{};
         std::function<void(float)> _onGameSpeedChanged{};
         std::function<void()> _onConfigureKeyBindings{};
         std::function<void()> _onBack{};
@@ -191,9 +166,8 @@ namespace Game {
 
         // Button indices
         static constexpr size_t COLORBLIND_FILTER_INDEX = 0;
-        static constexpr size_t VISUAL_SOUND_INDEX = 1;
-        static constexpr size_t KEY_BINDINGS_INDEX = 2;
-        static constexpr size_t BACK_INDEX = 3;
-        static constexpr size_t MAIN_MENU_INDEX = 4;
+        static constexpr size_t KEY_BINDINGS_INDEX = 1;
+        static constexpr size_t BACK_INDEX = 2;
+        static constexpr size_t MAIN_MENU_INDEX = 3;
     };
 }  // namespace Game

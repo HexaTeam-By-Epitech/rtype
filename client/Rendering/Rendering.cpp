@@ -231,14 +231,6 @@ void Rendering::InitializeAccessibilityMenu() {
         SaveAccessibilitySettings();
     });
 
-    // Visual sound indicators toggled
-    _accessibilityMenu->SetOnVisualSoundIndicatorsChanged([this](bool enabled) {
-        LOG_INFO("[Rendering] Visual sound indicators: ", enabled ? "ON" : "OFF");
-        // TODO: Implement visual sound indicator system
-        // _visualSoundSystem.SetEnabled(enabled);
-        SaveAccessibilitySettings();
-    });
-
     // Game speed changed
     _accessibilityMenu->SetOnGameSpeedChanged([this](float speed) {
         LOG_INFO("[Rendering] Game speed changed to: ", static_cast<int>(speed * 100), "%");
@@ -1282,7 +1274,6 @@ void Rendering::LoadAccessibilitySettings() {
                 break;
         }
         _accessibilityMenu->SetColorblindFilterSilent(filter);
-        _accessibilityMenu->SetVisualSoundIndicatorsSilent(settings.visualSoundIndicators != 0);
 
         // Apply colorblind filter to graphics
         Graphics::ColorblindFilterType graphicsFilter = Graphics::ColorblindFilterType::NONE;
@@ -1334,8 +1325,6 @@ void Rendering::SaveAccessibilitySettings() {
             settings.colorblindFilter = Settings::ColorblindFilterType::NONE;
             break;
     }
-
-    settings.visualSoundIndicators = _accessibilityMenu->GetVisualSoundIndicators() ? 1 : 0;
 
     if (Settings::SaveSettings(settings)) {
         LOG_INFO("[Rendering] Saved accessibility settings to ", Settings::SETTINGS_FILE_PATH);

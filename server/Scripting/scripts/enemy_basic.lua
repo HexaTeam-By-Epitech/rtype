@@ -20,7 +20,7 @@ function onUpdate(entity, deltaTime)
 	-- Initialize per-entity state if needed
 	if not entityStates[addr] then
 		entityStates[addr] = {
-			initialized = true
+			initialized = true,
 		}
 	end
 

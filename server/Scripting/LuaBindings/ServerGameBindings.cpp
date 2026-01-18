@@ -8,19 +8,28 @@
 #include "ServerGameBindings.hpp"
 #include <cstdlib>
 #include <ctime>
+#include "common/ECS/Components/Buff.hpp"
+#include "common/ECS/Components/Collectible.hpp"
+#include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
 #include "common/ECS/Components/Spawner.hpp"
+#include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/Logger/Logger.hpp"
+#include "server/Scripting/LuaEngine.hpp"
 
 namespace scripting::bindings {
 
-    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world) {
+    void bindServerGame(sol::state &lua, ecs::wrapper::ECSWorld *world, LuaEngine *engine) {
         if (!world) {
             LOG_ERROR("Cannot bind server game functions: world is null");
+            return;
+        }
+        if (!engine) {
+            LOG_ERROR("Cannot bind server game functions: engine is null");
             return;
         }
 
@@ -95,6 +104,98 @@ namespace scripting::bindings {
             return result;
         });
 
+        // Spawn power-up (temporary buff)
+        lua.set_function(
+            "spawnPowerUp",
+            [world](const std::string &buffType, float duration, float value, float x,
+                    float y) -> ecs::wrapper::Entity {
+                try {
+                    ecs::BuffType type = ecs::BuffType::SpeedBoost;  // Default
+
+                    // Convert string to BuffType
+                    if (buffType == "speed")
+                        type = ecs::BuffType::SpeedBoost;
+                    else if (buffType == "damage")
+                        type = ecs::BuffType::DamageBoost;
+                    else if (buffType == "firerate")
+                        type = ecs::BuffType::FireRateBoost;
+                    else if (buffType == "shield")
+                        type = ecs::BuffType::Shield;
+                    else if (buffType == "regen")
+                        type = ecs::BuffType::HealthRegen;
+
+                    auto entity = world->createEntity();
+                    entity.with(ecs::Transform(x, y));
+                    entity.with(ecs::Collectible(type, duration, value));
+                    entity.with(ecs::Collider(20.0f, 20.0f, 0.0f, 0.0f, 8, 0xFFFFFFFF, false));
+                    entity.with(ecs::Sprite("powerup.png", {0, 0, 20, 20}, 1.0f, 0.0f, false, false, 0));
+
+                    LOG_INFO("[LUA] Spawned power-up '" + buffType + "' at (" + std::to_string(x) + ", " +
+                             std::to_string(y) + ")");
+
+                    return entity;
+                } catch (const std::exception &e) {
+                    LOG_ERROR("[LUA] Failed to spawn power-up: " + std::string(e.what()));
+                    throw;
+                }
+            });
+
+        // Spawn permanent upgrade
+        lua.set_function(
+            "spawnUpgrade",
+            [world](const std::string &buffType, float value, float x, float y) -> ecs::wrapper::Entity {
+                try {
+                    ecs::BuffType type = ecs::BuffType::MultiShot;  // Default
+
+                    // Convert string to BuffType
+                    if (buffType == "multishot")
+                        type = ecs::BuffType::MultiShot;
+                    else if (buffType == "doubleshot")
+                        type = ecs::BuffType::DoubleShot;
+                    else if (buffType == "tripleshot")
+                        type = ecs::BuffType::TripleShot;
+                    else if (buffType == "piercing")
+                        type = ecs::BuffType::PiercingShot;
+                    else if (buffType == "homing")
+                        type = ecs::BuffType::HomingShot;
+                    else if (buffType == "maxhealth")
+                        type = ecs::BuffType::MaxHealthIncrease;
+
+                    auto entity = world->createEntity();
+                    entity.with(ecs::Transform(x, y));
+                    entity.with(ecs::Collectible(type, 0.0f, value));  // 0.0f = permanent
+                    entity.with(ecs::Collider(20.0f, 20.0f, 0.0f, 0.0f, 8, 0xFFFFFFFF, false));
+                    entity.with(ecs::Sprite("upgrade.png", {0, 0, 20, 20}, 1.0f, 0.0f, false, false, 0));
+
+                    LOG_INFO("[LUA] Spawned upgrade '" + buffType + "' at (" + std::to_string(x) + ", " +
+                             std::to_string(y) + ")");
+
+                    return entity;
+                } catch (const std::exception &e) {
+                    LOG_ERROR("[LUA] Failed to spawn upgrade: " + std::string(e.what()));
+                    throw;
+                }
+            });
+
+        // Spawn health pack
+        lua.set_function(
+            "spawnHealthPack", [world](int healthRestore, float x, float y) -> ecs::wrapper::Entity {
+                try {
+                    auto entity = world->createEntity();
+                    entity.with(ecs::Transform(x, y));
+                    entity.with(ecs::Collectible(healthRestore));
+                    entity.with(ecs::Collider(20.0f, 20.0f, 0.0f, 0.0f, 8, 0xFFFFFFFF, false));
+                    entity.with(ecs::Sprite("health.png", {0, 0, 20, 20}, 1.0f, 0.0f, false, false, 0));
+
+                    LOG_INFO("[LUA] Spawned health pack at (" + std::to_string(x) + ", " + std::to_string(y) +
+                             ")");
+
+                    return entity;
+                } catch (const std::exception &e) {
+                    LOG_ERROR("[LUA] Failed to spawn health pack: " + std::string(e.what()));
+                    throw;
+                }
+            });
         // Queue a spawn request through a Spawner entity
         // Usage: queueSpawn(spawnerEntity, x, y, type, scriptPath, health, scoreValue)
         lua.set_function("queueSpawn", [world](ecs::wrapper::Entity spawner, float x, float y,

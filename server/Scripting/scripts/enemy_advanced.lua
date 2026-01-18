@@ -25,7 +25,7 @@ function onUpdate(entity, deltaTime)
 		entityStates[addr] = {
 			time = 0,
 			startY = transform.y,
-			initialized = true
+			initialized = true,
 		}
 	end
 
@@ -40,7 +40,7 @@ function onUpdate(entity, deltaTime)
 
 	-- Destroy if off-screen (left side) and cleanup state
 	if transform.x < -50 then
-		entityStates[addr] = nil  -- Cleanup state to prevent memory leak
+		entityStates[addr] = nil -- Cleanup state to prevent memory leak
 		-- entity:destroy() -- Entity destruction handled by BoundarySystem
 	end
 end

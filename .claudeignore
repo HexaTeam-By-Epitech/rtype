@@ -1,0 +1,12 @@
+vcpkg/
+**/vcpkg/**
+tests/
+doxygen-awesome-css/
+docs/
+hooks/
+cmake-build-debug/
+build
+assets/
+.cache
+.idea
+.vscode

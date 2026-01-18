@@ -47,7 +47,8 @@ namespace server {
     }
 
     std::shared_ptr<Room> RoomManager::createRoom(const std::string &id, const std::string &name,
-                                                  size_t maxPlayers, bool isPrivate) {
+                                                  size_t maxPlayers, bool isPrivate,
+                                                  float gameSpeedMultiplier) {
         std::lock_guard<std::mutex> lock(_mutex);
 
         if (_rooms.find(id) != _rooms.end()) {

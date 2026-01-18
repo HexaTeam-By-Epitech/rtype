@@ -32,9 +32,11 @@ namespace server {
          * @param maxPlayers Maximum number of players (default: 4)
          * @param isPrivate Whether the room is private (default: false)
          * @param eventBus Shared event bus for server-wide events
+         * @param gameSpeedMultiplier Game speed multiplier(0.25 to 1.0, default : 1.0)
          */
         explicit Room(const std::string &id, const std::string &name = "", size_t maxPlayers = 4,
-                      bool isPrivate = false, std::shared_ptr<EventBus> eventBus = nullptr);
+                      bool isPrivate = false, std::shared_ptr<EventBus> eventBus = nullptr,
+                      float gameSpeedMultiplier = 1.0f);
         ~Room() override = default;
 
         bool join(uint32_t playerId) override;
@@ -113,6 +115,12 @@ namespace server {
         bool isPrivate() const { return _isPrivate; }
 
         /**
+         * @brief Get the game speed multiplier
+         * @return Game speed multiplier (0.25 to 1.0)
+         */
+        float getGameSpeedMultiplier() const { return _gameSpeedMultiplier; }
+
+        /**
          * @brief Check if GameStart has been sent
          * @return true if GameStart has been sent to players
          */
@@ -135,6 +143,7 @@ namespace server {
         RoomState _state;
         size_t _maxPlayers;
         bool _isPrivate;
+        float _gameSpeedMultiplier;
         uint32_t _hostPlayerId;
         std::vector<uint32_t> _players;
         std::vector<uint32_t> _spectators;

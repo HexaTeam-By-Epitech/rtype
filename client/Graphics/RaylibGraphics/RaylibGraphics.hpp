@@ -80,6 +80,10 @@ namespace Graphics {
         bool IsKeyPressed(int key) const override;
         bool IsKeyDown(int key) const override;
         bool IsKeyReleased(int key) const override;
+        bool IsGamepadAvailable(int gamepad) const override;
+        bool IsGamepadButtonPressed(int gamepad, int button) const override;
+        bool IsGamepadButtonDown(int gamepad, int button) const override;
+        float GetGamepadAxisMovement(int gamepad, int axis) const override;
         bool IsMouseButtonPressed(int button) const override;
         bool IsMouseButtonDown(int button) const override;
         void GetMousePosition(float &x, float &y) const override;
@@ -93,6 +97,11 @@ namespace Graphics {
         void DrawRectangleLines(int x, int y, int width, int height, unsigned int color) override;
         void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) override;
 
+        // Colorblind filter
+        void SetColorblindFilter(ColorblindFilterType filter) override;
+        [[nodiscard]] ColorblindFilterType GetColorblindFilter() const override;
+        void BeginColorblindCapture() override;
+        void EndColorblindCapture() override;
         // Audio management
         void InitAudioDevice() override;
         void CloseAudioDevice() override;
@@ -104,11 +113,21 @@ namespace Graphics {
         bool IsSoundPlaying(const char *soundName) const override;
 
        private:
+        void LoadColorblindShader();
+        void UnloadColorblindShader();
+
         std::vector<Font> _fonts;
         std::unordered_map<std::string, Texture2D> _textures;
         std::unordered_map<std::string, Sound> _sounds;
         Color _clearColor{255, 255, 255, 255};
         bool _windowInitialized = false;
+
+        // Colorblind filter resources
+        Shader _colorblindShader{};
+        RenderTexture2D _colorblindRenderTexture{};
+        ColorblindFilterType _colorblindFilter{ColorblindFilterType::NONE};
+        bool _colorblindShaderLoaded{false};
+        int _filterTypeLoc{-1};
         bool _audioInitialized = false;
     };
 }  // namespace Graphics

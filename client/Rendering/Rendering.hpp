@@ -23,11 +23,13 @@
 #include "Audio/SoundEffectManager.hpp"
 
 // UI library
+#include "Menu/AccessibilityMenu.hpp"
 #include "Menu/AddServerMenu.hpp"
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
 #include "Menu/CreateRoomMenu.hpp"
 #include "Menu/DefeatMenu.hpp"
+#include "Menu/KeyBindingsMenu.hpp"
 #include "Menu/LoginMenu.hpp"
 #include "Menu/MainMenu.hpp"
 #include "Menu/RoomListMenu.hpp"
@@ -291,6 +293,21 @@ class Rendering {
     bool IsKeyDown(int key) const;
 
     /**
+     * @brief Check if a gamepad is available/connected
+     * @param gamepad Gamepad index (0-3)
+     * @return true if the gamepad is connected
+     */
+    bool IsGamepadAvailable(int gamepad) const;
+
+    /**
+     * @brief Check if a gamepad button is currently held down
+     * @param gamepad Gamepad index (0-3)
+     * @param button Button code (GAMEPAD_BUTTON_* constants)
+     * @return true if the button is down
+     */
+    bool IsGamepadButtonDown(int gamepad, int button) const;
+
+    /**
      * @brief Update interpolation for all entities
      * @param deltaTime Time elapsed since last frame (in seconds)
      * 
@@ -469,6 +486,8 @@ class Rendering {
     std::unique_ptr<Game::WaitingRoomMenu> _waitingRoomMenu;
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
+    std::unique_ptr<Game::AccessibilityMenu> _accessibilityMenu;
+    std::unique_ptr<Game::KeyBindingsMenu> _keyBindingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
     std::unique_ptr<Game::LoginMenu> _loginMenu;
     std::unique_ptr<Game::DefeatMenu> _defeatMenu;
@@ -477,6 +496,7 @@ class Rendering {
     bool _settingsOverlay = false;
     bool _confirmQuitOverlay = false;
     bool _loginOverlay = false;
+    bool _keyBindingsOverlay = false;
 
     // Selected server for connection
     std::string _selectedServerIp = "127.0.0.1";
@@ -522,6 +542,8 @@ class Rendering {
     // ===== Menu initialization helpers (SOLID: Single Responsibility) =====
     void InitializeConfirmQuitMenu();
     void InitializeSettingsMenu();
+    void InitializeAccessibilityMenu();
+    void InitializeKeyBindingsMenu();
     void InitializeMainMenu();
     void InitializeLoginMenu();
     void InitializeServerListMenu();
@@ -534,6 +556,10 @@ class Rendering {
     void InitializeConnectionMenu();
     void InitializeChatWidget();
     void SubscribeToConnectionEvents();
+
+    // ===== Accessibility settings persistence =====
+    void LoadAccessibilitySettings();
+    void SaveAccessibilitySettings();
 
     // ===== Helper methods for Render() to reduce cognitive complexity =====
 

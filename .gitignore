@@ -61,3 +61,5 @@ coverage.info
 
 # private files
 accounts.json
+.rtype_settings
+keybindings.cfg

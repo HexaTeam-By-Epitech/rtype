@@ -13,7 +13,8 @@ namespace Game {
     CreateRoomMenu::CreateRoomMenu(UI::IUIFactory &uiFactory, Graphics::IGraphics &graphics)
         : BaseMenu(uiFactory), _graphics(graphics) {}
 
-    void CreateRoomMenu::SetOnCreate(std::function<void(const std::string &, uint32_t, bool)> onCreate) {
+    void CreateRoomMenu::SetOnCreate(
+        std::function<void(const std::string &, uint32_t, bool, float)> onCreate) {
         _onCreate = std::move(onCreate);
     }
 
@@ -86,9 +87,32 @@ namespace Game {
         }));
         _menu->AddButton(_privateButton);
 
+        // Game Speed Button (cycles through speed options: 100%, 75%, 50%, 25%)
+        _gameSpeedButton = _uiFactory.CreateButton();
+        _gameSpeedButton->SetPosition(centerX - 200.0f, 340.0f);
+        _gameSpeedButton->SetSize(400.0f, 40.0f);
+        UpdateSpeedButtonText();
+        _gameSpeedButton->SetBackgroundColor(0xFFFF9800);  // Orange for speed
+        _gameSpeedButton->SetHoverColor(0xFFFFB74D);
+        _gameSpeedButton->SetTextColor(0xFFFFFFFF);
+        _gameSpeedButton->SetCallback([this]() {
+            // Cycle through: 100% -> 75% -> 50% -> 25% -> 100%
+            if (_gameSpeedMultiplier >= 1.0f) {
+                _gameSpeedMultiplier = 0.75f;
+            } else if (_gameSpeedMultiplier >= 0.75f) {
+                _gameSpeedMultiplier = 0.50f;
+            } else if (_gameSpeedMultiplier >= 0.50f) {
+                _gameSpeedMultiplier = 0.25f;
+            } else {
+                _gameSpeedMultiplier = 1.0f;
+            }
+            UpdateSpeedButtonText();
+        });
+        _menu->AddButton(_gameSpeedButton);
+
         // Create Button
         _createButton = _uiFactory.CreateButton();
-        _createButton->SetPosition(centerX - 100.0f, 360.0f);
+        _createButton->SetPosition(centerX - 100.0f, 420.0f);
         _createButton->SetSize(90.0f, 40.0f);
         _createButton->SetText("CREATE");
         _createButton->SetBackgroundColor(0xFF4CAF50);
@@ -99,7 +123,7 @@ namespace Game {
 
         // Cancel Button
         _cancelButton = _uiFactory.CreateButton();
-        _cancelButton->SetPosition(centerX + 10.0f, 360.0f);
+        _cancelButton->SetPosition(centerX + 10.0f, 420.0f);
         _cancelButton->SetSize(90.0f, 40.0f);
         _cancelButton->SetText("CANCEL");
         _cancelButton->SetBackgroundColor(0xFF424242);
@@ -145,7 +169,7 @@ namespace Game {
             int errorFontSize = 18;
             int errorWidth = static_cast<int>(_errorMessage.length() * errorFontSize * 0.5f);
             int errorX = (screenWidth - errorWidth) / 2;
-            _graphics.DrawText(_errorMessage.c_str(), errorX, 420, errorFontSize, 0xFFFF0000);
+            _graphics.DrawText(_errorMessage.c_str(), errorX, 480, errorFontSize, 0xFFFF0000);
         }
 
         BaseMenu::Render();
@@ -183,20 +207,23 @@ namespace Game {
 
         std::string roomName = _roomNameInput->GetText();
         LOG_INFO("[CreateRoomMenu] Creating room: ", roomName, " (Max: ", _selectedMaxPlayers,
-                 ", Private: ", _isPrivate ? "Yes" : "No", ")");
+                 ", Private: ", _isPrivate ? "Yes" : "No",
+                 ", Speed: ", static_cast<int>(_gameSpeedMultiplier * 100), "%)");
 
         if (_onCreate) {
-            _onCreate(roomName, _selectedMaxPlayers, _isPrivate);
+            _onCreate(roomName, _selectedMaxPlayers, _isPrivate, _gameSpeedMultiplier);
         }
 
         // Reset form
         _roomNameInput->SetText("");
         _selectedMaxPlayers = 4;
         _isPrivate = false;
+        _gameSpeedMultiplier = 1.0f;
         _maxPlayersButton->SetText("Max Players: 4");
         _privateButton->SetText("Private: No");
         _privateButton->SetBackgroundColor(0xFF9E9E9E);
         _privateButton->SetHoverColor(0xFFBDBDBD);
+        UpdateSpeedButtonText();
         _errorMessage.clear();
     }
 
@@ -205,10 +232,20 @@ namespace Game {
 
         // Reset form
         _roomNameInput->SetText("");
+        _gameSpeedMultiplier = 1.0f;
+        UpdateSpeedButtonText();
         _errorMessage.clear();
 
         if (_onCancel) {
             _onCancel();
+        }
+    }
+
+    void CreateRoomMenu::UpdateSpeedButtonText() {
+        int speedPercent = static_cast<int>(_gameSpeedMultiplier * 100);
+        std::string speedText = "Game Speed: " + std::to_string(speedPercent) + "%";
+        if (_gameSpeedButton) {
+            _gameSpeedButton->SetText(speedText);
         }
     }
 }  // namespace Game

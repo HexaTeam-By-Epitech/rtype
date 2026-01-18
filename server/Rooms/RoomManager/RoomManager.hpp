@@ -36,7 +36,8 @@ namespace server {
         ~RoomManager() override = default;
 
         std::shared_ptr<Room> createRoom(const std::string &id, const std::string &name = "",
-                                         size_t maxPlayers = 4, bool isPrivate = false) override;
+                                         size_t maxPlayers = 4, bool isPrivate = false,
+                                         float gameSpeedMultiplier = 1.0f) override;
         std::shared_ptr<Room> getRoom(const std::string &id) override;
         bool removeRoom(const std::string &id) override;
         std::vector<std::shared_ptr<Room>> getAllRooms() override;

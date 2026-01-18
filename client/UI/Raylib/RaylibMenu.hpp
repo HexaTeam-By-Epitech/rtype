@@ -62,9 +62,28 @@ namespace UI {
         /** @copydoc UI::IMenu::IsVisible */
         [[nodiscard]] bool IsVisible() const override;
 
+        /** @copydoc UI::IMenu::HandleKeyboardNavigation */
+        void HandleKeyboardNavigation() override;
+
+        /** @copydoc UI::IMenu::SelectNext */
+        void SelectNext() override;
+
+        /** @copydoc UI::IMenu::SelectPrevious */
+        void SelectPrevious() override;
+
+        /** @copydoc UI::IMenu::TriggerSelected */
+        void TriggerSelected() override;
+
+        /** @copydoc UI::IMenu::GetSelectedIndex */
+        [[nodiscard]] int GetSelectedIndex() const override;
+
+        /** @copydoc UI::IMenu::SetSelectedIndex */
+        void SetSelectedIndex(int index) override;
+
        private:
-        [[maybe_unused]] Graphics::IGraphics &_graphics;  ///< Graphics dependency
-        std::vector<std::shared_ptr<IButton>> _buttons;   ///< Collection of buttons
-        bool _visible{true};                              ///< Menu visibility state
+        Graphics::IGraphics &_graphics;                  ///< Graphics dependency
+        std::vector<std::shared_ptr<IButton>> _buttons;  ///< Collection of buttons
+        bool _visible{true};                             ///< Menu visibility state
+        int _selectedIndex{-1};                          ///< Currently selected button index (-1 = none)
     };
 }  // namespace UI

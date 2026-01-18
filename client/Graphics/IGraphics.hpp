@@ -8,6 +8,18 @@
 #pragma once
 
 namespace Graphics {
+
+    /**
+     * @brief Colorblind filter types for accessibility
+     */
+    enum class ColorblindFilterType {
+        NONE = 0,          ///< No filter applied
+        PROTANOPIA = 1,    ///< Red-blind (reduced red sensitivity)
+        DEUTERANOPIA = 2,  ///< Green-blind (reduced green sensitivity)
+        TRITANOPIA = 3,    ///< Blue-blind (reduced blue sensitivity)
+        MONOCHROMACY = 4   ///< Complete color blindness (grayscale)
+    };
+
     /**
  * @brief Abstract interface for graphics rendering operations
  * 
@@ -308,6 +320,39 @@ namespace Graphics {
      */
         virtual bool IsKeyReleased(int key) const = 0;
 
+        // ========== Gamepad/Controller Input ==========
+
+        /**
+     * @brief Check if a gamepad is available/connected
+     * @param gamepad Gamepad index (0-3, typically 0 for first controller)
+     * @return true if the gamepad is connected, false otherwise
+     */
+        virtual bool IsGamepadAvailable(int gamepad) const = 0;
+
+        /**
+     * @brief Check if a gamepad button was pressed this frame
+     * @param gamepad Gamepad index (0-3)
+     * @param button Button code (use GAMEPAD_BUTTON_* constants)
+     * @return true if the button was just pressed, false otherwise
+     */
+        virtual bool IsGamepadButtonPressed(int gamepad, int button) const = 0;
+
+        /**
+     * @brief Check if a gamepad button is currently held down
+     * @param gamepad Gamepad index (0-3)
+     * @param button Button code (use GAMEPAD_BUTTON_* constants)
+     * @return true if the button is currently down, false otherwise
+     */
+        virtual bool IsGamepadButtonDown(int gamepad, int button) const = 0;
+
+        /**
+     * @brief Get gamepad axis value (for analog sticks and triggers)
+     * @param gamepad Gamepad index (0-3)
+     * @param axis Axis code (use GAMEPAD_AXIS_* constants)
+     * @return Axis value between -1.0 and 1.0 (0.0 for triggers at rest)
+     */
+        virtual float GetGamepadAxisMovement(int gamepad, int axis) const = 0;
+
         /**
      * @brief Check if a mouse button was pressed (triggered once when button goes down)
      * @param button Mouse button code (implementation-specific button constants)
@@ -395,6 +440,31 @@ namespace Graphics {
      */
         virtual void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) = 0;
 
+        // ========== Colorblind Filter ==========
+
+        /**
+     * @brief Set the colorblind filter type
+     * @param filter The type of colorblind filter to apply
+     */
+        virtual void SetColorblindFilter(ColorblindFilterType filter) = 0;
+
+        /**
+     * @brief Get the current colorblind filter type
+     * @return The currently active colorblind filter
+     */
+        [[nodiscard]] virtual ColorblindFilterType GetColorblindFilter() const = 0;
+
+        /**
+     * @brief Begin capturing frame for colorblind filter processing
+     * @note Must be called after StartDrawing() and before any draw calls
+     */
+        virtual void BeginColorblindCapture() = 0;
+
+        /**
+     * @brief End capturing and apply the colorblind filter
+     * @note Must be called after all draw calls and before DisplayWindow()
+     */
+        virtual void EndColorblindCapture() = 0;
         // ========== Audio Management ==========
 
         /**

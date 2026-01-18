@@ -94,6 +94,11 @@ namespace Game {
         void SetOnMainMenu(std::function<void()> cb);
 
         /**
+         * @brief Set callback invoked when "Accessibility" button is clicked.
+         */
+        void SetOnAccessibility(std::function<void()> cb);
+
+        /**
          * @brief Set the dim color used when this menu is displayed in overlay mode.
          * @param color Color in 0xAARRGGBB.
          */
@@ -237,6 +242,7 @@ namespace Game {
         std::function<void(bool)> _onShowPingChanged{};
         std::function<void()> _onBack{};
         std::function<void()> _onMainMenu{};
+        std::function<void()> _onAccessibility{};
         std::function<void(bool)> _onShowFpsChanged{};
         std::function<void(bool)> _onShowChatChanged{};
         std::function<void(uint32_t)> _onTargetFpsChanged{};
@@ -248,7 +254,8 @@ namespace Game {
         static constexpr size_t TOGGLE_CHAT_INDEX = 2;
         static constexpr size_t AUTO_MATCHMAKING_INDEX = 3;
         static constexpr size_t TARGET_FPS_INDEX = 4;
-        static constexpr size_t BACK_INDEX = 5;
-        static constexpr size_t MAIN_MENU_INDEX = 6;
+        static constexpr size_t ACCESSIBILITY_INDEX = 5;
+        static constexpr size_t BACK_INDEX = 6;
+        static constexpr size_t MAIN_MENU_INDEX = 7;
     };
 }  // namespace Game

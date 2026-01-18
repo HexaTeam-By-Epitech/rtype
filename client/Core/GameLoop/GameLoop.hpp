@@ -273,6 +273,7 @@ class GameLoop {
     bool _isMoving = false;                    // True when player is actively moving
     float _playerSpeed = 300.0f;               // pixels per second (MUST MATCH SERVER!)
     bool _clientSidePredictionEnabled = true;  // Client-side prediction for smooth movement
+    float _gameSpeedMultiplier = 1.0f;         // Game speed multiplier from server
 
     // Entity tracking for cleanup
     std::unordered_set<uint32_t> _knownEntityIds;  // Track all entities we've seen for proper cleanup

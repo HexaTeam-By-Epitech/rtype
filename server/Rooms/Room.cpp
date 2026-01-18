@@ -19,12 +19,13 @@
 namespace server {
 
     Room::Room(const std::string &id, const std::string &name, size_t maxPlayers, bool isPrivate,
-               std::shared_ptr<EventBus> eventBus)
+               std::shared_ptr<EventBus> eventBus, float gameSpeedMultiplier)
         : _id(id),
           _name(name.empty() ? id : name),
           _state(RoomState::WAITING),
           _maxPlayers(maxPlayers),
           _isPrivate(isPrivate),
+          _gameSpeedMultiplier(std::clamp(gameSpeedMultiplier, 0.25f, 1.0f)),
           _hostPlayerId(0),
           _gameStartSent(false) {
 
@@ -34,7 +35,7 @@ namespace server {
         std::shared_ptr<ThreadPool> threadPool = std::make_shared<ThreadPool>(4);
         threadPool->start();
         std::unique_ptr<IGameLogic> gameLogic = std::make_unique<GameLogic>(ecsWorld, threadPool, _eventBus);
-        _gameLoop = std::make_unique<ServerLoop>(std::move(gameLogic), _eventBus);
+        _gameLoop = std::make_unique<ServerLoop>(std::move(gameLogic), _eventBus, _gameSpeedMultiplier);
 
         if (!_gameLoop->initialize()) {
             LOG_ERROR("Failed to initialize game loop for room ", _id);
@@ -46,7 +47,8 @@ namespace server {
         _gameLogic = std::shared_ptr<IGameLogic>(&_gameLoop->getGameLogic(), [](IGameLogic *) {});
 
         LOG_INFO("Room '", _name, "' (", _id, ") created [State: WAITING, Max: ", _maxPlayers,
-                 " players, Private: ", (_isPrivate ? "Yes" : "No"), "] with dedicated GameLoop");
+                 " players, Private: ", (_isPrivate ? "Yes" : "No"),
+                 ", Speed: ", static_cast<int>(_gameSpeedMultiplier * 100), "%] with dedicated GameLoop");
     }
 
     bool Room::join(uint32_t playerId) {

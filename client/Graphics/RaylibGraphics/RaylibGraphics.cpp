@@ -12,6 +12,7 @@ namespace Graphics {
     RaylibGraphics::RaylibGraphics() {}
 
     RaylibGraphics::~RaylibGraphics() {
+        UnloadColorblindShader();
         for (const Font &font : _fonts) {
             ::UnloadFont(font);
         }
@@ -301,6 +302,22 @@ namespace Graphics {
         return ::IsKeyReleased(key);
     }
 
+    bool RaylibGraphics::IsGamepadAvailable(int gamepad) const {
+        return ::IsGamepadAvailable(gamepad);
+    }
+
+    bool RaylibGraphics::IsGamepadButtonPressed(int gamepad, int button) const {
+        return ::IsGamepadButtonPressed(gamepad, button);
+    }
+
+    bool RaylibGraphics::IsGamepadButtonDown(int gamepad, int button) const {
+        return ::IsGamepadButtonDown(gamepad, button);
+    }
+
+    float RaylibGraphics::GetGamepadAxisMovement(int gamepad, int axis) const {
+        return ::GetGamepadAxisMovement(gamepad, axis);
+    }
+
     bool RaylibGraphics::IsMouseButtonPressed(int button) const {
         return ::IsMouseButtonPressed(button);
     }
@@ -367,6 +384,101 @@ namespace Graphics {
         clr.g = (color >> 8) & 0xFF;
         clr.b = color & 0xFF;
         ::DrawText(text, x, y, fontSize, clr);
+    }
+
+    // ========== Colorblind Filter Implementation ==========
+
+    void RaylibGraphics::LoadColorblindShader() {
+        if (_colorblindShaderLoaded) {
+            return;
+        }
+
+        // Load shader from files
+        _colorblindShader = ::LoadShader("assets/shaders/colorblind.vs", "assets/shaders/colorblind.fs");
+
+        if (_colorblindShader.id == 0) {
+            // Shader failed to load, fall back to no filtering
+            return;
+        }
+
+        // Get uniform location for filter type
+        _filterTypeLoc = ::GetShaderLocation(_colorblindShader, "filterType");
+
+        // Create render texture for post-processing
+        int width = ::GetScreenWidth();
+        int height = ::GetScreenHeight();
+        _colorblindRenderTexture = ::LoadRenderTexture(width, height);
+
+        _colorblindShaderLoaded = true;
+    }
+
+    void RaylibGraphics::UnloadColorblindShader() {
+        if (!_colorblindShaderLoaded) {
+            return;
+        }
+
+        ::UnloadShader(_colorblindShader);
+        ::UnloadRenderTexture(_colorblindRenderTexture);
+        _colorblindShaderLoaded = false;
+    }
+
+    void RaylibGraphics::SetColorblindFilter(ColorblindFilterType filter) {
+        _colorblindFilter = filter;
+
+        // Load shader if needed and filter is not NONE
+        if (filter != ColorblindFilterType::NONE && !_colorblindShaderLoaded) {
+            LoadColorblindShader();
+        }
+    }
+
+    ColorblindFilterType RaylibGraphics::GetColorblindFilter() const {
+        return _colorblindFilter;
+    }
+
+    void RaylibGraphics::BeginColorblindCapture() {
+        if (_colorblindFilter == ColorblindFilterType::NONE || !_colorblindShaderLoaded) {
+            return;
+        }
+
+        // Check if render texture needs resizing
+        int width = ::GetScreenWidth();
+        int height = ::GetScreenHeight();
+        if (_colorblindRenderTexture.texture.width != width ||
+            _colorblindRenderTexture.texture.height != height) {
+            ::UnloadRenderTexture(_colorblindRenderTexture);
+            _colorblindRenderTexture = ::LoadRenderTexture(width, height);
+        }
+
+        // Begin rendering to texture
+        ::BeginTextureMode(_colorblindRenderTexture);
+        ::ClearBackground(_clearColor);
+    }
+
+    void RaylibGraphics::EndColorblindCapture() {
+        if (_colorblindFilter == ColorblindFilterType::NONE || !_colorblindShaderLoaded) {
+            return;
+        }
+
+        // End rendering to texture
+        ::EndTextureMode();
+
+        // Set filter type uniform
+        int filterValue = static_cast<int>(_colorblindFilter);
+        ::SetShaderValue(_colorblindShader, _filterTypeLoc, &filterValue, SHADER_UNIFORM_INT);
+
+        // Draw the render texture with shader applied
+        ::BeginShaderMode(_colorblindShader);
+
+        // Draw flipped because render textures are flipped in OpenGL
+        Rectangle sourceRec = {0.0f, 0.0f, static_cast<float>(_colorblindRenderTexture.texture.width),
+                               static_cast<float>(-_colorblindRenderTexture.texture.height)};
+        Rectangle destRec = {0.0f, 0.0f, static_cast<float>(::GetScreenWidth()),
+                             static_cast<float>(::GetScreenHeight())};
+        Vector2 origin = {0.0f, 0.0f};
+
+        ::DrawTexturePro(_colorblindRenderTexture.texture, sourceRec, destRec, origin, 0.0f, WHITE);
+
+        ::EndShaderMode();
     }
 
     // Audio management

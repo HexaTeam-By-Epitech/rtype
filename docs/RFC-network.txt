@@ -1,248 +1,1015 @@
 RFC - R-TYPE Network Protocol Specification
 ==========================================
 
-Date: December 15, 2025
+Date: January 18, 2026 (Revised)
 Category: Game Network Protocol
+Version: 2.0
 
 Abstract
 --------
 
-This document specifies the R-TYPE network protocol, a hybrid TCP/UDP communication protocol designed for real-time multiplayer gaming. The protocol establishes secure sessions via TCP handshake and authentication, then transitions to UDP for low-latency game data transmission. Key features include dual-mode authentication (anonymous and user-based), replay attack prevention, and session binding security.
+This document specifies the R-TYPE network protocol, a hybrid ENet-based communication protocol designed for real-time multiplayer gaming. The protocol establishes secure, authenticated sessions via initial handshake, then uses ENet's reliable UDP with built-in congestion control and fragmentation for efficient game data transmission.
+
+Key Features:
+- Unified message format with type checking and payload length validation
+- Cap'n Proto serialization for type-safe data structures
+- Dual-mode authentication (anonymous guest + user account login/registration)
+- Replay attack prevention via server nonces and HMAC verification
+- Network compression via ENet's range coder
+- Automatic bandwidth management and congestion control
+- Timeout detection and graceful disconnection
+- Channel-based message prioritization (reliable vs unreliable game data)
 
 1. Introduction
 ---------------
 
-The R-TYPE network protocol addresses the common challenge in online gaming: establishing secure, authenticated connections while maintaining low-latency communication for real-time gameplay. The protocol uses TCP for the initial handshake and authentication phases (reliability and security), then transitions to UDP for game data (performance and low latency).
+The R-TYPE network protocol addresses real-time multiplayer gaming challenges:
+- **Reliability**: Connection negotiation and authentication must be secure and ordered
+- **Performance**: Game state updates must reach clients with minimal latency
+- **Scalability**: Support multiple concurrent players with bandwidth optimization
+- **Extensibility**: Add new message types without protocol changes
 
-The protocol consists of three distinct phases:
-1. TCP Handshake - Protocol negotiation and connection establishment
-2. Authentication - Identity verification and session creation
-3. UDP Linking - Secure transition to game transport layer
+Architecture:
+1. **Connection Establishment** (Handshake & Authentication)
+   - Initial server contact and protocol version negotiation
+   - Player identification (anonymous or registered user)
+   - Session token generation and validation
+
+2. **Game Loop Phase** (Runtime Communication)
+   - Client sends player input snapshots at fixed intervals
+   - Server broadcasts game state updates (full snapshots + delta updates)
+   - Peer-to-peer messaging (chat, room state, matchmaking)
+
+3. **Disconnection** (Graceful termination)
+   - Player-initiated disconnect with optional reason
+   - Server-initiated kicks with ban duration
+   - Timeout-based disconnection for unresponsive clients
 
 2. Protocol Overview
 --------------------
 
-2.1 Transport Layer Strategy
-The protocol employs a dual-transport approach:
-- TCP: Used for handshake, authentication, and control messages where reliability and ordering are critical
-- UDP: Used for real-time game data where low latency is prioritized over guaranteed delivery
+2.1 Transport Layer Architecture
+The protocol uses ENet, a reliable UDP library with:
+- **Reliable delivery**: Automatic retransmission and sequencing
+- **Unreliable delivery**: Fire-and-forget for non-critical updates
+- **Fragmentation**: Automatic splitting of large packets
+- **Compression**: Built-in range coder compression for bandwidth reduction
+- **Congestion control**: Automatic bandwidth throttling
+- **Channels**: Up to 255 channels per peer for message prioritization
 
-2.2 Security Model
-The protocol implements multiple security layers:
-- Magic number validation to prevent unauthorized clients
-- Protocol version checking for compatibility
-- Session tokens for authenticated communication
-- HMAC-based message authentication to prevent replay attacks
-- Server-generated nonces for additional security
+Message Routing:
+- Channel 0: Connection/authentication/lobby messages (RELIABLE)
+- Channel 1: Gameplay messages - player input (UNRELIABLE, SEQUENCED)
+- Channel 2: Game state updates - entity snapshots (RELIABLE)
 
-3. Phase 1: TCP Handshake
--------------------------
+2.2 Unified Message Format
 
-3.1 Purpose
-Establishes a reliable TCP connection and negotiates protocol compatibility between client and server.
+**ALL messages** (connection, authentication, gameplay, lobby, chat) follow a consistent binary structure:
 
-3.2 Message Flow
+    +------------------------------------------+
+    | Message Header (6 bytes)                 |
+    +------------------------------------------+
+    | Type (2 bytes)  | Length (4 bytes)       |
+    | uint16_t        | uint32_t               |
+    +------------------------------------------+
+    | Payload (Variable)                       |
+    | Cap'n Proto Serialized DTO               |
+    +------------------------------------------+
 
-3.2.1 HANDSHAKE_INIT
-Client -> Server: HANDSHAKE_INIT
-Fields:
-- MagicNumber (4 bytes): Protocol identifier (prevents ghost packets)
-- ProtocolVersion (2 bytes): Client protocol version
+**This unified format applies to**:
+- ✅ HANDSHAKE_REQUEST / HANDSHAKE_RESPONSE (0x0001-0x0002)
+- ✅ REGISTER_REQUEST / REGISTER_RESPONSE (0x0007-0x0008)
+- ✅ LOGIN_REQUEST / LOGIN_RESPONSE (0x0009-0x000A)
+- ✅ PING / PONG (0x0005-0x0006)
+- ✅ C2S_PLAYER_INPUT / S2C_GAME_STATE (0x0100, 0x0200)
+- ✅ C2S_CHAT_MESSAGE / S2C_CHAT_MESSAGE (0x0307, 0x0406)
+- ✅ ALL other 31+ message types
 
-3.2.2 Version Validation
-The server validates the protocol version:
+**Encoding (Little-Endian)**:
+- Type: Unique 16-bit message identifier (see Section 3.1)
+- Length: Payload size in bytes (excludes 6-byte header)
+- Payload: Cap'n Proto serialized DTO (see Section 8.2)
 
-Success Case:
-Server -> Client: HANDSHAKE_ACK
-- Confirms protocol compatibility
-- Establishes TCP session for next phase
+**Example - REGISTER_REQUEST (0x0007)**:
+```
+Bytes:  07 00 | 1F 00 00 00 | [Cap'n Proto payload: 31 bytes]
+        ^^^^   ^^^^^^^^^^^^^^
+        Type   Length=31      Serialized RegisterAccount DTO
+```
 
-Failure Case:
-Server -> Client: ERROR_VERSION_MISMATCH
-- Client must disconnect
-- Prevents incompatible protocol communication
+**Example - S2C_GAME_STATE (0x0200)**:
+```
+Bytes:  00 02 | E8 03 00 00 | [Cap'n Proto payload: 1000 bytes]
+        ^^^^   ^^^^^^^^^^^^^^
+        Type   Length=1000    Serialized GameState DTO
+```
 
-3.3 Security Considerations
-- MagicNumber provides first-level protection against foreign clients
-- Version checking prevents protocol incompatibilities that could cause security vulnerabilities
+**Safety Constraints**:
+- Maximum payload size: 10 MB (configurable, default for DoS prevention)
+- Maximum string size: 1 MB (individual field limit)
+- Packet validation: Length must match actual payload size
+- Integer overflow protection: All size calculations validated
+- Type validation: Unknown types silently dropped (see Section 7.4)
 
-4. Phase 2: Authentication
---------------------------
+2.3 Security Model
+The protocol implements layered security:
 
-4.1 Purpose
-Authenticates the client identity and establishes a secure session context. Supports both anonymous and user-based authentication modes.
+**Connection Phase**:
+- Magic number validation: Prevents stray packets from wrong protocol versions
+- Version checking: Ensures client/server compatibility
 
-4.2 Message Flow
+**Authentication Phase**:
+- Password hashing: SHA-256 or bcrypt (never plaintext transmission)
+- Session tokens: Cryptographically secure random tokens
+- Nonce server: One-time tokens for replay attack prevention
+- Rate limiting: (Implementation-dependent) Prevent brute force attacks
 
-4.2.1 AUTH_REQUEST
-Client -> Server: AUTH_REQUEST
-Fields:
-- ClientInfo: Client identification data
-- OS: Operating system information
-- AuthType: ANONYMOUS or USER
-- Credentials: Authentication data (varies by AuthType)
+**Runtime Phase**:
+- Session binding: UDP packets associated with authenticated TCP session
+- HMAC verification: Message Authentication Code prevents tampering
+- Timeout detection: Unresponsive clients automatically disconnected
+- Type safety: Cap'n Proto serialization prevents malformed data
 
-4.2.2 Anonymous Mode Authentication
+3. Message Types and Communication Channels
+---------------------------------------------
 
-Server Decision Point 1 - Anonymous Allowed:
-If server accepts anonymous connections:
-- Server generates temporary UserID
-- Server -> Client: AUTH_SUCCESS
-  Fields:
-  - TempUserID: Temporary session identifier
-  - SessionToken: Cryptographic session key
-  - NonceServer: Server-generated nonce for replay protection
+3.1 Message Type Enumeration
 
-Server Decision Point 2 - Anonymous Forbidden:
-Server -> Client: AUTH_ERROR (Anonymous Forbidden)
-- Prevents unauthorized guest access
-- Client must disconnect or retry with user credentials
+All message types are uint16_t identifiers grouped by category:
 
-4.2.3 User Mode Authentication
+**Connection & Authentication (0x00xx)**:
+- 0x0001 HANDSHAKE_REQUEST  - Client initiates connection
+- 0x0002 HANDSHAKE_RESPONSE - Server accepts/rejects connection
+- 0x0003 DISCONNECT         - Either party initiates disconnect
+- 0x0004 KICK               - Server forcibly disconnects client
+- 0x0005 PING               - Client latency check
+- 0x0006 PONG               - Server latency response
+- 0x0007 REGISTER_REQUEST   - Request account registration
+- 0x0008 REGISTER_RESPONSE  - Registration success/failure
+- 0x0009 LOGIN_REQUEST      - Login with credentials
+- 0x000A LOGIN_RESPONSE     - Login success/failure
 
-Database Verification:
-Server -> Database: Check Credentials (Username, PasswordHash)
-Note: Password hash is sent, never plaintext
+**Client-to-Server Gameplay (0x01xx)**:
+- 0x0100 C2S_PLAYER_INPUT   - Player input snapshot (move, shoot, etc.)
+- 0x0101 C2S_JOIN_GAME      - Request to join active game
 
-Existing User - Valid Credentials:
-Database -> Server: OK (UserID)
-Server -> Client: AUTH_SUCCESS
-Fields:
-- UserID: Authenticated user identifier
-- SessionToken: Cryptographic session key
-- NonceServer: Server-generated nonce
+**Server-to-Client Gameplay (0x02xx)**:
+- 0x0200 S2C_GAME_STATE     - Full entity state snapshot
+- 0x0201 S2C_GAME_START     - Game start notification + initial state
+- 0x0202 S2C_ENTITY_DESTROYED - Entity was destroyed
+- 0x0203 S2C_GAME_OVER      - Game ended (win/loss/draw)
+- 0x0204 S2C_GAMERULE_UPDATE - Game rule change (speed multiplier, etc.)
 
-Existing User - Invalid Credentials:
-Database -> Server: FAIL
-Server -> Client: AUTH_ERROR (Invalid Credentials)
+**Client-to-Server Lobby (0x03xx)**:
+- 0x0300 C2S_LIST_ROOMS     - Request available rooms
+- 0x0301 C2S_CREATE_ROOM    - Create new room
+- 0x0302 C2S_JOIN_ROOM      - Join existing room
+- 0x0303 C2S_START_MATCHMAKING - Enter matchmaking queue
+- 0x0304 C2S_CANCEL_MATCHMAKING - Leave matchmaking queue
+- 0x0305 C2S_START_GAME     - Room host starts game
+- 0x0306 C2S_LEAVE_ROOM     - Leave room
+- 0x0307 C2S_CHAT_MESSAGE   - Send chat message
+- 0x0308 C2S_AUTO_MATCHMAKING - Auto-join or auto-create room
+- 0x0309 C2S_UPDATE_AUTO_MM_PREF - Update matchmaking preference
 
-New User Registration:
-If user does not exist:
-Server -> Database: CreateUser(Username, PasswordHash)
-Database -> Server: Created(NewUserID)
-Server -> Client: AUTH_SUCCESS (with NewUserID)
+**Server-to-Client Lobby (0x04xx)**:
+- 0x0400 S2C_ROOM_LIST      - Available rooms list
+- 0x0401 S2C_ROOM_CREATED   - Room creation success/failure
+- 0x0402 S2C_JOINED_ROOM    - Room join success/failure (may be spectator)
+- 0x0403 S2C_MATCHMAKING_STARTED - Matchmaking entered
+- 0x0404 S2C_MATCH_FOUND    - Match ready, joining room
+- 0x0405 S2C_ROOM_STATE     - Current room state (players, status)
+- 0x0406 S2C_CHAT_MESSAGE   - Chat message from server/other players
+- 0x0407 S2C_LEFT_ROOM      - Notification of room leaving
 
-4.3 Security Considerations
-- Password hashing prevents plaintext credential transmission
-- Temporary UserIDs prevent database pollution from anonymous sessions
-- NonceServer provides replay attack protection for UDP phase
-- SessionToken creates secure session context
+3.1b C2S (Client-to-Server) vs S2C (Server-to-Client) Communication Schema
 
-5. Phase 3: UDP Linking
------------------------
+**Message Direction Summary**:
 
-5.1 Purpose
-Securely associates the client's UDP endpoint (IP:Port) with the authenticated TCP session, enabling transition to low-latency game communication.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     NETWORK COMMUNICATION SCHEMA                 │
+└─────────────────────────────────────────────────────────────────┘
 
-5.2 Message Flow
+                          CONNECTION PHASE
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    ├─ HANDSHAKE_REQUEST (0x0001) ──────────>│               │
+│    │                                         │ [Validate]    │
+│    │  <──────── HANDSHAKE_RESPONSE (0x0002) ┤               │
+│    │                                         │               │
+│    ├─ REGISTER_REQUEST (0x0007) ───────────>│               │
+│    │                                         │ [DB Insert]   │
+│    │  <──────── REGISTER_RESPONSE (0x0008)  ┤               │
+│    │                                         │               │
+│    ├─ LOGIN_REQUEST (0x0009) ──────────────>│               │
+│    │                                         │ [DB Check]    │
+│    │  <────────── LOGIN_RESPONSE (0x000A)   ┤               │
+│    │                                         │               │
+│    ├─ PING (0x0005) ────────────────────────>│               │
+│    │  <────────────────── PONG (0x0006)     ┤               │
+│    │                                         │               │
+│    └─ [UDP Linked, Ready for Gameplay]      │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
 
-5.2.1 UDP_PING
-Client -> Server (UDP): UDP_PING
-Fields:
-- SessionToken: Session identifier from authentication
-- HMAC(SessionToken + NonceServer): Message authentication code
+                        LOBBY MANAGEMENT PHASE
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    ├─ LIST_ROOMS (0x0300) ─────────────────>│               │
+│    │  <──────── ROOM_LIST (0x0400)          │               │
+│    │                                         │               │
+│    ├─ CREATE_ROOM (0x0301) ───────────────>│               │
+│    │  <──────── ROOM_CREATED (0x0401)      │               │
+│    │                                         │               │
+│    ├─ JOIN_ROOM (0x0302) ──────────────────>│               │
+│    │  <──────── JOINED_ROOM (0x0402)       │               │
+│    │  <──────── ROOM_STATE (0x0405) [Broadcast] ┤           │
+│    │                                         │               │
+│    ├─ START_MATCHMAKING (0x0303) ─────────>│               │
+│    │  <──────── MATCHMAKING_STARTED (0x0403)   ┤           │
+│    │  <──────── MATCH_FOUND (0x0404)       │               │
+│    │                                         │               │
+│    ├─ CHAT_MESSAGE (0x0307) ───────────────>│               │
+│    │  <──────── CHAT_MESSAGE (0x0406) [Broadcast] ┤         │
+│    │                                         │               │
+│    └─ [Room joined, waiting for game start] │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
 
-5.2.2 Security Validation
-The server validates the UDP binding request:
+                      GAMEPLAY LOOP PHASE (60 Hz)
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    ├─ C2S_PLAYER_INPUT (0x0100) ──────────>│               │
+│    │  [Move, Shoot, Actions]                 │ [Process]    │
+│    │                                         │               │
+│    │  <──────── S2C_GAME_STATE (0x0200)     │               │
+│    │  [Entity states, positions, health]     │               │
+│    │                                         │               │
+│    │  <─── S2C_ENTITY_DESTROYED (0x0202)   │               │
+│    │  [Entity killed, removed]               │               │
+│    │                                         │               │
+│    │  <──────── S2C_GAMERULE_UPDATE (0x0204)  ┤             │
+│    │  [Speed multiplier, etc.]               │               │
+│    │                                         │               │
+│    └─ [Repeat every 16.67 ms]               │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
 
-Validation Success:
-- HMAC verification passes
-- SessionToken is valid and active
-- Server records client UDP endpoint
-Server -> Client (UDP): UDP_PONG (Ready)
+                      GAME ENDING PHASE
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    │  <──────── S2C_GAME_OVER (0x0203)      │               │
+│    │  [Victory / Defeat / Draw]              │               │
+│    │                                         │               │
+│    ├─ LEAVE_ROOM (0x0306) ─────────────────>│               │
+│    │  <──────── LEFT_ROOM (0x0407)          │               │
+│    │                                         │               │
+│    ├─ DISCONNECT (0x0003) ──────────────────>│               │
+│    │                                         │               │
+│    └─ [Connection closed]                   │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
 
-Validation Failure:
-- Invalid HMAC or session token
-Server -> Client (UDP): UDP_BIND_ERROR
-- Client must disconnect and restart authentication
+                       ERROR / FORCED KICK
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  CLIENT                                   SERVER             │
+│    │                                         │               │
+│    │  <──────────── KICK (0x0004) ──────────┤               │
+│    │  [Immediate disconnect + ban]           │               │
+│    │                                         │               │
+│    └─ [Connection terminated]               │               │
+│                                              │               │
+└──────────────────────────────────────────────────────────────┘
+```
 
-5.3 Security Considerations
-- HMAC prevents UDP session hijacking and spoofing
-- NonceServer prevents replay attacks
-- Session binding ensures UDP packets are associated with authenticated sessions
+**Key Observations**:
 
-5.4 Packet format
+1. **Request/Response Pattern**:
+   - Most C2S messages expect S2C response
+   - Exception: C2S_PLAYER_INPUT (no acknowledgment, latest wins)
 
-Packet is serialized before sending
-+------------------+
-| Flags (4 bytes)  |  <- Delivery/behavior configuration
-+------------------+
-| Vector           |  <- 24 bytes on 64-bit systems
-| declaration (24B)|     12 bytes on 32-bit systems
-+------------------+
-| Payload Bytes    |  <- Variable length byte stream
-| (N bytes)        |
-+------------------+
+2. **Broadcast Messages**:
+   - S2C_ROOM_STATE sent to ALL players in room
+   - S2C_GAME_STATE sent to ALL players in game
+   - S2C_CHAT_MESSAGE sent to ALL room members
 
-Field: Flags
-  Size: 4 bytes
-  Description: Bitfield specifying packet transmission properties
+3. **Synchronous vs Asynchronous**:
+   - Auth phase: Synchronous (request → response)
+   - Gameplay: Asynchronous (input streams continuously)
+   - Room management: Mixed (requests get responses, broadcasts are one-way)
 
-Field: Data
-  Size: Variable
-  Description: Application payload as byte stream
+4. **Error Paths**:
+   - KICK: No negotiation (immediate disconnect)
+   - DISCONNECT: Graceful shutdown (client-initiated or server-initiated)
+   - Timeouts: Silent disconnect after 15 seconds
 
-Flags can be one of the following:
-ENET_PACKET_FLAG_RELIABLE            = 0x01
-ENET_PACKET_FLAG_UNSEQUENCED         = 0x02
-ENET_PACKET_FLAG_NO_ALLOCATE         = 0x04
-ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT = 0x08
-ENET_PACKET_FLAG_SENT                = 0x100
+3.2 Channel Assignment
 
-6. Game Loop Initiation
-------------------------
+ENet Channels (per peer):
+- **Channel 0**: Connection & Lobby (RELIABLE)
+  - Connection handshake, authentication, room management
+  - Messages: 0x00xx, 0x03xx, 0x04xx
+  - Guarantee: Ordered, reliable delivery
 
-After successful UDP linking, the client enters the game loop phase where:
-- Client sends INPUT messages via UDP
-- Server sends SNAPSHOT messages via UDP
-- All game data uses the established UDP channel
-- Session remains bound to the authenticated identity
+- **Channel 1**: Player Input (UNRELIABLE, SEQUENCED)
+  - High-frequency player input snapshots
+  - Messages: 0x0100 (C2S_PLAYER_INPUT)
+  - Guarantee: Latest sequence kept, older inputs dropped if congested
 
-7. Error Handling
------------------
+- **Channel 2**: Game State (RELIABLE)
+  - Entity states, game snapshots, destruction events
+  - Messages: 0x0200-0x0204 (S2C game updates)
+  - Guarantee: Ordered, reliable delivery
 
-7.1 Connection Errors
-- Version mismatches result in immediate disconnection
-- Authentication failures require restart from Phase 1
-- UDP binding failures require TCP session restart
+3.3 ENet Packet Flags
 
-7.2 Security Violations
-- Invalid magic numbers are silently dropped
-- HMAC failures trigger immediate session termination
-- Replay attempts are logged and blocked
+Each packet is transmitted with ENet flags controlling delivery:
 
-8. Security Analysis
+**Flag Values**:
+- ENET_PACKET_FLAG_RELIABLE (0x01): Guaranteed delivery with retransmission
+- ENET_PACKET_FLAG_UNSEQUENCED (0x02): Out-of-order allowed (fastest)
+- ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT (0x08): Fragment allowed, no guarantee
+- ENET_PACKET_FLAG_SENT (0x100): Internal flag (packet already sent)
+
+**Channel Usage**:
+- Channel 0 (Lobby): RELIABLE flag - all messages guaranteed
+- Channel 1 (Input): UNSEQUENCED flag - only latest input matters
+- Channel 2 (GameState): RELIABLE flag - all updates guaranteed
+
+2.4 Peer State Machine
+
+ENet peers transition through states:
+
+    DISCONNECTED
+         ↓
+    CONNECTING (client: waiting for server acknowledgment)
+         ↓
+    ACKNOWLEDGING_CONNECT
+         ↓
+    CONNECTION_SUCCEEDED
+         ↓
+    CONNECTED (authenticated, ready for gameplay)
+         ↓
+    DISCONNECT_LATER (graceful disconnect initiated)
+         ↓
+    DISCONNECTING (waiting for acknowledgments)
+         ↓
+    ACKNOWLEDGING_DISCONNECT
+         ↓
+    ZOMBIE (cleanup phase)
+         ↓
+    DISCONNECTED
+
+Server monitors timeouts:
+- 5 seconds: Unacknowledged packets trigger peer timeout
+- Configurable retry: Up to 3 retries before disconnection
+- Total timeout: ~15 seconds before forcible disconnect
+
+3.5 Compression
+
+ENet Range Coder:
+- Enabled by default on all hosts (client and server)
+- Adaptive compression based on message content
+- Reduces bandwidth ~60-70% for typical game state updates
+- Transparent to application layer
+
+Example savings:
+- Full game state (100 entities): ~500 bytes → ~150 bytes compressed
+- Delta update (5 changed entities): ~100 bytes → ~30 bytes compressed
+
+4. Connection & Authentication Flow
+------------------------------------
+
+4.1 Phase 1: Handshake (Client Connection Establishment)
+
+**Purpose**: Negotiate protocol version and establish secure session
+
+**Message Flow**:
+
+C2S: HANDSHAKE_REQUEST (0x0001)
+    using: RType::Messages::Connection::HandshakeRequest
+    Fields:
+        clientVersion (Text): Protocol version (e.g., "1.0.0")
+        playerName (Text): Display name or "guest_XXXX" for anonymous
+        timestamp (UInt64): Client timestamp for clock sync
+
+Server validates:
+    - Version compatibility (reject if incompatible)
+    - Protocol format correctness
+    - Player name length/format
+
+Success Path:
+S2C: HANDSHAKE_RESPONSE (0x0002)
+    using: RType::Messages::Connection::HandshakeResponse
+    Fields:
+        accepted (Bool): true = proceed to auth
+        sessionId (Text): Session identifier (UUID format)
+        serverId (Text): Server identifier
+        message (Text): Welcome message
+        serverVersion (Text): Server protocol version
+        playerId (UInt32): Temporary player ID
+        playerName (Text): Display name assigned by server
+
+Failure Path:
+S2C: HANDSHAKE_RESPONSE (0x0002)
+    Fields:
+        accepted (Bool): false
+        message (Text): Rejection reason ("Version mismatch", etc.)
+
+**Timeout**: 10 seconds (configurable)
+
+4.2 Phase 2: Authentication (Identity Verification)
+
+**Purpose**: Verify player identity and create authenticated session
+
+**Anonymous Mode**:
+
+C2S: HANDSHAKE_REQUEST with playerName starting with "guest_"
+    (skips register/login, proceeds directly to UDP linking)
+
+Server allows if:
+    - Anonymous connections enabled in server config
+    - Player name follows format restrictions
+    
+S2C: Session granted with temporary UserID
+
+**User Mode - Registration**:
+
+C2S: REGISTER_REQUEST (0x0007)
+    using: RType::Messages::C2S::RegisterAccount
+    Fields:
+        username (Text): Desired account name
+        password (Text): Plaintext password (TLS recommended for production)
+
+Server validates:
+    - Username unique in database
+    - Password meets complexity requirements
+    - Username/password length constraints
+
+Success Path:
+    Database: Insert new account with hashed password
+    S2C: REGISTER_RESPONSE (0x0008)
+    Fields:
+        success (Bool): true
+        message (Text): "Account created"
+        userId (UInt32): Assigned user ID
+
+Failure Path:
+    S2C: REGISTER_RESPONSE (0x0008)
+    Fields:
+        success (Bool): false
+        message (Text): "Username taken" / "Password too weak" / etc.
+
+**User Mode - Login**:
+
+C2S: LOGIN_REQUEST (0x0009)
+    using: RType::Messages::C2S::LoginAccount
+    Fields:
+        username (Text): Account username
+        password (Text): Plaintext password
+
+Server validates:
+    - Username exists in database
+    - Password hash matches stored hash
+    - Account not banned/locked
+
+Success Path:
+    S2C: LOGIN_RESPONSE (0x000A)
+    Fields:
+        success (Bool): true
+        userId (UInt32): Authenticated user ID
+        message (Text): "Login successful"
+
+Failure Path:
+    S2C: LOGIN_RESPONSE (0x000A)
+    Fields:
+        success (Bool): false
+        message (Text): "Invalid credentials" / "Account locked" / etc.
+
+**Session Token Generation**:
+
+After successful auth (anonymous or registered):
+    - Generate cryptographically secure token (256-bit minimum)
+    - Store mapping: SessionToken → UserId + SessionExpiry
+    - Include in all subsequent messages for validation
+    - Token expires after 24 hours (configurable)
+
+4.3 Phase 3: UDP Linking (Ready for Gameplay)
+
+**Purpose**: Associate client's UDP endpoint with authenticated session
+
+**Message Flow**:
+
+C2S: PING (0x0005)
+    using: RType::Messages::Connection::PingMessage
+    Fields:
+        timestamp (UInt64): Client time in milliseconds
+        sequenceNumber (UInt32): Ping sequence number
+
+Server validates:
+    - SessionToken is valid and active
+    - Not rate-limited (max 1 ping per 100ms)
+
+S2C: PONG (0x0006)
+    using: RType::Messages::Connection::PongMessage
+    Fields:
+        clientTimestamp (UInt64): Echo of client timestamp
+        serverTimestamp (UInt64): Server time in milliseconds
+        sequenceNumber (UInt32): Echo of sequence number
+
+**Calculation**:
+    RTT (Round Trip Time) = serverTimestamp - clientTimestamp
+    Used for: Network interpolation, extrapolation, timeout detection
+
+**Timeout Configuration**:
+    - Configured via enet_peer_timeout(limit, minimum, maximum)
+    - limit: 5 unacknowledged packets
+    - minimum: 1000ms (1 second)
+    - maximum: 3000ms (3 seconds)
+    - Total timeout: ~15 seconds
+
+5. Game Loop Communication (Runtime)
+------------------------------------
+
+5.1 Input Transmission (Client → Server)
+
+**Frequency**: Fixed 60 Hz (16.67 ms per frame)
+
+C2S: C2S_PLAYER_INPUT (0x0100)
+    using: RType::Messages::C2S::PlayerInput
+    Fields:
+        inputs (List of InputSnapshot):
+            sequenceId (UInt32): Frame sequence number
+            actions (List of Action):
+                - moveUp, moveDown, moveLeft, moveRight, shoot
+
+**Delivery**:
+    - Channel: 1 (UNSEQUENCED)
+    - Flag: ENET_PACKET_FLAG_UNSEQUENCED
+    - Behavior: Latest input supercedes older ones
+
+**Optimization**:
+    - Send only when input changes (delta compression)
+    - Drop duplicate frames if bandwidth constrained
+    - Buffer 2-3 frames if burst input
+
+5.2 Game State Broadcast (Server → Client)
+
+**Full Snapshot Strategy**:
+    When: Game start, client connects, entity mass change
+    Frequency: On demand (not periodic)
+
+S2C: S2C_GAME_START (0x0201)
+    using: RType::Messages::S2C::GameStart
+    Fields:
+        yourEntityId (UInt32): Client's player entity ID
+        initialState (GameState): Complete game state
+
+S2C: S2C_GAME_STATE (0x0200) [Full Snapshot]
+    using: RType::Messages::S2C::GameState
+    Fields:
+        serverTick (UInt32): Current server tick number
+        serverTimestamp (UInt64): Server time in milliseconds
+        entities (List of EntityState):
+            entityId (UInt32): Unique entity identifier
+            type (EntityType): player, enemy, bullet, etc.
+            position (Vec2): x, y coordinates
+            velocity (Vec2): vx, vy velocity
+            health (Int32): Current health (-1 = no health)
+            rotation (Float32): Rotation angle for interpolation
+            currentAnimation (Text): Active animation clip name
+            spriteX, spriteY, spriteW, spriteH (Int32): Sprite bounds
+            lastProcessedInput (UInt32): Last input sequence processed
+
+**Delta Update Strategy**:
+    When: Every frame during gameplay
+    Frequency: ~60 Hz (16.67 ms)
+    Transmission: Only changed entities (optimized)
+
+S2C: S2C_GAME_STATE (0x0200) [Delta Only]
+    Same structure, but populated with only:
+        - Entities with changed positions
+        - Entities with changed health
+        - New entities (spawned this frame)
+        - Destroyed entities (via S2C_ENTITY_DESTROYED)
+
+**Delivery**:
+    - Channel: 2 (RELIABLE)
+    - Flag: ENET_PACKET_FLAG_RELIABLE
+    - Ordered delivery guaranteed
+
+**Client-Side Processing**:
+    - Receive full snapshot → Replace all entity states
+    - Receive delta → Interpolate from previous known state
+    - Use lastProcessedInput for prediction validation
+    - Detect stale updates (older serverTick than current)
+
+5.3 Entity Destruction Notification
+
+S2C: S2C_ENTITY_DESTROYED (0x0202)
+    using: RType::Messages::S2C::EntityDestroyed
+    Fields:
+        entityId (UInt32): ID of destroyed entity
+        reason (DestroyReason): killedByPlayer / outOfBounds / collision
+
+**Immediate Action**:
+    - Remove entity from local ECS registry
+    - Play destruction animation/effect
+    - Don't wait for next full snapshot
+
+5.4 Game Over / Game State Changes
+
+S2C: S2C_GAME_OVER (0x0203)
+    using: RType::Messages::S2C::GameOver
+    Fields:
+        reason (Text): "Victory" / "Defeat" / "Timeout" / etc.
+
+S2C: S2C_GAMERULE_UPDATE (0x0204)
+    using: RType::Messages::S2C::Gamerule
+    Fields:
+        key (Text): "gameSpeedMultiplier" / "maxPlayers" / etc.
+        value (Float32): New value for the rule
+
+6. Lobby & Room Management
+---------------------------
+
+6.1 Room Listing
+
+C2S: C2S_LIST_ROOMS (0x0300)
+    using: RType::Messages::C2S::ListRooms
+    Fields: (empty - just a request)
+
+Server Query: Get all rooms with state != IN_PROGRESS or FINISHED
+
+S2C: S2C_ROOM_LIST (0x0400)
+    using: RType::Messages::S2C::RoomList
+    Fields:
+        rooms (List of RoomInfo):
+            roomId (Text): Unique room identifier (UUID)
+            roomName (Text): Player-friendly name
+            playerCount (UInt32): Current players
+            maxPlayers (UInt32): Maximum capacity
+            isPrivate (Bool): Password-protected
+            state (UInt8): 0=WAITING, 1=STARTING, 2=IN_PROGRESS, 3=FINISHED
+
+6.2 Room Creation
+
+C2S: C2S_CREATE_ROOM (0x0301)
+    using: RType::Messages::C2S::CreateRoom
+    Fields:
+        roomName (Text): Room display name
+        maxPlayers (UInt32): Player capacity (2-4 typical)
+        isPrivate (Bool): Restricted entry
+        gameSpeedMultiplier (Float32): Game speed (0.25-2.0, default 1.0)
+
+Server Action:
+    - Allocate new ServerLoop instance
+    - Create Room object
+    - Set creator as host
+    - Assign roomId (UUID)
+
+S2C: S2C_ROOM_CREATED (0x0401)
+    using: RType::Messages::S2C::RoomCreated
+    Fields:
+        roomId (Text): Assigned room ID
+        success (Bool): Creation succeeded
+        errorMessage (Text): Failure reason if success=false
+
+6.3 Room Joining
+
+C2S: C2S_JOIN_ROOM (0x0302)
+    using: RType::Messages::C2S::JoinRoom
+    Fields:
+        roomId (Text): Target room ID
+
+Server Action:
+    - Validate room exists and not full
+    - Create player entity in room's ECS
+    - Set player state (active or spectator if game in progress)
+
+S2C: S2C_JOINED_ROOM (0x0402)
+    using: RType::Messages::S2C::JoinedRoom
+    Fields:
+        roomId (Text): Confirmed room ID
+        success (Bool): Join succeeded
+        errorMessage (Text): Failure reason if success=false
+        isSpectator (Bool): Auto-spectator if game already running
+
+6.4 Room State Broadcast
+
+Triggered: On any player join/leave, room state change
+
+S2C: S2C_ROOM_STATE (0x0405)
+    using: RType::Messages::S2C::RoomState
+    Fields:
+        roomId (Text): Room identifier
+        roomName (Text): Room name
+        currentPlayers (UInt32): Current count
+        maxPlayers (UInt32): Max capacity
+        players (List of PlayerData):
+            playerId (UInt32): Player ID
+            playerName (Text): Display name
+            isHost (Bool): Room creator/admin
+            isSpectator (Bool): Observing only
+        state (UInt8): Current room state
+
+6.5 Matchmaking
+
+C2S: C2S_START_MATCHMAKING (0x0303)
+    - Enters queue for auto-matching
+
+C2S: C2S_AUTO_MATCHMAKING (0x0308)
+    - Special: Joins room automatically or creates one if none available
+
+C2S: C2S_UPDATE_AUTO_MM_PREF (0x0309)
+    - Updates preference without triggering immediate matchmaking
+
+S2C: S2C_MATCHMAKING_STARTED (0x0403)
+    - Confirms entry into matchmaking queue
+
+S2C: S2C_MATCH_FOUND (0x0404)
+    - Notifies: Room ready, joining automatically
+
+6.6 Chat Messages
+
+C2S: C2S_CHAT_MESSAGE (0x0307)
+    using: RType::Messages::C2S::C2SChatMessage
+    Fields:
+        message (Text): Chat text (max 256 characters)
+
+S2C: S2C_CHAT_MESSAGE (0x0406)
+    using: RType::Messages::C2S::C2SChatMessage
+    Fields:
+        message (Text): Chat text from server or other players
+
+**Rate Limiting**: (Implementation-dependent)
+    - Max 1 message per 500ms per player
+    - Auto-silence repeat spam
+
+7. Disconnection & Error Handling
+----------------------------------
+
+7.1 Graceful Disconnect
+
+C2S/S2C: DISCONNECT (0x0003)
+    using: RType::Messages::Connection::DisconnectNotification
+    Fields:
+        reason (DisconnectReason):
+            - clientRequest: Player quit intentionally
+            - serverShutdown: Server shutting down
+            - timeout: Inactivity timeout
+            - kicked: Player was kicked
+            - error: Protocol/connection error
+        message (Text): Human-readable reason
+        timestamp (UInt64): Time of disconnection
+
+**Flow**:
+    - Initiator sends DISCONNECT
+    - Recipient receives and cleans up
+    - Peer state → DISCONNECT_LATER → ZOMBIE → DISCONNECTED
+
+7.2 Forced Kick
+
+S2C: KICK (0x0004)
+    using: RType::Messages::Connection::KickMessage
+    Fields:
+        reason (Text): "Spam detected" / "Cheating" / etc.
+        duration (UInt64): Ban duration in seconds (0 = permanent)
+        timestamp (UInt64): Kick timestamp
+
+**Effect**:
+    - Immediate disconnect (no negotiation)
+    - Client IP/account added to ban list
+    - Rejoin attempts blocked for duration
+
+7.3 Network Event Types
+
+ENet generates these events (application layer):
+
+**CONNECT**:
+    Peer state → CONNECTED
+    Action: Complete handshake/authentication
+
+**DISCONNECT**:
+    Peer state → DISCONNECTED
+    Cause: Graceful disconnect or timeout
+    Action: Clean up player session, remove from rooms
+
+**RECEIVE**:
+    Data arrived on specific channel
+    Action: Parse message type, dispatch to handler
+
+7.4 Error Handling
+
+**Version Mismatch**:
+    - Reject in HANDSHAKE_RESPONSE
+    - Return: "Protocol version incompatible"
+    - Action: Client must upgrade/downgrade
+
+**Invalid Message Type**:
+    - Log and ignore (silent drop)
+    - Don't respond with error
+
+**Malformed Payload**:
+    - Deserialization fails
+    - Log error, disconnect peer
+    - Prevent cascade failures
+
+**Authentication Failure**:
+    - Invalid credentials
+    - Response: "Invalid username/password"
+    - Action: Client can retry
+
+**Session Timeout**:
+    - No ping/pong for 15 seconds
+    - Auto-disconnect, clean up session
+    - Client must reconnect
+
+**Bandwidth Exceeded**:
+    - ENet congestion control throttles
+    - High-priority messages (Channel 0) get priority
+    - Game state (Channel 2) may be queued
+    - Input (Channel 1) may be dropped
+
+8. Data Structure Reference
+----------------------------
+
+8.1 Shared Types (Cap'n Proto)
+
+Vec2 (2D Vector):
+    x (Float32): X coordinate
+    y (Float32): Y coordinate
+
+Action (Enum):
+    - moveUp = 0
+    - moveDown = 1
+    - moveLeft = 2
+    - moveRight = 3
+    - shoot = 4
+
+EntityType (Enum):
+    - player = 0
+    - enemyType1 = 1
+    - playerBullet = 2
+    - enemyBullet = 3
+    - wall = 4
+
+DestroyReason (Enum):
+    - killedByPlayer = 0
+    - outOfBounds = 1
+    - collision = 2
+
+8.2 Key DTOs
+
+Refer to Cap'n Proto schemas for complete definitions:
+    - common/Serialization/schemas/connection.capnp
+    - common/Serialization/schemas/c2s_messages.capnp
+    - common/Serialization/schemas/s2c_messages.capnp
+    - common/Serialization/schemas/shared_types.capnp
+
+9. Security Analysis
 --------------------
 
-8.1 Threat Mitigation
-- Ghost Packets: Magic number validation
-- Version Attacks: Protocol version checking
-- Credential Theft: Password hashing and secure tokens
-- Session Hijacking: HMAC-based UDP authentication
-- Replay Attacks: Server nonces and session tokens
-- Spoofing: UDP endpoint binding with cryptographic proof
+9.1 Threat Mitigation
 
-8.2 Attack Vectors
-- DoS via connection flooding (mitigated by TCP connection limits)
-- Brute force authentication (mitigated by rate limiting - implementation dependent)
-- Man-in-the-middle (requires additional TLS implementation)
+**Ghost Packets (Random UDP packets)**:
+    - Mitigation: Session token validation
+    - All game packets must include valid session context
+    - Invalid tokens rejected immediately
 
-9. Implementation Considerations
--------------------------------
+**Version Attacks**:
+    - Mitigation: Protocol version checking in HANDSHAKE
+    - Incompatible versions disconnected before auth
 
-9.1 Performance
-- TCP used minimally (handshake + auth only)
-- UDP provides low-latency game communication
-- Session state must be maintained server-side
+**Credential Theft**:
+    - Mitigation: Password hashing (SHA-256+salt minimum)
+    - Never transmit plaintext passwords (use TLS for production)
+    - Session tokens used after authentication
 
-9.2 Scalability
-- Stateless UDP game packets after binding
-- Database queries only during authentication
-- Session tokens enable distributed server architectures
+**Session Hijacking**:
+    - Mitigation: Session tokens are cryptographically random
+    - Tied to specific peer IP address
+    - Expired after 24 hours
 
-10. Conclusion
+**Replay Attacks**:
+    - Mitigation: Server nonces + timestamps
+    - Each authentication generates unique token
+    - Timestamps prevent old messages being replayed
+
+**DoS via Connection Flooding**:
+    - Mitigation: ENet's rate limiting
+    - Connection attempts throttled per IP
+    - Server limits max connections per IP address
+
+9.2 Recommended Production Hardening
+
+- **TLS/DTLS**: Encrypt all UDP packets (optional, adds latency)
+- **Rate Limiting**: Per-player message rate caps
+- **IP Banning**: Ban IPs with repeated failed auth
+- **Account Lockout**: Lock account after N failed logins
+- **Cheat Detection**: Server-side input validation
+- **Anti-Spam**: Message content filtering
+
+10. Implementation Considerations
+---------------------------------
+
+10.1 Performance Characteristics
+
+**Bandwidth Usage** (typical):
+    - Full game state (100 entities): ~500 bytes (compressed to ~150)
+    - Delta update (5 changed): ~100 bytes (compressed to ~30)
+    - Player input: ~20 bytes
+    - Chat message: ~50-200 bytes
+
+**Latency**:
+    - Handshake: ~100-200 ms (TCP, 1 RTT)
+    - Authentication: ~200-500 ms (DB query + crypto)
+    - Gameplay input→update: 50-150 ms (RTT + processing)
+
+**Scalability**:
+    - Single server handles 1000+ concurrent connections
+    - Per-room ServerLoop processes at independent frame rate
+    - Distributed architecture: Session tokens enable server migration
+
+10.2 ENet Configuration Recommendations
+
+```cpp
+// Client host
+createClientHost(
+    maxConnections = 1,        // Single server connection
+    channelLimit = 3,          // 3 channels (0, 1, 2)
+    incomingBandwidth = 0,     // Unlimited (auto-throttled)
+    outgoingBandwidth = 0      // Unlimited (auto-throttled)
+);
+
+// Server host
+createServerHost(
+    address = "0.0.0.0:5555",
+    maxClients = 1000,
+    channelLimit = 3,
+    incomingBandwidth = 0,
+    outgoingBandwidth = 0
+);
+```
+
+Peer Timeout:
+```cpp
+enet_peer_timeout(
+    limit = 5,          // 5 unacknowledged packets
+    minimum = 1000,     // 1 second
+    maximum = 3000      // 3 seconds
+);
+```
+
+Range Coder Compression:
+```cpp
+enet_host_compress_with_range_coder(host);  // Enabled by default
+```
+
+10.3 Frame Timing
+
+Typical Server Loop:
+```
+Frame 0ms:  Process player inputs from all peers
+Frame 5ms:  Update game logic (ECS systems)
+Frame 10ms: Serialize game state snapshots
+Frame 15ms: Send broadcasts to all players
+Frame 16.67ms: Sleep until next frame (60 Hz)
+```
+
+Typical Client Loop:
+```
+Frame 0ms:   Receive network events from server
+Frame 5ms:   Update local entity states (interpolation)
+Frame 10ms:  Render frame (query latest entity positions)
+Frame 15ms:  Send input to server
+Frame 16.67ms: Sleep until next frame (60 Hz)
+```
+
+11. Conclusion
 --------------
 
-The R-TYPE network protocol provides a robust foundation for secure, real-time multiplayer gaming. By combining TCP reliability for critical operations with UDP performance for game data, it addresses both security and performance requirements. The dual-mode authentication and comprehensive security measures make it suitable for both casual and competitive gaming environments.
+The R-TYPE network protocol v2.0 provides a comprehensive, battle-tested foundation for real-time multiplayer gaming. By combining ENet's reliable UDP transport with Cap'n Proto serialization, it delivers:
 
-The protocol's three-phase design ensures that security is established before performance-critical operations begin, while the transition to UDP maintains the low-latency requirements essential for real-time gaming.
+- **Security**: Multi-layer authentication, session binding, replay prevention
+- **Performance**: Automatic compression, congestion control, adaptive bitrates
+- **Reliability**: Guaranteed delivery where needed (lobby, auth, game state)
+- **Extensibility**: Type-safe DTOs enable easy protocol evolution
+- **Scalability**: Per-room game loops, distributed architecture support
+
+The three-phase design (Handshake → Authentication → Gameplay) ensures security is established before performance-critical operations begin. Channel-based prioritization ensures critical messages reach clients even under congestion.
+
+For latest protocol details, refer to implementation in:
+- common/Serialization/Capnp/NetworkMessages.hpp (message format)
+- common/Serialization/schemas/*.capnp (DTO definitions)
+- common/Networking/*.hpp (ENet wrapper and transport)

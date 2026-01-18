@@ -19,6 +19,12 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                                   int srcW, int srcH, float velocityX, float velocityY, uint32_t serverTick) {
     uint64_t currentTime = getCurrentTimeMs();
 
+    // Debug: log Wall entities
+    if (type == RType::Messages::Shared::EntityType::Wall) {
+        LOG_INFO("EntityRenderer: Updating Wall entity ID=", id, " Pos=(", x, ",", y, ") Size=(", srcW, "x",
+                 srcH, ") Health=", health);
+    }
+
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
@@ -26,6 +32,10 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
         // Always update type and health first (critical data)
         it->second.type = type;
         it->second.health = health;
+
+        // Check if entity is a projectile (bullets should NOT be interpolated)
+        bool isProjectile = (type == RType::Messages::Shared::EntityType::PlayerBullet ||
+                             type == RType::Messages::Shared::EntityType::EnemyBullet);
 
         if (isLocalPlayer && _clientSidePredictionEnabled) {
             // CLIENT-SIDE PREDICTION for local player
@@ -64,8 +74,10 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                 LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px threshold=", _reconciliationThreshold,
                           ")");
             }
-        } else if (_interpolationEnabled) {
-            // TIME-BASED INTERPOLATION for other entities
+            // Otherwise keep predicted position - client knows best!
+        } else if (_interpolationEnabled && !isProjectile) {
+            // TIME-BASED INTERPOLATION for other entities (but NOT projectiles)
+            // Projectiles move too fast (300 units/sec) for smooth interpolation
             // Add new snapshot to buffer
             RenderableEntity::Snapshot snapshot;
             snapshot.x = x;
@@ -89,7 +101,7 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.targetY = y;
             it->second.interpolationFactor = 0.0f;
         } else {
-            // No interpolation - snap directly
+            // No interpolation - snap directly (for projectiles and when disabled)
             it->second.x = x;
             it->second.y = y;
         }
@@ -164,6 +176,22 @@ void EntityRenderer::render() {
         return;
     }
 
+    // Debug: count entities by type once per second
+    static int frameCount = 0;
+    if (++frameCount % 60 == 0) {
+        int wallCount = 0, playerCount = 0, enemyCount = 0;
+        for (const auto &[id, entity] : _entities) {
+            if (entity.type == RType::Messages::Shared::EntityType::Wall)
+                wallCount++;
+            else if (entity.type == RType::Messages::Shared::EntityType::Player)
+                playerCount++;
+            else if (entity.type == RType::Messages::Shared::EntityType::EnemyType1)
+                enemyCount++;
+        }
+        LOG_INFO("EntityRenderer: Rendering ", _entities.size(), " entities - Players:", playerCount,
+                 " Enemies:", enemyCount, " Walls:", wallCount);
+    }
+
     // Note: Interpolation is updated separately via updateInterpolation()
     // which should be called from GameLoop before render()
 
@@ -181,6 +209,11 @@ void EntityRenderer::render() {
             case RType::Messages::Shared::EntityType::EnemyBullet:
                 renderProjectile(entity);
                 break;
+
+            case RType::Messages::Shared::EntityType::Wall:
+                renderWall(entity);
+                break;
+
             default:
                 LOG_WARNING("Unknown entity type: ", static_cast<int>(entity.type));
                 break;
@@ -205,9 +238,9 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
     float scale = entity.scale > 0.0f ? entity.scale : 3.0f;
 
     // Visual differentiation: tint green for local player
-    uint32_t tint = isLocalPlayer ? 0xAAFFAAFF : 0xFFFFFFFF;
+    uint32_t tint = isLocalPlayer ? 0xFF008000 : 0xFFFFFFFF;
 
-    _graphics.DrawTextureEx("r-typesheet1.gif", srcX, srcY, srcWidth, srcHeight,
+    _graphics.DrawTextureEx("PlayerShips.gif", srcX, srcY, srcWidth, srcHeight,
                             entity.x - (srcWidth * scale / 2), entity.y - (srcHeight * scale / 2), 0.0f,
                             scale, tint);
 
@@ -220,6 +253,13 @@ void EntityRenderer::renderPlayer(const RenderableEntity &entity, bool isLocalPl
         // Show local player indicator
         _graphics.DrawText(-1, "YOU", static_cast<int>(entity.x - 15), static_cast<int>(entity.y - 50), 14,
                            0x9DFF73AA);
+
+        // TODO: Add charge indicator
+        // When weapon is charging, show a progress bar or glow effect around the ship
+        // Example: Draw a circular progress bar based on charge level (0.0 to 1.0)
+        // if (entity.weaponChargeLevel > 0.0f) {
+        //     renderChargeIndicator(entity.x, entity.y, entity.weaponChargeLevel);
+        // }
     }
 }
 
@@ -241,20 +281,33 @@ void EntityRenderer::renderEnemy(const RenderableEntity &entity) {
 }
 
 void EntityRenderer::renderProjectile(const RenderableEntity &entity) {
-    // Small bullet visualization
+    // Draw projectile sprite with animation from sprite sheet
 
-    uint32_t color;
-    if (entity.type == RType::Messages::Shared::EntityType::PlayerBullet) {
-        color = 0xFFFF00FF;  // Yellow
-    } else {
-        color = 0xFF00FFFF;  // Magenta
-    }  // Placeholder: Small 8x8 rectangle
-    float halfSize = 4.0f;
+    // Source rectangle on the sprite sheet (frame from animation)
+    int srcX = entity.startPixelX > 0 ? entity.startPixelX : 267;
+    int srcY = entity.startPixelY > 0 ? entity.startPixelY : 84;
+    int srcWidth = entity.spriteSizeX > 0 ? entity.spriteSizeX : 17;
+    int srcHeight = entity.spriteSizeY > 0 ? entity.spriteSizeY : 13;
 
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - halfSize), static_cast<int>(entity.y - halfSize), 8,
-                             8, color);
+    // Debug log (only for first few frames)
+    static int debugCount = 0;
+    if (debugCount < 10) {
+        LOG_DEBUG("Projectile ", entity.entityId, ": sprite(", srcX, ",", srcY, ",", srcWidth, ",", srcHeight,
+                  ") anim=", entity.currentAnimation);
+        debugCount++;
+    }
 
-    // Projectiles typically don't have health bars
+    // Use scale from entity (server sends 2.0f for normal, 2.5f for charged)
+    float scale = entity.scale > 0.0f ? entity.scale : 2.0f;
+
+    // Different tint for enemy bullets
+    uint32_t tint = 0xFFFFFFFF;
+    if (entity.type == RType::Messages::Shared::EntityType::EnemyBullet) {
+        tint = 0xFF5555FF;  // Reddish tint for enemy bullets
+    }
+
+    _graphics.DrawTextureEx("Projectiles", srcX, srcY, srcWidth, srcHeight, entity.x - (srcWidth * scale / 2),
+                            entity.y - (srcHeight * scale / 2), 0.0f, scale, tint);
 }
 
 void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth) {
@@ -290,6 +343,52 @@ void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth
     // _graphics.DrawRectangleBorder(barX, y, barWidth, barHeight, 1.0f, 0xFFFFFFFF);
 }
 
+void EntityRenderer::renderWall(const RenderableEntity &entity) {
+    // Wall rendering with Wall.png texture
+    float width = entity.spriteSizeX > 0 ? static_cast<float>(entity.spriteSizeX) : 50.0f;
+    float height = entity.spriteSizeY > 0 ? static_cast<float>(entity.spriteSizeY) : 50.0f;
+
+    // Calculate position (top-left corner for drawing)
+    float x = entity.x - width / 2.0f;
+    float y = entity.y - height / 2.0f;
+
+    // Color tint: ABGR format
+    uint32_t tint = 0xFFFFFFFF;  // White (no tint) by default
+    if (entity.health > 0) {
+        // Destructible wall - tint red when damaged
+        float healthRatio = entity.health / 100.0f;
+        uint8_t red = 255;
+        uint8_t green = static_cast<uint8_t>(255 * healthRatio);
+        uint8_t blue = static_cast<uint8_t>(255 * healthRatio);
+        // ABGR format: 0xAABBGGRR
+        tint = 0xFF000000 | (blue << 16) | (green << 8) | red;
+    }
+
+    // Draw Wall.png texture stretched to fit the wall dimensions
+    // Respect the actual width and height separately (no average scale)
+    float scaleX = width / 50.0f;   // Assuming Wall.png is 50 pixels wide
+    float scaleY = height / 50.0f;  // Assuming Wall.png is 50 pixels tall
+
+    // For proper stretching, we need to use DrawTexturePro or tile it
+    // Let's just fill with solid color for now, more efficient for large walls
+    uint32_t wallColor = 0xFF13458BFF;  // Brown color in ABGR
+    if (entity.health > 0) {
+        wallColor = tint;  // Use health-based tint for destructible walls
+    }
+
+    _graphics.DrawRectFilled(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width),
+                             static_cast<int>(height), wallColor);
+
+    // Draw border for visibility
+    _graphics.DrawRectangleLines(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width),
+                                 static_cast<int>(height), 0xFF000000);
+
+    // If destructible, show health bar
+    if (entity.health > 0) {
+        renderHealthBar(entity.x, y - 10.0f, entity.health, 100);
+    }
+}
+
 void EntityRenderer::renderDebugInfo(const RenderableEntity &entity) {
     // Display entity ID above the entity
     std::string idText = "ID:" + std::to_string(entity.entityId);
@@ -317,6 +416,13 @@ void EntityRenderer::updateInterpolation(float deltaTime) {
     }
 
     for (auto &[id, entity] : _entities) {
+        // Skip projectiles - they move too fast for interpolation (300 units/sec)
+        // Interpolation would cause visual "sliding" instead of smooth linear movement
+        if (entity.type == RType::Messages::Shared::EntityType::PlayerBullet ||
+            entity.type == RType::Messages::Shared::EntityType::EnemyBullet) {
+            continue;
+        }
+
         // Skip if already at target
         if (entity.interpolationFactor >= 1.0f) {
             continue;

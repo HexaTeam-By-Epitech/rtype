@@ -149,27 +149,24 @@ TEST(PlayerTest, HasUniqueComponentType) {
 // Enemy Component Tests
 // ========================================
 TEST(EnemyTest, ConstructorInitializesCorrectly) {
-    ecs::Enemy enemy(1, 500, 2);
+    ecs::Enemy enemy(1, 500);
 
     EXPECT_EQ(enemy.getEnemyType(), 1);
     EXPECT_EQ(enemy.getScoreValue(), 500);
-    EXPECT_EQ(enemy.getAttackPattern(), 2);
 }
 
 TEST(EnemyTest, SettersWorkCorrectly) {
-    ecs::Enemy enemy(0, 0, 0);
+    ecs::Enemy enemy(0, 0);
 
     enemy.setEnemyType(5);
     enemy.setScoreValue(1000);
-    enemy.setAttackPattern(3);
 
     EXPECT_EQ(enemy.getEnemyType(), 5);
     EXPECT_EQ(enemy.getScoreValue(), 1000);
-    EXPECT_EQ(enemy.getAttackPattern(), 3);
 }
 
 TEST(EnemyTest, HasUniqueComponentType) {
-    ecs::Enemy enemy(0, 0, 0);
+    ecs::Enemy enemy(0, 0);
 
     EXPECT_EQ(enemy.getType(), ecs::getComponentType<ecs::Enemy>());
 }
@@ -221,12 +218,12 @@ TEST(WeaponTest, ConstructorInitializesCorrectly) {
 TEST(WeaponTest, SettersWorkCorrectly) {
     ecs::Weapon weapon(0, 0, 0, 0);
 
-    weapon.setFireRate(20);
+    weapon.setFireRate(5);
     weapon.setCooldown(15);
     weapon.setProjectileType(2);
     weapon.setDamage(50);
 
-    EXPECT_EQ(weapon.getFireRate(), 20);
+    EXPECT_EQ(weapon.getFireRate(), 5);
     EXPECT_EQ(weapon.getCooldown(), 15);
     EXPECT_EQ(weapon.getProjectileType(), 2);
     EXPECT_EQ(weapon.getDamage(), 50);

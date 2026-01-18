@@ -54,6 +54,12 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
 void Rendering::InitializeMenus() {
     _uiFactory = std::make_unique<UI::RaylibUIFactory>(_graphics);
 
+    // Initialize sound effect manager for UI sounds
+    _soundEffectManager = std::make_unique<Audio::SoundEffectManager>(_graphics);
+    if (!_soundEffectManager->Initialize()) {
+        LOG_WARNING("[Rendering] Sound effect manager initialization failed - sounds disabled");
+    }
+
     InitializeConfirmQuitMenu();
     InitializeSettingsMenu();
     InitializeMainMenu();
@@ -85,6 +91,7 @@ void Rendering::ApplyInitialMenuSettings() {
 
 void Rendering::InitializeConfirmQuitMenu() {
     _confirmQuitMenu = std::make_unique<Game::ConfirmQuitMenu>(*_uiFactory);
+    _confirmQuitMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _confirmQuitMenu->SetOnConfirm([this]() { _quitRequested = true; });
 
@@ -108,6 +115,7 @@ void Rendering::InitializeConfirmQuitMenu() {
 
 void Rendering::InitializeSettingsMenu() {
     _settingsMenu = std::make_unique<Game::SettingsMenu>(*_uiFactory, _graphics);
+    _settingsMenu->SetSoundEffectService(_soundEffectManager.get());
     _settingsMenu->SetMode(Game::SettingsMenu::Mode::FULLSCREEN);
 
     _settingsMenu->SetOnShowPingChanged([this](bool enabled) { SetShowPing(enabled); });
@@ -170,6 +178,7 @@ void Rendering::InitializeSettingsMenu() {
 
 void Rendering::InitializeMainMenu() {
     _mainMenu = std::make_unique<Game::MainMenu>(*_uiFactory);
+    _mainMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _mainMenu->SetOnPlay([this]() {
         if (_mainMenu)
@@ -220,6 +229,7 @@ void Rendering::InitializeMainMenu() {
 
 void Rendering::InitializeLoginMenu() {
     _loginMenu = std::make_unique<Game::LoginMenu>(*_uiFactory, _graphics);
+    _loginMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _loginMenu->SetOnBack([this]() {
         if (_loginMenu)
@@ -235,6 +245,7 @@ void Rendering::InitializeLoginMenu() {
 
 void Rendering::InitializeServerListMenu() {
     _serverListMenu = std::make_unique<Game::ServerListMenu>(*_uiFactory, _graphics);
+    _serverListMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _serverListMenu->SetOnBack([this]() {
         // Back from server selection = quit game
@@ -283,6 +294,7 @@ void Rendering::InitializeServerListMenu() {
 
 void Rendering::InitializeAddServerMenu() {
     _addServerMenu = std::make_unique<Game::AddServerMenu>(*_uiFactory, _graphics);
+    _addServerMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _addServerMenu->SetOnCancel([this]() {
         if (_addServerMenu)
@@ -317,6 +329,7 @@ void Rendering::InitializeAddServerMenu() {
 
 void Rendering::InitializeConnectionMenu() {
     _connectionMenu = std::make_unique<Game::ConnectionMenu>(*_uiFactory, _graphics);
+    _connectionMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _connectionMenu->SetOnBack([this]() {
         if (_connectionMenu)
@@ -345,6 +358,7 @@ void Rendering::InitializeConnectionMenu() {
 
 void Rendering::InitializeRoomListMenu() {
     _roomListMenu = std::make_unique<Game::RoomListMenu>(*_uiFactory, _graphics);
+    _roomListMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _roomListMenu->SetOnRoomSelected([this](const std::string &roomId) {
         LOG_INFO("[Rendering] Room selected: ", roomId);
@@ -380,6 +394,7 @@ void Rendering::InitializeRoomListMenu() {
 
 void Rendering::InitializeCreateRoomMenu() {
     _createRoomMenu = std::make_unique<Game::CreateRoomMenu>(*_uiFactory, _graphics);
+    _createRoomMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _createRoomMenu->SetOnCreate([this](const std::string &roomName, uint32_t maxPlayers, bool isPrivate) {
         LOG_INFO("[Rendering] Creating room: ", roomName, " (Max: ", maxPlayers, ", Private: ", isPrivate,
@@ -410,6 +425,7 @@ void Rendering::InitializeCreateRoomMenu() {
 
 void Rendering::InitializeWaitingRoomMenu() {
     _waitingRoomMenu = std::make_unique<Game::WaitingRoomMenu>(*_uiFactory, _graphics);
+    _waitingRoomMenu->SetSoundEffectService(_soundEffectManager.get());
 
     _waitingRoomMenu->SetOnStartGame([this]() {
         LOG_INFO("[Rendering] Start Game button clicked");

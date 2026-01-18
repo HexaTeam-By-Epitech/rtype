@@ -34,7 +34,8 @@ namespace ecs {
          * @param dirY Y direction component
          * @param speed Movement speed in units per second
          */
-        Velocity(float dirX, float dirY, float speed) : _direction{dirX, dirY}, _speed(speed) {}
+        Velocity(float dirX, float dirY, float speed)
+            : _direction{dirX, dirY}, _speed(speed), _baseSpeed(speed) {}
         ~Velocity() override = default;
 
         /**
@@ -48,6 +49,12 @@ namespace ecs {
          * @return float The speed value in units per second.
          */
         float getSpeed() const { return _speed; }
+
+        /**
+         * @brief Get the base movement speed (before buffs).
+         * @return float The base speed value
+         */
+        float getBaseSpeed() const { return _baseSpeed; }
 
         /**
          * @brief Set the direction vector.
@@ -74,5 +81,6 @@ namespace ecs {
        private:
         Vector2 _direction;  ///< Movement direction vector
         float _speed;        ///< Movement speed in units per second
+        float _baseSpeed;    ///< Base speed (before buffs)
     };
 }  // namespace ecs

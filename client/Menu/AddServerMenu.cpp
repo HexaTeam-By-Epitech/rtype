@@ -79,7 +79,7 @@ namespace Game {
             button->SetTextSize(18);
             button->SetTextColor(0xFFFFFFFF);
             button->SetFont(-1);
-            button->SetCallback(std::move(callback));
+            button->SetCallback(WrapWithClickSound(std::move(callback)));
             return button;
         };
 

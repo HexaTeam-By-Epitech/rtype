@@ -1,0 +1,14 @@
+{
+  "mapId": "level_1",
+  "name": "Zone Alpha - Première Vague",
+  "scrollSpeed": 50.0,
+  "background": "backgrounds/space_1.png",
+  "spawnScript": "maps/level_1_spawn.lua",
+  "duration": 90.0,
+  "nextMap": "level_2",
+  "metadata": {
+    "difficulty": "easy",
+    "enemies": ["basic", "fast"],
+    "description": "Niveau d'introduction avec vagues d'ennemis basiques"
+  }
+}

@@ -25,17 +25,20 @@
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
 #include "common/ECS/Components/Weapon.hpp"
+#include "common/ECS/Prefabs/PrefabFactory.hpp"
 #include "common/ECS/Systems/AISystem/AISystem.hpp"
 #include "common/ECS/Systems/AnimationSystem/AnimationSystem.hpp"
 #include "common/ECS/Systems/BoundarySystem/BoundarySystem.hpp"
+#include "common/ECS/Systems/BuffSystem/BuffSystem.hpp"
 #include "common/ECS/Systems/CollisionSystem/CollisionSystem.hpp"
 #include "common/ECS/Systems/HealthSystem/HealthSystem.hpp"
 #include "common/ECS/Systems/ISystem.hpp"
+#include "common/ECS/Systems/MapSystem/MapSystem.hpp"
 #include "common/ECS/Systems/MovementSystem/MovementSystem.hpp"
-#include "common/ECS/Systems/ProjectileSystem/ProjectileSystem.hpp"
 #include "common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
+#include "common/MapLoader/MapLoader.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
 #include "server/Game/StateManager/GameOverState.hpp"
@@ -90,18 +93,22 @@ namespace server {
             // Create and register all systems with ECSWorld in execution order
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
             _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
+            _world->createSystem<ecs::MapSystem>("MapSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
+            _world->createSystem<ecs::BuffSystem>("BuffSystem");
             _world->createSystem<ecs::HealthSystem>("HealthSystem");
-            _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
-            _world->createSystem<ecs::AISystem>("AISystem");
-            _world->createSystem<ecs::ProjectileSystem>("ProjectileSystem");
-            _world->createSystem<ecs::BoundarySystem>("BoundarySystem");
-            _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
 
-            // Create and register Lua system (executes after other systems)
+            // Register Lua system BEFORE SpawnSystem so wave_manager can queue spawns
             auto luaSystem = std::make_unique<scripting::LuaSystemAdapter>(_luaEngine.get(), _world.get());
             _world->registerSystem("Lua", std::move(luaSystem));
-            LOG_INFO("✓ Lua system registered");
+            LOG_INFO("✓ Lua system registered (executes before spawn processing)");
+
+            // SpawnSystem processes spawn requests queued by Lua scripts
+            _world->createSystem<ecs::SpawnSystem>("SpawnSystem");
+
+            _world->createSystem<ecs::AISystem>("AISystem");
+            _world->createSystem<ecs::BoundarySystem>("BoundarySystem");
+            _world->createSystem<ecs::WeaponSystem>("WeaponSystem");
 
             LOG_INFO("✓ All systems registered (", _world->getSystemCount(), " systems)");
             if (_threadPool) {
@@ -125,10 +132,6 @@ namespace server {
             _stateManager->changeState(1);
 
             LOG_INFO("✓ GameStateManager initialized with 3 states");
-
-            // 🧪 TEST: Spawn a test enemy with Lua script
-            LOG_INFO("🧪 Spawning test with Lua script...");
-            _world->createEntity().with(ecs::Spawner()).with(ecs::LuaScript("wave_manager.lua"));
 
             _gameActive = true;
 
@@ -183,9 +186,9 @@ namespace server {
                     .with(ecs::Collider(50.0f, 50.0f, 0.0f, 0.0f, 1, 0xFFFFFFFF, false))
                     .with(ecs::Weapon(_gameRules.getDefaultPlayerFireRate(), 0.0f, 0,
                                       _gameRules.getDefaultPlayerDamage()))
-                    .with(ecs::Sprite("r-typesheet1.gif", {1, 69, 32, 14}, 3.0f, 0.0f, false, false, 0))
+                    .with(ecs::Sprite("PlayerShips.gif", {1, 69, 33, 14}, 3.0f, 0.0f, false, false, 0))
                     .with(playerAnimations)
-                    .with(ecs::Animation("idle"));
+                    .with(ecs::Animation("player_idle"));
             ecs::Address entityAddress = playerEntity.getAddress();
 
             // Register player (protected by mutex for thread safety)
@@ -300,15 +303,56 @@ namespace server {
             ecs::Velocity &vel = entity.get<ecs::Velocity>();
             ecs::Transform &transform = entity.get<ecs::Transform>();
 
-            // If no input (0, 0), stop the player completely
-            if (input.inputX == 0 && input.inputY == 0) {
-                vel.setDirection(0.0f, 0.0f);
-                // Debug log throttled (thread-local to avoid races)
-                thread_local uint32_t stopLogCount = 0;
-                if (++stopLogCount % 60 == 0) {
-                    LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED");
+            // Update animation based on movement
+            if (entity.has<ecs::Animation>()) {
+                ecs::Animation &anim = entity.get<ecs::Animation>();
+
+                // If no input (0, 0), stop the player and play idle animation
+                if (input.inputX == 0 && input.inputY == 0) {
+                    vel.setDirection(0.0f, 0.0f);
+
+                    // Switch to idle animation if currently moving
+                    if (anim.getCurrentClipName() != "player_idle") {
+                        anim.setCurrentClipName("player_idle");
+                        anim.setCurrentFrameIndex(0);
+                        anim.setTimer(0.0f);
+                    }
+
+                    // Debug log throttled (thread-local to avoid races)
+                    thread_local uint32_t stopLogCount = 0;
+                    if (++stopLogCount % 60 == 0) {
+                        LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED -> idle animation");
+                    }
+                } else {
+                    // Normalize diagonal movement
+                    float dirX = static_cast<float>(input.inputX);
+                    float dirY = static_cast<float>(input.inputY);
+
+                    // Normalize if diagonal
+                    if (dirX != 0.0f && dirY != 0.0f) {
+                        float length = std::sqrt(dirX * dirX + dirY * dirY);
+                        dirX /= length;
+                        dirY /= length;
+                    }
+
+                    vel.setDirection(dirX, dirY);
+
+                    // Switch to movement animation if currently idle
+                    if (anim.getCurrentClipName() != "player_movement") {
+                        anim.setCurrentClipName("player_movement");
+                        anim.setCurrentFrameIndex(0);
+                        anim.setTimer(0.0f);
+                    }
+
+                    // Debug log throttled
+                    thread_local uint32_t moveLogCount = 0;
+                    if (++moveLogCount % 60 == 0) {
+                        LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY,
+                                  ") -> movement animation");
+                    }
                 }
             } else {
+                // Fallback if no Animation component (shouldn't happen for players)
                 // Normalize diagonal movement
                 float dirX = static_cast<float>(input.inputX);
                 float dirY = static_cast<float>(input.inputY);
@@ -342,8 +386,16 @@ namespace server {
             }
 
             // Handle shooting
+            auto &weapon = entity.get<ecs::Weapon>();
+
             if (input.isShooting) {
-                // Weapon system will handle actual projectile creation
+                if (entity.has<ecs::Weapon>()) {
+                    weapon.setShouldShoot(true);
+                }
+            } else {
+                if (entity.has<ecs::Weapon>()) {
+                    weapon.setShouldShoot(false);
+                }
             }
 
             _lastAppliedSequenceId[playerId] = input.sequenceId;
@@ -365,14 +417,20 @@ namespace server {
         // Group 1: Independent systems (can run in parallel)
         std::vector<std::string> group1 = {"MovementSystem"};
 
-        // Group 2: Depends on positions (after Movement)
-        std::vector<std::string> group2 = {"CollisionSystem", "BoundarySystem"};
+        // Group 2: Animation must run after Movement to update sprite frames
+        std::vector<std::string> group2 = {"AnimationSystem"};
 
-        // Group 3: Depends on collision results
-        std::vector<std::string> group3 = {"HealthSystem", "ProjectileSystem"};
+        // Group 3: Depends on positions (after Movement and Animation)
+        std::vector<std::string> group3 = {"CollisionSystem", "BoundarySystem"};
 
-        // Group 4: AI, spawning, and weapons (can run in parallel)
-        std::vector<std::string> group4 = {"AISystem", "SpawnSystem", "WeaponSystem"};
+        // Group 4: Depends on collision results
+        std::vector<std::string> group4 = {"HealthSystem", "WeaponSystem"};
+
+        // Group 5: Lua scripts (wave_manager) must run before spawning
+        std::vector<std::string> group5 = {"Lua"};
+
+        // Group 6: Process spawn requests from Lua and AI
+        std::vector<std::string> group6 = {"AISystem", "SpawnSystem"};
 
         // Execute each group in order, but parallelize within groups
         auto executeGroup = [this, deltaTime](const std::vector<std::string> &group) {
@@ -399,45 +457,33 @@ namespace server {
         executeGroup(group2);
         executeGroup(group3);
         executeGroup(group4);
-
-        // Execute Lua system SEQUENTIALLY after all other systems to avoid registry concurrency issues
-        _world->updateSystem("Lua", deltaTime);
+        executeGroup(group5);  // Lua scripts
+        executeGroup(group6);  // Spawning (processes Lua's spawn requests)
     }
 
     void GameLogic::_cleanupDeadEntities() {
-        // Query all entities with Health component that are dead
-        // Note: Actual entity destruction is handled by _processPendingDestructions in Server
-        // This function just cleans up the player map for dead players
-        auto entities = _world->query<ecs::Health>();
+        // Query all entities marked for destruction
+        auto entitiesToDestroy = _world->query<ecs::PendingDestroy>();
 
-        for (auto &entity : entities) {
-            ecs::Health &health = entity.get<ecs::Health>();
-
-            if (health.getCurrentHealth() > 0) {
-                continue;
-            }
-
-            // Mark for destruction if not already marked (HealthSystem should have done this)
+        for (auto &entity : entitiesToDestroy) {
             ecs::Address entityAddress = entity.getAddress();
-            if (!entity.has<ecs::PendingDestroy>()) {
-                _world->getEntity(entityAddress)
-                    .with<ecs::PendingDestroy>(ecs::PendingDestroy(ecs::DestroyReason::Killed));
-            }
 
             // Remove from player map if it's a player entity
-            if (!entity.has<ecs::Player>()) {
-                continue;
-            }
-            std::scoped_lock lock(_playerMutex);
-            for (auto it = _playerMap.begin(); it != _playerMap.end();) {
-                if (it->second == entityAddress) {
-                    it = _playerMap.erase(it);
-                } else {
-                    ++it;
+            if (entity.has<ecs::Player>()) {
+                std::scoped_lock lock(_playerMutex);
+                for (auto it = _playerMap.begin(); it != _playerMap.end();) {
+                    if (it->second == entityAddress) {
+                        LOG_INFO("Removing player ", it->first, " from player map (entity destroyed)");
+                        it = _playerMap.erase(it);
+                    } else {
+                        ++it;
+                    }
                 }
             }
+
+            // Actually destroy the entity
+            _world->destroyEntity(entity);
         }
-        // Entity destruction is deferred to _processPendingDestructions in Server
     }
 
     void GameLogic::_checkGameOverCondition() {
@@ -488,19 +534,62 @@ namespace server {
     }
 
     void GameLogic::onGameStart() {
-        LOG_INFO("Fire onGameStart");
+        LOG_INFO("Game started! Loading map...");
 
-        // Find the spawner entity with wave_manager.lua script
-        if (_luaEngine) {
-            auto entities = _world->query<ecs::Spawner, ecs::LuaScript>();
-            for (auto &entity : entities) {
-                const ecs::LuaScript &script = entity.get<ecs::LuaScript>();
-                if (script.getScriptPath() == "wave_manager.lua") {
-                    _luaEngine->executeOnGameStart("wave_manager.lua", entity);
-                    break;
-                }
-            }
+        // Charger la map maintenant que le jeu démarre
+        loadMap("assets/maps/level_1.json");
+
+        LOG_INFO("✓ Map loaded and spawning will begin!");
+    }
+
+    bool GameLogic::loadMap(const std::string &mapFilePath) {
+        LOG_INFO("Loading map from: ", mapFilePath);
+
+        // Load map data from JSON file
+        auto mapDataOpt = map::MapLoader::loadFromFile(mapFilePath);
+        if (!mapDataOpt.has_value()) {
+            LOG_ERROR("Failed to load map from: ", mapFilePath);
+            return false;
         }
+
+        ecs::MapData mapData = mapDataOpt.value();
+        LOG_INFO("✓ Map loaded: '", mapData.getName(), "' (", mapData.getMapId(), ")");
+
+        // Create or update map entity
+        // Check if there's already an active map entity
+        auto mapEntities = _world->query<ecs::MapData>();
+
+        if (!mapEntities.empty()) {
+            // Update existing map entity
+            auto mapEntity = mapEntities[0];
+            mapEntity.with(mapData);
+            LOG_INFO("Updated existing map entity");
+        } else {
+            // Create new map entity
+            _world->createEntity().with(mapData);
+            LOG_INFO("Created new map entity");
+        }
+
+        // Load spawn script if specified
+        const std::string &spawnScript = mapData.getSpawnScript();
+        if (!spawnScript.empty() && _luaEngine) {
+            LOG_INFO("Loading spawn script: ", spawnScript);
+
+            // Create spawner entity with the map's spawn script
+            _world->createEntity().with(ecs::Spawner()).with(ecs::LuaScript(spawnScript));
+
+            LOG_INFO("✓ Spawner created with script: ", spawnScript);
+        }
+
+        LOG_INFO("✓ Map '", mapData.getName(), "' is now active!");
+        LOG_INFO("  - Scroll speed: ", mapData.getScrollSpeed(), " px/s");
+        if (mapData.getDuration() > 0.0f) {
+            LOG_INFO("  - Duration: ", mapData.getDuration(), " seconds");
+        } else {
+            LOG_INFO("  - Duration: Infinite");
+        }
+
+        return true;
     }
 
 }  // namespace server

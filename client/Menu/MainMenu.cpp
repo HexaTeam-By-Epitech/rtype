@@ -42,6 +42,13 @@ namespace Game {
         _screenHeight = height;
     }
 
+    void MainMenu::Show() {
+        BaseMenu::Show();
+        if (_soundService) {
+            _soundService->PlayMainMenuOpenSound();
+        }
+    }
+
     void MainMenu::Initialize() {
         if (!_menu) {
             return;
@@ -82,7 +89,7 @@ namespace Game {
         _profileButton->SetBackgroundColor(0xFF2196F3);  // Blue
         _profileButton->SetHoverColor(0xFF64B5F6);
         _profileButton->SetTextColor(0xFFFFFFFF);
-        _profileButton->SetCallback([this]() { OnProfileClicked(); });
+        _profileButton->SetCallback(WrapWithClickSound([this]() { OnProfileClicked(); }));
 
         _menu->AddButton(_profileButton);
     }

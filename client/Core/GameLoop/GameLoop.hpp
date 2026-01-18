@@ -14,6 +14,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <unordered_set>
 #include "../common/Logger/Logger.hpp"
 #include "Capnp/Messages/Messages.hpp"
 #include "Capnp/NetworkMessages.hpp"
@@ -271,6 +272,9 @@ class GameLoop {
     bool _isMoving = false;                    // True when player is actively moving
     float _playerSpeed = 300.0f;               // pixels per second (MUST MATCH SERVER!)
     bool _clientSidePredictionEnabled = true;  // Client-side prediction for smooth movement
+
+    // Entity tracking for cleanup
+    std::unordered_set<uint32_t> _knownEntityIds;  // Track all entities we've seen for proper cleanup
 };
 
 #endif

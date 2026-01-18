@@ -198,5 +198,25 @@ namespace UI {
          * @note Call this after SetSize(), or when the window is resized.
          */
         virtual void ApplyAlignment() = 0;
+
+        // ===== Keyboard Navigation =====
+
+        /**
+         * @brief Set the keyboard focus state of the button.
+         * @param focused true if this button should be focused.
+         */
+        virtual void SetFocused(bool focused) = 0;
+
+        /**
+         * @brief Check if this button currently has keyboard focus.
+         * @return true if focused.
+         */
+        [[nodiscard]] virtual bool IsFocused() const = 0;
+
+        /**
+         * @brief Programmatically trigger the button's click callback.
+         * @note Used by keyboard navigation to simulate a click on Enter key.
+         */
+        virtual void TriggerClick() = 0;
     };
 }  // namespace UI

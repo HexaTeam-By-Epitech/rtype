@@ -92,6 +92,14 @@ namespace Game {
                                               0xFF424242, 0xFF616161,
                                               [this]() { SetTargetFps(NextTargetFps(_targetFps)); }));
 
+        // Accessibility button
+        _menu->AddButton(CreateCenteredButton("ACCESSIBILITY", offsetForIndex(4), buttonWidth, buttonHeight,
+                                              0xFF6A1B9A, 0xFF8E24AA, [this]() {
+                                                  if (_onAccessibility) {
+                                                      _onAccessibility();
+                                                  }
+                                              }));
+
         // Back (closes settings)
         _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(5), buttonWidth, buttonHeight,
                                               0xFF1976D2, 0xFF1E88E5, [this]() {
@@ -199,6 +207,10 @@ namespace Game {
 
     void SettingsMenu::SetOnMainMenu(std::function<void()> cb) {
         _onMainMenu = std::move(cb);
+    }
+
+    void SettingsMenu::SetOnAccessibility(std::function<void()> cb) {
+        _onAccessibility = std::move(cb);
     }
 
     void SettingsMenu::SetShowFps(bool enabled) {

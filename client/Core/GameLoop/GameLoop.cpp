@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include "../ClientGameRules.hpp"
 #include "GameruleKeys.hpp"
+#include "Input/KeyBindings.hpp"
 
 GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator, const std::string &playerName)
     : _eventBus(&eventBus), _replicator(&replicator), _playerName(playerName) {}
@@ -67,19 +68,25 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
     } else if (event.getType() == UIEventType::CREATE_ROOM) {
         LOG_INFO("[GameLoop] Create room requested by UI");
         if (_replicator) {
-            // Parse room data (format: "roomName|maxPlayers|isPrivate")
+            // Parse room data (format: "roomName|maxPlayers|isPrivate|gameSpeedMultiplier")
             const std::string &data = event.getData();
             size_t pos1 = data.find('|');
             size_t pos2 = data.find('|', pos1 + 1);
+            size_t pos3 = data.find('|', pos2 + 1);
 
             if (pos1 != std::string::npos && pos2 != std::string::npos) {
                 std::string roomName = data.substr(0, pos1);
                 uint32_t maxPlayers = std::stoi(data.substr(pos1 + 1, pos2 - pos1 - 1));
-                bool isPrivate = (data.substr(pos2 + 1) == "1");
+                bool isPrivate = (data.substr(pos2 + 1, pos3 - pos2 - 1) == "1");
+                float gameSpeedMultiplier = 1.0f;
+                if (pos3 != std::string::npos) {
+                    gameSpeedMultiplier = std::stof(data.substr(pos3 + 1));
+                }
 
                 LOG_INFO("[GameLoop] Creating room: ", roomName, " (Max: ", maxPlayers,
-                         ", Private: ", isPrivate, ")");
-                _replicator->sendCreateRoom(roomName, maxPlayers, isPrivate);
+                         ", Private: ", isPrivate, ", Speed: ", static_cast<int>(gameSpeedMultiplier * 100),
+                         "%)");
+                _replicator->sendCreateRoom(roomName, maxPlayers, isPrivate, gameSpeedMultiplier);
 
                 // Mark that we just created a room, so we know we're the host when RoomState comes back
                 _justCreatedRoom = true;
@@ -357,33 +364,61 @@ void GameLoop::processInput() {
         return;
     }
 
+    // Get key bindings
+    auto &bindings = Input::KeyBindings::getInstance();
+
     // Collect all currently pressed actions
     std::vector<RType::Messages::Shared::Action> actions;
 
-    // Calculate movement delta (distance per frame at fixed 60Hz)
-    float moveDelta = _playerSpeed * _fixedTimestep;  // e.g., 200 * 0.0167 = 3.33 pixels
+    // Calculate movement delta (distance per frame at fixed 60Hz, scaled by game speed)
+    float moveDelta = _playerSpeed * _fixedTimestep * _gameSpeedMultiplier;
 
     // Collect input directions first
     int dx = 0, dy = 0;
 
-    // ZQSD movement (French keyboard layout)
-    if (_rendering->IsKeyDown(KEY_W) || _rendering->IsKeyDown(KEY_Z)) {
+    // Helper lambda to check if a binding (keyboard or gamepad) is pressed
+    auto isBindingDown = [this](int binding) {
+        if (binding == KEY_NULL) {
+            return false;
+        }
+        if (Input::IsGamepadBinding(binding)) {
+            int button = Input::BindingToGamepadButton(binding);
+            // Check all connected gamepads (typically just gamepad 0)
+            for (int gp = 0; gp < 4; ++gp) {
+                if (_rendering->IsGamepadAvailable(gp) && _rendering->IsGamepadButtonDown(gp, button)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return _rendering->IsKeyDown(binding);
+    };
+
+    // Helper lambda to check if an action's key or gamepad button is pressed
+    auto isActionDown = [&bindings, &isBindingDown](Input::GameAction action) {
+        int primary = bindings.GetPrimaryKey(action);
+        int secondary = bindings.GetSecondaryKey(action);
+        return isBindingDown(primary) || isBindingDown(secondary);
+    };
+
+    // Movement using configurable bindings
+    if (isActionDown(Input::GameAction::MOVE_UP)) {
         actions.push_back(RType::Messages::Shared::Action::MoveUp);
         dy = -1;
     }
-    if (_rendering->IsKeyDown(KEY_S)) {
+    if (isActionDown(Input::GameAction::MOVE_DOWN)) {
         actions.push_back(RType::Messages::Shared::Action::MoveDown);
         dy = 1;
     }
-    if (_rendering->IsKeyDown(KEY_A) || _rendering->IsKeyDown(KEY_Q)) {
+    if (isActionDown(Input::GameAction::MOVE_LEFT)) {
         actions.push_back(RType::Messages::Shared::Action::MoveLeft);
         dx = -1;
     }
-    if (_rendering->IsKeyDown(KEY_D)) {
+    if (isActionDown(Input::GameAction::MOVE_RIGHT)) {
         actions.push_back(RType::Messages::Shared::Action::MoveRight);
         dx = 1;
     }
-    if (_rendering->IsKeyDown(KEY_SPACE)) {
+    if (isActionDown(Input::GameAction::SHOOT)) {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
     }
 
@@ -728,7 +763,8 @@ void GameLoop::simulateInputHistory(float &x, float &y) {
                 moveY /= length;
             }
 
-            float frameDelta = _playerSpeed * (1.0f / 60.0f);
+            // Scale by game speed multiplier to match server's slowed game time
+            float frameDelta = _playerSpeed * (1.0f / 60.0f) * _gameSpeedMultiplier;
             x += moveX * frameDelta;
             y += moveY * frameDelta;
         }
@@ -748,6 +784,16 @@ void GameLoop::handleGameruleUpdate(const std::vector<uint8_t> &payload) {
         if (speed != _playerSpeed) {
             _playerSpeed = speed;
             LOG_INFO("  - Player speed updated to: ", _playerSpeed);
+        }
+
+        // Apply game speed multiplier from gamerules
+        float gameSpeed = clientRules.get(GameruleKey::GAME_SPEED_MULTIPLIER, _gameSpeedMultiplier);
+        if (gameSpeed != _gameSpeedMultiplier) {
+            _gameSpeedMultiplier = gameSpeed;
+            // Client keeps 60Hz loop rate but scales deltaTime for prediction
+            // to match server's slowed game time
+            LOG_INFO("  - Game speed multiplier updated to: ", _gameSpeedMultiplier,
+                     " (prediction will use scaled time)");
         }
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse GamerulePacket: ", e.what());

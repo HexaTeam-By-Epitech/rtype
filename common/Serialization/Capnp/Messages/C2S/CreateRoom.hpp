@@ -20,10 +20,11 @@ namespace RType::Messages::C2S {
         std::string roomName;
         uint32_t maxPlayers;
         bool isPrivate;
+        float gameSpeedMultiplier;  ///< Game speed multiplier (0.25 to 1.0, default 1.0)
 
-        CreateRoom() = default;
-        CreateRoom(const std::string &name, uint32_t max, bool priv)
-            : roomName(name), maxPlayers(max), isPrivate(priv) {}
+        CreateRoom() : maxPlayers(4), isPrivate(false), gameSpeedMultiplier(1.0f) {}
+        CreateRoom(const std::string &name, uint32_t max, bool priv, float speedMultiplier = 1.0f)
+            : roomName(name), maxPlayers(max), isPrivate(priv), gameSpeedMultiplier(speedMultiplier) {}
 
         [[nodiscard]] std::vector<uint8_t> serialize() const {
             capnp::MallocMessageBuilder message;
@@ -31,6 +32,7 @@ namespace RType::Messages::C2S {
             builder.setRoomName(roomName);
             builder.setMaxPlayers(maxPlayers);
             builder.setIsPrivate(isPrivate);
+            builder.setGameSpeedMultiplier(gameSpeedMultiplier);
 
             auto bytes = capnp::messageToFlatArray(message);
             auto byteArray = bytes.asBytes();
@@ -52,6 +54,11 @@ namespace RType::Messages::C2S {
             result.roomName = msg.getRoomName().cStr();
             result.maxPlayers = msg.getMaxPlayers();
             result.isPrivate = msg.getIsPrivate();
+            result.gameSpeedMultiplier = msg.getGameSpeedMultiplier();
+            // Clamp to valid range and default if not set (0.0f means unset in capnp)
+            if (result.gameSpeedMultiplier <= 0.0f || result.gameSpeedMultiplier > 1.0f) {
+                result.gameSpeedMultiplier = 1.0f;
+            }
             return result;
         }
     };

@@ -107,6 +107,15 @@ namespace UI {
         /** @copydoc UI::IButton::GetFont */
         [[nodiscard]] int GetFont() const override;
 
+        /** @copydoc UI::IButton::SetFocused */
+        void SetFocused(bool focused) override;
+
+        /** @copydoc UI::IButton::IsFocused */
+        [[nodiscard]] bool IsFocused() const override;
+
+        /** @copydoc UI::IButton::TriggerClick */
+        void TriggerClick() override;
+
        private:
         /**
          * @brief Check whether the mouse cursor is currently over the button rectangle.
@@ -123,10 +132,12 @@ namespace UI {
 
         unsigned int _backgroundColor{0xFF808080};
         unsigned int _hoverColor{0xFFA0A0A0};
+        unsigned int _focusColor{0xFF4080FF};  // Blue border for focused state
 
         ButtonState _state{ButtonState::NORMAL};
         bool _enabled{true};
         bool _wasMouseDown{false};
+        bool _focused{false};  // Keyboard focus state
 
         // Text properties
         std::string _text;

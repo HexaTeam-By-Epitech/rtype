@@ -13,6 +13,7 @@
 
 #include "Graphics/IGraphics.hpp"
 #include "Menu/BaseMenu.hpp"
+#include "UI/ISlider.hpp"
 #include "UI/IUIFactory.hpp"
 
 namespace Game {
@@ -26,9 +27,9 @@ namespace Game {
 
         /**
          * @brief Set callback triggered when Create button is clicked
-         * @param onCreate Callback receiving (roomName, maxPlayers, isPrivate)
+         * @param onCreate Callback receiving (roomName, maxPlayers, isPrivate, gameSpeedMultiplier)
          */
-        void SetOnCreate(std::function<void(const std::string &, uint32_t, bool)> onCreate);
+        void SetOnCreate(std::function<void(const std::string &, uint32_t, bool, float)> onCreate);
 
         /**
          * @brief Set callback triggered when Cancel button is clicked
@@ -43,8 +44,9 @@ namespace Game {
         void OnCreateClicked();
         void OnCancelClicked();
         bool ValidateInput();
+        void UpdateSpeedButtonText();
 
-        std::function<void(const std::string &, uint32_t, bool)> _onCreate{};
+        std::function<void(const std::string &, uint32_t, bool, float)> _onCreate{};
         std::function<void()> _onCancel{};
 
         Graphics::IGraphics &_graphics;
@@ -52,11 +54,13 @@ namespace Game {
         std::shared_ptr<UI::ITextInput> _roomNameInput;
         std::shared_ptr<UI::IButton> _maxPlayersButton;
         std::shared_ptr<UI::IButton> _privateButton;
+        std::shared_ptr<UI::IButton> _gameSpeedButton;
         std::shared_ptr<UI::IButton> _createButton;
         std::shared_ptr<UI::IButton> _cancelButton;
 
         uint32_t _selectedMaxPlayers = 4;  // Default 4 players
         bool _isPrivate = false;
+        float _gameSpeedMultiplier = 1.0f;  // Default normal speed (100%)
 
         std::string _errorMessage;
     };

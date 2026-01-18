@@ -522,13 +522,9 @@ void EntityRenderer::renderWall(const RenderableEntity &entity) {
     }
 
     // Draw Wall.png texture stretched to fit the wall dimensions
-    // Respect the actual width and height separately (no average scale)
-    float scaleX = width / 50.0f;   // Assuming Wall.png is 50 pixels wide
-    float scaleY = height / 50.0f;  // Assuming Wall.png is 50 pixels tall
-
     // For proper stretching, we need to use DrawTexturePro or tile it
     // Let's just fill with solid color for now, more efficient for large walls
-    uint32_t wallColor = 0xFF13458BFF;  // Brown color in ABGR
+    uint32_t wallColor = 0xFF13458B;  // Brown color in ARGB (0xAARRGGBB)
     if (entity.health > 0) {
         wallColor = tint;  // Use health-based tint for destructible walls
     }

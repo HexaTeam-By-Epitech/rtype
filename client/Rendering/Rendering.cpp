@@ -8,6 +8,8 @@
 #include "Rendering.hpp"
 #include <thread>
 #include "Events/UIEvent.hpp"
+#include "Input/KeyBindings.hpp"
+#include "Settings/AccessibilitySettings.hpp"
 #include "UI/TextUtils.hpp"
 
 Rendering::Rendering(EventBus &eventBus) : _eventBus(eventBus) {
@@ -54,6 +56,8 @@ bool Rendering::Initialize(uint32_t width, uint32_t height, const std::string &t
 void Rendering::InitializeMenus() {
     _uiFactory = std::make_unique<UI::RaylibUIFactory>(_graphics);
 
+    // Load saved key bindings
+    Input::KeyBindings::getInstance().LoadFromFile("keybindings.cfg");
     // Initialize sound effect manager for UI sounds
     _soundEffectManager = std::make_unique<Audio::SoundEffectManager>(_graphics);
     if (!_soundEffectManager->Initialize()) {
@@ -62,6 +66,12 @@ void Rendering::InitializeMenus() {
 
     InitializeConfirmQuitMenu();
     InitializeSettingsMenu();
+    InitializeAccessibilityMenu();
+    InitializeKeyBindingsMenu();
+
+    // Load saved accessibility settings (after accessibility menu is created)
+    LoadAccessibilitySettings();
+
     InitializeMainMenu();
     InitializeLoginMenu();
     InitializeServerListMenu();
@@ -179,8 +189,108 @@ void Rendering::InitializeSettingsMenu() {
         }
     });
 
+    _settingsMenu->SetOnAccessibility([this]() {
+        if (_settingsMenu) {
+            _settingsMenu->Hide();
+        }
+        if (_accessibilityMenu) {
+            _accessibilityMenu->Show();
+        }
+    });
+
     _settingsMenu->Initialize();
     _settingsMenu->Hide();
+}
+
+void Rendering::InitializeAccessibilityMenu() {
+    _accessibilityMenu = std::make_unique<Game::AccessibilityMenu>(*_uiFactory, _graphics);
+    _accessibilityMenu->SetMode(Game::AccessibilityMenu::Mode::FULLSCREEN);
+
+    // Colorblind filter changed
+    _accessibilityMenu->SetOnColorblindFilterChanged([this](auto filter) {
+        LOG_INFO("[Rendering] Applying colorblind filter: ", static_cast<int>(filter));
+        // Map AccessibilityMenu filter to Graphics filter type
+        Graphics::ColorblindFilterType graphicsFilter = Graphics::ColorblindFilterType::NONE;
+        switch (filter) {
+            case Game::AccessibilityMenu::ColorblindFilter::PROTANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::PROTANOPIA;
+                break;
+            case Game::AccessibilityMenu::ColorblindFilter::DEUTERANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::DEUTERANOPIA;
+                break;
+            case Game::AccessibilityMenu::ColorblindFilter::TRITANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::TRITANOPIA;
+                break;
+            case Game::AccessibilityMenu::ColorblindFilter::MONOCHROMACY:
+                graphicsFilter = Graphics::ColorblindFilterType::MONOCHROMACY;
+                break;
+            default:
+                graphicsFilter = Graphics::ColorblindFilterType::NONE;
+                break;
+        }
+        _graphics.SetColorblindFilter(graphicsFilter);
+        SaveAccessibilitySettings();
+    });
+
+    // Game speed changed
+    _accessibilityMenu->SetOnGameSpeedChanged([this](float speed) {
+        LOG_INFO("[Rendering] Game speed changed to: ", static_cast<int>(speed * 100), "%");
+        // TODO: Apply speed multiplier to game logic delta time
+        // This should be propagated to the GameLoop to adjust the fixed timestep
+        // For now, we just log it
+    });
+
+    // Key bindings configuration requested
+    _accessibilityMenu->SetOnConfigureKeyBindings([this]() {
+        LOG_INFO("[Rendering] Opening key bindings configuration");
+        if (_accessibilityMenu) {
+            _accessibilityMenu->Hide();
+        }
+        if (_keyBindingsMenu) {
+            _keyBindingsMenu->SetMode(Game::KeyBindingsMenu::Mode::OVERLAY);
+            _keyBindingsMenu->Initialize();
+            _keyBindingsMenu->Show();
+            _keyBindingsOverlay = true;
+        }
+    });
+
+    // Back button - return to settings menu
+    _accessibilityMenu->SetOnBack([this]() {
+        if (_accessibilityMenu) {
+            _accessibilityMenu->Hide();
+        }
+        if (_settingsMenu) {
+            _settingsMenu->Show();
+        }
+    });
+
+    _accessibilityMenu->Initialize();
+    _accessibilityMenu->Hide();
+}
+
+void Rendering::InitializeKeyBindingsMenu() {
+    _keyBindingsMenu = std::make_unique<Game::KeyBindingsMenu>(*_uiFactory, _graphics);
+    _keyBindingsMenu->SetMode(Game::KeyBindingsMenu::Mode::OVERLAY);
+
+    // Back button - return to accessibility menu
+    _keyBindingsMenu->SetOnBack([this]() {
+        if (_keyBindingsMenu) {
+            _keyBindingsMenu->Hide();
+            _keyBindingsOverlay = false;
+        }
+        if (_accessibilityMenu) {
+            _accessibilityMenu->Show();
+        }
+    });
+
+    // Bindings changed - save to file
+    _keyBindingsMenu->SetOnBindingsChanged([this]() {
+        LOG_INFO("[Rendering] Key bindings changed, saving...");
+        Input::KeyBindings::getInstance().SaveToFile("keybindings.cfg");
+    });
+
+    _keyBindingsMenu->Initialize();
+    _keyBindingsMenu->Hide();
 }
 
 void Rendering::InitializeMainMenu() {
@@ -416,21 +526,23 @@ void Rendering::InitializeCreateRoomMenu() {
     _createRoomMenu = std::make_unique<Game::CreateRoomMenu>(*_uiFactory, _graphics);
     _createRoomMenu->SetSoundEffectService(_soundEffectManager.get());
 
-    _createRoomMenu->SetOnCreate([this](const std::string &roomName, uint32_t maxPlayers, bool isPrivate) {
-        LOG_INFO("[Rendering] Creating room: ", roomName, " (Max: ", maxPlayers, ", Private: ", isPrivate,
-                 ")");
+    _createRoomMenu->SetOnCreate(
+        [this](const std::string &roomName, uint32_t maxPlayers, bool isPrivate, float gameSpeedMultiplier) {
+            LOG_INFO("[Rendering] Creating room: ", roomName, " (Max: ", maxPlayers, ", Private: ", isPrivate,
+                     ", Speed: ", static_cast<int>(gameSpeedMultiplier * 100), "%)");
 
-        // Publish CREATE_ROOM event (format: "roomName|maxPlayers|isPrivate")
-        std::string roomData = roomName + "|" + std::to_string(maxPlayers) + "|" + (isPrivate ? "1" : "0");
-        _eventBus.publish(UIEvent(UIEventType::CREATE_ROOM, roomData));
+            // Publish CREATE_ROOM event (format: "roomName|maxPlayers|isPrivate|gameSpeedMultiplier")
+            std::string roomData = roomName + "|" + std::to_string(maxPlayers) + "|" +
+                                   (isPrivate ? "1" : "0") + "|" + std::to_string(gameSpeedMultiplier);
+            _eventBus.publish(UIEvent(UIEventType::CREATE_ROOM, roomData));
 
-        if (_createRoomMenu)
-            _createRoomMenu->Hide();
+            if (_createRoomMenu)
+                _createRoomMenu->Hide();
 
-        // Show WaitingRoom instead of RoomListMenu (creator becomes host automatically)
-        if (_waitingRoomMenu)
-            _waitingRoomMenu->Show();
-    });
+            // Show WaitingRoom instead of RoomListMenu (creator becomes host automatically)
+            if (_waitingRoomMenu)
+                _waitingRoomMenu->Show();
+        });
 
     _createRoomMenu->SetOnCancel([this]() {
         if (_createRoomMenu)
@@ -641,9 +753,15 @@ void Rendering::Render() {
     _graphics.StartDrawing();
     _graphics.ClearWindow();
 
+    // Begin colorblind capture if filter is active
+    _graphics.BeginColorblindCapture();
+
     RenderGameScene();
     RenderUI();
     RenderHUD();
+
+    // End colorblind capture and apply filter
+    _graphics.EndColorblindCapture();
 
     _graphics.DisplayWindow();
 
@@ -666,8 +784,15 @@ void Rendering::UpdateFpsCounter() {
 }
 
 void Rendering::HandleEscapeKeyInput() {
-    // ESC toggles settings overlay only in-game
-    if (_scene != Scene::IN_GAME || !_graphics.IsKeyPressed(KEY_ESCAPE) || !_settingsMenu) {
+    // Pause menu toggle only in-game using configurable binding
+    auto &bindings = Input::KeyBindings::getInstance();
+    int pauseKey = bindings.GetPrimaryKey(Input::GameAction::PAUSE_MENU);
+    int pauseKeyAlt = bindings.GetSecondaryKey(Input::GameAction::PAUSE_MENU);
+
+    bool pausePressed = (pauseKey != KEY_NULL && _graphics.IsKeyPressed(pauseKey)) ||
+                        (pauseKeyAlt != KEY_NULL && _graphics.IsKeyPressed(pauseKeyAlt));
+
+    if (_scene != Scene::IN_GAME || !pausePressed || !_settingsMenu) {
         return;
     }
 
@@ -726,6 +851,12 @@ void Rendering::UpdateUI() {
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Update();
         }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            _accessibilityMenu->Update();
+        }
+        if (_keyBindingsMenu && _keyBindingsMenu->IsVisible()) {
+            _keyBindingsMenu->Update();
+        }
         if (_loginMenu && _loginMenu->IsVisible()) {
             _loginMenu->Update();
 
@@ -781,6 +912,12 @@ void Rendering::UpdateUI() {
         if (_settingsMenu && _settingsMenu->IsVisible() && _settingsOverlay) {
             _settingsMenu->Update();
         }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            _accessibilityMenu->Update();
+        }
+        if (_keyBindingsMenu && _keyBindingsMenu->IsVisible()) {
+            _keyBindingsMenu->Update();
+        }
     }
 }
 
@@ -826,6 +963,12 @@ void Rendering::RenderUI() {
         if (_settingsMenu && _settingsMenu->IsVisible()) {
             _settingsMenu->Render();
         }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            _accessibilityMenu->Render();
+        }
+        if (_keyBindingsMenu && _keyBindingsMenu->IsVisible()) {
+            _keyBindingsMenu->Render();
+        }
         if (_loginMenu && _loginMenu->IsVisible()) {
             _loginMenu->Render();
         }
@@ -836,6 +979,20 @@ void Rendering::RenderUI() {
                                          _settingsMenu->GetOverlayDimColor());
             }
             _settingsMenu->Render();
+        }
+        if (_accessibilityMenu && _accessibilityMenu->IsVisible()) {
+            if (_accessibilityMenu->ShouldDimBackground()) {
+                _graphics.DrawRectFilled(0, 0, static_cast<int>(_width), static_cast<int>(_height),
+                                         _accessibilityMenu->GetOverlayDimColor());
+            }
+            _accessibilityMenu->Render();
+        }
+        if (_keyBindingsMenu && _keyBindingsMenu->IsVisible()) {
+            if (_keyBindingsMenu->ShouldDimBackground()) {
+                _graphics.DrawRectFilled(0, 0, static_cast<int>(_width), static_cast<int>(_height),
+                                         _keyBindingsMenu->GetOverlayDimColor());
+            }
+            _keyBindingsMenu->Render();
         }
     }
 
@@ -971,6 +1128,14 @@ bool Rendering::IsKeyDown(int key) const {
     return _graphics.IsKeyDown(key);
 }
 
+bool Rendering::IsGamepadAvailable(int gamepad) const {
+    return _graphics.IsGamepadAvailable(gamepad);
+}
+
+bool Rendering::IsGamepadButtonDown(int gamepad, int button) const {
+    return _graphics.IsGamepadButtonDown(gamepad, button);
+}
+
 void Rendering::UpdateInterpolation(float deltaTime) {
     if (_entityRenderer) {
         _entityRenderer->updateInterpolation(deltaTime);
@@ -1098,4 +1263,94 @@ void Rendering::UpdateChatVisibility() {
     }
 
     _chatWidget->SetVisible(shouldBeVisible);
+}
+
+void Rendering::LoadAccessibilitySettings() {
+    Settings::AccessibilitySettings settings;
+
+    if (Settings::LoadSettings(settings)) {
+        LOG_INFO("[Rendering] Loaded accessibility settings from ", Settings::SETTINGS_FILE_PATH);
+    } else {
+        LOG_INFO("[Rendering] No accessibility settings file found, using defaults");
+    }
+
+    // Apply loaded settings to the accessibility menu (silently, no callbacks)
+    if (_accessibilityMenu) {
+        // Map ColorblindFilterType to AccessibilityMenu::ColorblindFilter
+        Game::AccessibilityMenu::ColorblindFilter filter = Game::AccessibilityMenu::ColorblindFilter::NONE;
+        switch (settings.colorblindFilter) {
+            case Settings::ColorblindFilterType::PROTANOPIA:
+                filter = Game::AccessibilityMenu::ColorblindFilter::PROTANOPIA;
+                break;
+            case Settings::ColorblindFilterType::DEUTERANOPIA:
+                filter = Game::AccessibilityMenu::ColorblindFilter::DEUTERANOPIA;
+                break;
+            case Settings::ColorblindFilterType::TRITANOPIA:
+                filter = Game::AccessibilityMenu::ColorblindFilter::TRITANOPIA;
+                break;
+            case Settings::ColorblindFilterType::MONOCHROMACY:
+                filter = Game::AccessibilityMenu::ColorblindFilter::MONOCHROMACY;
+                break;
+            default:
+                filter = Game::AccessibilityMenu::ColorblindFilter::NONE;
+                break;
+        }
+        _accessibilityMenu->SetColorblindFilterSilent(filter);
+
+        // Apply colorblind filter to graphics
+        Graphics::ColorblindFilterType graphicsFilter = Graphics::ColorblindFilterType::NONE;
+        switch (settings.colorblindFilter) {
+            case Settings::ColorblindFilterType::PROTANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::PROTANOPIA;
+                break;
+            case Settings::ColorblindFilterType::DEUTERANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::DEUTERANOPIA;
+                break;
+            case Settings::ColorblindFilterType::TRITANOPIA:
+                graphicsFilter = Graphics::ColorblindFilterType::TRITANOPIA;
+                break;
+            case Settings::ColorblindFilterType::MONOCHROMACY:
+                graphicsFilter = Graphics::ColorblindFilterType::MONOCHROMACY;
+                break;
+            default:
+                graphicsFilter = Graphics::ColorblindFilterType::NONE;
+                break;
+        }
+        _graphics.SetColorblindFilter(graphicsFilter);
+    }
+}
+
+void Rendering::SaveAccessibilitySettings() {
+    if (!_accessibilityMenu) {
+        return;
+    }
+
+    Settings::AccessibilitySettings settings;
+    settings.SetDefaults();
+
+    // Get current settings from accessibility menu
+    auto filter = _accessibilityMenu->GetColorblindFilter();
+    switch (filter) {
+        case Game::AccessibilityMenu::ColorblindFilter::PROTANOPIA:
+            settings.colorblindFilter = Settings::ColorblindFilterType::PROTANOPIA;
+            break;
+        case Game::AccessibilityMenu::ColorblindFilter::DEUTERANOPIA:
+            settings.colorblindFilter = Settings::ColorblindFilterType::DEUTERANOPIA;
+            break;
+        case Game::AccessibilityMenu::ColorblindFilter::TRITANOPIA:
+            settings.colorblindFilter = Settings::ColorblindFilterType::TRITANOPIA;
+            break;
+        case Game::AccessibilityMenu::ColorblindFilter::MONOCHROMACY:
+            settings.colorblindFilter = Settings::ColorblindFilterType::MONOCHROMACY;
+            break;
+        default:
+            settings.colorblindFilter = Settings::ColorblindFilterType::NONE;
+            break;
+    }
+
+    if (Settings::SaveSettings(settings)) {
+        LOG_INFO("[Rendering] Saved accessibility settings to ", Settings::SETTINGS_FILE_PATH);
+    } else {
+        LOG_ERROR("[Rendering] Failed to save accessibility settings");
+    }
 }

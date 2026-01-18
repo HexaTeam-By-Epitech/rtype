@@ -49,9 +49,11 @@ namespace UI {
             return;
         }
 
-        // Choose color based on state
+        // Choose color based on state (focused or hovered takes priority)
         unsigned int currentColor = _backgroundColor;
-        if (_state == ButtonState::HOVERED || _state == ButtonState::PRESSED) {
+        if (_focused) {
+            currentColor = _hoverColor;  // Use hover color when focused
+        } else if (_state == ButtonState::HOVERED || _state == ButtonState::PRESSED) {
             currentColor = _hoverColor;
         }
 
@@ -59,10 +61,16 @@ namespace UI {
         _graphics.DrawRectFilled(static_cast<int>(_x), static_cast<int>(_y), static_cast<int>(_width),
                                  static_cast<int>(_height), currentColor);
 
-        // Draw border for better visibility
-        constexpr unsigned int borderColor = 0xFF000000;  // Black border
+        // Draw border - blue if focused, black otherwise
+        unsigned int borderColor = _focused ? _focusColor : 0xFF000000;
         _graphics.DrawRect(static_cast<int>(_x), static_cast<int>(_y), static_cast<int>(_width),
                            static_cast<int>(_height), borderColor);
+
+        // Draw thicker border when focused (draw inner border)
+        if (_focused) {
+            _graphics.DrawRect(static_cast<int>(_x) + 1, static_cast<int>(_y) + 1,
+                               static_cast<int>(_width) - 2, static_cast<int>(_height) - 2, borderColor);
+        }
 
         // ===== Centered text rendering =====
         if (!_text.empty()) {
@@ -184,5 +192,19 @@ namespace UI {
 
     int RaylibButton::GetFont() const {
         return _fontHandle;
+    }
+
+    void RaylibButton::SetFocused(bool focused) {
+        _focused = focused;
+    }
+
+    bool RaylibButton::IsFocused() const {
+        return _focused;
+    }
+
+    void RaylibButton::TriggerClick() {
+        if (_enabled && _callback) {
+            _callback();
+        }
     }
 }  // namespace UI

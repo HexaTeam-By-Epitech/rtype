@@ -23,7 +23,8 @@ enum class GameruleKey {
     PLAYER_FIRE_RATE,
     PLAYER_DAMAGE,
     PLAYER_SPAWN_X,
-    PLAYER_SPAWN_Y
+    PLAYER_SPAWN_Y,
+    GAME_SPEED_MULTIPLIER  ///< Game speed multiplier (0.25 to 1.0, accessibility feature)
 };
 
 namespace GameruleKeys {
@@ -47,6 +48,8 @@ namespace GameruleKeys {
                 return "player.spawnX";
             case GameruleKey::PLAYER_SPAWN_Y:
                 return "player.spawnY";
+            case GameruleKey::GAME_SPEED_MULTIPLIER:
+                return "game.speedMultiplier";
             default:
                 return "unknown";
         }
@@ -64,7 +67,8 @@ namespace GameruleKeys {
             {"player.fireRate", GameruleKey::PLAYER_FIRE_RATE},
             {"player.damage", GameruleKey::PLAYER_DAMAGE},
             {"player.spawnX", GameruleKey::PLAYER_SPAWN_X},
-            {"player.spawnY", GameruleKey::PLAYER_SPAWN_Y}};
+            {"player.spawnY", GameruleKey::PLAYER_SPAWN_Y},
+            {"game.speedMultiplier", GameruleKey::GAME_SPEED_MULTIPLIER}};
 
         auto it = map.find(str);
         if (it != map.end()) {

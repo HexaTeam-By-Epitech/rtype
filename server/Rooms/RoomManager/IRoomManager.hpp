@@ -28,10 +28,12 @@ namespace server {
          * @param name Display name (optional)
          * @param maxPlayers Maximum players (default: 4)
          * @param isPrivate Whether room is private (default: false)
+         * @param gameSpeedMultiplier Game speed multiplier (0.25 to 1.0, default: 1.0)
          * @return Shared pointer to created room
          */
         virtual std::shared_ptr<Room> createRoom(const std::string &id, const std::string &name = "",
-                                                 size_t maxPlayers = 4, bool isPrivate = false) = 0;
+                                                 size_t maxPlayers = 4, bool isPrivate = false,
+                                                 float gameSpeedMultiplier = 1.0f) = 0;
 
         /**
          * @brief Retrieve a room by ID

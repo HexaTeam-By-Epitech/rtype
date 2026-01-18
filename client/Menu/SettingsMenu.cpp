@@ -82,8 +82,13 @@ namespace Game {
         _menu->AddButton(CreateCenteredButton("CHAT: ON", offsetForIndex(2), buttonWidth, buttonHeight,
                                               0xFF424242, 0xFF616161, [this]() { SetShowChat(!_showChat); }));
 
+        // Toggle Auto-Matchmaking button
+        _menu->AddButton(CreateCenteredButton("AUTO-MM: OFF", offsetForIndex(3), buttonWidth, buttonHeight,
+                                              0xFF424242, 0xFF616161,
+                                              [this]() { SetAutoMatchmaking(!_autoMatchmaking); }));
+
         // Target FPS selection button (cycles)
-        _menu->AddButton(CreateCenteredButton("TARGET FPS: 60", offsetForIndex(3), buttonWidth, buttonHeight,
+        _menu->AddButton(CreateCenteredButton("TARGET FPS: 60", offsetForIndex(4), buttonWidth, buttonHeight,
                                               0xFF424242, 0xFF616161,
                                               [this]() { SetTargetFps(NextTargetFps(_targetFps)); }));
 
@@ -257,6 +262,7 @@ namespace Game {
         UpdateToggleVisuals();
         UpdateFpsToggleVisuals();
         UpdateChatToggleVisuals();
+        UpdateAutoMatchmakingVisuals();
         UpdateTargetFpsVisuals();
     }
 
@@ -425,6 +431,54 @@ namespace Game {
             toggleBtn->SetHoverColor(0xFF388E3C);
         } else {
             toggleBtn->SetText("CHAT: OFF");
+            toggleBtn->SetBackgroundColor(0xFFB71C1C);
+            toggleBtn->SetHoverColor(0xFFD32F2F);
+        }
+        toggleBtn->SetTextColor(0xFFFFFFFF);
+    }
+
+    void SettingsMenu::SetAutoMatchmaking(bool enabled) {
+        _autoMatchmaking = enabled;
+        UpdateAutoMatchmakingVisuals();
+        if (_onAutoMatchmakingChanged) {
+            _onAutoMatchmakingChanged(_autoMatchmaking);
+        }
+        LOG_INFO("[SettingsMenu] Auto-matchmaking=", _autoMatchmaking ? "true" : "false",
+                 " (notifying server)");
+    }
+
+    void SettingsMenu::ApplyAutoMatchmakingPreference(bool enabled) {
+        // Apply preference silently without triggering callback
+        // This is used when loading preference from server after login
+        _autoMatchmaking = enabled;
+        UpdateAutoMatchmakingVisuals();
+        LOG_INFO("[SettingsMenu] Auto-matchmaking preference applied from server: ",
+                 _autoMatchmaking ? "ON" : "OFF", " (no server notification)");
+    }
+
+    bool SettingsMenu::GetAutoMatchmaking() const {
+        return _autoMatchmaking;
+    }
+
+    void SettingsMenu::SetOnAutoMatchmakingChanged(std::function<void(bool)> cb) {
+        _onAutoMatchmakingChanged = std::move(cb);
+    }
+
+    void SettingsMenu::UpdateAutoMatchmakingVisuals() {
+        if (!_menu) {
+            return;
+        }
+        auto toggleBtn = _menu->GetButton(AUTO_MATCHMAKING_INDEX);
+        if (!toggleBtn) {
+            return;
+        }
+
+        if (_autoMatchmaking) {
+            toggleBtn->SetText("AUTO-MM: ON");
+            toggleBtn->SetBackgroundColor(0xFF2E7D32);
+            toggleBtn->SetHoverColor(0xFF388E3C);
+        } else {
+            toggleBtn->SetText("AUTO-MM: OFF");
             toggleBtn->SetBackgroundColor(0xFFB71C1C);
             toggleBtn->SetHoverColor(0xFFD32F2F);
         }

@@ -6,6 +6,7 @@
 */
 
 #include "EntityRenderer.hpp"
+#include <chrono>
 #include <cmath>
 #include "../common/Logger/Logger.hpp"
 
@@ -15,7 +16,9 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                                   int health, const std::string &currentAnimation, int srcX, int srcY,
-                                  int srcW, int srcH) {
+                                  int srcW, int srcH, float velocityX, float velocityY, uint32_t serverTick) {
+    uint64_t currentTime = getCurrentTimeMs();
+
     // Debug: log Wall entities
     if (type == RType::Messages::Shared::EntityType::Wall) {
         LOG_INFO("EntityRenderer: Updating Wall entity ID=", id, " Pos=(", x, ",", y, ") Size=(", srcW, "x",
@@ -35,39 +38,63 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                              type == RType::Messages::Shared::EntityType::EnemyBullet);
 
         if (isLocalPlayer && _clientSidePredictionEnabled) {
-            // CLIENT-SIDE PREDICTION for local player (pro-style dead reckoning)
+            // CLIENT-SIDE PREDICTION for local player
             float errorX = x - it->second.x;
             float errorY = y - it->second.y;
             float errorDistance = std::sqrt(errorX * errorX + errorY * errorY);
 
-            // MICRO-JITTER FILTERING
-            // If the correction is tiny (floating point error from Replay), ignore it completely.
-            // This stops the ship from "shivering" 1 pixel back and forth.
-            if (errorDistance < 2.0f) {
-                return;  // Visually perfect, don't touch position
+            // ADAPTIVE MICRO-JITTER FILTERING
+            // When player IS MOVING: Apply strict filtering to avoid jitter during active movement
+            // When player IS STOPPED: Accept small corrections to prevent drift accumulation
+            float jitterThreshold = _localPlayerIsMoving ? 2.0f : 0.5f;
+
+            if (errorDistance < jitterThreshold) {
+                // When stopped, we still want to sync positions, just not create visible jumps
+                // So we'll do a very gentle correction instead of ignoring it completely
+                if (!_localPlayerIsMoving && errorDistance > 0.1f) {
+                    // Gentle correction: slowly drift towards server position
+                    it->second.prevX = it->second.x;
+                    it->second.prevY = it->second.y;
+                    it->second.targetX = x;
+                    it->second.targetY = y;
+                    it->second.interpolationFactor = 0.5f;  // Start halfway for very smooth transition
+                }
+                return;  // Don't apply large corrections for micro-jitter
             }
 
-            // Only reconcile when error exceeds threshold (use same threshold regardless of movement state)
+            // Only reconcile when error exceeds threshold
             if (errorDistance > _reconciliationThreshold) {
                 // Significant desync detected - smooth correction needed
-                // ALWAYS interpolate corrections to avoid visible snapping
                 it->second.prevX = it->second.x;
                 it->second.prevY = it->second.y;
-
-                it->second.targetX = x;  // Server says X
-                it->second.targetY = y;  // Server says Y
-
-                // We keep interpolationFactor low to allow the slide to happen
+                it->second.targetX = x;
+                it->second.targetY = y;
                 it->second.interpolationFactor = 0.0f;
 
-                // Log ALL corrections for debugging
                 LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px threshold=", _reconciliationThreshold,
                           ")");
             }
             // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled && !isProjectile) {
-            // INTERPOLATION for other entities (but NOT projectiles)
+            // TIME-BASED INTERPOLATION for other entities (but NOT projectiles)
             // Projectiles move too fast (300 units/sec) for smooth interpolation
+            // Add new snapshot to buffer
+            RenderableEntity::Snapshot snapshot;
+            snapshot.x = x;
+            snapshot.y = y;
+            snapshot.velocityX = velocityX;
+            snapshot.velocityY = velocityY;
+            snapshot.timestamp = currentTime;
+            snapshot.serverTick = serverTick;
+
+            it->second.snapshots.push_back(snapshot);
+
+            // Keep only last 3 snapshots
+            while (it->second.snapshots.size() > 3) {
+                it->second.snapshots.pop_front();
+            }
+
+            // Also update legacy fields for smooth transition
             it->second.prevX = it->second.x;
             it->second.prevY = it->second.y;
             it->second.targetX = x;
@@ -78,20 +105,50 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.x = x;
             it->second.y = y;
         }
-        // Always update type, health, sprite coords, and animation
-        it->second.type = type;
-        it->second.health = health;
+
+        // Always update sprite coords and animation
         it->second.currentAnimation = currentAnimation;
         it->second.startPixelX = srcX;
         it->second.startPixelY = srcY;
         it->second.spriteSizeX = srcW;
         it->second.spriteSizeY = srcH;
     } else {
-        // Create new entity with sprite values from server
-        _entities[id] = {id,   type, x, y,    health,           x,  y, x, y, 1.0f, srcX, srcY, srcW,
-                         srcH, 0,    0, 3.0f, currentAnimation, {}, 0};
-        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y,
-                  ") sprite(", srcX, ",", srcY, ",", srcW, ",", srcH, ") anim=", currentAnimation);
+        // Create new entity
+        RenderableEntity newEntity;
+        newEntity.entityId = id;
+        newEntity.type = type;
+        newEntity.x = x;
+        newEntity.y = y;
+        newEntity.health = health;
+        newEntity.interpolationDelay = 100;  // 100ms interpolation delay
+        newEntity.extrapolationEnabled = true;
+        newEntity.prevX = x;
+        newEntity.prevY = y;
+        newEntity.targetX = x;
+        newEntity.targetY = y;
+        newEntity.interpolationFactor = 1.0f;
+        newEntity.startPixelX = srcX;
+        newEntity.startPixelY = srcY;
+        newEntity.spriteSizeX = srcW;
+        newEntity.spriteSizeY = srcH;
+        newEntity.offsetX = 0;
+        newEntity.offsetY = 0;
+        newEntity.scale = 3.0f;
+        newEntity.currentAnimation = currentAnimation;
+        newEntity.currentFrame = 0;
+
+        // Add initial snapshot
+        RenderableEntity::Snapshot snapshot;
+        snapshot.x = x;
+        snapshot.y = y;
+        snapshot.velocityX = velocityX;
+        snapshot.velocityY = velocityY;
+        snapshot.timestamp = currentTime;
+        snapshot.serverTick = serverTick;
+        newEntity.snapshots.push_back(snapshot);
+
+        _entities[id] = newEntity;
+        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y, ")");
     }
 }
 
@@ -405,4 +462,10 @@ float EntityRenderer::clamp(float value, float min, float max) const {
         return max;
     }
     return value;
+}
+
+uint64_t EntityRenderer::getCurrentTimeMs() const {
+    auto now = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    return static_cast<uint64_t>(duration.count());
 }

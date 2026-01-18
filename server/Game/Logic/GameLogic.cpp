@@ -240,13 +240,13 @@ namespace server {
 
         // Filter duplicates (redundant inputs)
         // If we have already processed this sequence ID or a newer one, ignore it.
-        auto it = _lastProcessedSequenceId.find(playerId);
-        if (it != _lastProcessedSequenceId.end()) {
+        auto it = _lastReceivedSequenceId.find(playerId);
+        if (it != _lastReceivedSequenceId.end()) {
             if (sequenceId <= it->second) {
                 return;  // Already processed
             }
         }
-        _lastProcessedSequenceId[playerId] = sequenceId;
+        _lastReceivedSequenceId[playerId] = sequenceId;
 
         // Add to queue
         _pendingInput[playerId].push_back({playerId, inputX, inputY, isShooting, sequenceId});
@@ -293,13 +293,15 @@ namespace server {
             // Get entity wrapper and check if it still exists
             ecs::wrapper::Entity entity = _world->getEntity(playerEntity);
 
-            // Check if entity has Velocity component (entity might be destroyed)
-            if (!entity.has<ecs::Velocity>()) {
-                LOG_WARNING("Player ", playerId, " entity has no Velocity component (entity destroyed?)");
+            // Check if entity has required components (entity might be destroyed)
+            if (!entity.has<ecs::Velocity>() || !entity.has<ecs::Transform>()) {
+                LOG_WARNING("Player ", playerId,
+                            " entity missing Velocity or Transform component (entity destroyed?)");
                 return;
             }
 
             ecs::Velocity &vel = entity.get<ecs::Velocity>();
+            ecs::Transform &transform = entity.get<ecs::Transform>();
 
             // Update animation based on movement
             if (entity.has<ecs::Animation>()) {
@@ -351,17 +353,35 @@ namespace server {
                 }
             } else {
                 // Fallback if no Animation component (shouldn't happen for players)
-                if (input.inputX == 0 && input.inputY == 0) {
-                    vel.setDirection(0.0f, 0.0f);
-                } else {
-                    float dirX = static_cast<float>(input.inputX);
-                    float dirY = static_cast<float>(input.inputY);
-                    if (dirX != 0.0f && dirY != 0.0f) {
-                        float length = std::sqrt(dirX * dirX + dirY * dirY);
-                        dirX /= length;
-                        dirY /= length;
-                    }
-                    vel.setDirection(dirX, dirY);
+                // Normalize diagonal movement
+                float dirX = static_cast<float>(input.inputX);
+                float dirY = static_cast<float>(input.inputY);
+
+                // Normalize if diagonal
+                if (dirX != 0.0f && dirY != 0.0f) {
+                    float length = std::sqrt(dirX * dirX + dirY * dirY);
+                    dirX /= length;
+                    dirY /= length;
+                }
+
+                // CRITICAL: Apply movement directly here to match client-side prediction
+                // The client predicts movement per-input at FIXED_TIMESTEP rate
+                // We must do the same to stay synchronized
+                float speed = vel.getSpeed();
+                auto pos = transform.getPosition();
+                float newX = pos.x + dirX * speed * FIXED_TIMESTEP;
+                float newY = pos.y + dirY * speed * FIXED_TIMESTEP;
+                transform.setPosition(newX, newY);
+
+                // Keep velocity direction at (0,0) so MovementSystem doesn't apply additional movement
+                // Player movement is entirely controlled by input processing, not by MovementSystem
+                vel.setDirection(0.0f, 0.0f);
+
+                // Debug log throttled
+                thread_local uint32_t moveLogCount = 0;
+                if (++moveLogCount % 60 == 0) {
+                    LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ") pos=(", newX, ", ",
+                              newY, ")");
                 }
             }
 
@@ -377,6 +397,8 @@ namespace server {
                     weapon.setShouldShoot(false);
                 }
             }
+
+            _lastAppliedSequenceId[playerId] = input.sequenceId;
         } catch (const std::exception &e) {
             LOG_ERROR("Error applying input for player ", playerId, ": ", e.what());
         }
@@ -503,6 +525,8 @@ namespace server {
         _gameActive = true;
         _playerMap.clear();
         _pendingInput.clear();
+        _lastReceivedSequenceId.clear();
+        _lastAppliedSequenceId.clear();
 
         // Clear all entities from the world
         _world->clear();

@@ -188,8 +188,12 @@ void Replicator::networkThreadLoop(std::stop_token stopToken) {
                             if (loginResp.success) {
                                 LOG_INFO("✓ Login successful: ", loginResp.message);
                                 messageContent = "Login successful: " + loginResp.message;
-                                // Optionally store session token
-                                // _sessionToken = loginResp.sessionToken;
+                                // Store auto-matchmaking preference
+                                _autoMatchmakingPreference = loginResp.autoMatchmaking;
+
+                                // Publish event to apply the preference to the settings menu
+                                _eventBus.publish(UIEvent(UIEventType::APPLY_AUTO_MATCHMAKING_PREF,
+                                                          loginResp.autoMatchmaking ? "1" : "0"));
 
                                 // Publish AUTH_SUCCESS event with username (extract from message or store separately)
                                 // For now, we'll extract it from the stored username during sendLoginAccount
@@ -459,6 +463,53 @@ bool Replicator::sendJoinRoom(const std::string &roomId) {
 
     // Wrap in network protocol
     auto requestData = NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_JOIN_ROOM, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
+bool Replicator::sendAutoMatchmaking() {
+    if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot send AutoMatchmaking: Not connected");
+        return false;
+    }
+
+    LOG_INFO("Sending AutoMatchmaking request");
+
+    using namespace RType::Messages;
+
+    // Create AutoMatchmaking message with enabled=true
+    C2S::AutoMatchmaking request(true);
+    auto payload = request.serialize();
+
+    // Wrap in network protocol
+    auto requestData =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_AUTO_MATCHMAKING, payload);
+
+    // Send via ENet
+    auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));
+    return _serverPeer->send(std::move(packet), 0);
+}
+
+bool Replicator::updateAutoMatchmakingPreference(bool enabled) {
+    if (!_serverPeer || !_connected.load()) {
+        LOG_ERROR("Cannot update auto-matchmaking preference: Not connected");
+        return false;
+    }
+
+    LOG_INFO("Updating auto-matchmaking preference: ", enabled ? "ON" : "OFF",
+             " (preference only, NOT triggering matchmaking)");
+
+    using namespace RType::Messages;
+
+    // Create AutoMatchmaking message with the preference
+    C2S::AutoMatchmaking request(enabled);
+    auto payload = request.serialize();
+
+    // Wrap in network protocol - using UPDATE_AUTO_MM_PREF to only update preference
+    auto requestData =
+        NetworkMessages::createMessage(NetworkMessages::MessageType::C2S_UPDATE_AUTO_MM_PREF, payload);
 
     // Send via ENet
     auto packet = createPacket(requestData, static_cast<uint32_t>(PacketFlag::RELIABLE));

@@ -58,6 +58,21 @@ namespace Game {
          * @brief Toggle whether ping should be displayed.
          */
         void SetShowPing(bool enabled);
+
+        /**
+         * @brief Toggle auto-matchmaking feature.
+         * This triggers the callback to notify the server.
+         */
+        void SetAutoMatchmaking(bool enabled);
+
+        /**
+         * @brief Apply auto-matchmaking preference silently (without triggering callback).
+         * Used when loading preference from server after login.
+         */
+        void ApplyAutoMatchmakingPreference(bool enabled);
+
+        [[nodiscard]] bool GetAutoMatchmaking() const;
+        void SetOnAutoMatchmakingChanged(std::function<void(bool)> cb);
         [[nodiscard]] bool GetShowPing() const;
 
         /**
@@ -208,6 +223,7 @@ namespace Game {
         [[nodiscard]] uint32_t ValidateTargetFps(uint32_t targetFps) const;
         void UpdateToggleVisuals();
         void UpdateFpsToggleVisuals();
+        void UpdateAutoMatchmakingVisuals();
         void UpdateTargetFpsVisuals();
         [[nodiscard]] uint32_t NextTargetFps(uint32_t current) const;
 
@@ -218,6 +234,7 @@ namespace Game {
         bool _showPing{true};
         bool _showFps{true};
         bool _showChat{true};
+        bool _autoMatchmaking{false};  // Auto-matchmaking disabled by default
         unsigned int _overlayDimColor{0x88000000};
         uint32_t _targetFps{60};
         float _volume{50.0F};  // Default volume 50%
@@ -230,12 +247,15 @@ namespace Game {
         std::function<void(bool)> _onShowChatChanged{};
         std::function<void(uint32_t)> _onTargetFpsChanged{};
         std::function<void(float)> _onVolumeChanged{};
+        std::function<void(bool)> _onAutoMatchmakingChanged{};
 
         static constexpr size_t TOGGLE_PING_INDEX = 0;
         static constexpr size_t TOGGLE_FPS_INDEX = 1;
         static constexpr size_t TOGGLE_CHAT_INDEX = 2;
         static constexpr size_t TARGET_FPS_INDEX = 3;
         static constexpr size_t ACCESSIBILITY_INDEX = 4;
+        static constexpr size_t AUTO_MATCHMAKING_INDEX = 3;
+        static constexpr size_t TARGET_FPS_INDEX = 4;
         static constexpr size_t BACK_INDEX = 5;
         static constexpr size_t MAIN_MENU_INDEX = 6;
     };

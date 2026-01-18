@@ -216,6 +216,7 @@ namespace server {
                 account.passwordHash = accountJson["passwordHash"].get<std::string>();
                 account.createdAt = accountJson.value("createdAt", 0ULL);
                 account.lastLogin = accountJson.value("lastLogin", 0ULL);
+                account.autoMatchmaking = accountJson.value("autoMatchmaking", false);
 
                 _accounts[account.username] = account;
             }
@@ -240,6 +241,7 @@ namespace server {
                 accountJson["passwordHash"] = account.passwordHash;
                 accountJson["createdAt"] = account.createdAt;
                 accountJson["lastLogin"] = account.lastLogin;
+                accountJson["autoMatchmaking"] = account.autoMatchmaking;
 
                 j["accounts"].push_back(accountJson);
             }
@@ -258,6 +260,34 @@ namespace server {
         } catch (const json::exception &e) {
             LOG_ERROR("Failed to save accounts: ", e.what());
         }
+    }
+
+    bool AuthService::updateAutoMatchmaking(const std::string &username, bool enabled) {
+        auto it = _accounts.find(username);
+        if (it == _accounts.end()) {
+            LOG_WARNING("Cannot update auto-matchmaking: user '", username, "' not found");
+            return false;
+        }
+
+        it->second.autoMatchmaking = enabled;
+
+        // Force immediate save for user preferences (important UX)
+        saveAccounts();
+        auto now = std::chrono::system_clock::now();
+        _lastSaveTime = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+        _accountsDirty = false;
+
+        LOG_INFO("✓ Auto-matchmaking ", enabled ? "enabled" : "disabled", " for user '", username,
+                 "' (saved)");
+        return true;
+    }
+
+    bool AuthService::getAutoMatchmaking(const std::string &username) const {
+        auto it = _accounts.find(username);
+        if (it == _accounts.end()) {
+            return false;  // Default: auto-matchmaking disabled
+        }
+        return it->second.autoMatchmaking;
     }
 
 }  // namespace server

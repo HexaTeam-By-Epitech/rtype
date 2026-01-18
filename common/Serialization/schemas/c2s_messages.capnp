@@ -49,6 +49,15 @@ struct LeaveRoom {
   # Request to leave current room
 }
 
+struct AutoMatchmaking {
+  # Used with different message types for different behaviors:
+  # - With C2S_AUTO_MATCHMAKING: request to join a room automatically;
+  #   server will find an available room or create one (and may persist this preference).
+  # - With C2S_UPDATE_AUTO_MM_PREF: only updates the user's auto-matchmaking
+  #   preference without triggering matchmaking.
+  enabled @0 :Bool;  # Whether auto-matchmaking is enabled
+}
+
 struct StartMatchmaking {
   # Request to enter matchmaking queue
 }

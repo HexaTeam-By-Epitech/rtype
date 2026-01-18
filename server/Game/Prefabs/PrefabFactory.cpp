@@ -18,6 +18,7 @@
 #include "common/ECS/Components/Sprite.hpp"
 #include "common/ECS/Components/Transform.hpp"
 #include "common/ECS/Components/Velocity.hpp"
+#include "common/ECS/Components/Wall.hpp"
 #include "common/ECS/Components/Weapon.hpp"
 #include "common/ECS/Registry.hpp"
 #include "common/ECSWrapper/ECSWorld.hpp"
@@ -216,6 +217,32 @@ namespace server {
             return enemy;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create enemy from registry: ", e.what());
+            return 0;
+        }
+    }
+
+    ecs::Address PrefabFactory::createWall(ecs::wrapper::ECSWorld &world, float posX, float posY, float width,
+                                           float height, bool destructible, int health) {
+        try {
+            ecs::wrapper::Entity wall =
+                world.createEntity()
+                    .with(ecs::Transform(posX, posY))
+                    .with(ecs::Wall(destructible))
+                    .with(ecs::Collider(width, height, 0.0f, 0.0f, 16, 0xFFFFFFFF,
+                                        false))  // Layer 16 for walls
+                    .with(ecs::Sprite("wall.png", {0, 0, static_cast<int>(width), static_cast<int>(height)},
+                                      1.0f, 0.0f, false, false, 0));
+
+            // Add health if destructible
+            if (destructible && health > 0) {
+                wall.with(ecs::Health(health, health));
+            }
+
+            LOG_INFO("✓ Wall spawned at (", posX, ", ", posY, ") - Size: ", width, "x", height,
+                     destructible ? " [Destructible]" : " [Solid]");
+            return wall.getAddress();
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create wall: ", e.what());
             return 0;
         }
     }

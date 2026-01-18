@@ -12,7 +12,6 @@ local level1 = {
 	wavesIntervals = {}
 }
 
--- Wave 1: Introduction douce avec 3 ennemis basiques
 level1.waves[1] = {
 	name = "Level 1 - Wave 1: Introduction",
 	duration = 12,
@@ -23,7 +22,6 @@ level1.waves[1] = {
 	},
 }
 
--- Wave 2: Augmentation avec ennemis rapides
 level1.waves[2] = {
 	name = "Level 1 - Wave 2: Vitesse",
 	duration = 15,
@@ -36,7 +34,6 @@ level1.waves[2] = {
 	},
 }
 
--- Wave 3: Formation en V
 level1.waves[3] = {
 	name = "Level 1 - Wave 3: Formation",
 	duration = 18,
@@ -51,16 +48,19 @@ level1.waves[3] = {
 	},
 }
 
--- Intervalles entre les vagues (en secondes)
 level1.wavesIntervals = {
-	5,  -- 5 secondes après wave 1
-	6,  -- 6 secondes après wave 2
-	30, -- 30 secondes après wave 3 avant fin de level
+	5,
+	6,
+	30,
 }
 
 -- Function called by LuaEngine to setup the spawner
 function onUpdate(entity, deltaTime)
 	if level1.isWaveSetup == false then
+		spawnWall(900, 100, 30, 150, false, 0)
+		spawnWall(900, 550, 30, 150, false, 0)
+		spawnWall(1100, 300, 40, 100, true, 100)
+		
 		setSpawnerConfig(entity, {
 			waves = level1.waves,
 			wavesIntervals = level1.wavesIntervals

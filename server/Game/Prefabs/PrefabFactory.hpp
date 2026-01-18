@@ -123,6 +123,20 @@ namespace server {
         static ecs::Address createHealthPack(ecs::wrapper::ECSWorld &world, int healthRestore, float posX,
                                              float posY);
 
+        /**
+         * @brief Create a wall/obstacle entity
+         * @param world ECS world wrapper
+         * @param posX Starting X position
+         * @param posY Starting Y position
+         * @param width Wall width
+         * @param height Wall height
+         * @param destructible Whether the wall can be destroyed
+         * @param health Health points (0 = indestructible)
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createWall(ecs::wrapper::ECSWorld &world, float posX, float posY, float width,
+                                       float height, bool destructible = false, int health = 0);
+
        private:
         struct EnemySpawnData {
             float speed;

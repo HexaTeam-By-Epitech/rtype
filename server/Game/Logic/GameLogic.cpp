@@ -132,10 +132,6 @@ namespace server {
 
             LOG_INFO("✓ GameStateManager initialized with 3 states");
 
-            // 🗺️ Load first map
-            LOG_INFO("🗺️ Loading initial map...");
-            loadMap("assets/maps/level_1.json");
-
             _gameActive = true;
 
             LOG_INFO("✓ Initialization complete!");
@@ -502,9 +498,12 @@ namespace server {
     }
 
     void GameLogic::onGameStart() {
-        LOG_INFO("Game started! Map system will handle spawning.");
-        // Le système de maps gère maintenant tout le spawning via les scripts Lua de maps
-        // Plus besoin de spawner manuellement des ennemis ou power-ups ici
+        LOG_INFO("Game started! Loading map...");
+
+        // Charger la map maintenant que le jeu démarre
+        loadMap("assets/maps/level_1.json");
+
+        LOG_INFO("✓ Map loaded and spawning will begin!");
     }
 
     bool GameLogic::loadMap(const std::string &mapFilePath) {

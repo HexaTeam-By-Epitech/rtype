@@ -12,7 +12,6 @@ local bossStage = {
 	wavesIntervals = {}
 }
 
--- Wave 1: Pré-boss - Vague d'introduction
 bossStage.waves[1] = {
 	name = "Boss Stage - Preparation",
 	duration = 20,
@@ -26,15 +25,11 @@ bossStage.waves[1] = {
 	},
 }
 
--- Wave 2: Boss principal
--- Note: Le boss devrait avoir un script Lua dédié avec patterns d'attaque complexes
 bossStage.waves[2] = {
 	name = "Boss Stage - BOSS FIGHT",
-	duration = 120, -- 2 minutes pour le boss
+	duration = 120,
 	enemyConfigs = {
-		-- Boss principal (type "boss" nécessite un nouveau type d'ennemi)
 		{ delay = 3.0, type = "advanced", x = 1100, y = 400, health = 1000, script = "enemy_advanced.lua" },
-		-- Vagues de support pendant le combat de boss
 		{ delay = 15.0, type = "fast", x = 1200, y = 200, health = 40, script = "enemy_basic.lua" },
 		{ delay = 15.0, type = "fast", x = 1200, y = 600, health = 40, script = "enemy_basic.lua" },
 		{ delay = 30.0, type = "basic", x = 1200, y = 300, health = 70, script = "enemy_basic.lua" },
@@ -45,10 +40,9 @@ bossStage.waves[2] = {
 	},
 }
 
--- Intervalles entre les vagues
 bossStage.wavesIntervals = {
-	8,   -- 8 secondes avant le boss
-	120, -- Fin après le boss
+	8,
+	120,
 }
 
 -- Function called by LuaEngine to setup the spawner

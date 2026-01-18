@@ -22,10 +22,6 @@ namespace scripting {
     }
 
     void LuaSystemAdapter::update(ecs::Registry &registry, float deltaTime) {
-        // TODO: Fix thread safety issue - Registry is not thread-safe
-        // Lua scripts access Registry from different thread causing race conditions
-        return;
-
         if (!_luaEngine || !_world) {
             LOG_ERROR("LuaSystemAdapter not properly initialized");
             return;

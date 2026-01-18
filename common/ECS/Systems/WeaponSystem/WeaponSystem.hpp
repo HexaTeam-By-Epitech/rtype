@@ -112,12 +112,10 @@ namespace ecs {
         /**
          * @brief Calculate projectile initial velocity based on owner's velocity.
          * 
-         * @param registry Reference to the ECS registry
-         * @param ownerId Entity ID of the weapon owner
          * @param baseSpeed Base projectile speed from weapon
          * @return Velocity component for the projectile
          */
-        Velocity calculateProjectileVelocity(Registry &registry, std::uint32_t ownerId, float baseSpeed);
+        Velocity calculateProjectileVelocity(float baseSpeed);
 
         /**
          * @brief Calculate projectile spawn position based on owner position.

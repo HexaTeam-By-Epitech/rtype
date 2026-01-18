@@ -44,7 +44,7 @@ namespace ecs {
 
             // Calculate projectile properties using same logic as fireWeapon
             Transform projectileTransform = calculateProjectileTransform(registry, entityId);
-            Velocity projectileVelocity = calculateProjectileVelocity(registry, entityId, 300.0F);
+            Velocity projectileVelocity = calculateProjectileVelocity(300.0F);
             auto pos = projectileTransform.getPosition();
             auto dir = projectileVelocity.getDirection();
 
@@ -70,8 +70,7 @@ namespace ecs {
 
         // Calculate projectile properties
         Transform projectileTransform = calculateProjectileTransform(registry, ownerId);
-        Velocity projectileVelocity =
-            calculateProjectileVelocity(registry, ownerId, 300.0F);  // Base speed: 300 units/sec
+        Velocity projectileVelocity = calculateProjectileVelocity(300.0F);  // Base speed: 300 units/sec
 
         auto projectileId = registry.newEntity();
 
@@ -112,8 +111,7 @@ namespace ecs {
         return projectileId;
     }
 
-    Velocity WeaponSystem::calculateProjectileVelocity(Registry &registry, std::uint32_t ownerId,
-                                                       float baseSpeed) {
+    Velocity WeaponSystem::calculateProjectileVelocity(float baseSpeed) {
         return Velocity(1.0F, 0.0F, baseSpeed);
     }
 
@@ -156,7 +154,7 @@ namespace ecs {
         // Calculate projectile properties
         Transform projectileTransform = calculateProjectileTransform(registry, ownerId);
         float chargedSpeed = 300.0F * speedMultiplier;
-        Velocity projectileVelocity = calculateProjectileVelocity(registry, ownerId, chargedSpeed);
+        Velocity projectileVelocity = calculateProjectileVelocity(chargedSpeed);
 
         // Create projectile entity
         auto projectileId = registry.newEntity();

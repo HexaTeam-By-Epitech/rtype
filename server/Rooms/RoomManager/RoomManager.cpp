@@ -185,18 +185,31 @@ namespace server {
     }
 
     void RoomManager::_onMatchCreated(std::shared_ptr<Room> room) {
-        std::lock_guard<std::mutex> lock(_mutex);
+        // Store callback and room outside the lock to avoid deadlock
+        // (callback may call getPublicRooms() which acquires the same mutex)
+        std::function<void(std::shared_ptr<Room>)> callback;
 
-        std::string roomId = room->getId();
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
 
-        if (_rooms.find(roomId) != _rooms.end()) {
-            LOG_WARNING("Match room ", roomId, " already exists");
-            return;
+            std::string roomId = room->getId();
+
+            if (_rooms.find(roomId) != _rooms.end()) {
+                LOG_WARNING("Match room ", roomId, " already exists");
+                return;
+            }
+
+            _rooms[roomId] = room;
+            LOG_INFO("✓ Match room registered: ", roomId, " (", room->getPlayerCount(), " players)");
+            room->setState(RoomState::STARTING);
+
+            callback = _roomCreatedCallback;
         }
 
-        _rooms[roomId] = room;
-        LOG_INFO("✓ Match room registered: ", roomId, " (", room->getPlayerCount(), " players)");
-        room->setState(RoomState::STARTING);
+        // Invoke callback outside the lock to prevent deadlock
+        if (callback) {
+            callback(room);
+        }
     }
 
 }  // namespace server

@@ -27,7 +27,7 @@ namespace Game {
         const float spacing = 18.0f;
 
         const bool showMainMenuButton = (_mode == Mode::OVERLAY);
-        const int buttonCount = showMainMenuButton ? 5 : 4;
+        const int buttonCount = showMainMenuButton ? 6 : 5;
 
         // Center buttons vertically as a stack
         const float totalHeight = (buttonHeight * static_cast<float>(buttonCount)) +
@@ -82,13 +82,18 @@ namespace Game {
         _menu->AddButton(CreateCenteredButton("CHAT: ON", offsetForIndex(2), buttonWidth, buttonHeight,
                                               0xFF424242, 0xFF616161, [this]() { SetShowChat(!_showChat); }));
 
+        // Toggle Auto-Matchmaking button
+        _menu->AddButton(CreateCenteredButton("AUTO-MM: OFF", offsetForIndex(3), buttonWidth, buttonHeight,
+                                              0xFF424242, 0xFF616161,
+                                              [this]() { SetAutoMatchmaking(!_autoMatchmaking); }));
+
         // Target FPS selection button (cycles)
-        _menu->AddButton(CreateCenteredButton("TARGET FPS: 60", offsetForIndex(3), buttonWidth, buttonHeight,
+        _menu->AddButton(CreateCenteredButton("TARGET FPS: 60", offsetForIndex(4), buttonWidth, buttonHeight,
                                               0xFF424242, 0xFF616161,
                                               [this]() { SetTargetFps(NextTargetFps(_targetFps)); }));
 
         // Back (closes settings)
-        _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(4), buttonWidth, buttonHeight,
+        _menu->AddButton(CreateCenteredButton("BACK", offsetForIndex(5), buttonWidth, buttonHeight,
                                               0xFF1976D2, 0xFF1E88E5, [this]() {
                                                   if (_onBack) {
                                                       _onBack();
@@ -99,7 +104,7 @@ namespace Game {
 
         // Main menu (only in overlay)
         if (showMainMenuButton) {
-            _menu->AddButton(CreateCenteredButton("MAIN MENU", offsetForIndex(5), buttonWidth, buttonHeight,
+            _menu->AddButton(CreateCenteredButton("MAIN MENU", offsetForIndex(6), buttonWidth, buttonHeight,
                                                   0xFF5D4037, 0xFF6D4C41, [this]() {
                                                       if (_onMainMenu) {
                                                           _onMainMenu();
@@ -245,6 +250,7 @@ namespace Game {
         UpdateToggleVisuals();
         UpdateFpsToggleVisuals();
         UpdateChatToggleVisuals();
+        UpdateAutoMatchmakingVisuals();
         UpdateTargetFpsVisuals();
     }
 
@@ -413,6 +419,54 @@ namespace Game {
             toggleBtn->SetHoverColor(0xFF388E3C);
         } else {
             toggleBtn->SetText("CHAT: OFF");
+            toggleBtn->SetBackgroundColor(0xFFB71C1C);
+            toggleBtn->SetHoverColor(0xFFD32F2F);
+        }
+        toggleBtn->SetTextColor(0xFFFFFFFF);
+    }
+
+    void SettingsMenu::SetAutoMatchmaking(bool enabled) {
+        _autoMatchmaking = enabled;
+        UpdateAutoMatchmakingVisuals();
+        if (_onAutoMatchmakingChanged) {
+            _onAutoMatchmakingChanged(_autoMatchmaking);
+        }
+        LOG_INFO("[SettingsMenu] Auto-matchmaking=", _autoMatchmaking ? "true" : "false",
+                 " (notifying server)");
+    }
+
+    void SettingsMenu::ApplyAutoMatchmakingPreference(bool enabled) {
+        // Apply preference silently without triggering callback
+        // This is used when loading preference from server after login
+        _autoMatchmaking = enabled;
+        UpdateAutoMatchmakingVisuals();
+        LOG_INFO("[SettingsMenu] Auto-matchmaking preference applied from server: ",
+                 _autoMatchmaking ? "ON" : "OFF", " (no server notification)");
+    }
+
+    bool SettingsMenu::GetAutoMatchmaking() const {
+        return _autoMatchmaking;
+    }
+
+    void SettingsMenu::SetOnAutoMatchmakingChanged(std::function<void(bool)> cb) {
+        _onAutoMatchmakingChanged = std::move(cb);
+    }
+
+    void SettingsMenu::UpdateAutoMatchmakingVisuals() {
+        if (!_menu) {
+            return;
+        }
+        auto toggleBtn = _menu->GetButton(AUTO_MATCHMAKING_INDEX);
+        if (!toggleBtn) {
+            return;
+        }
+
+        if (_autoMatchmaking) {
+            toggleBtn->SetText("AUTO-MM: ON");
+            toggleBtn->SetBackgroundColor(0xFF2E7D32);
+            toggleBtn->SetHoverColor(0xFF388E3C);
+        } else {
+            toggleBtn->SetText("AUTO-MM: OFF");
             toggleBtn->SetBackgroundColor(0xFFB71C1C);
             toggleBtn->SetHoverColor(0xFFD32F2F);
         }

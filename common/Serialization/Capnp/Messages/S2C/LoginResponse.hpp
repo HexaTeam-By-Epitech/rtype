@@ -27,10 +27,12 @@ namespace RType {
                 bool success;
                 std::string message;
                 std::string sessionToken;
+                bool autoMatchmaking;
 
-                LoginResponse() = default;
-                LoginResponse(bool s, const std::string &msg, const std::string &token = "")
-                    : success(s), message(msg), sessionToken(token) {}
+                LoginResponse() : success(false), autoMatchmaking(false) {}
+                LoginResponse(bool s, const std::string &msg, const std::string &token = "",
+                              bool autoMM = false)
+                    : success(s), message(msg), sessionToken(token), autoMatchmaking(autoMM) {}
 
                 /**
      * @brief Serialize to Cap'n Proto binary format
@@ -42,6 +44,7 @@ namespace RType {
                     response.setSuccess(success);
                     response.setMessage(message);
                     response.setSessionToken(sessionToken);
+                    response.setAutoMatchmaking(autoMatchmaking);
 
                     kj::Array<capnp::word> words = messageToFlatArray(msgBuilder);
                     auto bytes = words.asBytes();
@@ -62,6 +65,7 @@ namespace RType {
                     result.success = response.getSuccess();
                     result.message = response.getMessage().cStr();
                     result.sessionToken = response.getSessionToken().cStr();
+                    result.autoMatchmaking = response.getAutoMatchmaking();
 
                     return result;
                 }

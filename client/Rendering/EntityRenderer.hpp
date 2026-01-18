@@ -8,7 +8,10 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
+#include <string>
 #include <unordered_map>
+#include <vector>
 #include "Capnp/Messages/Shared/SharedTypes.hpp"
 #include "Graphics/RaylibGraphics/RaylibGraphics.hpp"
 
@@ -36,41 +39,76 @@
 class EntityRenderer {
    public:
     /**
-         * @struct RenderableEntity
-         * @brief Cached entity state for rendering
-         * 
-         * This structure holds the minimal information needed to render
-         * an entity. It's updated whenever a network packet arrives with
-         * new entity state information.
-         */
+     * @struct RenderableEntity
+     * @brief Cached entity state for rendering
+     * 
+     * This structure holds the minimal information needed to render
+     * an entity. It's updated whenever a network packet arrives with
+     * new entity state information.
+     */
     struct RenderableEntity {
+        /**
+         * @struct Snapshot
+         * @brief A single state snapshot with timestamp for time-based interpolation
+         */
+        struct Snapshot {
+            float x;              ///< Position X
+            float y;              ///< Position Y
+            float velocityX;      ///< Velocity X (for extrapolation)
+            float velocityY;      ///< Velocity Y (for extrapolation)
+            uint64_t timestamp;   ///< Local timestamp when received (milliseconds)
+            uint32_t serverTick;  ///< Server tick number
+        };
+
         uint32_t entityId;                         ///< Unique entity identifier
         RType::Messages::Shared::EntityType type;  ///< Entity type (Player, Enemy, Bullet, etc.)
-        float x;                                   ///< World position X coordinate
-        float y;                                   ///< World position Y coordinate
+        float x;                                   ///< Current rendered position X
+        float y;                                   ///< Current rendered position Y
         int health;                                ///< Current health (-1 for entities without health)
-        float prevX;                               ///< Previous position X (for interpolation)
-        float prevY;                               ///< Previous position Y (for interpolation)
-        float targetX;                             ///< Target position X (from server)
-        float targetY;                             ///< Target position Y (from server)
-        float interpolationFactor;                 ///< Progress from 0.0 (prev) to 1.0 (target)
-        int startPixelX;                           ///< Sprite sheet start pixel X
-        int startPixelY;                           ///< Sprite sheet start pixel Y
-        int spriteSizeX;                           ///< Sprite sheet size X
-        int spriteSizeY;                           ///< Sprite sheet size Y
-        int offsetX;                               ///< Sprite offset X for rendering
-        int offsetY;                               ///< Sprite offset Y for rendering
-        float scale;                               ///< Sprite scale multiplier
-        std::string currentAnimation;              ///< Current animation name from server
+
+        // Snapshot buffer for time-based interpolation (ring buffer of last 3 snapshots)
+        std::deque<Snapshot> snapshots;  ///< Recent snapshots (max 3)
+        uint64_t interpolationDelay;     ///< Time to look back for interpolation (ms)
+        bool extrapolationEnabled;       ///< Allow extrapolation beyond last snapshot
+
+        // Legacy fields for backward compatibility (remove after migration)
+        float prevX;                ///< Previous position X (DEPRECATED)
+        float prevY;                ///< Previous position Y (DEPRECATED)
+        float targetX;              ///< Target position X (DEPRECATED)
+        float targetY;              ///< Target position Y (DEPRECATED)
+        float interpolationFactor;  ///< Progress from 0.0 (prev) to 1.0 (target) (DEPRECATED)
+
+        int startPixelX;               ///< Sprite sheet start pixel X
+        int startPixelY;               ///< Sprite sheet start pixel Y
+        int spriteSizeX;               ///< Sprite sheet size X
+        int spriteSizeY;               ///< Sprite sheet size Y
+        int offsetX;                   ///< Sprite offset X for rendering
+        int offsetY;                   ///< Sprite offset Y for rendering
+        float scale;                   ///< Sprite scale multiplier
+        std::string currentAnimation;  ///< Current animation name from server
         std::vector<int>
             animationFrameIndices;  ///< Animation frame sequence (sprite indices to allow freedom of picking frames manually)
         int currentFrame;  ///< Current animation frame
     };
 
     /**
+     * @struct BackgroundConfig
+     * @brief Configuration for scrolling parallax backgrounds
+     */
+    struct BackgroundConfig {
+        std::string textureName;  ///< Texture name (loaded texture)
+        std::string texturePath;  ///< Asset path for texture loading
+        float scrollSpeed;        ///< Scroll speed in pixels/second
+        float scrollOffset;       ///< Current scroll offset (updates each frame)
+        int textureWidth;         ///< Texture width for tiling
+        int textureHeight;        ///< Texture height for tiling
+        bool loaded;              ///< Whether texture is loaded
+    };
+
+    /**
          * @brief Constructor
          * @param graphics Reference to the graphics subsystem (RaylibGraphics)
-         * 
+         *
          * The EntityRenderer does not own the graphics object, it only
          * holds a reference to use its drawing primitives.
          */
@@ -82,22 +120,30 @@ class EntityRenderer {
     ~EntityRenderer() = default;
 
     /**
-         * @brief Update or create an entity in the local cache
-         * @param id Entity unique identifier
-         * @param type Entity type (Player, Enemy, Bullet)
-         * @param x World position X
-         * @param y World position Y
-         * @param health Current health (-1 if not applicable)
-         * @param currentAnimation Current animation clip name (e.g., "idle", "shoot")
-         * 
-         * If the entity already exists, its state is updated.
-         * If it's a new entity, it's added to the cache.
-         * 
-         * This method should be called whenever a GameState or GameStart
-         * message is received from the server.
-         */
+     * @brief Update or create an entity in the local cache
+     * @param id Entity unique identifier
+     * @param type Entity type (Player, Enemy, Bullet)
+     * @param x World position X
+     * @param y World position Y
+     * @param health Current health (-1 if not applicable)
+     * @param currentAnimation Current animation clip name (e.g., "idle", "shoot")
+     * @param srcX Sprite source X
+     * @param srcY Sprite source Y
+     * @param srcW Sprite width
+     * @param srcH Sprite height
+     * @param velocityX Entity velocity X (for extrapolation, default=0)
+     * @param velocityY Entity velocity Y (for extrapolation, default=0)
+     * @param serverTick Server tick number (default=0)
+     * 
+     * If the entity already exists, its state is updated.
+     * If it's a new entity, it's added to the cache.
+     * 
+     * This method should be called whenever a GameState or GameStart
+     * message is received from the server.
+     */
     void updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y, int health,
-                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH);
+                      const std::string &currentAnimation, int srcX, int srcY, int srcW, int srcH,
+                      float velocityX = 0.0f, float velocityY = 0.0f, uint32_t serverTick = 0);
 
     /**
          * @brief Remove an entity from the rendering cache
@@ -110,10 +156,38 @@ class EntityRenderer {
 
     /**
          * @brief Clear all entities from the cache
-         * 
+         *
          * Useful for scene transitions or when disconnecting from server.
          */
     void clearAllEntities();
+
+    /**
+     * @brief Set up background layers for parallax scrolling
+     * @param mainBackground Path to the main background texture
+     * @param parallaxBackground Path to the parallax layer texture (rendered on top, scrolls slower)
+     * @param scrollSpeed Base scroll speed in pixels/second
+     * @param parallaxSpeedFactor Speed factor for parallax layer (0.5 = half speed)
+     *
+     * The main background scrolls at scrollSpeed, while the parallax layer
+     * scrolls at scrollSpeed * parallaxSpeedFactor for depth effect.
+     */
+    void setBackground(const std::string &mainBackground, const std::string &parallaxBackground,
+                       float scrollSpeed, float parallaxSpeedFactor);
+
+    /**
+     * @brief Clear background configuration
+     *
+     * Called when leaving the game scene to stop background rendering.
+     */
+    void clearBackground();
+
+    /**
+     * @brief Update background scroll positions
+     * @param deltaTime Time elapsed since last frame (in seconds)
+     *
+     * Should be called every frame to advance the scrolling animation.
+     */
+    void updateBackground(float deltaTime);
 
     /**
          * @brief Set the local player's entity ID for visual differentiation
@@ -230,6 +304,16 @@ class EntityRenderer {
          */
     void moveEntityLocally(uint32_t entityId, float deltaX, float deltaY);
 
+    /**
+     * @brief Set whether the local player is currently moving
+     * @param moving true if player is actively moving, false if stopped
+     * 
+     * This is used to adjust reconciliation behavior:
+     * - When moving: Apply micro-jitter filtering to avoid visual jitter
+     * - When stopped: Accept all server corrections to sync position
+     */
+    void setLocalPlayerMoving(bool moving) { _localPlayerIsMoving = moving; }
+
    private:
     /**
          * @brief Render a player entity
@@ -280,29 +364,43 @@ class EntityRenderer {
     /**
          * @brief Render debug information for an entity
          * @param entity Entity to display debug info for
-         * 
+         *
          * Shows entity ID and health as text overlay.
          * Only rendered when _showDebugInfo is true.
          */
     void renderDebugInfo(const RenderableEntity &entity);
 
     /**
-         * @brief Linear interpolation between two values
-         * @param start Starting value
-         * @param end Ending value
-         * @param t Interpolation factor (0.0 to 1.0)
-         * @return Interpolated value
-         */
+     * @brief Render scrolling background layers
+     *
+     * Draws both the main background and parallax layer with their
+     * respective scroll offsets for parallax depth effect.
+     */
+    void renderBackground();
+
+    /**
+     * @brief Linear interpolation between two values
+     * @param start Starting value
+     * @param end Ending value
+     * @param t Interpolation factor (0.0 to 1.0)
+     * @return Interpolated value
+     */
     [[nodiscard]] float lerp(float start, float end, float t) const;
 
     /**
-         * @brief Clamp a value between min and max
-         * @param value Value to clamp
-         * @param min Minimum value
-         * @param max Maximum value
-         * @return Clamped value
-         */
+     * @brief Clamp a value between min and max
+     * @param value Value to clamp
+     * @param min Minimum value
+     * @param max Maximum value
+     * @return Clamped value
+     */
     [[nodiscard]] float clamp(float value, float min, float max) const;
+
+    /**
+     * @brief Get current time in milliseconds
+     * @return Current monotonic timestamp
+     */
+    [[nodiscard]] uint64_t getCurrentTimeMs() const;
 
     /// Entity cache: maps entity ID to its renderable state
     std::unordered_map<uint32_t, RenderableEntity> _entities;
@@ -332,4 +430,18 @@ class EntityRenderer {
     /// With 100px/s speed at 60Hz, each frame is ~1.67px, so 15px = ~9 frames (150ms) tolerance
     /// This prevents constant micro-corrections while client prediction is working normally
     float _reconciliationThreshold = 15.0f;
+
+    /// Track whether local player is currently moving (used for reconciliation logic)
+    bool _localPlayerIsMoving = false;
+
+    // ===== Background configuration =====
+
+    /// Main background layer (scrolls at map's scroll speed)
+    BackgroundConfig _mainBackground;
+
+    /// Parallax background layer (rendered on top, scrolls slower for depth effect)
+    BackgroundConfig _parallaxBackground;
+
+    /// Whether backgrounds are configured and active
+    bool _backgroundActive = false;
 };

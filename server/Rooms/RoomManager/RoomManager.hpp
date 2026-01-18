@@ -15,6 +15,9 @@
 
 namespace server {
 
+    // Callback type for when a match is created and players should be notified
+    using RoomCreatedCallback = std::function<void(std::shared_ptr<Room>)>;
+
     /**
      * @class RoomManager
      * @brief Manages all game rooms and matchmaking
@@ -59,6 +62,12 @@ namespace server {
         std::shared_ptr<MatchmakingService> getMatchmaking() { return _matchmaking; }
 
         /**
+         * @brief Set callback for when a room is created by matchmaking
+         * @param callback Function to call when a room is created with matched players
+         */
+        void setRoomCreatedCallback(RoomCreatedCallback callback) { _roomCreatedCallback = callback; }
+
+        /**
          * @brief Get room by player ID (find which room a player is in)
          * @param playerId Player ID to search for
          * @return Shared pointer to room (nullptr if not found)
@@ -80,6 +89,7 @@ namespace server {
 
         std::unordered_map<std::string, std::shared_ptr<Room>> _rooms;
         std::shared_ptr<MatchmakingService> _matchmaking;
+        RoomCreatedCallback _roomCreatedCallback;
         mutable std::mutex _mutex;
     };
 

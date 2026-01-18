@@ -258,6 +258,36 @@ namespace Graphics {
         }
     }
 
+    bool RaylibGraphics::GetTextureSize(const char *textureName, int &width, int &height) const {
+        auto iter = _textures.find(textureName);
+        if (iter != _textures.end()) {
+            width = iter->second.width;
+            height = iter->second.height;
+            return true;
+        }
+        return false;
+    }
+
+    void RaylibGraphics::DrawTexturePro(const char *textureName, int srcX, int srcY, int srcW, int srcH,
+                                        float destX, float destY, float destW, float destH,
+                                        unsigned int tint) {
+        auto iter = _textures.find(textureName);
+        if (iter != _textures.end()) {
+            Color clr;
+            clr.a = (tint >> 24) & 0xFF;
+            clr.r = (tint >> 16) & 0xFF;
+            clr.g = (tint >> 8) & 0xFF;
+            clr.b = tint & 0xFF;
+
+            Rectangle source = {static_cast<float>(srcX), static_cast<float>(srcY), static_cast<float>(srcW),
+                                static_cast<float>(srcH)};
+            Rectangle dest = {destX, destY, destW, destH};
+            Vector2 origin = {0, 0};
+
+            ::DrawTexturePro(iter->second, source, dest, origin, 0.0f, clr);
+        }
+    }
+
     // Input helpers
     bool RaylibGraphics::IsKeyPressed(int key) const {
         return ::IsKeyPressed(key);

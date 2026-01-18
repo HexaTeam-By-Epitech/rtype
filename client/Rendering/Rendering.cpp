@@ -128,6 +128,12 @@ void Rendering::InitializeSettingsMenu() {
         }
     });
 
+    _settingsMenu->SetOnAutoMatchmakingChanged([this](bool enabled) {
+        LOG_INFO("[Rendering] Auto-matchmaking preference ", enabled ? "enabled" : "disabled");
+        // Publish event to update preference on server (NOT to trigger matchmaking)
+        _eventBus.publish(UIEvent(UIEventType::UPDATE_AUTO_MATCHMAKING_PREF, enabled ? "enable" : "disable"));
+    });
+
     _settingsMenu->SetOnTargetFpsChanged(
         [this](uint32_t fps) { _graphics.SetTargetFPS(static_cast<int>(fps)); });
 
@@ -163,6 +169,7 @@ void Rendering::InitializeSettingsMenu() {
         }
 
         if (_entityRenderer) {
+            _entityRenderer->clearBackground();  // Clear background when leaving game
             _entityRenderer->clearAllEntities();
         }
         _entityRenderer.reset();
@@ -184,12 +191,25 @@ void Rendering::InitializeMainMenu() {
         if (_mainMenu)
             _mainMenu->Hide();
 
-        // Show room selection menu
-        if (_roomListMenu)
-            _roomListMenu->Show();
+        // Check if auto-matchmaking is enabled
+        bool autoMatchmaking = _settingsMenu && _settingsMenu->GetAutoMatchmaking();
 
-        // Request room list from server
-        _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
+        if (autoMatchmaking) {
+            // Auto-matchmaking: directly request server to find/create room
+            LOG_INFO("[Rendering] Auto-matchmaking enabled, sending auto-matchmaking request");
+            _eventBus.publish(UIEvent(UIEventType::AUTO_MATCHMAKING));
+
+            // Show waiting room immediately (will be updated when joined)
+            if (_waitingRoomMenu)
+                _waitingRoomMenu->Show();
+        } else {
+            // Manual: show room selection menu
+            if (_roomListMenu)
+                _roomListMenu->Show();
+
+            // Request room list from server
+            _eventBus.publish(UIEvent(UIEventType::REQUEST_ROOM_LIST));
+        }
     });
 
     _mainMenu->SetOnQuit([this]() { _quitRequested = true; });
@@ -465,6 +485,15 @@ void Rendering::SubscribeToConnectionEvents() {
                 _mainMenu->Show();
 
             LOG_INFO("[Rendering] Authentication successful, returning to main menu");
+        } else if (event.getType() == UIEventType::APPLY_AUTO_MATCHMAKING_PREF) {
+            // Apply auto-matchmaking preference from server
+            if (_settingsMenu) {
+                bool enabled = (event.getData() == "1");
+                _settingsMenu->ApplyAutoMatchmakingPreference(enabled);
+                LOG_INFO("[Rendering] Applied auto-matchmaking preference from server: ",
+                         enabled ? "ON" : "OFF");
+                LOG_INFO("[Rendering] Matchmaking will only trigger when player clicks PLAY button");
+            }
         } else if (event.getType() == UIEventType::CONNECTION_SUCCESS) {
             LOG_INFO("[Rendering] Connection successful!");
 
@@ -757,6 +786,8 @@ void Rendering::UpdateUI() {
 
 void Rendering::RenderGameScene() {
     if (_scene == Scene::IN_GAME && _entityRenderer) {
+        // Update background scroll before rendering
+        _entityRenderer->updateBackground(_graphics.GetDeltaTime());
         _entityRenderer->render();
     }
 }
@@ -917,6 +948,25 @@ void Rendering::ClearAllEntities() {
     }
 }
 
+void Rendering::SetBackground(const std::string &mainBackground, const std::string &parallaxBackground,
+                              float scrollSpeed, float parallaxSpeedFactor) {
+    if (_entityRenderer) {
+        _entityRenderer->setBackground(mainBackground, parallaxBackground, scrollSpeed, parallaxSpeedFactor);
+    }
+}
+
+void Rendering::ClearBackground() {
+    if (_entityRenderer) {
+        _entityRenderer->clearBackground();
+    }
+}
+
+void Rendering::UpdateBackground(float deltaTime) {
+    if (_entityRenderer) {
+        _entityRenderer->updateBackground(deltaTime);
+    }
+}
+
 bool Rendering::IsKeyDown(int key) const {
     return _graphics.IsKeyDown(key);
 }
@@ -960,6 +1010,12 @@ float Rendering::GetReconciliationThreshold() const {
         return _entityRenderer->getReconciliationThreshold();
     }
     return 5.0f;  // Default value
+}
+
+void Rendering::SetLocalPlayerMoving(bool moving) {
+    if (_entityRenderer) {
+        _entityRenderer->setLocalPlayerMoving(moving);
+    }
 }
 
 void Rendering::SetPing(uint32_t pingMs) {

@@ -157,6 +157,24 @@ class Server {
     void _handleJoinRoom(HostNetworkEvent &event);
 
     /**
+     * @brief Handle auto-matchmaking request
+     * @param event Network event containing AutoMatchmaking message
+     */
+    void _handleAutoMatchmaking(HostNetworkEvent &event);
+
+    /**
+     * @brief Handle auto-matchmaking preference update (without triggering matchmaking)
+     * @param event Network event containing AutoMatchmaking message
+     */
+    void _handleUpdateAutoMatchmakingPref(HostNetworkEvent &event);
+
+    /**
+     * @brief Called when matchmaking service creates a room with matched players
+     * @param room Newly created room with players
+     */
+    void _onMatchmakingRoomCreated(std::shared_ptr<server::Room> room);
+
+    /**
      * @brief Handle leave room request
      * @param event Network event with packet data
      */
@@ -314,6 +332,8 @@ class Server {
     std::unordered_map<IPeer *, std::string> _peerToSession;
     // Lookup: Player ID -> Session ID for broadcasting
     std::unordered_map<uint32_t, std::string> _playerIdToSessionId;
+    // Lookup: Player ID -> Username for preference persistence
+    std::unordered_map<uint32_t, std::string> _playerIdToUsername;
 
     bool _initialized = false;
     bool _running = false;

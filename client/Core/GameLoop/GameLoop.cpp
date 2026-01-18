@@ -94,6 +94,21 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
         if (_replicator) {
             _replicator->sendRequestRoomList();
         }
+    } else if (event.getType() == UIEventType::UPDATE_AUTO_MATCHMAKING_PREF) {
+        // Update auto-matchmaking preference on server (from settings menu)
+        LOG_INFO("[GameLoop] Auto-matchmaking preference update");
+        const std::string &data = event.getData();
+        if (_replicator) {
+            bool enabled = (data == "enable");
+            _replicator->updateAutoMatchmakingPreference(enabled);
+            LOG_INFO("[GameLoop] Preference updated (will apply when player clicks Play)");
+        }
+    } else if (event.getType() == UIEventType::AUTO_MATCHMAKING) {
+        // Trigger auto-matchmaking (from Play button)
+        LOG_INFO("[GameLoop] Auto-matchmaking request (triggering matchmaking now)");
+        if (_replicator) {
+            _replicator->sendAutoMatchmaking();
+        }
     } else if (event.getType() == UIEventType::START_GAME_REQUEST) {
         LOG_INFO("[GameLoop] Host requesting game start");
         if (_replicator) {
@@ -375,6 +390,11 @@ void GameLoop::processInput() {
     // Update movement state based on input
     _isMoving = (dx != 0 || dy != 0);
 
+    // Inform rendering system about movement state (for reconciliation logic)
+    if (_rendering) {
+        _rendering->SetLocalPlayerMoving(_isMoving);
+    }
+
     // CLIENT-SIDE PREDICTION: Apply movement with diagonal normalization (MUST MATCH SERVER!)
     // Only predict if entity is initialized (prevents moving before spawn)
     if (_myEntityId.has_value() && _entityInitialized && _clientSidePredictionEnabled && _isMoving) {
@@ -479,6 +499,15 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
     try {
         auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
         LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
+
+        // Set up parallax background using map config from server
+        if (_rendering) {
+            const auto &mapConfig = gameStart.mapConfig;
+            LOG_INFO("Map config: bg='", mapConfig.background, "', parallax='", mapConfig.parallaxBackground,
+                     "', speed=", mapConfig.scrollSpeed, ", parallaxFactor=", mapConfig.parallaxSpeedFactor);
+            _rendering->SetBackground(mapConfig.background, mapConfig.parallaxBackground,
+                                      mapConfig.scrollSpeed, mapConfig.parallaxSpeedFactor);
+        }
 
         for (const auto &entity : gameStart.initialState.entities) {
             if (entity.entityId == gameStart.yourEntityId) {

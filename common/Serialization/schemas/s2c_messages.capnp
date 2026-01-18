@@ -18,16 +18,27 @@ struct EntityState {
   spriteW @7 :Int32;          # Sprite width
   spriteH @8 :Int32;          # Sprite height
   lastProcessedInput @9 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
+  velocity @10 :Vec2;         # Current velocity (for client-side extrapolation)
+  rotation @11 :Float32;      # Current rotation angle (for interpolation)
 }
 
 struct GameState {
   serverTick @0 :UInt32;
   entities @1 :List(EntityState);
+  serverTimestamp @2 :UInt64;  # Server timestamp in milliseconds (for interpolation)
+}
+
+struct MapConfig {
+  background @0 :Text;           # Path to main background texture (e.g., "backgrounds/bg-full.png")
+  parallaxBackground @1 :Text;   # Path to parallax layer texture (empty = none)
+  scrollSpeed @2 :Float32;       # Background scroll speed in pixels/second
+  parallaxSpeedFactor @3 :Float32; # Parallax layer speed factor (0.3 = 30% of main speed)
 }
 
 struct GameStart {
   yourEntityId @0 :UInt32;
   initialState @1 :GameState;
+  mapConfig @2 :MapConfig;       # Map background configuration
 }
 
 struct EntityDestroyed {
@@ -110,6 +121,7 @@ struct LoginResponse {
   success @0 :Bool;
   message @1 :Text;  # Error message if failed
   sessionToken @2 :Text;  # Token if successful
+  autoMatchmaking @3 :Bool;  # User's auto-matchmaking preference
 }
 struct S2CChatMessage {
   playerId @0 :UInt32;

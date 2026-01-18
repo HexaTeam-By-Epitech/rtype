@@ -6,6 +6,7 @@
 */
 
 #include "EntityRenderer.hpp"
+#include <chrono>
 #include <cmath>
 #include "../common/Logger/Logger.hpp"
 
@@ -15,7 +16,9 @@ EntityRenderer::EntityRenderer(Graphics::RaylibGraphics &graphics) : _graphics(g
 
 void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityType type, float x, float y,
                                   int health, const std::string &currentAnimation, int srcX, int srcY,
-                                  int srcW, int srcH) {
+                                  int srcW, int srcH, float velocityX, float velocityY, uint32_t serverTick) {
+    uint64_t currentTime = getCurrentTimeMs();
+
     // Debug: log Wall entities
     if (type == RType::Messages::Shared::EntityType::Wall) {
         LOG_INFO("EntityRenderer: Updating Wall entity ID=", id, " Pos=(", x, ",", y, ") Size=(", srcW, "x",
@@ -35,39 +38,63 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                              type == RType::Messages::Shared::EntityType::EnemyBullet);
 
         if (isLocalPlayer && _clientSidePredictionEnabled) {
-            // CLIENT-SIDE PREDICTION for local player (pro-style dead reckoning)
+            // CLIENT-SIDE PREDICTION for local player
             float errorX = x - it->second.x;
             float errorY = y - it->second.y;
             float errorDistance = std::sqrt(errorX * errorX + errorY * errorY);
 
-            // MICRO-JITTER FILTERING
-            // If the correction is tiny (floating point error from Replay), ignore it completely.
-            // This stops the ship from "shivering" 1 pixel back and forth.
-            if (errorDistance < 2.0f) {
-                return;  // Visually perfect, don't touch position
+            // ADAPTIVE MICRO-JITTER FILTERING
+            // When player IS MOVING: Apply strict filtering to avoid jitter during active movement
+            // When player IS STOPPED: Accept small corrections to prevent drift accumulation
+            float jitterThreshold = _localPlayerIsMoving ? 2.0f : 0.5f;
+
+            if (errorDistance < jitterThreshold) {
+                // When stopped, we still want to sync positions, just not create visible jumps
+                // So we'll do a very gentle correction instead of ignoring it completely
+                if (!_localPlayerIsMoving && errorDistance > 0.1f) {
+                    // Gentle correction: slowly drift towards server position
+                    it->second.prevX = it->second.x;
+                    it->second.prevY = it->second.y;
+                    it->second.targetX = x;
+                    it->second.targetY = y;
+                    it->second.interpolationFactor = 0.5f;  // Start halfway for very smooth transition
+                }
+                return;  // Don't apply large corrections for micro-jitter
             }
 
-            // Only reconcile when error exceeds threshold (use same threshold regardless of movement state)
+            // Only reconcile when error exceeds threshold
             if (errorDistance > _reconciliationThreshold) {
                 // Significant desync detected - smooth correction needed
-                // ALWAYS interpolate corrections to avoid visible snapping
                 it->second.prevX = it->second.x;
                 it->second.prevY = it->second.y;
-
-                it->second.targetX = x;  // Server says X
-                it->second.targetY = y;  // Server says Y
-
-                // We keep interpolationFactor low to allow the slide to happen
+                it->second.targetX = x;
+                it->second.targetY = y;
                 it->second.interpolationFactor = 0.0f;
 
-                // Log ALL corrections for debugging
                 LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px threshold=", _reconciliationThreshold,
                           ")");
             }
             // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled && !isProjectile) {
-            // INTERPOLATION for other entities (but NOT projectiles)
+            // TIME-BASED INTERPOLATION for other entities (but NOT projectiles)
             // Projectiles move too fast (300 units/sec) for smooth interpolation
+            // Add new snapshot to buffer
+            RenderableEntity::Snapshot snapshot;
+            snapshot.x = x;
+            snapshot.y = y;
+            snapshot.velocityX = velocityX;
+            snapshot.velocityY = velocityY;
+            snapshot.timestamp = currentTime;
+            snapshot.serverTick = serverTick;
+
+            it->second.snapshots.push_back(snapshot);
+
+            // Keep only last 3 snapshots
+            while (it->second.snapshots.size() > 3) {
+                it->second.snapshots.pop_front();
+            }
+
+            // Also update legacy fields for smooth transition
             it->second.prevX = it->second.x;
             it->second.prevY = it->second.y;
             it->second.targetX = x;
@@ -78,20 +105,50 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
             it->second.x = x;
             it->second.y = y;
         }
-        // Always update type, health, sprite coords, and animation
-        it->second.type = type;
-        it->second.health = health;
+
+        // Always update sprite coords and animation
         it->second.currentAnimation = currentAnimation;
         it->second.startPixelX = srcX;
         it->second.startPixelY = srcY;
         it->second.spriteSizeX = srcW;
         it->second.spriteSizeY = srcH;
     } else {
-        // Create new entity with sprite values from server
-        _entities[id] = {id,   type, x, y,    health,           x,  y, x, y, 1.0f, srcX, srcY, srcW,
-                         srcH, 0,    0, 3.0f, currentAnimation, {}, 0};
-        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y,
-                  ") sprite(", srcX, ",", srcY, ",", srcW, ",", srcH, ") anim=", currentAnimation);
+        // Create new entity
+        RenderableEntity newEntity;
+        newEntity.entityId = id;
+        newEntity.type = type;
+        newEntity.x = x;
+        newEntity.y = y;
+        newEntity.health = health;
+        newEntity.interpolationDelay = 100;  // 100ms interpolation delay
+        newEntity.extrapolationEnabled = true;
+        newEntity.prevX = x;
+        newEntity.prevY = y;
+        newEntity.targetX = x;
+        newEntity.targetY = y;
+        newEntity.interpolationFactor = 1.0f;
+        newEntity.startPixelX = srcX;
+        newEntity.startPixelY = srcY;
+        newEntity.spriteSizeX = srcW;
+        newEntity.spriteSizeY = srcH;
+        newEntity.offsetX = 0;
+        newEntity.offsetY = 0;
+        newEntity.scale = 3.0f;
+        newEntity.currentAnimation = currentAnimation;
+        newEntity.currentFrame = 0;
+
+        // Add initial snapshot
+        RenderableEntity::Snapshot snapshot;
+        snapshot.x = x;
+        snapshot.y = y;
+        snapshot.velocityX = velocityX;
+        snapshot.velocityY = velocityY;
+        snapshot.timestamp = currentTime;
+        snapshot.serverTick = serverTick;
+        newEntity.snapshots.push_back(snapshot);
+
+        _entities[id] = newEntity;
+        LOG_DEBUG("Entity created: ID=", id, " Type=", static_cast<int>(type), " at (", x, ",", y, ")");
     }
 }
 
@@ -108,6 +165,165 @@ void EntityRenderer::clearAllEntities() {
     _entities.clear();
 }
 
+void EntityRenderer::setBackground(const std::string &mainBackground, const std::string &parallaxBackground,
+                                   float scrollSpeed, float parallaxSpeedFactor) {
+    // Clear previous backgrounds
+    clearBackground();
+
+    // Always activate background (even with just black)
+    _backgroundActive = true;
+
+    // Configure main background (if provided)
+    if (!mainBackground.empty()) {
+        _mainBackground.texturePath = mainBackground;
+        _mainBackground.textureName = "bg_main";
+        _mainBackground.scrollSpeed = scrollSpeed;
+        _mainBackground.scrollOffset = 0.0f;
+        _mainBackground.loaded = false;
+
+        // Load texture
+        std::string fullPath = "assets/" + mainBackground;
+        if (_graphics.LoadTexture(_mainBackground.textureName.c_str(), fullPath.c_str()) == 0) {
+            _graphics.GetTextureSize(_mainBackground.textureName.c_str(), _mainBackground.textureWidth,
+                                     _mainBackground.textureHeight);
+            _mainBackground.loaded = true;
+            LOG_INFO("Loaded main background: ", fullPath, " (", _mainBackground.textureWidth, "x",
+                     _mainBackground.textureHeight, ")");
+        } else {
+            LOG_WARNING("Failed to load main background: ", fullPath, " - using black background");
+        }
+    } else {
+        LOG_INFO("No main background defined - using black background");
+    }
+
+    // Configure parallax background (rendered on top, scrolls slower) - only if provided
+    if (!parallaxBackground.empty()) {
+        _parallaxBackground.texturePath = parallaxBackground;
+        _parallaxBackground.textureName = "bg_parallax";
+        _parallaxBackground.scrollSpeed = scrollSpeed * parallaxSpeedFactor;
+        _parallaxBackground.scrollOffset = 0.0f;
+        _parallaxBackground.loaded = false;
+
+        // Load texture
+        std::string fullPath = "assets/" + parallaxBackground;
+        if (_graphics.LoadTexture(_parallaxBackground.textureName.c_str(), fullPath.c_str()) == 0) {
+            _graphics.GetTextureSize(_parallaxBackground.textureName.c_str(),
+                                     _parallaxBackground.textureWidth, _parallaxBackground.textureHeight);
+            _parallaxBackground.loaded = true;
+            LOG_INFO("Loaded parallax background: ", fullPath, " (", _parallaxBackground.textureWidth, "x",
+                     _parallaxBackground.textureHeight, ") speed factor: ", parallaxSpeedFactor);
+        } else {
+            LOG_WARNING("Failed to load parallax background: ", fullPath, " - no parallax layer");
+        }
+    }
+    // If no parallaxBackground provided, simply don't render any parallax layer (transparent)
+
+    LOG_INFO("Background system activated (main: ", _mainBackground.loaded ? "loaded" : "black",
+             ", parallax: ", _parallaxBackground.loaded ? "loaded" : "none", ")");
+}
+
+void EntityRenderer::clearBackground() {
+    if (_mainBackground.loaded) {
+        _graphics.UnloadTexture(_mainBackground.textureName.c_str());
+        _mainBackground = BackgroundConfig{};
+    }
+    if (_parallaxBackground.loaded) {
+        _graphics.UnloadTexture(_parallaxBackground.textureName.c_str());
+        _parallaxBackground = BackgroundConfig{};
+    }
+    _backgroundActive = false;
+    LOG_DEBUG("Background system deactivated");
+}
+
+void EntityRenderer::updateBackground(float deltaTime) {
+    if (!_backgroundActive) {
+        return;
+    }
+
+    // Update scroll offsets (scrolling left = negative offset increases)
+    if (_mainBackground.loaded) {
+        _mainBackground.scrollOffset += _mainBackground.scrollSpeed * deltaTime;
+        // Wrap around for seamless tiling
+        if (_mainBackground.textureWidth > 0) {
+            while (_mainBackground.scrollOffset >= _mainBackground.textureWidth) {
+                _mainBackground.scrollOffset -= _mainBackground.textureWidth;
+            }
+        }
+    }
+
+    if (_parallaxBackground.loaded) {
+        _parallaxBackground.scrollOffset += _parallaxBackground.scrollSpeed * deltaTime;
+        // Wrap around for seamless tiling
+        if (_parallaxBackground.textureWidth > 0) {
+            while (_parallaxBackground.scrollOffset >= _parallaxBackground.textureWidth) {
+                _parallaxBackground.scrollOffset -= _parallaxBackground.textureWidth;
+            }
+        }
+    }
+}
+
+void EntityRenderer::renderBackground() {
+    int screenWidth = _graphics.GetWindowWidth();
+    int screenHeight = _graphics.GetWindowHeight();
+
+    // Always draw a black background first as base
+    _graphics.DrawRectFilled(0, 0, screenWidth, screenHeight, 0xFF000000);
+
+    if (!_backgroundActive) {
+        return;
+    }
+
+    // Render main background (bottom layer)
+    // Scale texture to fit screen height, calculate scaled width for tiling
+    if (_mainBackground.loaded && _mainBackground.textureWidth > 0 && _mainBackground.textureHeight > 0) {
+        // Calculate the scaled dimensions to fit screen height
+        float scale = static_cast<float>(screenHeight) / static_cast<float>(_mainBackground.textureHeight);
+        float scaledWidth = static_cast<float>(_mainBackground.textureWidth) * scale;
+
+        // Calculate how many tiles needed to cover screen + 1 extra for seamless scroll
+        int tilesNeeded = static_cast<int>(std::ceil(static_cast<float>(screenWidth) / scaledWidth)) + 2;
+
+        // Wrap scroll offset to prevent overflow
+        float wrappedOffset = std::fmod(_mainBackground.scrollOffset * scale, scaledWidth);
+        if (wrappedOffset < 0) {
+            wrappedOffset += scaledWidth;
+        }
+
+        for (int i = 0; i < tilesNeeded; i++) {
+            float drawX = (static_cast<float>(i) * scaledWidth) - wrappedOffset;
+
+            // Draw texture stretched to fit screen height, tiled horizontally
+            _graphics.DrawTexturePro(_mainBackground.textureName.c_str(), 0, 0, _mainBackground.textureWidth,
+                                     _mainBackground.textureHeight, drawX, 0.0f, scaledWidth,
+                                     static_cast<float>(screenHeight), 0xFFFFFFFF);
+        }
+    }
+
+    // Render parallax background on top (overlay layer - only if loaded)
+    // This layer should have transparency in the texture (e.g., stars with transparent background)
+    if (_parallaxBackground.loaded && _parallaxBackground.textureWidth > 0 &&
+        _parallaxBackground.textureHeight > 0) {
+        float scale =
+            static_cast<float>(screenHeight) / static_cast<float>(_parallaxBackground.textureHeight);
+        float scaledWidth = static_cast<float>(_parallaxBackground.textureWidth) * scale;
+
+        int tilesNeeded = static_cast<int>(std::ceil(static_cast<float>(screenWidth) / scaledWidth)) + 2;
+
+        float wrappedOffset = std::fmod(_parallaxBackground.scrollOffset * scale, scaledWidth);
+        if (wrappedOffset < 0) {
+            wrappedOffset += scaledWidth;
+        }
+
+        for (int i = 0; i < tilesNeeded; i++) {
+            float drawX = (static_cast<float>(i) * scaledWidth) - wrappedOffset;
+
+            _graphics.DrawTexturePro(_parallaxBackground.textureName.c_str(), 0, 0,
+                                     _parallaxBackground.textureWidth, _parallaxBackground.textureHeight,
+                                     drawX, 0.0f, scaledWidth, static_cast<float>(screenHeight), 0xFFFFFFFF);
+        }
+    }
+}
+
 void EntityRenderer::setMyEntityId(uint32_t id) {
     _myEntityId = id;
     LOG_INFO("Local player entity ID set to: ", id);
@@ -115,6 +331,9 @@ void EntityRenderer::setMyEntityId(uint32_t id) {
 }
 
 void EntityRenderer::render() {
+    // Always render background first (even if no entities)
+    renderBackground();
+
     if (_entities.empty()) {
         return;
     }
@@ -438,4 +657,10 @@ float EntityRenderer::clamp(float value, float min, float max) const {
         return max;
     }
     return value;
+}
+
+uint64_t EntityRenderer::getCurrentTimeMs() const {
+    auto now = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    return static_cast<uint64_t>(duration.count());
 }

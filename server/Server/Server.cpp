@@ -77,7 +77,11 @@ bool Server::initialize() {
 
     _eventBus = std::make_shared<server::EventBus>();
     _sessionManager = std::make_shared<server::SessionManager>();
-    _roomManager = std::make_shared<server::RoomManager>();
+
+    // Create matchmaking service with shared EventBus
+    auto matchmaking = std::make_shared<server::MatchmakingService>(2, 4, _eventBus);
+    _roomManager = std::make_shared<server::RoomManager>(matchmaking, _eventBus);
+
     _lobby = std::make_shared<server::Lobby>(_roomManager);
     _commandHandler = std::make_unique<server::CommandHandler>();
 
@@ -102,13 +106,42 @@ bool Server::initialize() {
         }
     });
 
-    _eventBus->subscribe<server::GameEndedEvent>([](const server::GameEndedEvent &event) {
-        LOG_INFO("[EVENT] Game ended. Reason: ", event.getReason());
-    });
+    _eventBus->subscribe<server::GameEndedEvent>([this](const server::GameEndedEvent &event) {
+        LOG_INFO("Game ended - reason: ", event.getReason());
 
+        // Find the room associated with this game and broadcast Game Over to all players
+        auto rooms = _roomManager->getAllRooms();
+        LOG_INFO("Broadcasting GameOver to ", rooms.size(), " room(s)");
+
+        for (const auto &room : rooms) {
+            auto gameLogic = room->getGameLogic();
+            if (gameLogic) {
+                // Send GameOver message to all players in this room
+                auto players = room->getPlayers();
+                LOG_INFO("Room has ", players.size(), " player(s)");
+                for (uint32_t playerId : players) {
+                    // Get session ID from player ID
+                    auto sessionIt = _playerIdToSessionId.find(playerId);
+                    if (sessionIt != _playerIdToSessionId.end()) {
+                        const std::string &sessionId = sessionIt->second;
+                        // Get peer from session ID
+                        auto peerIt = _sessionPeers.find(sessionId);
+                        if (peerIt != _sessionPeers.end() && peerIt->second) {
+                            // Create GameOver message
+                            RType::Messages::S2C::GameOver gameOverMsg(event.getReason());
+                            std::vector<uint8_t> payload = gameOverMsg.serialize();
+
+                            _sendPacket(peerIt->second, NetworkMessages::MessageType::S2C_GAME_OVER, payload,
+                                        true);
+                            LOG_INFO("Sent GameOver to player ", playerId);
+                        }
+                    }
+                }
+            }
+        }
+    });
     _initialized = true;
     LOG_INFO("✓ Server initialized successfully");
-
     return true;
 }
 
@@ -1788,7 +1821,6 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
 }
 
 void Server::_actionToInput(RType::Messages::Shared::Action action, int &dx, int &dy, bool &shoot) {
-
     using enum RType::Messages::Shared::Action;
     switch (action) {
         case MoveUp:

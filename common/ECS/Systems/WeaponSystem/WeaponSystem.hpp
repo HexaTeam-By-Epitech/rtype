@@ -112,20 +112,22 @@ namespace ecs {
        private:
         /**
          * @brief Calculate projectile initial velocity based on owner's velocity.
-         * 
+         *
          * @param baseSpeed Base projectile speed from weapon
+         * @param isFriendly Whether this is a friendly projectile (affects direction)
          * @return Velocity component for the projectile
          */
-        Velocity calculateProjectileVelocity(float baseSpeed);
+        Velocity calculateProjectileVelocity(float baseSpeed, bool isFriendly);
 
         /**
          * @brief Calculate projectile spawn position based on owner position.
-         * 
+         *
          * @param registry Reference to the ECS registry
          * @param ownerId Entity ID of the weapon owner
+         * @param isFriendly Whether this is a friendly projectile (affects spawn offset)
          * @return Transform component for the projectile initial position
          */
-        Transform calculateProjectileTransform(Registry &registry, std::uint32_t ownerId);
+        Transform calculateProjectileTransform(Registry &registry, std::uint32_t ownerId, bool isFriendly);
 
         /**
          * @brief Create a single projectile with specified properties.

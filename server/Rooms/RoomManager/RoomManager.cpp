@@ -10,12 +10,15 @@
 
 namespace server {
 
-    RoomManager::RoomManager() : _matchmaking(std::make_shared<MatchmakingService>(2, 4)) {
+    RoomManager::RoomManager()
+        : _matchmaking(std::make_shared<MatchmakingService>(2, 4, nullptr)), _eventBus(nullptr) {
         _matchmaking->setMatchCreatedCallback([this](std::shared_ptr<Room> room) { _onMatchCreated(room); });
         LOG_INFO("RoomManager created with matchmaking service");
     }
 
-    RoomManager::RoomManager(std::shared_ptr<MatchmakingService> matchmaking) : _matchmaking(matchmaking) {
+    RoomManager::RoomManager(std::shared_ptr<MatchmakingService> matchmaking,
+                             std::shared_ptr<EventBus> eventBus)
+        : _matchmaking(matchmaking), _eventBus(eventBus) {
         if (_matchmaking) {
             _matchmaking->setMatchCreatedCallback(
                 [this](std::shared_ptr<Room> room) { _onMatchCreated(room); });
@@ -46,7 +49,7 @@ namespace server {
     std::shared_ptr<Room> RoomManager::createRoom(const std::string &id, const std::string &name,
                                                   size_t maxPlayers, bool isPrivate,
                                                   float gameSpeedMultiplier) {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
         if (_rooms.find(id) != _rooms.end()) {
             LOG_WARNING("Room ", id, " already exists");
@@ -54,7 +57,8 @@ namespace server {
         }
 
         try {
-            auto room = std::make_shared<Room>(id, name, maxPlayers, isPrivate, gameSpeedMultiplier);
+            auto room =
+                std::make_shared<Room>(id, name, maxPlayers, isPrivate, gameSpeedMultiplier, _eventBus);
             _rooms[id] = room;
 
             LOG_INFO("✓ Room created: '", room->getName(), "' (", id, ")");
@@ -66,7 +70,7 @@ namespace server {
     }
 
     std::shared_ptr<Room> RoomManager::getRoom(const std::string &id) {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
         auto it = _rooms.find(id);
         if (it != _rooms.end()) {
@@ -77,7 +81,7 @@ namespace server {
     }
 
     bool RoomManager::removeRoom(const std::string &id) {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
         auto it = _rooms.find(id);
         if (it != _rooms.end()) {
@@ -90,7 +94,7 @@ namespace server {
     }
 
     std::vector<std::shared_ptr<Room>> RoomManager::getAllRooms() {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
         std::vector<std::shared_ptr<Room>> rooms;
         rooms.reserve(_rooms.size());
@@ -103,7 +107,7 @@ namespace server {
     }
 
     std::vector<std::shared_ptr<Room>> RoomManager::getPublicRooms() {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
         std::vector<std::shared_ptr<Room>> publicRooms;
 
@@ -118,7 +122,7 @@ namespace server {
     }
 
     size_t RoomManager::getRoomCount() const {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
         return _rooms.size();
     }
 
@@ -127,7 +131,7 @@ namespace server {
             _matchmaking->tick();
         }
 
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
         for (auto &[id, room] : _rooms) {
             room->update(deltaTime);
         }
@@ -165,7 +169,7 @@ namespace server {
     }
 
     void RoomManager::cleanupFinishedRooms() {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
         std::vector<std::string> roomsToRemove;
 
@@ -191,7 +195,7 @@ namespace server {
         std::function<void(std::shared_ptr<Room>)> callback;
 
         {
-            std::lock_guard<std::mutex> lock(_mutex);
+            std::lock_guard<std::recursive_mutex> lock(_mutex);
 
             std::string roomId = room->getId();
 

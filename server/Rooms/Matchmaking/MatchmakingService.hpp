@@ -9,12 +9,14 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
 #include "server/Rooms/Matchmaking/IMatchmakingService.hpp"
 
 namespace server {
+    class EventBus;  // Forward declaration
 
     /**
      * @struct PlayerQueueInfo
@@ -54,8 +56,10 @@ namespace server {
          * @brief Construct matchmaking service
          * @param minPlayers Minimum players to start a match (default: 2)
          * @param maxPlayers Maximum players per match (default: 4)
+         * @param eventBus Shared event bus for server-wide events
          */
-        explicit MatchmakingService(size_t minPlayers = 2, size_t maxPlayers = 4);
+        explicit MatchmakingService(size_t minPlayers = 2, size_t maxPlayers = 4,
+                                    std::shared_ptr<server::EventBus> eventBus = nullptr);
         ~MatchmakingService() override = default;
 
         void addPlayer(uint32_t playerId) override;
@@ -106,6 +110,7 @@ namespace server {
 
         size_t _minPlayers;
         size_t _maxPlayers;
+        std::shared_ptr<server::EventBus> _eventBus;
 
         std::vector<PlayerQueueInfo> _waitingPlayers;
         mutable std::mutex _mutex;

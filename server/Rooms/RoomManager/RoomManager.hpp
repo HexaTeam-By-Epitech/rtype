@@ -31,7 +31,8 @@ namespace server {
     class RoomManager : public IRoomManager {
        public:
         RoomManager();
-        explicit RoomManager(std::shared_ptr<MatchmakingService> matchmaking);
+        explicit RoomManager(std::shared_ptr<MatchmakingService> matchmaking,
+                             std::shared_ptr<EventBus> eventBus = nullptr);
         ~RoomManager() override = default;
 
         std::shared_ptr<Room> createRoom(const std::string &id, const std::string &name = "",
@@ -90,8 +91,10 @@ namespace server {
 
         std::unordered_map<std::string, std::shared_ptr<Room>> _rooms;
         std::shared_ptr<MatchmakingService> _matchmaking;
+        std::shared_ptr<EventBus> _eventBus;
         RoomCreatedCallback _roomCreatedCallback;
-        mutable std::mutex _mutex;
+        mutable std::recursive_mutex
+            _mutex;  // Recursive to allow getAllRooms() from event handlers during update()
     };
 
 }  // namespace server

@@ -348,6 +348,13 @@ namespace ecs {
         std::uint32_t projectileAddr = entity1IsProjectile ? entity1 : entity2;
         std::uint32_t targetAddr = entity1IsProjectile ? entity2 : entity1;
 
+        // Skip if projectile is already marked for destruction (prevents double hits)
+        for (Address addr : entitiesToDestroy) {
+            if (addr == projectileAddr) {
+                return;  // Already processed this projectile
+            }
+        }
+
         // Get projectile component
         if (!registry.hasComponent<Projectile>(projectileAddr)) {
             return;

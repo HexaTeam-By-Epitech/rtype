@@ -43,7 +43,7 @@ namespace ecs {
             registry.setComponent(enemy, Health(spawnData.health, spawnData.health));
             registry.setComponent(enemy, Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f,
                                                   0.0f, 2, 0xFFFFFFFF, false));
-            registry.setComponent(enemy, Weapon(3.0f, 0.8f, 1, 15));  // 3 shots/sec, less damage
+            registry.setComponent(enemy, Weapon(0.33f, 2.0f, 1, 15));  // ~1 shot per 1.5s
             LOG_INFO("✓ Enemy created (ID:", enemy, ") type:", enemyType, " HP:", spawnData.health, " at (",
                      posX, ",", posY, ")");
             return enemy;
@@ -91,7 +91,7 @@ namespace ecs {
             registry.setComponent(enemy, Health(static_cast<int>(health), static_cast<int>(health)));
             registry.setComponent(enemy, Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f,
                                                   0.0f, 2, 0xFFFFFFFF, false));
-            registry.setComponent(enemy, Weapon(3.0f, 0.0f, 1, 15));
+            registry.setComponent(enemy, Weapon(0.33f, 2.0f, 1, 15));  // ~1 shot per 1.5s
 
             // Add Lua script if provided
             if (!scriptPath.empty()) {
@@ -120,7 +120,7 @@ namespace ecs {
             registry.setComponent(enemy, Health(static_cast<int>(health), static_cast<int>(health)));
             registry.setComponent(enemy, Collider(spawnData.colliderWidth, spawnData.colliderHeight, 0.0f,
                                                   0.0f, 2, 0xFFFFFFFF, false));
-            registry.setComponent(enemy, Weapon(3.0f, 0.0f, 1, 15));
+            registry.setComponent(enemy, Weapon(0.33f, 2.0f, 1, 15));  // ~1 shot per 1.5s
 
             // Add Lua script if provided
             if (!scriptPath.empty()) {

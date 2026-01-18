@@ -17,6 +17,7 @@
 
 #include <any>
 #include <bitset>
+#include <mutex>
 #include <queue>
 #include <shared_mutex>
 #include <unordered_map>

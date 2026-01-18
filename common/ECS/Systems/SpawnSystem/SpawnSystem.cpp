@@ -86,8 +86,6 @@ namespace ecs {
                         for (auto &enemy : nextWave.enemies) {
                             enemy.hasSpawned = false;
                         }
-                        LOG_INFO("[SpawnSystem] Reset spawn flags for wave ",
-                                 spawnerComp.currentWaveIndex + 1);
                     }
                 }
             }
@@ -134,14 +132,12 @@ namespace ecs {
             registry.setComponent<Collider>(
                 enemy, Collider(colliderWidth, colliderHeight, 0.0f, 0.0f, 2, 0xFFFFFFFF, false));
             registry.setComponent<Weapon>(enemy,
-                                          Weapon(3.0f, 0.0f, 1, 15));  // 3 shots/sec, type 1, 15 damage
+                                          Weapon(0.33f, 2.0f, 1, 30));  // ~1 shot per 3s, type 1, 15 damage
 
             if (!request.scriptPath.empty()) {
                 registry.setComponent<LuaScript>(enemy, LuaScript(request.scriptPath));
             }
 
-            LOG_INFO("[SpawnSystem] Spawned ", request.enemyType, " (type ", enemyType, ") at (", request.x,
-                     ", ", request.y, ") with entity ID: ", enemy);
         } catch (const std::exception &e) {
             LOG_ERROR("[SpawnSystem] Failed to spawn enemy: ", e.what());
         }

@@ -19,17 +19,18 @@
 namespace server {
 
     Room::Room(const std::string &id, const std::string &name, size_t maxPlayers, bool isPrivate,
-               float gameSpeedMultiplier)
+               float gameSpeedMultiplier, std::shared_ptr<EventBus> eventBus)
         : _id(id),
           _name(name.empty() ? id : name),
           _state(RoomState::WAITING),
           _maxPlayers(maxPlayers),
           _isPrivate(isPrivate),
-          _gameSpeedMultiplier(std::clamp(gameSpeedMultiplier, 0.25f, 1.0f)),
+          _gameSpeedMultiplier(gameSpeedMultiplier),
           _hostPlayerId(0),
           _gameStartSent(false) {
 
-        _eventBus = std::make_shared<EventBus>();
+        // Use provided EventBus or create a new one
+        _eventBus = eventBus ? eventBus : std::make_shared<EventBus>();
         std::shared_ptr<ecs::wrapper::ECSWorld> ecsWorld = std::make_shared<ecs::wrapper::ECSWorld>();
         std::shared_ptr<ThreadPool> threadPool = std::make_shared<ThreadPool>(4);
         threadPool->start();
@@ -46,8 +47,7 @@ namespace server {
         _gameLogic = std::shared_ptr<IGameLogic>(&_gameLoop->getGameLogic(), [](IGameLogic *) {});
 
         LOG_INFO("Room '", _name, "' (", _id, ") created [State: WAITING, Max: ", _maxPlayers,
-                 " players, Private: ", (_isPrivate ? "Yes" : "No"),
-                 ", Speed: ", static_cast<int>(_gameSpeedMultiplier * 100), "%] with dedicated GameLoop");
+                 " players, Private: ", (_isPrivate ? "Yes" : "No"), "] with dedicated GameLoop");
     }
 
     bool Room::join(uint32_t playerId) {

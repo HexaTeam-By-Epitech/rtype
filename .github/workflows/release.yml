@@ -134,10 +134,10 @@ jobs:
           mkdir -p rtype-linux
           cp build/linux-release/server/r-type_server rtype-linux/
           cp build/linux-release/client/r-type_client rtype-linux/
-          
-          # Copy any necessary shared libraries if needed
-          # ldd build/linux-release/server/r-type_server | grep "=> /" | awk '{print $3}' | xargs -I '{}' cp -v '{}' rtype-linux/ || true
-          
+
+          # Copy assets folder
+          cp -r assets rtype-linux/
+
           # Create README
           cat << 'EOF' > rtype-linux/README.txt
           R-Type Release - Linux x64
@@ -226,6 +226,9 @@ jobs:
           Copy-Item "build/windows-release/client/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           Copy-Item "build/windows-release/server/Release/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           Copy-Item "build/windows-release/client/Release/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+
+          # Copy assets folder
+          Copy-Item -Path "assets" -Destination "rtype-windows/" -Recurse
 
           # Copy DLL dependencies from vcpkg
           $vcpkgBinPath = "build/windows-release/vcpkg_installed/x64-windows/bin"

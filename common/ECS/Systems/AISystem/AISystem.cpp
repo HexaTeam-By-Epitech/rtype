@@ -8,6 +8,7 @@
 #include "AISystem.hpp"
 #include <cmath>
 #include "../../Components/IComponent.hpp"
+#include "../../Components/Weapon.hpp"
 
 namespace ecs {
     /**
@@ -22,6 +23,12 @@ namespace ecs {
             auto &velocity = registry.getComponent<Velocity>(entityId);
 
             applyMovementPattern(enemy, transform, velocity, deltaTime);
+
+            // Auto-fire for enemies with weapons
+            if (registry.hasComponent<Weapon>(entityId)) {
+                auto &weapon = registry.getComponent<Weapon>(entityId);
+                weapon.setShouldShoot(true);
+            }
         }
     }
 

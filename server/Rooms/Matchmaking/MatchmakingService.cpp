@@ -13,8 +13,9 @@
 
 namespace server {
 
-    MatchmakingService::MatchmakingService(size_t minPlayers, size_t maxPlayers)
-        : _minPlayers(minPlayers), _maxPlayers(maxPlayers) {
+    MatchmakingService::MatchmakingService(size_t minPlayers, size_t maxPlayers,
+                                           std::shared_ptr<EventBus> eventBus)
+        : _minPlayers(minPlayers), _maxPlayers(maxPlayers), _eventBus(eventBus) {
         if (_minPlayers < 1) {
             _minPlayers = 1;
         }
@@ -96,7 +97,7 @@ namespace server {
 
         try {
             room = std::make_shared<Room>(roomId, "Match #" + std::to_string(_totalMatchesCreated + 1),
-                                          _maxPlayers, false);
+                                          _maxPlayers, false, 1.0f, _eventBus);
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create match room: ", e.what());
             // Re-add players to waiting queue

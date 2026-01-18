@@ -28,12 +28,14 @@
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
 #include "Menu/CreateRoomMenu.hpp"
+#include "Menu/DefeatMenu.hpp"
 #include "Menu/KeyBindingsMenu.hpp"
 #include "Menu/LoginMenu.hpp"
 #include "Menu/MainMenu.hpp"
 #include "Menu/RoomListMenu.hpp"
 #include "Menu/ServerListMenu.hpp"
 #include "Menu/SettingsMenu.hpp"
+#include "Menu/VictoryMenu.hpp"
 #include "Menu/WaitingRoomMenu.hpp"
 #include "UI/ChatWidget.hpp"
 #include "UI/IButton.hpp"
@@ -279,6 +281,16 @@ class Rendering {
     void UpdateBackground(float deltaTime);
 
     /**
+     * @brief Display the game over screen
+     * @param reason Reason for game over (e.g., "Defeat", "Victory")
+     * 
+     * Shows the appropriate game over menu based on the reason:
+     * - "Victory" or similar -> Victory screen
+     * - "Defeat" or similar -> Defeat screen
+     */
+    void ShowGameOver(const std::string &reason);
+
+    /**
      * @brief Check if a key is currently being held down
      * @param key Raylib key code
      * @return true if key is down
@@ -454,9 +466,10 @@ class Rendering {
     void SetPlayerName(const std::string &name);
 
    private:
-    enum class Scene { MENU, IN_GAME };
+    enum class Scene { MENU, IN_GAME, GAME_OVER };
 
     Scene _scene = Scene::MENU;
+    std::string _gameOverReason;  // Stores the reason for game over
 
     EventBus &_eventBus;
     bool _initialized = false;
@@ -482,6 +495,8 @@ class Rendering {
     std::unique_ptr<Game::KeyBindingsMenu> _keyBindingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
     std::unique_ptr<Game::LoginMenu> _loginMenu;
+    std::unique_ptr<Game::DefeatMenu> _defeatMenu;
+    std::unique_ptr<Game::VictoryMenu> _victoryMenu;
 
     bool _settingsOverlay = false;
     bool _confirmQuitOverlay = false;
@@ -541,6 +556,8 @@ class Rendering {
     void InitializeRoomListMenu();
     void InitializeCreateRoomMenu();
     void InitializeWaitingRoomMenu();
+    void InitializeDefeatMenu();
+    void InitializeVictoryMenu();
     void InitializeConnectionMenu();
     void InitializeChatWidget();
     void SubscribeToConnectionEvents();

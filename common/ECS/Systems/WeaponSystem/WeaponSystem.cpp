@@ -11,6 +11,7 @@
 #include "common/ECS/Components/Animation.hpp"
 #include "common/ECS/Components/AnimationSet.hpp"
 #include "common/ECS/Components/Collider.hpp"
+#include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/IComponent.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Sprite.hpp"
@@ -29,44 +30,54 @@ namespace ecs {
             // Update cooldown
             weapon.setCooldown(std::max(0.0F, weapon.getCooldown() - deltaTime));
 
-            // Handle charging
-            if (weapon.shouldShoot() && weapon.getCooldown() <= 0.0F) {
-                // Start or continue charging
-                if (!weapon.isCharging()) {
-                    weapon.setCharging(true);
+            // Check if this is an enemy (simple auto-fire, no charging)
+            bool isEnemy = registry.hasComponent<Enemy>(entityId);
+
+            if (isEnemy) {
+                // Enemy auto-fire: shoot when cooldown is ready
+                if (weapon.shouldShoot() && weapon.getCooldown() <= 0.0F) {
+                    fireWeapon(registry, entityId, false);  // isFriendly = false for enemies
+                }
+            } else {
+                // Player charging system
+                if (weapon.shouldShoot() && weapon.getCooldown() <= 0.0F) {
+                    // Start or continue charging
+                    if (!weapon.isCharging()) {
+                        weapon.setCharging(true);
+                        weapon.setChargeLevel(0.0F);
+                    }
+
+                    // Accumulate charge
+                    float newCharge = weapon.getChargeLevel() + (weapon.getChargeRate() * deltaTime);
+                    weapon.setChargeLevel(newCharge);
+
+                    // Cap at full charge (1.0)
+                    if (weapon.getChargeLevel() >= 1.0F) {
+                        weapon.setChargeLevel(1.0F);
+                    }
+                } else if (!weapon.shouldShoot() && weapon.isCharging()) {
+                    // Button released - fire charged shot
+                    float chargeLevel = weapon.getChargeLevel();
+
+                    // Fire the charged shot
+                    bool isFriendly = true;  // Player weapon
+                    fireChargedShot(registry, entityId, chargeLevel, isFriendly);
+
+                    // Reset charge state
+                    weapon.setCharging(false);
+                    weapon.setChargeLevel(0.0F);
+
+                    // Set cooldown
+                    float fireRate = weapon.getFireRate();
+                    if (fireRate > 0.0F) {
+                        weapon.setCooldown(1.0F / fireRate);
+                    } else {
+                        weapon.setCooldown(1.0F / 7.0F);  // Fallback: 7 shots/sec
+                    }
+                } else if (!weapon.shouldShoot() && !weapon.isCharging()) {
+                    // Not shooting and not charging - reset charge
                     weapon.setChargeLevel(0.0F);
                 }
-
-                // Accumulate charge
-                float newCharge = weapon.getChargeLevel() + (weapon.getChargeRate() * deltaTime);
-                weapon.setChargeLevel(newCharge);
-
-                // Cap at full charge (1.0)
-                if (weapon.getChargeLevel() >= 1.0F) {
-                    weapon.setChargeLevel(1.0F);
-                }
-            } else if (!weapon.shouldShoot() && weapon.isCharging()) {
-                // Button released - fire charged shot
-                float chargeLevel = weapon.getChargeLevel();
-
-                // Fire the charged shot
-                bool isFriendly = true;  // Assume player weapon
-                fireChargedShot(registry, entityId, chargeLevel, isFriendly);
-
-                // Reset charge state
-                weapon.setCharging(false);
-                weapon.setChargeLevel(0.0F);
-
-                // Set cooldown
-                float fireRate = weapon.getFireRate();
-                if (fireRate > 0.0F) {
-                    weapon.setCooldown(1.0F / fireRate);
-                } else {
-                    weapon.setCooldown(1.0F / 7.0F);  // Fallback: 7 shots/sec
-                }
-            } else if (!weapon.shouldShoot() && !weapon.isCharging()) {
-                // Not shooting and not charging - reset charge
-                weapon.setChargeLevel(0.0F);
             }
         }
     }
@@ -106,18 +117,21 @@ namespace ecs {
         }
 
         // Single shot - create projectile
-        Transform projectileTransform = calculateProjectileTransform(registry, ownerId);
-        Velocity projectileVelocity = calculateProjectileVelocity(baseSpeed);
+        Transform projectileTransform = calculateProjectileTransform(registry, ownerId, isFriendly);
+        Velocity projectileVelocity = calculateProjectileVelocity(baseSpeed, isFriendly);
 
         return createProjectile(registry, ownerId, projectileTransform, projectileVelocity, damage,
                                 isFriendly, false);
     }
 
-    Velocity WeaponSystem::calculateProjectileVelocity(float baseSpeed) {
-        return Velocity(1.0F, 0.0F, baseSpeed);
+    Velocity WeaponSystem::calculateProjectileVelocity(float baseSpeed, bool isFriendly) {
+        // Friendly projectiles go right, enemy projectiles go left
+        float dirX = isFriendly ? 1.0F : -1.0F;
+        return Velocity(dirX, 0.0F, baseSpeed);
     }
 
-    Transform WeaponSystem::calculateProjectileTransform(Registry &registry, std::uint32_t ownerId) {
+    Transform WeaponSystem::calculateProjectileTransform(Registry &registry, std::uint32_t ownerId,
+                                                         bool isFriendly) {
         // Get owner's position
         Transform defaultTransform(0.0F, 0.0F);
 
@@ -125,8 +139,9 @@ namespace ecs {
             auto &ownerTransform = registry.getComponent<Transform>(ownerId);
             auto ownerPos = ownerTransform.getPosition();
 
-            // Projectile spawns 20 pixels offset from the owner (to the right)
-            return Transform(ownerPos.x + 40.0F, ownerPos.y);
+            // Friendly spawns to the right, enemy spawns to the left
+            float offsetX = isFriendly ? 40.0F : -40.0F;
+            return Transform(ownerPos.x + offsetX, ownerPos.y);
         }
 
         return defaultTransform;
@@ -181,8 +196,8 @@ namespace ecs {
         }
 
         // Single charged shot
-        Transform projectileTransform = calculateProjectileTransform(registry, ownerId);
-        Velocity projectileVelocity = calculateProjectileVelocity(chargedSpeed);
+        Transform projectileTransform = calculateProjectileTransform(registry, ownerId, isFriendly);
+        Velocity projectileVelocity = calculateProjectileVelocity(chargedSpeed, isFriendly);
 
         return createProjectile(registry, ownerId, projectileTransform, projectileVelocity, chargedDamage,
                                 isFriendly, true);
@@ -201,8 +216,10 @@ namespace ecs {
         registry.setComponent(projectileId, velocity);
         registry.setComponent(projectileId, Projectile(damage, 10.0f, ownerId, isFriendly));
 
-        // Add Collider for collision detection (Layer 4=projectiles, mask=all, solid collision)
-        registry.setComponent(projectileId, Collider(10.0f, 10.0f, 0.0f, 0.0f, 4, 0xFFFFFFFF, false));
+        // Add Collider for collision detection
+        // Player projectile: layer 4 (1<<2), Enemy projectile: layer 8 (1<<3)
+        uint32_t layer = isFriendly ? 4 : 8;
+        registry.setComponent(projectileId, Collider(10.0f, 10.0f, 0.0f, 0.0f, layer, 0xFFFFFFFF, false));
 
         // Add projectile animations
         ecs::AnimationSet bulletAnimations = AnimDB::createPlayerBulletAnimations();
@@ -216,8 +233,6 @@ namespace ecs {
         registry.setComponent(projectileId, ecs::Animation(animationName, true, true));
         ecs::Sprite projSprite("Projectiles", projRect, scale, 0.0f, false, false, 0);
         registry.setComponent(projectileId, projSprite);
-
-        LOG_DEBUG("Created projectile ", projectileId, " (charged:", isCharged, ") with damage:", damage);
 
         // Reset weapon cooldown
         if (registry.hasComponent<Weapon>(ownerId)) {
@@ -269,15 +284,16 @@ namespace ecs {
                 break;
         }
 
-        Transform baseTransform = calculateProjectileTransform(registry, ownerId);
+        Transform baseTransform = calculateProjectileTransform(registry, ownerId, isFriendly);
 
         // Fire each projectile with different angle
         for (int i = 0; i < shotCount; i++) {
             float angle = startAngle + (i * angleSpread);
             float angleRad = angle * 3.14159f / 180.0f;
 
-            // Calculate velocity with angle
-            float dirX = std::cos(angleRad);
+            // Calculate velocity with angle (invert for enemies)
+            float baseDir = isFriendly ? 1.0F : -1.0F;
+            float dirX = baseDir * std::cos(angleRad);
             float dirY = std::sin(angleRad);
             Velocity projectileVelocity(dirX, dirY, speed);
 
@@ -289,7 +305,5 @@ namespace ecs {
             createProjectile(registry, ownerId, projectileTransform, projectileVelocity, damage, isFriendly,
                              isCharged);
         }
-
-        LOG_INFO("[WEAPON] Fired ", shotCount, " projectiles with multishot buff");
     }
 }  // namespace ecs

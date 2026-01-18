@@ -181,6 +181,7 @@ namespace server {
         std::shared_ptr<ThreadPool> _threadPool;  // Optional: for parallel system execution
         std::shared_ptr<EventBus> _eventBus;      // Optional: for publishing events
         bool _gameActive{false};
+        bool _hadPlayers{false};  // Track if any players have joined the game
         std::atomic<bool> _initialized{false};
 
         // Thread synchronization

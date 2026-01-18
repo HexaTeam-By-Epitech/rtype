@@ -238,6 +238,7 @@ class GameLoop {
     void handleEntityDestroyed(const std::vector<uint8_t> &payload);
     void handleChatMessage(const std::vector<uint8_t> &payload);
     void handleLeftRoom(const std::vector<uint8_t> &payload);
+    void handleGameOver(const std::vector<uint8_t> &payload);
 
     // Helpers
     void processServerReconciliation(const RType::Messages::S2C::EntityState &entity);

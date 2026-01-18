@@ -42,6 +42,7 @@
 #include "common/MapLoader/MapLoader.hpp"
 #include "server/Core/EventBus/EventBus.hpp"
 #include "server/Core/ThreadPool/ThreadPool.hpp"
+#include "server/Events/GameEvent/GameEndedEvent.hpp"
 #include "server/Game/StateManager/GameOverState.hpp"
 #include "server/Game/StateManager/InGameState.hpp"
 #include "server/Game/StateManager/LobbyState.hpp"
@@ -161,9 +162,9 @@ namespace server {
 
         _executeSystems(deltaTime);
 
-        _cleanupDeadEntities();
+        _checkGameOverCondition();  // Check BEFORE cleaning up dead entities
 
-        _checkGameOverCondition();
+        _cleanupDeadEntities();
     }
 
     uint32_t GameLogic::spawnPlayer(uint32_t playerId, const std::string &playerName) {
@@ -197,6 +198,7 @@ namespace server {
             {
                 std::scoped_lock lock(_playerMutex);
                 _playerMap[playerId] = entityAddress;
+                _hadPlayers = true;  // Mark that at least one player has joined
             }
 
             LOG_INFO("✓ Player spawned at (", _gameRules.getPlayerSpawnX(), ", ",
@@ -285,8 +287,6 @@ namespace server {
             size_t inputsToProcess = 1;
             if (inputs.size() > 5) {
                 inputsToProcess = 2;  // Catch up
-                LOG_DEBUG("[JITTER] Player ", playerId, " buffer high (", inputs.size(),
-                          "), processing 2 inputs");
             }
 
             for (size_t i = 0; i < inputsToProcess && !inputs.empty(); ++i) {
@@ -332,12 +332,6 @@ namespace server {
                         anim.setCurrentFrameIndex(0);
                         anim.setTimer(0.0f);
                     }
-
-                    // Debug log throttled (thread-local to avoid races)
-                    thread_local uint32_t stopLogCount = 0;
-                    if (++stopLogCount % 60 == 0) {
-                        LOG_DEBUG("[INPUT] Player=", playerId, " STOPPED -> idle animation");
-                    }
                 } else {
                     // Normalize diagonal movement
                     float dirX = static_cast<float>(input.inputX);
@@ -357,13 +351,6 @@ namespace server {
                         anim.setCurrentClipName("player_movement");
                         anim.setCurrentFrameIndex(0);
                         anim.setTimer(0.0f);
-                    }
-
-                    // Debug log throttled
-                    thread_local uint32_t moveLogCount = 0;
-                    if (++moveLogCount % 60 == 0) {
-                        LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY,
-                                  ") -> movement animation");
                     }
                 }
             } else {
@@ -391,13 +378,6 @@ namespace server {
                 // Keep velocity direction at (0,0) so MovementSystem doesn't apply additional movement
                 // Player movement is entirely controlled by input processing, not by MovementSystem
                 vel.setDirection(0.0f, 0.0f);
-
-                // Debug log throttled
-                thread_local uint32_t moveLogCount = 0;
-                if (++moveLogCount % 60 == 0) {
-                    LOG_DEBUG("[INPUT] Player=", playerId, " dir=(", dirX, ", ", dirY, ") pos=(", newX, ", ",
-                              newY, ")");
-                }
             }
 
             // Handle shooting
@@ -507,30 +487,86 @@ namespace server {
             return;
         }
 
+        // Don't check if no players have ever joined
+        if (!_hadPlayers) {
+            return;
+        }
+
         bool allPlayersDead = true;
+        bool anyEnemiesRemain = false;
+
         {
             std::scoped_lock lock(_playerMutex);
-            if (_playerMap.empty()) {
-                return;  // No players, no game over
-            }
 
-            for (const auto &[playerId, entityAddress] : _playerMap) {
-                try {
-                    ecs::wrapper::Entity entity = _world->getEntity(entityAddress);
-                    if (entity.has<ecs::Health>() && entity.get<ecs::Health>().getCurrentHealth() > 0) {
-                        allPlayersDead = false;
-                        break;
+            // If player map is empty and we had players, they're all dead
+            if (!_playerMap.empty()) {
+                // Check if all players are dead
+                for (const auto &[playerId, entityAddress] : _playerMap) {
+                    try {
+                        ecs::wrapper::Entity entity = _world->getEntity(entityAddress);
+                        if (entity.has<ecs::Health>() && entity.get<ecs::Health>().getCurrentHealth() > 0) {
+                            allPlayersDead = false;
+                            break;
+                        }
+                    } catch (...) {
+                        // Entity doesn't exist, consider dead
                     }
-
-                } catch (...) {
-                    // Entity doesn't exist, consider dead
                 }
             }
         }
 
+        // Check if there are any enemies left alive
+        auto enemies = _world->query<ecs::Enemy, ecs::Health>();
+        for (auto &enemyEntity : enemies) {
+            try {
+                if (enemyEntity.has<ecs::Health>()) {
+                    const ecs::Health &health = enemyEntity.get<ecs::Health>();
+                    if (health.getCurrentHealth() > 0) {
+                        anyEnemiesRemain = true;
+                        break;
+                    }
+                }
+            } catch (...) {
+                // Skip invalid entities
+            }
+        }
+
+        // Check if any spawner is still active (has more waves to spawn)
+        bool spawnerStillActive = false;
+        auto spawners = _world->query<ecs::Spawner>();
+        for (auto &spawnerEntity : spawners) {
+            try {
+                if (spawnerEntity.has<ecs::Spawner>()) {
+                    const ecs::Spawner &spawner = spawnerEntity.get<ecs::Spawner>();
+                    if (spawner.isActive) {
+                        spawnerStillActive = true;
+                        break;
+                    }
+                }
+            } catch (...) {
+                // Skip invalid entities
+            }
+        }
+
+        // Victory: All enemies defeated, no more waves to spawn, and at least one player alive
+        if (!anyEnemiesRemain && !spawnerStillActive && !allPlayersDead) {
+            LOG_INFO("Victory! All enemies defeated!");
+            _gameActive = false;  // Stop game loop
+            _stateManager->changeState(2);
+            if (_eventBus) {
+                _eventBus->publish(GameEndedEvent("Victory"));
+            }
+            return;
+        }
+
+        // Defeat: All players dead
         if (allPlayersDead) {
-            LOG_INFO("All players defeated! Changing to GameOver state...");
-            _stateManager->changeState(2);  // GameOverState will publish GameEndedEvent
+            LOG_INFO("Defeat! All players eliminated.");
+            _gameActive = false;  // Stop game loop
+            _stateManager->changeState(2);
+            if (_eventBus) {
+                _eventBus->publish(GameEndedEvent("Defeat"));
+            }
         }
     }
 
@@ -538,6 +574,7 @@ namespace server {
         LOG_INFO("Resetting game...");
 
         _gameActive = true;
+        _hadPlayers = false;  // Reset player tracking
         _playerMap.clear();
         _pendingInput.clear();
         _lastReceivedSequenceId.clear();

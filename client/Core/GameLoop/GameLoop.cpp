@@ -518,6 +518,9 @@ void GameLoop::handleNetworkMessage(const NetworkEvent &event) {
         case NetworkMessages::MessageType::S2C_LEFT_ROOM:
             handleLeftRoom(payload);
             break;
+        case NetworkMessages::MessageType::S2C_GAME_OVER:
+            handleGameOver(payload);
+            break;
         default:
             break;
     }
@@ -846,5 +849,18 @@ void GameLoop::handleLeftRoom(const std::vector<uint8_t> &payload) {
 
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse LeftRoom: ", e.what());
+    }
+}
+
+void GameLoop::handleGameOver(const std::vector<uint8_t> &payload) {
+    try {
+        auto gameOver = RType::Messages::S2C::GameOver::deserialize(payload);
+        LOG_INFO("Game Over - ", gameOver.reason);
+
+        if (_rendering) {
+            _rendering->ShowGameOver(gameOver.reason);
+        }
+    } catch (const std::exception &e) {
+        LOG_ERROR("Failed to parse GameOver: ", e.what());
     }
 }

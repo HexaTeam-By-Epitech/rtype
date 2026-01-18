@@ -80,6 +80,8 @@ void Rendering::InitializeMenus() {
     InitializeCreateRoomMenu();
     InitializeWaitingRoomMenu();
     InitializeConnectionMenu();
+    InitializeDefeatMenu();
+    InitializeVictoryMenu();
     InitializeChatWidget();
     SubscribeToConnectionEvents();
 }
@@ -486,6 +488,46 @@ void Rendering::InitializeConnectionMenu() {
     _connectionMenu->Hide();
 }
 
+void Rendering::InitializeDefeatMenu() {
+    _defeatMenu = std::make_unique<Game::DefeatMenu>(*_uiFactory);
+    _defeatMenu->SetSoundEffectService(_soundEffectManager.get());
+
+    _defeatMenu->SetOnReturnToMenu([this]() {
+        // Return to main menu
+        if (_defeatMenu)
+            _defeatMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+        _scene = Scene::MENU;
+
+        // Publish event to leave the room
+        _eventBus.publish(UIEvent(UIEventType::LEAVE_ROOM));
+    });
+
+    _defeatMenu->Initialize();
+    _defeatMenu->Hide();
+}
+
+void Rendering::InitializeVictoryMenu() {
+    _victoryMenu = std::make_unique<Game::VictoryMenu>(*_uiFactory);
+    _victoryMenu->SetSoundEffectService(_soundEffectManager.get());
+
+    _victoryMenu->SetOnReturnToMenu([this]() {
+        // Return to main menu
+        if (_victoryMenu)
+            _victoryMenu->Hide();
+        if (_mainMenu)
+            _mainMenu->Show();
+        _scene = Scene::MENU;
+
+        // Publish event to leave the room
+        _eventBus.publish(UIEvent(UIEventType::LEAVE_ROOM));
+    });
+
+    _victoryMenu->Initialize();
+    _victoryMenu->Hide();
+}
+
 void Rendering::InitializeRoomListMenu() {
     _roomListMenu = std::make_unique<Game::RoomListMenu>(*_uiFactory, _graphics);
     _roomListMenu->SetSoundEffectService(_soundEffectManager.get());
@@ -735,6 +777,34 @@ void Rendering::StartGame() {
     }
 }
 
+void Rendering::ShowGameOver(const std::string &reason) {
+    _scene = Scene::GAME_OVER;
+    _gameOverReason = reason;
+
+    // Check if it's a victory or defeat
+    bool isVictory = (reason.find("Victory") != std::string::npos) ||
+                     (reason.find("victory") != std::string::npos) ||
+                     (reason.find("Win") != std::string::npos) || (reason.find("win") != std::string::npos);
+
+    // Hide all other menus and show the appropriate game over menu
+    if (_defeatMenu)
+        _defeatMenu->Hide();
+    if (_victoryMenu)
+        _victoryMenu->Hide();
+    if (_settingsMenu && _settingsOverlay) {
+        _settingsMenu->Hide();
+        _settingsOverlay = false;
+    }
+
+    if (isVictory && _victoryMenu) {
+        _victoryMenu->SetVictoryMessage(reason);
+        _victoryMenu->Show();
+    } else if (_defeatMenu) {
+        _defeatMenu->SetDefeatReason(reason);
+        _defeatMenu->Show();
+    }
+}
+
 void Rendering::Render() {
     if (!_initialized) {
         return;
@@ -919,6 +989,16 @@ void Rendering::UpdateUI() {
             _keyBindingsMenu->Update();
         }
     }
+
+    // Game over scene: update defeat/victory menus
+    if (_scene == Scene::GAME_OVER) {
+        if (_defeatMenu && _defeatMenu->IsVisible()) {
+            _defeatMenu->Update();
+        }
+        if (_victoryMenu && _victoryMenu->IsVisible()) {
+            _victoryMenu->Update();
+        }
+    }
 }
 
 void Rendering::RenderGameScene() {
@@ -993,6 +1073,31 @@ void Rendering::RenderUI() {
                                          _keyBindingsMenu->GetOverlayDimColor());
             }
             _keyBindingsMenu->Render();
+        }
+    }
+
+    // Game over scene: render defeat/victory menus
+    if (_scene == Scene::GAME_OVER) {
+        // Draw dim background
+        _graphics.DrawRectFilled(0, 0, static_cast<int>(_width), static_cast<int>(_height), 0xCC000000);
+
+        // Draw large game over text
+        int screenCenterX = static_cast<int>(_width) / 2;
+        int screenCenterY = static_cast<int>(_height) / 2;
+        int fontSize = 72;
+
+        if (_victoryMenu && _victoryMenu->IsVisible()) {
+            // Draw victory text in green/gold
+            int textWidth = static_cast<int>(_gameOverReason.length() * fontSize * 0.6);
+            int textX = screenCenterX - textWidth / 2;
+            _graphics.DrawText(_gameOverReason.c_str(), textX, screenCenterY - 150, fontSize, 0xFFFFD700);
+            _victoryMenu->Render();
+        } else if (_defeatMenu && _defeatMenu->IsVisible()) {
+            // Draw defeat text in red
+            int textWidth = static_cast<int>(_gameOverReason.length() * fontSize * 0.6);
+            int textX = screenCenterX - textWidth / 2;
+            _graphics.DrawText(_gameOverReason.c_str(), textX, screenCenterY - 150, fontSize, 0xFFFF4444);
+            _defeatMenu->Render();
         }
     }
 

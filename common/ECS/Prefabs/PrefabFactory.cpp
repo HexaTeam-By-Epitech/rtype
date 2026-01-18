@@ -6,8 +6,10 @@
 */
 
 #include "common/ECS/Prefabs/PrefabFactory.hpp"
+#include "common/ECS/CollisionLayers.hpp"
 #include "common/ECS/Components/Collectible.hpp"
 #include "common/ECS/Components/LuaScript.hpp"
+#include "common/ECS/Components/OrbitalModule.hpp"
 
 namespace ecs {
 
@@ -214,6 +216,50 @@ namespace ecs {
             return wall;
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to create wall: ", e.what());
+            return 0;
+        }
+    }
+
+    ecs::Address PrefabFactory::createOrbitalModule(ecs::Registry &registry, uint32_t parentEntityId,
+                                                    float orbitRadius, float orbitSpeed, float startAngle,
+                                                    int damage, int moduleHealth) {
+        try {
+            // Get parent position to initialize module near it
+            float initialX = 0.0f;
+            float initialY = 0.0f;
+            if (registry.hasComponent<Transform>(parentEntityId)) {
+                const Transform &parentTransform = registry.getComponent<Transform>(parentEntityId);
+                auto parentPos = parentTransform.getPosition();
+                initialX = parentPos.x + orbitRadius;
+                initialY = parentPos.y;
+            }
+
+            ecs::Address module = registry.newEntity();
+
+            // Orbital behavior component
+            registry.setComponent(
+                module, ecs::OrbitalModule(parentEntityId, orbitRadius, orbitSpeed, startAngle, damage));
+
+            // Position and movement
+            registry.setComponent(module, ecs::Transform(initialX, initialY));
+
+            // Collision - using PLAYER_MODULE layer
+            registry.setComponent(module,
+                                  ecs::Collider(16.0f, 16.0f, 0.0f, 0.0f, CollisionLayers::PLAYER_MODULE,
+                                                CollisionLayers::MASK_PLAYER_MODULE, false));
+
+            // Health for the module
+            registry.setComponent(module, ecs::Health(moduleHealth, moduleHealth));
+
+            // Visual representation (simple sprite for now)
+            registry.setComponent(module,
+                                  ecs::Sprite("Projectiles", {267, 84, 17, 13}, 1.5f, 0.0f, false, false, 0));
+
+            LOG_INFO("✓ Orbital module created for entity ", parentEntityId, " - Radius: ", orbitRadius,
+                     ", Speed: ", orbitSpeed, " rad/s");
+            return module;
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to create orbital module: ", e.what());
             return 0;
         }
     }

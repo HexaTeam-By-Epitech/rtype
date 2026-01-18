@@ -6,7 +6,10 @@
 */
 
 #include "CollisionSystem.hpp"
+#include "../../Components/Enemy.hpp"
 #include "../../Components/IComponent.hpp"
+#include "../../Components/OrbitalModule.hpp"
+#include "../../Components/Projectile.hpp"
 #include "../../Components/Wall.hpp"
 #include "common/Logger/Logger.hpp"
 
@@ -52,6 +55,12 @@ namespace ecs {
                     bool entity2IsPlayer = registry.hasComponent<Player>(entity2);
                     bool entity1IsCollectible = registry.hasComponent<Collectible>(entity1);
                     bool entity2IsCollectible = registry.hasComponent<Collectible>(entity2);
+                    bool entity1IsOrbitalModule = registry.hasComponent<OrbitalModule>(entity1);
+                    bool entity2IsOrbitalModule = registry.hasComponent<OrbitalModule>(entity2);
+                    bool entity1IsEnemy = registry.hasComponent<Enemy>(entity1);
+                    bool entity2IsEnemy = registry.hasComponent<Enemy>(entity2);
+                    bool entity1IsProjectile = registry.hasComponent<Projectile>(entity1);
+                    bool entity2IsProjectile = registry.hasComponent<Projectile>(entity2);
 
                     // Handle Player-Wall collision: block player movement
                     if (entity1IsPlayer && entity2IsWall) {
@@ -60,6 +69,20 @@ namespace ecs {
                     } else if (entity2IsPlayer && entity1IsWall) {
                         resolveWallCollision(entity2, entity1, transform2, collider2, transform1, collider1,
                                              registry);
+                    }
+
+                    // Handle Orbital Module - Enemy collision (module damages enemy)
+                    if (entity1IsOrbitalModule && entity2IsEnemy) {
+                        handleModuleEnemyCollision(entity1, entity2, registry);
+                    } else if (entity2IsOrbitalModule && entity1IsEnemy) {
+                        handleModuleEnemyCollision(entity2, entity1, registry);
+                    }
+
+                    // Handle Orbital Module - Enemy Projectile collision (module blocks projectile)
+                    if (entity1IsOrbitalModule && entity2IsProjectile) {
+                        handleModuleProjectileCollision(entity1, entity2, registry, entitiesToDestroy);
+                    } else if (entity2IsOrbitalModule && entity1IsProjectile) {
+                        handleModuleProjectileCollision(entity2, entity1, registry, entitiesToDestroy);
                     }
 
                     // Handle player-collectible pickup
@@ -74,8 +97,6 @@ namespace ecs {
                     } else if (entity2IsPlayer && entity1IsCollectible) {
                         handlePickup(entity2, entity1, registry, entitiesToDestroy);
                     }
-
-                    // TODO: Handle other collision types (projectile hits, etc.)
                 }
             }
         }
@@ -198,6 +219,49 @@ namespace ecs {
             // Entity might have been destroyed during collision processing
             // This is not critical, just skip this pickup
             return;
+        }
+    }
+
+    void CollisionSystem::handleModuleEnemyCollision(Address moduleAddr, Address enemyAddr,
+                                                     Registry &registry) {
+        // Get module damage value
+        if (!registry.hasComponent<OrbitalModule>(moduleAddr)) {
+            return;
+        }
+
+        const OrbitalModule &module = registry.getComponent<OrbitalModule>(moduleAddr);
+        int damage = module.getDamage();
+
+        // Apply damage to enemy
+        if (registry.hasComponent<Health>(enemyAddr)) {
+            Health &enemyHealth = registry.getComponent<Health>(enemyAddr);
+            int oldHealth = enemyHealth.getCurrentHealth();
+            enemyHealth.setCurrentHealth(oldHealth - damage);
+
+            LOG_DEBUG("[COLLISION] Orbital module E", moduleAddr, " hit enemy E", enemyAddr, " for ", damage,
+                      " damage (", oldHealth, " -> ", enemyHealth.getCurrentHealth(), ")");
+
+            // If enemy is dead, it will be handled by HealthSystem
+        }
+    }
+
+    void CollisionSystem::handleModuleProjectileCollision(Address moduleAddr, Address projectileAddr,
+                                                          Registry &registry,
+                                                          std::vector<Address> &entitiesToDestroy) {
+        // Check if projectile is from enemy
+        if (!registry.hasComponent<Projectile>(projectileAddr)) {
+            return;
+        }
+
+        const Projectile &projectile = registry.getComponent<Projectile>(projectileAddr);
+
+        // Only block enemy projectiles
+        if (!projectile.isFriendly()) {
+            LOG_DEBUG("[COLLISION] Orbital module E", moduleAddr, " blocked enemy projectile E",
+                      projectileAddr);
+
+            // Destroy the projectile
+            entitiesToDestroy.push_back(projectileAddr);
         }
     }
 

@@ -35,6 +35,7 @@
 #include "common/ECS/Systems/ISystem.hpp"
 #include "common/ECS/Systems/MapSystem/MapSystem.hpp"
 #include "common/ECS/Systems/MovementSystem/MovementSystem.hpp"
+#include "common/ECS/Systems/OrbitalSystem/OrbitalSystem.hpp"
 #include "common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
@@ -92,6 +93,7 @@ namespace server {
 
             // Create and register all systems with ECSWorld in execution order
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
+            _world->createSystem<ecs::OrbitalSystem>("OrbitalSystem");
             _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::MapSystem>("MapSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
@@ -393,7 +395,7 @@ namespace server {
         // Group systems by dependency - systems in the same group can run in parallel
 
         // Group 1: Independent systems (can run in parallel)
-        std::vector<std::string> group1 = {"MovementSystem"};
+        std::vector<std::string> group1 = {"MovementSystem", "OrbitalSystem"};
 
         // Group 2: Animation must run after Movement to update sprite frames
         std::vector<std::string> group2 = {"AnimationSystem"};

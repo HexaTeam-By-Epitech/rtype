@@ -220,22 +220,30 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path rtype-windows
-          
+
           # Copy executables
           Copy-Item "build/windows-release/server/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           Copy-Item "build/windows-release/client/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           Copy-Item "build/windows-release/server/Release/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           Copy-Item "build/windows-release/client/Release/*.exe" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
-          
+
           # Copy DLL dependencies from vcpkg
           $vcpkgBinPath = "build/windows-release/vcpkg_installed/x64-windows/bin"
           if (Test-Path $vcpkgBinPath) {
             Copy-Item "$vcpkgBinPath/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           }
-          
-          # Copy any DLLs from build directories
+
+          # Copy any DLLs from build directories (including Release subdirectory for MSVC multi-config)
           Copy-Item "build/windows-release/server/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           Copy-Item "build/windows-release/client/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/server/Release/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/client/Release/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+
+          # Copy DLLs from common libraries
+          Copy-Item "build/windows-release/common/Networking/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/common/Networking/Release/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/common/Serialization/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
+          Copy-Item "build/windows-release/common/Serialization/Release/*.dll" -Destination "rtype-windows/" -ErrorAction SilentlyContinue
           
           # Create README
           @"

@@ -81,6 +81,7 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E echo "Copying vcpkg DLLs for r-type_server..."
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin" "$<TARGET_FILE_DIR:r-type_server>"
         COMMAND ${CMAKE_COMMAND} -E echo "Copying project DLLs for r-type_server..."
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_server_lib>" "$<TARGET_FILE_DIR:r-type_server>/"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_networking>" "$<TARGET_FILE_DIR:r-type_server>/"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rtype_serialization>" "$<TARGET_FILE_DIR:r-type_server>/"
         COMMAND_EXPAND_LISTS

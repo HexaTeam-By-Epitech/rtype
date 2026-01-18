@@ -59,7 +59,7 @@ namespace server {
          * @param eventBus Shared event bus for server-wide events
          */
         explicit MatchmakingService(size_t minPlayers = 2, size_t maxPlayers = 4,
-                                    std::shared_ptr<EventBus> eventBus = nullptr);
+                                    std::shared_ptr<server::EventBus> eventBus = nullptr);
         ~MatchmakingService() override = default;
 
         void addPlayer(uint32_t playerId) override;
@@ -110,7 +110,7 @@ namespace server {
 
         size_t _minPlayers;
         size_t _maxPlayers;
-        std::shared_ptr<EventBus> _eventBus;
+        std::shared_ptr<server::EventBus> _eventBus;
 
         std::vector<PlayerQueueInfo> _waitingPlayers;
         mutable std::mutex _mutex;

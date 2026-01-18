@@ -508,35 +508,27 @@ namespace server {
             return;
         }
 
-        LOG_DEBUG("[GAME_OVER_CHECK] Checking game over conditions...");
-
         bool allPlayersDead = true;
         bool anyEnemiesRemain = false;
 
         {
             std::scoped_lock lock(_playerMutex);
+
+            // If player map is empty, all players are dead
             if (_playerMap.empty()) {
-                LOG_DEBUG("[GAME_OVER_CHECK] No players in map, skipping check");
-                return;  // No players, no game over
-            }
-
-            LOG_DEBUG("[GAME_OVER_CHECK] Checking ", _playerMap.size(), " players...");
-
-            // Check if all players are dead
-            for (const auto &[playerId, entityAddress] : _playerMap) {
-                try {
-                    ecs::wrapper::Entity entity = _world->getEntity(entityAddress);
-                    if (entity.has<ecs::Health>()) {
-                        int health = entity.get<ecs::Health>().getCurrentHealth();
-                        LOG_DEBUG("[GAME_OVER_CHECK] Player ", playerId, " health: ", health);
-                        if (health > 0) {
+                allPlayersDead = true;
+            } else {
+                // Check if all players are dead
+                for (const auto &[playerId, entityAddress] : _playerMap) {
+                    try {
+                        ecs::wrapper::Entity entity = _world->getEntity(entityAddress);
+                        if (entity.has<ecs::Health>() && entity.get<ecs::Health>().getCurrentHealth() > 0) {
                             allPlayersDead = false;
                             break;
                         }
+                    } catch (...) {
+                        // Entity doesn't exist, consider dead
                     }
-                } catch (...) {
-                    // Entity doesn't exist, consider dead
-                    LOG_DEBUG("[GAME_OVER_CHECK] Player ", playerId, " entity not found (dead)");
                 }
             }
         }
@@ -567,23 +559,18 @@ namespace server {
 
         // Victory: All enemies defeated and at least one player alive
         if (!anyEnemiesRemain && !allPlayersDead) {
-            LOG_INFO("[VICTORY] All enemies defeated! Publishing victory event...");
-            _stateManager->changeState(2);  // GameOverState will publish GameEndedEvent with "Victory" reason
-
-            // Manually publish with Victory reason
+            LOG_INFO("Victory! All enemies defeated!");
+            _stateManager->changeState(2);
             if (_eventBus) {
                 _eventBus->publish(GameEndedEvent("Victory"));
-                LOG_INFO("[EVENT] GameEndedEvent published with Victory reason");
-            } else {
-                LOG_ERROR("[EVENT] EventBus is null, cannot publish Victory!");
             }
             return;
         }
 
         // Defeat: All players dead
         if (allPlayersDead) {
-            LOG_INFO("[DEFEAT] All players defeated! Changing to GameOver state...");
-            _stateManager->changeState(2);  // GameOverState will publish GameEndedEvent
+            LOG_INFO("Defeat! All players eliminated.");
+            _stateManager->changeState(2);
         }
     }
 

@@ -228,7 +228,7 @@ namespace Game {
         Mode _mode{Mode::FULLSCREEN};
         bool _showPing{true};
         bool _showFps{true};
-        bool _showChat{true};
+        bool _showChat{false};         // Désactivé par défaut
         bool _autoMatchmaking{false};  // Auto-matchmaking disabled by default
         unsigned int _overlayDimColor{0x88000000};
         uint32_t _targetFps{60};

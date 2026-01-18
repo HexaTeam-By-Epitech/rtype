@@ -677,11 +677,6 @@ void GameLoop::handleGameState(const std::vector<uint8_t> &payload) {
             // Update our known entity list
             _knownEntityIds = currentEntityIds;
         }
-
-        static uint32_t logCounter = 0;
-        if (++logCounter % 60 == 0) {
-            LOG_DEBUG("GameState tick=", gameState.serverTick, " entities=", gameState.entities.size());
-        }
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse GameState: ", e.what());
     }

@@ -19,12 +19,6 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                                   int srcW, int srcH, float velocityX, float velocityY, uint32_t serverTick) {
     uint64_t currentTime = getCurrentTimeMs();
 
-    // Debug: log Wall entities
-    if (type == RType::Messages::Shared::EntityType::Wall) {
-        LOG_INFO("EntityRenderer: Updating Wall entity ID=", id, " Pos=(", x, ",", y, ") Size=(", srcW, "x",
-                 srcH, ") Health=", health);
-    }
-
     auto it = _entities.find(id);
     if (it != _entities.end()) {
         bool isLocalPlayer = (id == _myEntityId);
@@ -70,9 +64,6 @@ void EntityRenderer::updateEntity(uint32_t id, RType::Messages::Shared::EntityTy
                 it->second.targetX = x;
                 it->second.targetY = y;
                 it->second.interpolationFactor = 0.0f;
-
-                LOG_DEBUG("[RECONCILE] Error: ", errorDistance, "px threshold=", _reconciliationThreshold,
-                          ")");
             }
             // Otherwise keep predicted position - client knows best!
         } else if (_interpolationEnabled && !isProjectile) {

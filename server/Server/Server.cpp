@@ -557,7 +557,8 @@ void Server::_handleCreateRoom(HostNetworkEvent &event) {
     static std::atomic<uint32_t> nextRoomId{1};
     std::string roomId = "room_" + std::to_string(nextRoomId.fetch_add(1));
 
-    auto room = _roomManager->createRoom(roomId, request.roomName, request.maxPlayers, request.isPrivate);
+    auto room = _roomManager->createRoom(roomId, request.roomName, request.maxPlayers, request.isPrivate,
+                                         request.gameSpeedMultiplier);
     if (!room) {
         LOG_ERROR("Failed to create room");
         S2C::RoomCreated response("", false, "Failed to create room");
@@ -1245,6 +1246,11 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
             return;
         }
         server::GameruleBroadcaster::sendAllGamerules(peerIt->second, gameLogic->getGameRules());
+
+        // Also send the game speed multiplier for this room
+        float gameSpeedMultiplier = room->getGameSpeedMultiplier();
+        server::GameruleBroadcaster::sendGamerule(peerIt->second, GameruleKey::GAME_SPEED_MULTIPLIER,
+                                                  gameSpeedMultiplier);
     };
 
     // Helper to send game start

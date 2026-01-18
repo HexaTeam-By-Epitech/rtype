@@ -438,21 +438,23 @@ void Rendering::InitializeRoomListMenu() {
 void Rendering::InitializeCreateRoomMenu() {
     _createRoomMenu = std::make_unique<Game::CreateRoomMenu>(*_uiFactory, _graphics);
 
-    _createRoomMenu->SetOnCreate([this](const std::string &roomName, uint32_t maxPlayers, bool isPrivate) {
-        LOG_INFO("[Rendering] Creating room: ", roomName, " (Max: ", maxPlayers, ", Private: ", isPrivate,
-                 ")");
+    _createRoomMenu->SetOnCreate(
+        [this](const std::string &roomName, uint32_t maxPlayers, bool isPrivate, float gameSpeedMultiplier) {
+            LOG_INFO("[Rendering] Creating room: ", roomName, " (Max: ", maxPlayers, ", Private: ", isPrivate,
+                     ", Speed: ", static_cast<int>(gameSpeedMultiplier * 100), "%)");
 
-        // Publish CREATE_ROOM event (format: "roomName|maxPlayers|isPrivate")
-        std::string roomData = roomName + "|" + std::to_string(maxPlayers) + "|" + (isPrivate ? "1" : "0");
-        _eventBus.publish(UIEvent(UIEventType::CREATE_ROOM, roomData));
+            // Publish CREATE_ROOM event (format: "roomName|maxPlayers|isPrivate|gameSpeedMultiplier")
+            std::string roomData = roomName + "|" + std::to_string(maxPlayers) + "|" +
+                                   (isPrivate ? "1" : "0") + "|" + std::to_string(gameSpeedMultiplier);
+            _eventBus.publish(UIEvent(UIEventType::CREATE_ROOM, roomData));
 
-        if (_createRoomMenu)
-            _createRoomMenu->Hide();
+            if (_createRoomMenu)
+                _createRoomMenu->Hide();
 
-        // Show WaitingRoom instead of RoomListMenu (creator becomes host automatically)
-        if (_waitingRoomMenu)
-            _waitingRoomMenu->Show();
-    });
+            // Show WaitingRoom instead of RoomListMenu (creator becomes host automatically)
+            if (_waitingRoomMenu)
+                _waitingRoomMenu->Show();
+        });
 
     _createRoomMenu->SetOnCancel([this]() {
         if (_createRoomMenu)

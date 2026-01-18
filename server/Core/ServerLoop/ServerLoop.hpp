@@ -42,8 +42,10 @@ namespace server {
          * @brief Constructor
          * @param gameLogic The game logic to run
          * @param eventBus Event bus for publishing game events
+         * @param gameSpeedMultiplier Game speed multiplier (0.25 to 1.0, default 1.0)
          */
-        explicit ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus);
+        explicit ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus,
+                            float gameSpeedMultiplier = 1.0f);
 
         /**
          * @brief Destructor - ensures clean shutdown
@@ -91,6 +93,12 @@ namespace server {
          */
         std::shared_ptr<ecs::wrapper::ECSWorld> getECSWorld();
 
+        /**
+         * @brief Get the game speed multiplier
+         * @return Game speed multiplier (0.25 to 1.0)
+         */
+        float getGameSpeedMultiplier() const { return _gameSpeedMultiplier; }
+
        private:
         /**
          * @brief Main game loop function (runs in thread)
@@ -113,9 +121,11 @@ namespace server {
         std::atomic<bool> _initialized{false};
 
         // Timing
-        static constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;  // 60 Hz
-        static constexpr float MAX_FRAME_ACCUMULATOR = 0.2f;   // Skip frames if lag > 200ms
+        static constexpr float BASE_FIXED_TIMESTEP = 1.0f / 60.0f;  // 60 Hz base rate
+        static constexpr float MAX_FRAME_ACCUMULATOR = 0.2f;        // Skip frames if lag > 200ms
 
+        float _gameSpeedMultiplier{1.0f};               // Game speed multiplier (0.25 to 1.0)
+        float _effectiveTimestep{BASE_FIXED_TIMESTEP};  // Actual timestep = base / multiplier
         double _timeAccumulator{0.0};
         uint32_t _frameCount{0};
         uint32_t _skippedFrames{0};

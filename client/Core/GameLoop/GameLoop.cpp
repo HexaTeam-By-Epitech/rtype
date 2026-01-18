@@ -67,19 +67,25 @@ void GameLoop::handleUIEvent(const UIEvent &event) {
     } else if (event.getType() == UIEventType::CREATE_ROOM) {
         LOG_INFO("[GameLoop] Create room requested by UI");
         if (_replicator) {
-            // Parse room data (format: "roomName|maxPlayers|isPrivate")
+            // Parse room data (format: "roomName|maxPlayers|isPrivate|gameSpeedMultiplier")
             const std::string &data = event.getData();
             size_t pos1 = data.find('|');
             size_t pos2 = data.find('|', pos1 + 1);
+            size_t pos3 = data.find('|', pos2 + 1);
 
             if (pos1 != std::string::npos && pos2 != std::string::npos) {
                 std::string roomName = data.substr(0, pos1);
                 uint32_t maxPlayers = std::stoi(data.substr(pos1 + 1, pos2 - pos1 - 1));
-                bool isPrivate = (data.substr(pos2 + 1) == "1");
+                bool isPrivate = (data.substr(pos2 + 1, pos3 - pos2 - 1) == "1");
+                float gameSpeedMultiplier = 1.0f;
+                if (pos3 != std::string::npos) {
+                    gameSpeedMultiplier = std::stof(data.substr(pos3 + 1));
+                }
 
                 LOG_INFO("[GameLoop] Creating room: ", roomName, " (Max: ", maxPlayers,
-                         ", Private: ", isPrivate, ")");
-                _replicator->sendCreateRoom(roomName, maxPlayers, isPrivate);
+                         ", Private: ", isPrivate, ", Speed: ", static_cast<int>(gameSpeedMultiplier * 100),
+                         "%)");
+                _replicator->sendCreateRoom(roomName, maxPlayers, isPrivate, gameSpeedMultiplier);
 
                 // Mark that we just created a room, so we know we're the host when RoomState comes back
                 _justCreatedRoom = true;
@@ -719,6 +725,17 @@ void GameLoop::handleGameruleUpdate(const std::vector<uint8_t> &payload) {
         if (speed != _playerSpeed) {
             _playerSpeed = speed;
             LOG_INFO("  - Player speed updated to: ", _playerSpeed);
+        }
+
+        // Apply game speed multiplier from gamerules
+        float gameSpeed = clientRules.get(GameruleKey::GAME_SPEED_MULTIPLIER, _gameSpeedMultiplier);
+        if (gameSpeed != _gameSpeedMultiplier) {
+            _gameSpeedMultiplier = gameSpeed;
+            // Adjust fixed timestep to match server's effective timestep
+            // Lower multiplier = slower game = longer timestep
+            _fixedTimestep = (1.0f / 60.0f) / _gameSpeedMultiplier;
+            LOG_INFO("  - Game speed multiplier updated to: ", _gameSpeedMultiplier,
+                     " (effective timestep: ", _fixedTimestep * 1000.0f, "ms)");
         }
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse GamerulePacket: ", e.what());

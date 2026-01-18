@@ -423,15 +423,16 @@ bool Replicator::sendListRooms() {
     return _serverPeer->send(std::move(packet), 0);
 }
 
-bool Replicator::sendCreateRoom(const std::string &roomName, uint32_t maxPlayers, bool isPrivate) {
+bool Replicator::sendCreateRoom(const std::string &roomName, uint32_t maxPlayers, bool isPrivate,
+                                float gameSpeedMultiplier) {
     if (!_serverPeer || !_connected.load()) {
         return false;
     }
 
     using namespace RType::Messages;
 
-    // Create CreateRoom message
-    C2S::CreateRoom request(roomName, maxPlayers, isPrivate);
+    // Create CreateRoom message with game speed multiplier
+    C2S::CreateRoom request(roomName, maxPlayers, isPrivate, gameSpeedMultiplier);
     auto payload = request.serialize();
 
     // Wrap in network protocol

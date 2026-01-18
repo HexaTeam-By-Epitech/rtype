@@ -252,9 +252,11 @@ class Replicator {
      * @param roomName Name of the room to create
      * @param maxPlayers Maximum number of players
      * @param isPrivate Whether the room is private
+     * @param gameSpeedMultiplier Game speed multiplier (0.25 to 1.0, default 1.0)
      * @return true if the packet was sent successfully
      */
-    bool sendCreateRoom(const std::string &roomName, uint32_t maxPlayers, bool isPrivate);
+    bool sendCreateRoom(const std::string &roomName, uint32_t maxPlayers, bool isPrivate,
+                        float gameSpeedMultiplier = 1.0f);
 
     /**
      * @brief Send join room request to server.

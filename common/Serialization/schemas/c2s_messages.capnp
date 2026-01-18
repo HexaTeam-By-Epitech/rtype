@@ -38,6 +38,7 @@ struct CreateRoom {
   roomName @0 :Text;
   maxPlayers @1 :UInt32;
   isPrivate @2 :Bool;
+  gameSpeedMultiplier @3 :Float32;  # Game speed multiplier (0.25 to 1.0, default 1.0)
 }
 
 struct JoinRoom {

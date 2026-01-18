@@ -6,13 +6,18 @@
 */
 
 #include "server/Core/ServerLoop/ServerLoop.hpp"
+#include <algorithm>
 #include "common/Logger/Logger.hpp"
 #include "server/Game/Logic/GameLogic.hpp"
 
 namespace server {
 
-    ServerLoop::ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus)
-        : _gameLogic(std::move(gameLogic)), _eventBus(eventBus) {}
+    ServerLoop::ServerLoop(std::unique_ptr<IGameLogic> gameLogic, std::shared_ptr<EventBus> eventBus,
+                           float gameSpeedMultiplier)
+        : _gameLogic(std::move(gameLogic)),
+          _eventBus(eventBus),
+          _gameSpeedMultiplier(std::clamp(gameSpeedMultiplier, 0.25f, 1.0f)),
+          _effectiveTimestep(BASE_FIXED_TIMESTEP / _gameSpeedMultiplier) {}
 
     ServerLoop::~ServerLoop() {
         ServerLoop::stop();
@@ -33,7 +38,10 @@ namespace server {
             }
 
             LOG_INFO("✓ Game logic initialized");
-            LOG_INFO("✓ Fixed timestep: ", FIXED_TIMESTEP, "s (60 Hz)");
+            LOG_INFO("✓ Fixed timestep: ", _effectiveTimestep, "s (", 1.0f / _effectiveTimestep, " Hz)");
+            if (_gameSpeedMultiplier < 1.0f) {
+                LOG_INFO("✓ Game speed multiplier: ", static_cast<int>(_gameSpeedMultiplier * 100), "%");
+            }
 
             return true;
         } catch (const std::exception &e) {
@@ -98,9 +106,9 @@ namespace server {
                 _timeAccumulator += frameTime;
 
                 int frameSkips = 0;
-                while (_timeAccumulator >= FIXED_TIMESTEP && frameSkips < 5) {
+                while (_timeAccumulator >= _effectiveTimestep && frameSkips < 5) {
                     _fixedUpdate();
-                    _timeAccumulator -= FIXED_TIMESTEP;
+                    _timeAccumulator -= _effectiveTimestep;
                     _frameCount++;
                     frameSkips++;
                 }
@@ -122,7 +130,7 @@ namespace server {
         std::scoped_lock lock(_stateMutex);
 
         try {
-            _gameLogic->update(FIXED_TIMESTEP, _frameCount);
+            _gameLogic->update(_effectiveTimestep, _frameCount);
         } catch (const std::exception &e) {
             LOG_ERROR("Game logic update failed: ", e.what());
         }

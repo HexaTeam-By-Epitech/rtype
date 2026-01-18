@@ -758,8 +758,10 @@ void Server::_handleAutoMatchmaking(HostNetworkEvent &event) {
         // If no immediate match found, player was added to queue
         if (!foundRoom) {
             LOG_INFO("Player ", playerId, " added to matchmaking queue");
-            S2C::JoinedRoom response("", false,
-                                     "Searching for match... You will be notified when a match is found.");
+            S2C::JoinedRoom response(
+                "", true,
+                "Searching for match... You have been added to the matchmaking queue and "
+                "will be notified when a match is found.");
             _sendPacket(event.peer, NetworkMessages::MessageType::S2C_JOINED_ROOM, response.serialize());
             return;
         }

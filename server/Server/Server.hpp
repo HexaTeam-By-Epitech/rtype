@@ -156,7 +156,8 @@ class Server {
      */
     void _handleJoinRoom(HostNetworkEvent &event);
 
-    /**     * @brief Handle auto-matchmaking request
+    /**
+     * @brief Handle auto-matchmaking request
      * @param event Network event containing AutoMatchmaking message
      */
     void _handleAutoMatchmaking(HostNetworkEvent &event);
@@ -173,7 +174,8 @@ class Server {
      */
     void _onMatchmakingRoomCreated(std::shared_ptr<server::Room> room);
 
-    /**     * @brief Handle leave room request
+    /**
+     * @brief Handle leave room request
      * @param event Network event with packet data
      */
     void _handleLeaveRoom(HostNetworkEvent &event);

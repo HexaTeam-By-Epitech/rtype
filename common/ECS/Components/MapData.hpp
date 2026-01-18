@@ -32,6 +32,8 @@ namespace ecs {
               _name(""),
               _scrollSpeed(0.0f),
               _backgroundSprite(""),
+              _parallaxBackgroundSprite(""),
+              _parallaxSpeedFactor(0.5f),
               _spawnScript(""),
               _duration(0.0f),
               _nextMapId(""),
@@ -51,6 +53,8 @@ namespace ecs {
               _name(""),
               _scrollSpeed(scrollSpeed),
               _backgroundSprite(backgroundSprite),
+              _parallaxBackgroundSprite(""),
+              _parallaxSpeedFactor(0.5f),
               _spawnScript(spawnScript),
               _duration(0.0f),
               _nextMapId(""),
@@ -66,14 +70,19 @@ namespace ecs {
          * @param spawnScript Lua script path for spawn management
          * @param duration Map duration in seconds (0 = infinite)
          * @param nextMapId ID of the next map to load after completion
+         * @param parallaxBackground Parallax layer sprite (rendered on top, scrolls slower)
+         * @param parallaxSpeedFactor Speed factor for parallax layer (0.5 = half speed)
          */
         MapData(const std::string &mapId, const std::string &name, float scrollSpeed,
                 const std::string &backgroundSprite, const std::string &spawnScript, float duration,
-                const std::string &nextMapId)
+                const std::string &nextMapId, const std::string &parallaxBackground = "",
+                float parallaxSpeedFactor = 0.5f)
             : _mapId(mapId),
               _name(name),
               _scrollSpeed(scrollSpeed),
               _backgroundSprite(backgroundSprite),
+              _parallaxBackgroundSprite(parallaxBackground),
+              _parallaxSpeedFactor(parallaxSpeedFactor),
               _spawnScript(spawnScript),
               _duration(duration),
               _nextMapId(nextMapId),
@@ -107,6 +116,18 @@ namespace ecs {
          * @return Background sprite asset path
          */
         const std::string &getBackgroundSprite() const { return _backgroundSprite; }
+
+        /**
+         * @brief Get the parallax background sprite path.
+         * @return Parallax background sprite asset path (rendered on top, scrolls slower)
+         */
+        const std::string &getParallaxBackgroundSprite() const { return _parallaxBackgroundSprite; }
+
+        /**
+         * @brief Get the parallax speed factor.
+         * @return Speed factor for parallax layer (0.5 = half speed of main background)
+         */
+        float getParallaxSpeedFactor() const { return _parallaxSpeedFactor; }
 
         /**
          * @brief Get the spawn script path.
@@ -165,6 +186,18 @@ namespace ecs {
         void setBackgroundSprite(const std::string &sprite) { _backgroundSprite = sprite; }
 
         /**
+         * @brief Set the parallax background sprite.
+         * @param sprite New parallax background sprite path
+         */
+        void setParallaxBackgroundSprite(const std::string &sprite) { _parallaxBackgroundSprite = sprite; }
+
+        /**
+         * @brief Set the parallax speed factor.
+         * @param factor New speed factor (0.5 = half speed)
+         */
+        void setParallaxSpeedFactor(float factor) { _parallaxSpeedFactor = factor; }
+
+        /**
          * @brief Set the spawn script.
          * @param script New Lua script path
          */
@@ -212,6 +245,9 @@ namespace ecs {
         std::string _name;              ///< Display name
         float _scrollSpeed;             ///< Horizontal scroll speed (px/s)
         std::string _backgroundSprite;  ///< Background asset path
+        std::string
+            _parallaxBackgroundSprite;  ///< Parallax layer asset path (rendered on top, scrolls slower)
+        float _parallaxSpeedFactor;     ///< Speed factor for parallax layer (0.5 = half speed)
         std::string _spawnScript;       ///< Lua script for spawn logic
         float _duration;                ///< Map duration in seconds (0 = infinite)
         std::string _nextMapId;         ///< Next map to load after completion

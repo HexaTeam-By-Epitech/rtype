@@ -244,10 +244,37 @@ class Rendering {
 
     /**
      * @brief Clear all entities from the rendering cache
-     * 
+     *
      * Useful for scene transitions or disconnection.
      */
     void ClearAllEntities();
+
+    /**
+     * @brief Set up background layers for parallax scrolling
+     * @param mainBackground Path to the main background texture
+     * @param parallaxBackground Path to the parallax layer texture (rendered on top, scrolls slower)
+     * @param scrollSpeed Base scroll speed in pixels/second
+     * @param parallaxSpeedFactor Speed factor for parallax layer (0.5 = half speed)
+     *
+     * Called when starting a game with map configuration.
+     */
+    void SetBackground(const std::string &mainBackground, const std::string &parallaxBackground,
+                       float scrollSpeed, float parallaxSpeedFactor);
+
+    /**
+     * @brief Clear background configuration
+     *
+     * Called when leaving the game scene to stop background rendering.
+     */
+    void ClearBackground();
+
+    /**
+     * @brief Update background scroll positions
+     * @param deltaTime Time elapsed since last frame (in seconds)
+     *
+     * Should be called every frame during gameplay.
+     */
+    void UpdateBackground(float deltaTime);
 
     /**
      * @brief Check if a key is currently being held down

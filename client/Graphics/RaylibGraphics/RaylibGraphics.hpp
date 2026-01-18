@@ -72,6 +72,9 @@ namespace Graphics {
         void DrawTexture(const char *textureName, int x, int y, unsigned int tint) override;
         void DrawTextureEx(const char *textureName, int srcX, int srcY, int srcW, int srcH, float destX,
                            float destY, float rotation, float scale, unsigned int tint) override;
+        bool GetTextureSize(const char *textureName, int &width, int &height) const override;
+        void DrawTexturePro(const char *textureName, int srcX, int srcY, int srcW, int srcH, float destX,
+                            float destY, float destW, float destH, unsigned int tint) override;
 
         // Input helpers
         bool IsKeyPressed(int key) const override;

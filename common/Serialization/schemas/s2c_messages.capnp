@@ -28,9 +28,17 @@ struct GameState {
   serverTimestamp @2 :UInt64;  # Server timestamp in milliseconds (for interpolation)
 }
 
+struct MapConfig {
+  background @0 :Text;           # Path to main background texture (e.g., "backgrounds/bg-full.png")
+  parallaxBackground @1 :Text;   # Path to parallax layer texture (empty = none)
+  scrollSpeed @2 :Float32;       # Background scroll speed in pixels/second
+  parallaxSpeedFactor @3 :Float32; # Parallax layer speed factor (0.3 = 30% of main speed)
+}
+
 struct GameStart {
   yourEntityId @0 :UInt32;
   initialState @1 :GameState;
+  mapConfig @2 :MapConfig;       # Map background configuration
 }
 
 struct EntityDestroyed {

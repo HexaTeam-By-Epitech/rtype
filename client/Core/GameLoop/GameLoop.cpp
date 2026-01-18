@@ -495,6 +495,15 @@ void GameLoop::handleGameStart(const std::vector<uint8_t> &payload) {
         auto gameStart = RType::Messages::S2C::GameStart::deserialize(payload);
         LOG_INFO("GameStart received: yourEntityId=", gameStart.yourEntityId);
 
+        // Set up parallax background using map config from server
+        if (_rendering) {
+            const auto &mapConfig = gameStart.mapConfig;
+            LOG_INFO("Map config: bg='", mapConfig.background, "', parallax='", mapConfig.parallaxBackground,
+                     "', speed=", mapConfig.scrollSpeed, ", parallaxFactor=", mapConfig.parallaxSpeedFactor);
+            _rendering->SetBackground(mapConfig.background, mapConfig.parallaxBackground,
+                                      mapConfig.scrollSpeed, mapConfig.parallaxSpeedFactor);
+        }
+
         for (const auto &entity : gameStart.initialState.entities) {
             if (entity.entityId == gameStart.yourEntityId) {
                 _myEntityId = entity.entityId;

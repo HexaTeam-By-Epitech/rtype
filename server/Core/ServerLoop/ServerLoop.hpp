@@ -124,8 +124,9 @@ namespace server {
         static constexpr float BASE_FIXED_TIMESTEP = 1.0f / 60.0f;  // 60 Hz base rate
         static constexpr float MAX_FRAME_ACCUMULATOR = 0.2f;        // Skip frames if lag > 200ms
 
-        float _gameSpeedMultiplier{1.0f};               // Game speed multiplier (0.25 to 1.0)
-        float _effectiveTimestep{BASE_FIXED_TIMESTEP};  // Actual timestep = base / multiplier
+        float _gameSpeedMultiplier{1.0f};  // Game speed multiplier (0.25 to 1.0)
+        float _scaledTimestep{
+            BASE_FIXED_TIMESTEP};  // Scaled timestep = base * multiplier (passed to systems)
         double _timeAccumulator{0.0};
         uint32_t _frameCount{0};
         uint32_t _skippedFrames{0};

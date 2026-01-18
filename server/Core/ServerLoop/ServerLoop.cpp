@@ -17,7 +17,7 @@ namespace server {
         : _gameLogic(std::move(gameLogic)),
           _eventBus(eventBus),
           _gameSpeedMultiplier(std::clamp(gameSpeedMultiplier, 0.25f, 1.0f)),
-          _effectiveTimestep(BASE_FIXED_TIMESTEP / _gameSpeedMultiplier) {}
+          _scaledTimestep(BASE_FIXED_TIMESTEP * _gameSpeedMultiplier) {}
 
     ServerLoop::~ServerLoop() {
         ServerLoop::stop();
@@ -38,9 +38,10 @@ namespace server {
             }
 
             LOG_INFO("✓ Game logic initialized");
-            LOG_INFO("✓ Fixed timestep: ", _effectiveTimestep, "s (", 1.0f / _effectiveTimestep, " Hz)");
+            LOG_INFO("✓ Fixed timestep: ", BASE_FIXED_TIMESTEP, "s (", 1.0f / BASE_FIXED_TIMESTEP, " Hz)");
             if (_gameSpeedMultiplier < 1.0f) {
                 LOG_INFO("✓ Game speed multiplier: ", static_cast<int>(_gameSpeedMultiplier * 100), "%");
+                LOG_INFO("✓ Scaled game time per tick: ", _scaledTimestep * 1000.0f, "ms");
             }
 
             return true;
@@ -106,9 +107,9 @@ namespace server {
                 _timeAccumulator += frameTime;
 
                 int frameSkips = 0;
-                while (_timeAccumulator >= _effectiveTimestep && frameSkips < 5) {
+                while (_timeAccumulator >= BASE_FIXED_TIMESTEP && frameSkips < 5) {
                     _fixedUpdate();
-                    _timeAccumulator -= _effectiveTimestep;
+                    _timeAccumulator -= BASE_FIXED_TIMESTEP;
                     _frameCount++;
                     frameSkips++;
                 }
@@ -130,7 +131,9 @@ namespace server {
         std::scoped_lock lock(_stateMutex);
 
         try {
-            _gameLogic->update(_effectiveTimestep, _frameCount);
+            // Pass scaled timestep to systems so game time passes slower
+            // when gameSpeedMultiplier < 1.0
+            _gameLogic->update(_scaledTimestep, _frameCount);
         } catch (const std::exception &e) {
             LOG_ERROR("Game logic update failed: ", e.what());
         }

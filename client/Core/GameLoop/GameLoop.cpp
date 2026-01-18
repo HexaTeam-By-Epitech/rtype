@@ -346,8 +346,8 @@ void GameLoop::processInput() {
     // Collect all currently pressed actions
     std::vector<RType::Messages::Shared::Action> actions;
 
-    // Calculate movement delta (distance per frame at fixed 60Hz)
-    float moveDelta = _playerSpeed * _fixedTimestep;  // e.g., 200 * 0.0167 = 3.33 pixels
+    // Calculate movement delta (distance per frame at fixed 60Hz, scaled by game speed)
+    float moveDelta = _playerSpeed * _fixedTimestep * _gameSpeedMultiplier;
 
     // Collect input directions first
     int dx = 0, dy = 0;
@@ -705,7 +705,8 @@ void GameLoop::simulateInputHistory(float &x, float &y) {
                 moveY /= length;
             }
 
-            float frameDelta = _playerSpeed * (1.0f / 60.0f);
+            // Scale by game speed multiplier to match server's slowed game time
+            float frameDelta = _playerSpeed * (1.0f / 60.0f) * _gameSpeedMultiplier;
             x += moveX * frameDelta;
             y += moveY * frameDelta;
         }
@@ -731,11 +732,10 @@ void GameLoop::handleGameruleUpdate(const std::vector<uint8_t> &payload) {
         float gameSpeed = clientRules.get(GameruleKey::GAME_SPEED_MULTIPLIER, _gameSpeedMultiplier);
         if (gameSpeed != _gameSpeedMultiplier) {
             _gameSpeedMultiplier = gameSpeed;
-            // Adjust fixed timestep to match server's effective timestep
-            // Lower multiplier = slower game = longer timestep
-            _fixedTimestep = (1.0f / 60.0f) / _gameSpeedMultiplier;
+            // Client keeps 60Hz loop rate but scales deltaTime for prediction
+            // to match server's slowed game time
             LOG_INFO("  - Game speed multiplier updated to: ", _gameSpeedMultiplier,
-                     " (effective timestep: ", _fixedTimestep * 1000.0f, "ms)");
+                     " (prediction will use scaled time)");
         }
     } catch (const std::exception &e) {
         LOG_ERROR("Failed to parse GamerulePacket: ", e.what());

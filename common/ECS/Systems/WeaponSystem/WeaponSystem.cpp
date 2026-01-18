@@ -10,6 +10,7 @@
 #include "common/Animation/AnimationDatabase.hpp"
 #include "common/ECS/Components/Animation.hpp"
 #include "common/ECS/Components/AnimationSet.hpp"
+#include "common/ECS/Components/Collider.hpp"
 #include "common/ECS/Components/IComponent.hpp"
 #include "common/ECS/Components/Projectile.hpp"
 #include "common/ECS/Components/Sprite.hpp"
@@ -199,6 +200,9 @@ namespace ecs {
         registry.setComponent(projectileId, transform);
         registry.setComponent(projectileId, velocity);
         registry.setComponent(projectileId, Projectile(damage, 10.0f, ownerId, isFriendly));
+
+        // Add Collider for collision detection (Layer 4=projectiles, mask=all, solid collision)
+        registry.setComponent(projectileId, Collider(10.0f, 10.0f, 0.0f, 0.0f, 4, 0xFFFFFFFF, false));
 
         // Add projectile animations
         ecs::AnimationSet bulletAnimations = AnimDB::createPlayerBulletAnimations();

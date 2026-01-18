@@ -86,6 +86,44 @@ namespace ecs {
         void setInvincibilityTimer(float timer) { _timer = timer; }
 
         /**
+         * @brief Apply damage to the entity.
+         * Respects invincibility frames - no damage taken if invincible.
+         * @param amount Damage amount (positive value)
+         * @return bool True if damage was applied, false if blocked by invincibility
+         */
+        bool takeDamage(int amount) {
+            if (_invincible || amount <= 0) {
+                return false;
+            }
+            _current -= amount;
+            if (_current < 0) {
+                _current = 0;
+            }
+            return true;
+        }
+
+        /**
+         * @brief Restore health points.
+         * Cannot exceed maximum health.
+         * @param amount Health to restore (positive value)
+         */
+        void heal(int amount) {
+            if (amount <= 0) {
+                return;
+            }
+            _current += amount;
+            if (_current > _max) {
+                _current = _max;
+            }
+        }
+
+        /**
+         * @brief Check if entity is dead (health <= 0).
+         * @return bool True if dead, false if alive.
+         */
+        bool isDead() const { return _current <= 0; }
+
+        /**
          * @brief Get the component type ID.
          * @return ComponentType Unique ID for Health component.
          */

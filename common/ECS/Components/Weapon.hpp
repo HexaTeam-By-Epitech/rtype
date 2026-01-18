@@ -15,7 +15,15 @@ namespace ecs {
      * @brief Component for entities capable of shooting projectiles.
      * 
      * Manages weapon characteristics including fire rate, cooldown timer,
-     * projectile type spawned, and base damage dealt.
+     * projectile type spawned, base damage dealt, and charged shot mechanics.
+     * 
+     * ## Charged Shots
+     * Weapons support a charging mechanic where holding the fire button accumulates
+     * charge over time. When released:
+     * - If charge >= 50%: Fires a charged shot with increased damage (up to 2.5x) and speed (up to 1.5x)
+     * - If charge < 50%: Fires a normal shot
+     * 
+     * Charge accumulation is controlled by the `chargeRate` field (default: 1.0 = full charge in 1 second).
      */
     class Weapon : public IComponent {
        public:
@@ -108,6 +116,44 @@ namespace ecs {
         void setShouldShoot(bool shouldShoot) { _shouldShoot = shouldShoot; }
 
         /**
+         * @brief Check if weapon is currently charging.
+         * @return bool True if charging, false otherwise
+         */
+        [[nodiscard]] bool isCharging() const { return _isCharging; }
+
+        /**
+         * @brief Set charging state.
+         * @param charging True to start charging, false to stop
+         */
+        void setCharging(bool charging) { _isCharging = charging; }
+
+        /**
+         * @brief Get current charge level.
+         * @return float Charge level from 0.0 (empty) to 1.0 (full)
+         */
+        [[nodiscard]] float getChargeLevel() const { return _chargeLevel; }
+
+        /**
+         * @brief Set charge level.
+         * @param level Charge level (clamped to 0.0-1.0)
+         */
+        void setChargeLevel(float level) {
+            _chargeLevel = (level < 0.0F) ? 0.0F : (level > 1.0F) ? 1.0F : level;
+        }
+
+        /**
+         * @brief Get charge rate (how fast the weapon charges).
+         * @return float Charge rate (0.0 to 1.0 per second)
+         */
+        [[nodiscard]] float getChargeRate() const { return _chargeRate; }
+
+        /**
+         * @brief Set charge rate.
+         * @param rate Charge rate per second
+         */
+        void setChargeRate(float rate) { _chargeRate = rate; }
+
+        /**
          * @brief Get the component type ID.
          * @return ComponentType Unique ID for Weapon component.
          */
@@ -121,5 +167,10 @@ namespace ecs {
         bool _shouldShoot = false;  ///< Whether the weapon is currently set to shoot
         float _baseFireRate;        ///< Base fire rate (before buffs)
         int _baseDamage;            ///< Base damage (before buffs)
+
+        // Charge shot fields
+        bool _isCharging = false;   ///< Whether the weapon is currently charging
+        float _chargeLevel = 0.0F;  ///< Current charge level (0.0 to 1.0)
+        float _chargeRate = 1.0F;   ///< How fast the weapon charges per second
     };
 }  // namespace ecs

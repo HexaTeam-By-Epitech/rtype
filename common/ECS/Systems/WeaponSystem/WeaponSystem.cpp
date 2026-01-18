@@ -24,38 +24,47 @@ namespace ecs {
         for (auto entityId : entities) {
             auto &weapon = registry.getComponent<Weapon>(entityId);
 
+            // Update cooldown
             weapon.setCooldown(std::max(0.0F, weapon.getCooldown() - deltaTime));
-            if (weapon.getCooldown() > 0.0F) {
-                continue;
-            }
-            if (!weapon.shouldShoot()) {
-                continue;
-            }
 
-            // Use fireRate from weapon configuration instead of hardcoded value
-            // fireRate is shots per second (e.g., 10.0f = 10 shots/sec)
-            // cooldown is seconds per shot (e.g., 1/10 = 0.1s between shots)
-            float fireRate = weapon.getFireRate();
-            if (fireRate > 0.0F) {
-                weapon.setCooldown(1.0F / fireRate);
-            } else {
-                weapon.setCooldown(1.0F / 7.0F);  // Fallback: 7 shots/sec
-            }
+            // Handle charging
+            if (weapon.shouldShoot() && weapon.getCooldown() <= 0.0F) {
+                // Start or continue charging
+                if (!weapon.isCharging()) {
+                    weapon.setCharging(true);
+                    weapon.setChargeLevel(0.0F);
+                }
 
-            // Calculate projectile properties using same logic as fireWeapon
-            Transform projectileTransform = calculateProjectileTransform(registry, entityId);
-            Velocity projectileVelocity = calculateProjectileVelocity(300.0F);
-            auto pos = projectileTransform.getPosition();
-            auto dir = projectileVelocity.getDirection();
+                // Accumulate charge
+                float newCharge = weapon.getChargeLevel() + (weapon.getChargeRate() * deltaTime);
+                weapon.setChargeLevel(newCharge);
 
-            uint32_t projectileId =
-                PrefabFactory::createProjectile(registry, entityId, pos.x, pos.y, dir.x, dir.y, 300.0F,
-                                                static_cast<int>(weapon.getDamage()), true);
+                // Cap at full charge (1.0)
+                if (weapon.getChargeLevel() >= 1.0F) {
+                    weapon.setChargeLevel(1.0F);
+                }
+            } else if (!weapon.shouldShoot() && weapon.isCharging()) {
+                // Button released - fire charged shot
+                float chargeLevel = weapon.getChargeLevel();
 
-            // Invoke callback if set and projectile was created
-            if (_projectileCreatedCallback && projectileId != 0) {
-                _projectileCreatedCallback(projectileId, entityId, pos.x, pos.y, dir.x, dir.y, 300.0f,
-                                           static_cast<int>(weapon.getDamage()), true);
+                // Fire the charged shot
+                bool isFriendly = true;  // Assume player weapon
+                fireChargedShot(registry, entityId, chargeLevel, isFriendly);
+
+                // Reset charge state
+                weapon.setCharging(false);
+                weapon.setChargeLevel(0.0F);
+
+                // Set cooldown
+                float fireRate = weapon.getFireRate();
+                if (fireRate > 0.0F) {
+                    weapon.setCooldown(1.0F / fireRate);
+                } else {
+                    weapon.setCooldown(1.0F / 7.0F);  // Fallback: 7 shots/sec
+                }
+            } else if (!weapon.shouldShoot() && !weapon.isCharging()) {
+                // Not shooting and not charging - reset charge
+                weapon.setChargeLevel(0.0F);
             }
         }
     }
@@ -165,17 +174,24 @@ namespace ecs {
         float chargedDamage = weapon.getDamage() * damageMultiplier;
         registry.setComponent(projectileId, Projectile(chargedDamage, 10.0F, ownerId, isFriendly));
 
-        // Add projectile animations (charged shots use same animation for now)
+        // Add projectile animations with charge-based sprite selection
         ecs::AnimationSet bulletAnimations = AnimDB::createPlayerBulletAnimations();
         registry.setComponent(projectileId, bulletAnimations);
-        registry.setComponent(projectileId, ecs::Animation("projectile_fly", true, true));
 
-        ecs::Rectangle chargedRect = {267, 84, 17, 13};
-        ecs::Sprite chargedSprite("Projectiles", chargedRect, 2.5f, 0.0f, false, false, 0);
+        // Select animation and sprite based on charge level
+        std::string animationName = "projectile_fly";
+        ecs::Rectangle chargedRect = {267, 84, 17, 13};  // Default normal projectile
+        float scale = 2.0f;
+
+        animationName = "charged_projectile_1";
+
+        registry.setComponent(projectileId, ecs::Animation(animationName, true, true));
+        ecs::Sprite chargedSprite("Projectiles", chargedRect, scale, 0.0f, false, false, 0);
         registry.setComponent(projectileId, chargedSprite);
 
-        LOG_DEBUG("Created charged projectile ", projectileId, " with Sprite rect(", chargedRect.x, ",",
-                  chargedRect.y, ",", chargedRect.width, ",", chargedRect.height, ")");
+        LOG_DEBUG("Created charged projectile ", projectileId, " (charge: ", chargeLevel,
+                  ", anim: ", animationName, ") with Sprite rect(", chargedRect.x, ",", chargedRect.y, ",",
+                  chargedRect.width, ",", chargedRect.height, ") scale: ", scale);
 
         // Reset weapon cooldown
         float fireRate = weapon.getFireRate();

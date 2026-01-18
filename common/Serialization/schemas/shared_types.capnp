@@ -21,6 +21,7 @@ enum EntityType {
   enemyType1 @1;
   playerBullet @2;
   enemyBullet @3;
+  wall @4;
 }
 
 enum DestroyReason {

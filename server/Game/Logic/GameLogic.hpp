@@ -114,6 +114,13 @@ namespace server {
          */
         const GameRules &getGameRules() const override { return _gameRules; }
 
+        /**
+         * @brief Load and activate a new map from a JSON file.
+         * @param mapFilePath Path to the map JSON file
+         * @return True if map was loaded successfully
+         */
+        bool loadMap(const std::string &mapFilePath);
+
        private:
         /**
          * @brief Execute all systems in order

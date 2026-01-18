@@ -103,6 +103,23 @@ namespace ecs {
                         std::uint32_t mask2) const;
 
         /**
+         * @brief Resolves collision between player and wall by instantly killing the player.
+         * 
+         * Walls are instant death obstacles - deals massive damage to kill player on contact.
+         * 
+         * @param playerAddr Player entity address
+         * @param wallAddr Wall entity address
+         * @param playerTransform Player's transform component
+         * @param playerCollider Player's collider component
+         * @param wallTransform Wall's transform component
+         * @param wallCollider Wall's collider component
+         * @param registry Reference to the ECS registry
+         */
+        void resolveWallCollision(Address playerAddr, Address wallAddr, Transform &playerTransform,
+                                  Collider &playerCollider, Transform &wallTransform, Collider &wallCollider,
+                                  Registry &registry);
+
+        /**
          * @brief Handle projectile collision with other entities.
          * 
          * If entity1 is a projectile and entity2 is an enemy, applies damage

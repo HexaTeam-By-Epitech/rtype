@@ -17,6 +17,7 @@ file(GLOB_RECURSE SERVER_SOURCES
 file(GLOB_RECURSE ECS_SOURCES
         "${CMAKE_SOURCE_DIR}/common/ECS/*.cpp"
         "${CMAKE_SOURCE_DIR}/common/ECSWrapper/*.cpp"
+        "${CMAKE_SOURCE_DIR}/common/MapLoader/*.cpp"
 )
 
 # Find Lua and sol2

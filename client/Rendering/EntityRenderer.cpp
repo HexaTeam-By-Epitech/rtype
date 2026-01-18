@@ -262,30 +262,42 @@ void EntityRenderer::renderHealthBar(float x, float y, int health, int maxHealth
 }
 
 void EntityRenderer::renderWall(const RenderableEntity &entity) {
-    // Wall rendering: use simple rectangles for now for visibility
+    // Wall rendering with Wall.png texture
     float width = entity.spriteSizeX > 0 ? static_cast<float>(entity.spriteSizeX) : 50.0f;
     float height = entity.spriteSizeY > 0 ? static_cast<float>(entity.spriteSizeY) : 50.0f;
 
-    LOG_INFO("RENDERING Wall ID=", entity.entityId, " at (", entity.x, ",", entity.y, ") size=(", width, "x",
-             height, ") health=", entity.health);
+    // Calculate position (top-left corner for drawing)
+    float x = entity.x - width / 2.0f;
+    float y = entity.y - height / 2.0f;
 
-    // Color: brown if destructible, gray if solid
-    // Format appears to be ABGR not RGBA: 0xAABBGGRR
-    uint32_t color = entity.health > 0 ? 0xFF13458BFF : 0xFF808080FF;  // Brown : Gray (ABGR format)
+    // Color tint: ABGR format
+    uint32_t tint = 0xFFFFFFFF;  // White (no tint) by default
+    if (entity.health > 0) {
+        // Destructible wall - tint red when damaged
+        float healthRatio = entity.health / 100.0f;
+        uint8_t red = 255;
+        uint8_t green = static_cast<uint8_t>(255 * healthRatio);
+        uint8_t blue = static_cast<uint8_t>(255 * healthRatio);
+        // ABGR format: 0xAABBGGRR
+        tint = 0xFF000000 | (blue << 16) | (green << 8) | red;
+    }
 
-    // Draw filled rectangle
-    _graphics.DrawRectFilled(static_cast<int>(entity.x - width / 2.0f),
-                             static_cast<int>(entity.y - height / 2.0f), static_cast<int>(width),
-                             static_cast<int>(height), color);
+    // Draw Wall.png texture stretched to fit the wall dimensions
+    // Use source coordinates to take the entire texture (assume texture is ~50x50)
+    // The texture will be scaled to match width x height
+    float scaleX = width / 50.0f;   // Assuming Wall.png is 50 pixels wide
+    float scaleY = height / 50.0f;  // Assuming Wall.png is 50 pixels tall
+    float avgScale = (scaleX + scaleY) / 2.0f;
+
+    _graphics.DrawTextureEx("Wall.png", 0, 0, 50, 50, x, y, 0.0f, avgScale, tint);
 
     // Draw border for visibility
-    _graphics.DrawRectangleLines(static_cast<int>(entity.x - width / 2.0f),
-                                 static_cast<int>(entity.y - height / 2.0f), static_cast<int>(width),
-                                 static_cast<int>(height), 0x000000FF);
+    _graphics.DrawRectangleLines(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width),
+                                 static_cast<int>(height), 0xFF000000);
 
     // If destructible, show health bar
     if (entity.health > 0) {
-        renderHealthBar(entity.x, entity.y - height / 2.0f - 10.0f, entity.health, 100);
+        renderHealthBar(entity.x, y - 10.0f, entity.health, 100);
     }
 }
 

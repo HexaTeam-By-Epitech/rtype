@@ -7,6 +7,7 @@
 
 #include "CollisionSystem.hpp"
 #include "../../Components/IComponent.hpp"
+#include "../../Components/Wall.hpp"
 #include "common/Logger/Logger.hpp"
 
 namespace ecs {
@@ -43,12 +44,20 @@ namespace ecs {
 
                 if (checkAABB(transform1.getPosition(), collider1.getSize(), collider1.getOffset(),
                               transform2.getPosition(), collider2.getSize(), collider2.getOffset())) {
-                    // Handle player-collectible pickup
+                    // Check for wall collisions
+                    bool entity1IsWall = registry.hasComponent<Wall>(entity1);
+                    bool entity2IsWall = registry.hasComponent<Wall>(entity2);
                     bool entity1IsPlayer = registry.hasComponent<Player>(entity1);
                     bool entity2IsPlayer = registry.hasComponent<Player>(entity2);
                     bool entity1IsCollectible = registry.hasComponent<Collectible>(entity1);
                     bool entity2IsCollectible = registry.hasComponent<Collectible>(entity2);
 
+                    // Log wall collisions
+                    if ((entity1IsPlayer && entity2IsWall) || (entity2IsPlayer && entity1IsWall)) {
+                        LOG_INFO("[COLLISION] Player-Wall collision detected: E", entity1, " & E", entity2);
+                    }
+
+                    // Handle player-collectible pickup
                     if ((entity1IsPlayer && entity2IsCollectible) ||
                         (entity2IsPlayer && entity1IsCollectible)) {
                         LOG_DEBUG("[COLLISION] Player-Collectible collision detected: E", entity1, " & E",

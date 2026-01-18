@@ -962,6 +962,12 @@ float Rendering::GetReconciliationThreshold() const {
     return 5.0f;  // Default value
 }
 
+void Rendering::SetLocalPlayerMoving(bool moving) {
+    if (_entityRenderer) {
+        _entityRenderer->setLocalPlayerMoving(moving);
+    }
+}
+
 void Rendering::SetPing(uint32_t pingMs) {
     _currentPing = pingMs;
 }

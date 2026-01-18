@@ -496,7 +496,13 @@ void Server::_handlePlayerInput(HostNetworkEvent &event) {
         // Iterate through all snapshots in the redundant packet
         // The packet contains a history of inputs. We try to apply all of them.
         // GameLogic::processPlayerInput has a filter to ignore already processed sequence IDs.
-        for (const auto &snapshot : packet.inputs) {
+        auto snapshots = packet.inputs;
+        std::sort(snapshots.begin(), snapshots.end(),
+                  [](const C2S::PlayerInput::InputSnapshot &a, const C2S::PlayerInput::InputSnapshot &b) {
+                      return a.sequenceId < b.sequenceId;
+                  });
+
+        for (const auto &snapshot : snapshots) {
             int dx = 0;
             int dy = 0;
             bool shoot = false;
@@ -1053,6 +1059,8 @@ void Server::_broadcastGameState() {
             continue;
         }
 
+        std::shared_ptr<server::IGameLogic> gameLogic = room->getGameLogic();
+
         S2C::GameState state;
         state.serverTick = roomLoop->getCurrentTick();
 
@@ -1062,7 +1070,7 @@ void Server::_broadcastGameState() {
         // Serialize each entity's state
         for (auto &entity : entities) {
             try {
-                S2C::EntityState entityState = _serializeEntity(entity);
+                S2C::EntityState entityState = _serializeEntity(entity, gameLogic.get());
                 state.entities.push_back(entityState);
             } catch (const std::exception &e) {
                 LOG_ERROR("Failed to serialize entity: ", e.what());
@@ -1231,7 +1239,7 @@ void Server::_sendGameStartToRoom(std::shared_ptr<server::Room> room) {
     }
 
     // Use helper to serialize all entities once
-    auto entities = _serializeEntities(ecsWorld);
+    auto entities = _serializeEntities(ecsWorld, gameLogic.get());
 
     // (Re)send gamerules right before the game starts, in case they are room-specific.
     auto sendRulesToRecipient = [&](uint32_t recipientId) {
@@ -1350,7 +1358,7 @@ void Server::_sendGameStartToSpectator(uint32_t spectatorId, std::shared_ptr<ser
     server::GameruleBroadcaster::sendAllGamerules(peerIt->second, gameLogic->getGameRules());
 
     // Serialize all entities
-    auto entities = _serializeEntities(ecsWorld);
+    auto entities = _serializeEntities(ecsWorld, gameLogic.get());
 
     // Send GameStart with entityId = 0 (spectator has no controllable entity)
     S2C::GameStart gameStart;

@@ -18,11 +18,14 @@ struct EntityState {
   spriteW @7 :Int32;          # Sprite width
   spriteH @8 :Int32;          # Sprite height
   lastProcessedInput @9 :UInt32; # Sequence ID of the last input processed for this entity (for prediction)
+  velocity @10 :Vec2;         # Current velocity (for client-side extrapolation)
+  rotation @11 :Float32;      # Current rotation angle (for interpolation)
 }
 
 struct GameState {
   serverTick @0 :UInt32;
   entities @1 :List(EntityState);
+  serverTimestamp @2 :UInt64;  # Server timestamp in milliseconds (for interpolation)
 }
 
 struct GameStart {

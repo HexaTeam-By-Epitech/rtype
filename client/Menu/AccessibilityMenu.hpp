@@ -13,7 +13,6 @@
 
 #include "Graphics/IGraphics.hpp"
 #include "Menu/BaseMenu.hpp"
-#include "UI/ISlider.hpp"
 #include "UI/IUIFactory.hpp"
 
 namespace Game {
@@ -175,7 +174,6 @@ namespace Game {
 
         // Member variables
         Graphics::IGraphics &_graphics;
-        std::unique_ptr<UI::ISlider> _gameSpeedSlider;
 
         Mode _mode{Mode::FULLSCREEN};
         ColorblindFilter _colorblindFilter{ColorblindFilter::NONE};

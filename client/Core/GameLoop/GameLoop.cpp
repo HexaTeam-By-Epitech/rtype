@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include "../ClientGameRules.hpp"
 #include "GameruleKeys.hpp"
+#include "Input/KeyBindings.hpp"
 
 GameLoop::GameLoop(EventBus &eventBus, Replicator &replicator, const std::string &playerName)
     : _eventBus(&eventBus), _replicator(&replicator), _playerName(playerName) {}
@@ -343,6 +344,9 @@ void GameLoop::processInput() {
         return;
     }
 
+    // Get key bindings
+    auto &bindings = Input::KeyBindings::getInstance();
+
     // Collect all currently pressed actions
     std::vector<RType::Messages::Shared::Action> actions;
 
@@ -352,24 +356,32 @@ void GameLoop::processInput() {
     // Collect input directions first
     int dx = 0, dy = 0;
 
-    // ZQSD movement (French keyboard layout)
-    if (_rendering->IsKeyDown(KEY_W) || _rendering->IsKeyDown(KEY_Z)) {
+    // Helper lambda to check if an action's key is pressed
+    auto isActionDown = [this, &bindings](Input::GameAction action) {
+        int primary = bindings.GetPrimaryKey(action);
+        int secondary = bindings.GetSecondaryKey(action);
+        return (primary != KEY_NULL && _rendering->IsKeyDown(primary)) ||
+               (secondary != KEY_NULL && _rendering->IsKeyDown(secondary));
+    };
+
+    // Movement using configurable bindings
+    if (isActionDown(Input::GameAction::MOVE_UP)) {
         actions.push_back(RType::Messages::Shared::Action::MoveUp);
         dy = -1;
     }
-    if (_rendering->IsKeyDown(KEY_S)) {
+    if (isActionDown(Input::GameAction::MOVE_DOWN)) {
         actions.push_back(RType::Messages::Shared::Action::MoveDown);
         dy = 1;
     }
-    if (_rendering->IsKeyDown(KEY_A) || _rendering->IsKeyDown(KEY_Q)) {
+    if (isActionDown(Input::GameAction::MOVE_LEFT)) {
         actions.push_back(RType::Messages::Shared::Action::MoveLeft);
         dx = -1;
     }
-    if (_rendering->IsKeyDown(KEY_D)) {
+    if (isActionDown(Input::GameAction::MOVE_RIGHT)) {
         actions.push_back(RType::Messages::Shared::Action::MoveRight);
         dx = 1;
     }
-    if (_rendering->IsKeyDown(KEY_SPACE)) {
+    if (isActionDown(Input::GameAction::SHOOT)) {
         actions.push_back(RType::Messages::Shared::Action::Shoot);
     }
 

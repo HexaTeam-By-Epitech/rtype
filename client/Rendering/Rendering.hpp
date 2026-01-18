@@ -25,6 +25,7 @@
 #include "Menu/ConfirmQuitMenu.hpp"
 #include "Menu/ConnectionMenu.hpp"
 #include "Menu/CreateRoomMenu.hpp"
+#include "Menu/KeyBindingsMenu.hpp"
 #include "Menu/LoginMenu.hpp"
 #include "Menu/MainMenu.hpp"
 #include "Menu/RoomListMenu.hpp"
@@ -421,12 +422,14 @@ class Rendering {
     std::unique_ptr<Game::ConnectionMenu> _connectionMenu;
     std::unique_ptr<Game::SettingsMenu> _settingsMenu;
     std::unique_ptr<Game::AccessibilityMenu> _accessibilityMenu;
+    std::unique_ptr<Game::KeyBindingsMenu> _keyBindingsMenu;
     std::unique_ptr<Game::ConfirmQuitMenu> _confirmQuitMenu;
     std::unique_ptr<Game::LoginMenu> _loginMenu;
 
     bool _settingsOverlay = false;
     bool _confirmQuitOverlay = false;
     bool _loginOverlay = false;
+    bool _keyBindingsOverlay = false;
 
     // Selected server for connection
     std::string _selectedServerIp = "127.0.0.1";
@@ -473,6 +476,7 @@ class Rendering {
     void InitializeConfirmQuitMenu();
     void InitializeSettingsMenu();
     void InitializeAccessibilityMenu();
+    void InitializeKeyBindingsMenu();
     void InitializeMainMenu();
     void InitializeLoginMenu();
     void InitializeServerListMenu();
@@ -483,6 +487,10 @@ class Rendering {
     void InitializeConnectionMenu();
     void InitializeChatWidget();
     void SubscribeToConnectionEvents();
+
+    // ===== Accessibility settings persistence =====
+    void LoadAccessibilitySettings();
+    void SaveAccessibilitySettings();
 
     // ===== Helper methods for Render() to reduce cognitive complexity =====
 

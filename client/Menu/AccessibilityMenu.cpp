@@ -12,9 +12,7 @@
 
 namespace Game {
     AccessibilityMenu::AccessibilityMenu(UI::IUIFactory &uiFactory, Graphics::IGraphics &graphics)
-        : BaseMenu(uiFactory), _graphics(graphics) {
-        _gameSpeedSlider = _uiFactory.CreateSlider();
-    }
+        : BaseMenu(uiFactory), _graphics(graphics) {}
 
     void AccessibilityMenu::Initialize() {
         if (!_menu) {
@@ -38,36 +36,6 @@ namespace Game {
             const float start = -(totalHeight / 2.0f) + (buttonHeight / 2.0f);
             return start + (buttonHeight + spacing) * static_cast<float>(idx);
         };
-
-        // Initialize game speed slider
-        const float sliderWidth = 300.0f;
-        const float sliderHeight = 20.0f;
-        const float sliderTopMargin = 120.0f;
-
-        if (_gameSpeedSlider) {
-            _gameSpeedSlider->SetSize(sliderWidth, sliderHeight);
-            _gameSpeedSlider->SetMinValue(0.25f);  // 25% speed (very slow)
-            _gameSpeedSlider->SetMaxValue(1.0f);   // 100% speed (normal)
-            _gameSpeedSlider->SetValue(_gameSpeed);
-            _gameSpeedSlider->SetTrackColor(0xFF505050);
-            _gameSpeedSlider->SetFilledColor(0xFFFF9800);  // Orange for speed
-            _gameSpeedSlider->SetHandleColor(0xFFFFFFFF);
-            _gameSpeedSlider->SetHandleHoverColor(0xFFE0E0E0);
-            _gameSpeedSlider->SetAlign(UI::Align::CENTER_HORIZONTAL);
-            _gameSpeedSlider->ApplyAlignment();
-
-            float sliderX, sliderY;
-            _gameSpeedSlider->GetPosition(sliderX, sliderY);
-            _gameSpeedSlider->SetPosition(sliderX, sliderTopMargin);
-
-            _gameSpeedSlider->SetOnValueChanged([this](float value) {
-                _gameSpeed = ClampGameSpeed(value);
-                LOG_INFO("[AccessibilityMenu] Game speed changed: ", static_cast<int>(_gameSpeed * 100), "%");
-                if (_onGameSpeedChanged) {
-                    _onGameSpeedChanged(_gameSpeed);
-                }
-            });
-        }
 
         // Colorblind Filter button (cycles through filter types)
         _menu->AddButton(CreateCenteredButton(
@@ -109,9 +77,6 @@ namespace Game {
 
     void AccessibilityMenu::Update() {
         BaseMenu::Update();
-        if (_gameSpeedSlider && _menu && _menu->IsVisible()) {
-            _gameSpeedSlider->Update();
-        }
     }
 
     void AccessibilityMenu::Render() {
@@ -119,43 +84,14 @@ namespace Game {
             return;
         }
 
-        // Draw game speed settings section
-        if (_gameSpeedSlider) {
-            float sliderX, sliderY;
-            _gameSpeedSlider->GetPosition(sliderX, sliderY);
-
-            int screenWidth = _graphics.GetScreenWidth();
-
-            // Draw "ACCESSIBILITY SETTINGS" title at the very top
-            const char *title = "ACCESSIBILITY SETTINGS";
-            int titleFontSize = 24;
-            int titleWidth = static_cast<int>(strlen(title) * titleFontSize * 0.6f);
-            int titleX = (screenWidth - titleWidth) / 2;
-            int titleY = static_cast<int>(sliderY) - 65;
-
-            _graphics.DrawText(title, titleX, titleY, titleFontSize, 0xFF4CAF50);
-
-            // Draw "GAME SPEED:" label above slider
-            const char *label = "GAME SPEED:";
-            int fontSize = 18;
-            int labelWidth = static_cast<int>(strlen(label) * fontSize * 0.6f);
-            int labelX = (screenWidth - labelWidth) / 2;
-            int labelY = static_cast<int>(sliderY) - 30;
-
-            _graphics.DrawText(label, labelX, labelY, fontSize, 0xFFFFFFFF);
-
-            // Draw game speed percentage below slider
-            char speedText[32];
-            snprintf(speedText, sizeof(speedText), "%d%%", static_cast<int>(_gameSpeed * 100));
-            int speedTextWidth = static_cast<int>(strlen(speedText) * fontSize * 0.6f);
-            int speedTextX = (screenWidth - speedTextWidth) / 2;
-            int speedTextY = static_cast<int>(sliderY) + 35;
-
-            _graphics.DrawText(speedText, speedTextX, speedTextY, fontSize, 0xFFFF9800);
-
-            // Draw slider
-            _gameSpeedSlider->Render();
-        }
+        // Draw title
+        int screenWidth = _graphics.GetScreenWidth();
+        const char *title = "ACCESSIBILITY SETTINGS";
+        int titleFontSize = 24;
+        int titleWidth = static_cast<int>(strlen(title) * titleFontSize * 0.6f);
+        int titleX = (screenWidth - titleWidth) / 2;
+        int titleY = 80;
+        _graphics.DrawText(title, titleX, titleY, titleFontSize, 0xFF4CAF50);
 
         // Draw dim overlay if in overlay mode
         if (_mode == Mode::OVERLAY) {
@@ -244,9 +180,6 @@ namespace Game {
         float clampedSpeed = ClampGameSpeed(speed);
         if (_gameSpeed != clampedSpeed) {
             _gameSpeed = clampedSpeed;
-            if (_gameSpeedSlider) {
-                _gameSpeedSlider->SetValue(_gameSpeed);
-            }
             LOG_INFO("[AccessibilityMenu] Game speed set to: ", static_cast<int>(_gameSpeed * 100), "%");
             if (_onGameSpeedChanged) {
                 _onGameSpeedChanged(_gameSpeed);
@@ -264,9 +197,6 @@ namespace Game {
 
     void AccessibilityMenu::SetGameSpeedSilent(float speed) {
         _gameSpeed = ClampGameSpeed(speed);
-        if (_gameSpeedSlider) {
-            _gameSpeedSlider->SetValue(_gameSpeed);
-        }
     }
 
     // --- Key Bindings ---

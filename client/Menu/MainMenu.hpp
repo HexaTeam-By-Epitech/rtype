@@ -63,6 +63,11 @@ namespace Game {
 
         void Initialize() override;
 
+        /**
+         * @brief Show the menu and play the open sound effect.
+         */
+        void Show() override;
+
        private:
         void OnPlayClicked();
         void OnQuitClicked();

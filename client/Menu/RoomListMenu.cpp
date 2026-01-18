@@ -36,6 +36,13 @@ namespace Game {
         RebuildRoomList();
     }
 
+    void RoomListMenu::Show() {
+        BaseMenu::Show();
+        if (_soundService) {
+            _soundService->PlayRoomMenuOpenSound();
+        }
+    }
+
     void RoomListMenu::Initialize() {
         if (!_menu) {
             return;
@@ -65,7 +72,7 @@ namespace Game {
         createRoomPtr->SetBackgroundColor(0xFF4CAF50);  // Green
         createRoomPtr->SetHoverColor(0xFF66BB6A);
         createRoomPtr->SetTextColor(0xFFFFFFFF);
-        createRoomPtr->SetCallback([this]() { OnCreateRoomClicked(); });
+        createRoomPtr->SetCallback(WrapWithClickSound([this]() { OnCreateRoomClicked(); }));
 
         _createRoomButton = std::move(createRoomPtr);
         _menu->AddButton(_createRoomButton);
@@ -79,7 +86,7 @@ namespace Game {
         backPtr->SetBackgroundColor(0xFF424242);  // Dark gray
         backPtr->SetHoverColor(0xFF616161);
         backPtr->SetTextColor(0xFFFFFFFF);
-        backPtr->SetCallback([this]() { OnBackClicked(); });
+        backPtr->SetCallback(WrapWithClickSound([this]() { OnBackClicked(); }));
 
         _backButton = std::move(backPtr);
         _menu->AddButton(_backButton);
@@ -180,10 +187,10 @@ namespace Game {
 
             // Allow joining WAITING/STARTING normally and IN_PROGRESS as spectator
             if (room.state <= 2) {  // WAITING, STARTING, IN_PROGRESS
-                buttonPtr->SetCallback([this, index]() { OnRoomClicked(index); });
+                buttonPtr->SetCallback(WrapWithClickSound([this, index]() { OnRoomClicked(index); }));
             } else {
-                buttonPtr->SetCallback(
-                    []() { LOG_INFO("[RoomListMenu] Cannot join this room - game finished"); });
+                buttonPtr->SetCallback(WrapWithClickSound(
+                    []() { LOG_INFO("[RoomListMenu] Cannot join this room - game finished"); }));
             }
 
             std::shared_ptr<UI::IButton> button = std::move(buttonPtr);

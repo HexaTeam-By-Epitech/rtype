@@ -72,6 +72,11 @@ namespace Game {
         void Update() override;
         void Render() override;
 
+        /**
+         * @brief Show the menu and play the room menu open sound effect.
+         */
+        void Show() override;
+
        private:
         void OnRoomClicked(size_t index);
         void OnCreateRoomClicked();

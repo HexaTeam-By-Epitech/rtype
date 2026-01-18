@@ -181,6 +181,11 @@ void GameLoop::run() {
     } else {
         LOG_INFO("✓ Loaded Wall.png (obstacles)");
     }
+    if (!_rendering->LoadTexture("OrbitalModule", "assets/sprites/Module.gif")) {
+        LOG_WARNING("Failed to load Module.gif");
+    } else {
+        LOG_INFO("✓ Loaded Module.gif (orbital modules)");
+    }
 
     // Apply stored entity ID if GameStart was received before run()
     if (_myEntityId.has_value()) {

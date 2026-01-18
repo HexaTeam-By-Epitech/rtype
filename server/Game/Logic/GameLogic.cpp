@@ -35,6 +35,7 @@
 #include "common/ECS/Systems/ISystem.hpp"
 #include "common/ECS/Systems/MapSystem/MapSystem.hpp"
 #include "common/ECS/Systems/MovementSystem/MovementSystem.hpp"
+#include "common/ECS/Systems/OrbitalSystem/OrbitalSystem.hpp"
 #include "common/ECS/Systems/SpawnSystem/SpawnSystem.hpp"
 #include "common/ECS/Systems/WeaponSystem/WeaponSystem.hpp"
 #include "common/Logger/Logger.hpp"
@@ -92,6 +93,7 @@ namespace server {
 
             // Create and register all systems with ECSWorld in execution order
             _world->createSystem<ecs::MovementSystem>("MovementSystem");
+            _world->createSystem<ecs::OrbitalSystem>("OrbitalSystem");
             _world->createSystem<ecs::AnimationSystem>("AnimationSystem");
             _world->createSystem<ecs::MapSystem>("MapSystem");
             _world->createSystem<ecs::CollisionSystem>("CollisionSystem");
@@ -199,6 +201,19 @@ namespace server {
 
             LOG_INFO("✓ Player spawned at (", _gameRules.getPlayerSpawnX(), ", ",
                      _gameRules.getPlayerSpawnY(), ") with entity ID: ", entityAddress);
+
+            // Spawn orbital drone for the player
+            uint32_t droneId = ecs::PrefabFactory::createOrbitalModule(_world->getRegistry(), entityAddress,
+                                                                       90.0f,  // radius
+                                                                       1.2f,   // speed (rad/s)
+                                                                       0.0f,   // start angle
+                                                                       15,     // damage
+                                                                       50      // health
+            );
+
+            if (droneId != 0) {
+                LOG_INFO("✓ Orbital drone spawned for player (ID: ", droneId, ")");
+            }
 
             return entityAddress;
         } catch (const std::exception &e) {
@@ -415,7 +430,7 @@ namespace server {
         // Group systems by dependency - systems in the same group can run in parallel
 
         // Group 1: Independent systems (can run in parallel)
-        std::vector<std::string> group1 = {"MovementSystem"};
+        std::vector<std::string> group1 = {"MovementSystem", "OrbitalSystem"};
 
         // Group 2: Animation must run after Movement to update sprite frames
         std::vector<std::string> group2 = {"AnimationSystem"};

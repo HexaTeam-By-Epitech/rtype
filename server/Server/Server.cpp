@@ -19,6 +19,7 @@
 #include "common/ECS/Components/Enemy.hpp"
 #include "common/ECS/Components/Health.hpp"
 #include "common/ECS/Components/IComponent.hpp"
+#include "common/ECS/Components/OrbitalModule.hpp"
 #include "common/ECS/Components/MapData.hpp"
 #include "common/ECS/Components/PendingDestroy.hpp"
 #include "common/ECS/Components/Player.hpp"
@@ -1775,6 +1776,9 @@ RType::Messages::S2C::EntityState Server::_serializeEntity(ecs::wrapper::Entity 
         entityState.health = -1;  // Projectiles don't have health
     } else if (entity.has<ecs::Wall>()) {
         entityState.type = Shared::EntityType::Wall;
+        entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
+    } else if (entity.has<ecs::OrbitalModule>()) {
+        entityState.type = Shared::EntityType::OrbitalModule;
         entityState.health = entity.has<ecs::Health>() ? entity.get<ecs::Health>().getCurrentHealth() : -1;
     } else {
         // Unknown entity type - default to generic

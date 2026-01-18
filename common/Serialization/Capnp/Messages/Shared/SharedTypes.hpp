@@ -50,7 +50,14 @@ namespace RType::Messages::Shared {
     /**
      * @brief Entity type enum - matches Cap'n Proto enum
      */
-    enum class EntityType { Player = 0, EnemyType1 = 1, PlayerBullet = 2, EnemyBullet = 3, Wall = 4 };
+    enum class EntityType {
+        Player = 0,
+        EnemyType1 = 1,
+        PlayerBullet = 2,
+        EnemyBullet = 3,
+        Wall = 4,
+        OrbitalModule = 5
+    };
 
     /**
      * @brief Destroy reason enum - matches Cap'n Proto enum
@@ -102,6 +109,8 @@ namespace RType::Messages::Shared {
                 return ::EntityType::ENEMY_BULLET;
             case EntityType::Wall:
                 return ::EntityType::WALL;
+            case EntityType::OrbitalModule:
+                return ::EntityType::ORBITAL_MODULE;
         }
         UNREACHABLE();
     }
@@ -118,6 +127,8 @@ namespace RType::Messages::Shared {
                 return EntityType::EnemyBullet;
             case ::EntityType::WALL:
                 return EntityType::Wall;
+            case ::EntityType::ORBITAL_MODULE:
+                return EntityType::OrbitalModule;
         }
         UNREACHABLE();
     }

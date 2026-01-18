@@ -148,6 +148,22 @@ namespace ecs {
         static ecs::Address createWall(ecs::Registry &registry, float posX, float posY, float width,
                                        float height, bool destructible = false, int health = 0);
 
+        /**
+         * @brief Create an orbital module (drone) entity
+         * @param registry ECS registry
+         * @param parentEntityId ID of the entity to orbit around (typically player)
+         * @param orbitRadius Distance from parent center
+         * @param orbitSpeed Angular velocity in radians per second
+         * @param startAngle Initial angle in radians (default: 0)
+         * @param damage Damage dealt on contact with enemies
+         * @param moduleHealth Health points for the module
+         * @return Entity address or 0 if failed
+         */
+        static ecs::Address createOrbitalModule(ecs::Registry &registry, uint32_t parentEntityId,
+                                                float orbitRadius = 50.0f, float orbitSpeed = 2.0f,
+                                                float startAngle = 0.0f, int damage = 10,
+                                                int moduleHealth = 50);
+
        private:
         struct EnemySpawnData {
             float speed;

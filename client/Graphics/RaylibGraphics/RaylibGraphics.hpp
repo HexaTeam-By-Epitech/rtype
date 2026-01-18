@@ -90,10 +90,22 @@ namespace Graphics {
         void DrawRectangleLines(int x, int y, int width, int height, unsigned int color) override;
         void DrawText(const char *text, int x, int y, int fontSize, unsigned int color) override;
 
+        // Audio management
+        void InitAudioDevice() override;
+        void CloseAudioDevice() override;
+        bool IsAudioDeviceReady() const override;
+        bool LoadSound(const char *soundName, const char *filepath) override;
+        void UnloadSound(const char *soundName) override;
+        void PlaySound(const char *soundName) override;
+        void SetSoundVolume(const char *soundName, float volume) override;
+        bool IsSoundPlaying(const char *soundName) const override;
+
        private:
         std::vector<Font> _fonts;
         std::unordered_map<std::string, Texture2D> _textures;
+        std::unordered_map<std::string, Sound> _sounds;
         Color _clearColor{255, 255, 255, 255};
         bool _windowInitialized = false;
+        bool _audioInitialized = false;
     };
 }  // namespace Graphics
